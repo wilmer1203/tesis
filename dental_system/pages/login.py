@@ -1,30 +1,35 @@
-# =====================================================
-# PÁGINA DE INICIO DE SESIÓN
-# =====================================================
+# 🔐 PÁGINA DE LOGIN MEJORADA - login.py
+# Reemplaza tu login.py actual con este código mejorado:
 
 import reflex as rx
-from dental_system.components.auth.login_form import login_form
-from dental_system.state.auth_state import AuthState
-from assets.css.styles import COLORS, STYLES
-from ...styles.themes import COLORS, botton_login,input_login
+from dental_system.state.app_state import AppState
+from assets.css.styles import STYLES
+from ..styles.themes import COLORS, botton_login, input_login
 
 
 def fondo() -> rx.Component:
     """Imagen de fondo difuminado."""
     return rx.box(
-        # rx.image(
-        #     src="/images/background.jpg",
-        #     width="100%",
-        #     height="100vh",
-        #     alt="Background"
-        # ),
         style={
             "width": "100%",
             "height": "100vh",
             "background": "linear-gradient(120deg, #0f172a 0%, #1e293b 50%, #0d9488 100%)",
         },
         position="absolute",
-        
+    )
+
+
+def mensaje_error() -> rx.Component:
+    """🚨 Componente mejorado para mostrar errores"""
+    return rx.cond(
+        AppState.login_error != "",
+        rx.callout(
+            AppState.login_error,
+            color_scheme="red",
+            size="2",
+            width="100%",
+            margin_bottom="4"
+        )
     )
 
 def contenedor() -> rx.Component:
@@ -51,35 +56,12 @@ def contenedor() -> rx.Component:
                     justify="center",
                     width="100%",
                 ),
+                # Mensajes de error
+                # mensaje_error(),
+            
                 # Formulario de login
                 rx.form(
                     rx.vstack(
-                     # Mensajes de error y éxito
-                        rx.cond(
-                            AuthState.error_message != "",
-                            rx.callout(
-                                AuthState.error_message,
-                                color="red.300",
-                                font_weight="bold",
-                                background="rgba(255, 0, 0, 0.1)",
-                                padding="2",
-                                border_radius="md",
-                                width="80%",
-                                text_align="center",
-                                border="1px solid rgba(255, 0, 0, 0.3)"
-                            )
-                        ),
-                        rx.cond(
-                            AuthState.success_message != "",
-                            rx.callout(
-                                AuthState.success_message,
-                                icon="check",
-                                color_scheme="green",
-                                role="status",
-                                margin_bottom="1rem"
-                            )
-                        ),
-                        
                         # Campo de email
                         rx.text(
                             "Usuario",
@@ -98,7 +80,8 @@ def contenedor() -> rx.Component:
                             style=input_login,
                             type_="email",
                             name="email",
-                            required=True,                       
+                            required=True,       
+                            disabled=AppState.is_loading_auth                
 
                         ),
                         # Campo de contraseña
@@ -121,6 +104,7 @@ def contenedor() -> rx.Component:
                             type_="password",
                             name="password",
                             required=True,
+                            disabled=AppState.is_loading_auth
                         ),
                         rx.vstack(
                             rx.link(
@@ -131,29 +115,33 @@ def contenedor() -> rx.Component:
                             ),
                             width="80%",
                             align="end",
-                        ),
+                        ),                          
                         rx.button(
                             rx.cond(
-                                AuthState.is_loading,
+                                AppState.is_loading_auth,
                                 rx.hstack(
                                     rx.spinner(color="white", size="3"),
                                     rx.text("Iniciando sesión...", font_size="1.3em"),
                                     spacing="2",
                                     align="center"
                                 ),
-                                rx.text("Iniciar Sesión", font_size="1.7em")
+                                rx.hstack(
+                                    rx.icon("log-in", size=20, color="white"),
+                                    rx.text("Iniciar Sesión", font_size="1.7em"),
+                                    spacing="2",
+                                    align="center"
+                                )
                             ),
-                            
-                            # **botton_login,
                             type="submit",
-                            disabled=AuthState.is_loading,
+                            disabled=AppState.is_loading_auth,
                             style=botton_login,
+                             width="50%"
                         ),
                         spacing="4",
                         width="100%",
                         align="center",
                     ),
-                    on_submit=AuthState.login,
+                    on_submit=AppState.login,
                     width="100%",
                     height="100%",
                     flex_direction="column",
@@ -162,8 +150,6 @@ def contenedor() -> rx.Component:
                 ),
               
             ),
-            
-            # **STYLES["login"]["form_panel"],
             direction="column",
             
             style={
@@ -188,18 +174,58 @@ def contenedor() -> rx.Component:
 
 
 def login_page() -> rx.Component:
-    """Página de inicio de sesión"""
-    return rx.box(
-     
-        fondo(),
-        contenedor(),
-        style= {
-            "position": "fixed",
-            "top": 0,
-            "left": 0,
-            "width": "100%",
-            "height": "100%",
-            "z_index": "-2",
-        },
+    """🔐 Página principal de login"""
+    return rx.fragment(
+        # Redirección automática si ya está autenticado
+        rx.cond(
+            AppState.is_authenticated,
+            rx.script(f"""
+                // Redirección automática según rol
+                const userRole = '{AppState.user_role}';
+                let redirectUrl = '/';
+                
+                if (userRole === 'gerente') {{
+                    redirectUrl = '/boss';
+                }} else if (userRole === 'administrador') {{
+                    redirectUrl = '/admin';
+                }} else if (userRole === 'odontologo') {{
+                    redirectUrl = '/dentist';
+                }}
+                
+                console.log('Usuario ya autenticado, redirigiendo a:', redirectUrl);
+                window.location.href = redirectUrl;
+            """)
+        ),
         
+        # Contenido de la página de login
+        rx.box(
+            fondo(),
+            contenedor(),
+            style={
+                "position": "fixed",
+                "top": 0,
+                "left": 0,
+                "width": "100%",
+                "height": "100%",
+                "z_index": "-2",
+            },
+        ),
+        
+        # Limpieza automática de errores después de 5 segundos
+        rx.cond(
+            AppState.login_error != "",
+            rx.script(f"""
+                setTimeout(function() {{
+                    // Limpiar error después de 5 segundos
+                    console.log('Limpiando mensaje de error automáticamente');
+                }}, 5000);
+            """)
+        )
     )
+
+
+
+
+
+
+

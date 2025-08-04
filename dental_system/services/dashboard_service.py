@@ -26,7 +26,7 @@ class DashboardService(BaseService):
         Obtiene estadísticas del dashboard según el rol del usuario
         
         Args:
-            user_role: Rol del usuario (gerente, administrador)
+            user_role: Rol del usuario (gerente, administrador,odontologo)
             
         Returns:
             Diccionario con estadísticas apropiadas para el rol

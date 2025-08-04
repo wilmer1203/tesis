@@ -1,6 +1,7 @@
 import reflex as rx
 from typing import List, Dict, Any, Optional
-from dental_system.styles.themes import COLORS, SHADOWS, RADIUS
+from ..state.app_state import AppState
+from dental_system.styles.themes import COLORS, SHADOWS, ROLE_THEMES,RADIUS
 
 # ==========================================
 # COMPONENTES DE BOTONES
@@ -31,7 +32,7 @@ def primary_button(
                 align="center"
             )
         ),
-        background=COLORS["primary"]["500"],
+        background=f"linear-gradient(135deg, {COLORS['primary']['500']} 0%, {COLORS['blue']['600']} 100%)",
         color="white",
         border="none",
         border_radius="8px",
@@ -68,7 +69,7 @@ def secondary_button(
         color=COLORS["gray"]["600"],
         border=f"1px solid {COLORS['gray']['300']}" if variant == "outline" else "none",
         border_radius="8px",
-        padding="8px 16px",
+        padding="12px 20px",
         font_weight="500",
         font_size="14px",
         cursor="pointer",
@@ -251,7 +252,7 @@ def stat_card(
     """Tarjeta de estadística con trend opcional"""
     final_color = color if color else COLORS["primary"]["500"]
     trend_var = rx.Var.create(trend_value)
-    return rx.box(
+    return rx.card(
         rx.vstack(
             rx.hstack(
                 rx.box(
@@ -309,5 +310,310 @@ def stat_card(
             "transform": "translateY(-2px)"
         },
         transition="all 0.2s ease",
+        width="100%"
+    )
+
+def page_header(
+    title: str,
+    subtitle: Optional[str] = None,
+    actions: Optional[List[rx.Component]] = None
+) -> rx.Component:
+    """
+    📄 Header universal para todas las páginas
+    
+    Reemplaza todos los headers duplicados que tienes
+    """
+    return rx.box(
+        rx.hstack(
+            rx.vstack(
+                rx.text(
+                    title,
+                    size="7",
+                    weight="bold",
+                    color=COLORS["gray"]["800"]
+                ),
+                rx.text(
+                    subtitle,
+                    size="4",
+                    color=COLORS["gray"]["600"]
+                ),
+                spacing="1",
+                align_items="start"
+            ),
+            rx.spacer(),
+            rx.hstack(
+                *actions if actions else [],
+                spacing="3",
+                align="center"
+            ),
+            width="100%",
+            align="center"
+        ),
+        padding="12px 24px",
+        background="white",
+        border_bottom=f"1px solid {COLORS['gray']['200']}",
+        position="sticky",
+        top="0",
+        z_index="100"
+    )
+    
+    
+def sidebar() -> rx.Component:
+    """🎯 Sidebar unificado que se adapta al rol"""
+    return rx.box(
+        rx.vstack(
+            # Header del sidebar
+            rx.hstack(
+                rx.image(
+                    src="/images/logo-odontomara.png",
+                    width="50px",
+                    border_radius="50%"
+                ),
+                rx.vstack(
+                    rx.text("Odontomara", size="5", weight="bold", color=COLORS["secondary"]["700"],text_shadow=SHADOWS["xl"]),
+                    rx.text(AppState.user_role.title(), size="2",  color=COLORS["gray"]["500"]),
+                    spacing="0",
+                    align_items="start"
+                ),
+                spacing="3",
+                align="center",
+                padding="20px",
+                border_bottom=f"1px solid {COLORS['gray']['200']}"
+            ),
+            
+            # Navegación
+            rx.vstack(
+                _nav_item("Dashboard", "home", "dashboard"),
+                _nav_item("Pacientes", "users", "pacientes"),
+                _nav_item("Consultas", "calendar", "consultas"),
+                
+                # Opciones específicas por rol
+                rx.cond(
+                    AppState.user_role == "gerente",
+                    rx.fragment(
+                        _nav_item("Personal", "user-plus", "personal"),
+                        _nav_item("Servicios", "list", "servicios"),
+                        _nav_item("Reportes", "bar-chart", "reportes")
+                    )
+                ),
+                
+                rx.cond(
+                    AppState.user_role == "administrador",
+                    _nav_item("Pagos", "credit-card", "pagos")
+                ),
+                
+                rx.cond(
+                    AppState.user_role == "odontologo",
+                    _nav_item("Odontología", "tooth", "odontologia")
+                ),
+                
+                spacing="2",
+                align_items="stretch",
+                width="100%",
+                padding="15px"
+            ),
+            
+            rx.spacer(),
+            
+            # Footer del sidebar
+            rx.box(
+               secondary_button(
+                    text="Cerrar Sesión",
+                    icon="log-out",
+                    on_click=AppState.logout_user,
+                    variant="ghost" 
+                ), 
+                width="100%",
+                # margin="24px",
+                padding="20px 18px",
+               
+            ),
+            spacing="5",
+            height="100%",
+            width="100%",
+        ),
+        
+        width="220px",
+        height="100%",
+        background="white",
+        border_right=f"1px solid {COLORS['gray']['200']}",
+        # overflow_y="auto"
+    )
+    
+    
+def _nav_item(label: str, icon: str, page: str) -> rx.Component:
+    """🧭 Item de navegación"""
+    is_active = AppState.current_page == page
+    
+    return rx.box(
+        rx.hstack(
+            rx.icon(icon, size=18),
+            rx.text(label, size="3",weight="medium"),
+            spacing="3",
+            align="center"
+        ),
+        padding="12px 16px",
+        border_radius="8px",
+        background=rx.cond(is_active, f"{ROLE_THEMES['gerente']['gradient']}", "transparent"),
+        color=rx.cond(is_active,  "white", COLORS["gray"]["600"]),
+        cursor="pointer",
+        width="100%",
+        transition="all 0.2s ease",
+        _hover={
+            "background": rx.cond(is_active,f"{ROLE_THEMES['gerente']['gradient']}",  COLORS["gray"]["50"])
+        },
+        on_click=lambda: AppState.navigate_to(page) # type: ignore
+    )
+
+
+
+# # ==========================================
+# # ✅ TABLA DE PACIENTES CORREGIDA
+# # ==========================================
+
+def paciente_table_row(paciente_data) -> rx.Component:
+    """✅ CORREGIDA: Fila individual de la tabla de pacientes con campos separados"""
+    return rx.hstack(
+        # ✅ INFORMACIÓN PRINCIPAL - USANDO nombre_completo del modelo
+        rx.vstack(
+            rx.text(
+               rx.cond(
+                    paciente_data.primer_nombre,
+                    f"{paciente_data.primer_nombre} {paciente_data.primer_apellido}".strip(),
+                    "N/A"
+               ),
+                size="3", 
+                weight="medium",
+                color=COLORS["gray"]["800"]
+            ),
+            rx.text(
+                rx.cond(
+                    paciente_data.numero_historia,
+                    f"HC: {paciente_data.numero_historia}",
+                    'Sin asignar'
+                ),        
+                size="2", 
+                color=COLORS["gray"]["500"]
+            ),
+            spacing="1",
+            align="center",
+            flex="3"
+        ),
+        
+        # ✅ DOCUMENTO - SIN CAMBIOS
+        rx.vstack(
+            rx.text(
+                f"{paciente_data.tipo_documento}-{paciente_data.numero_documento}",
+                size="3", 
+                color=COLORS["gray"]["700"]
+            ),
+            rx.text(
+                f"edad: {paciente_data.edad}".strip(),
+                size="2",
+                color=COLORS["gray"]["500"]
+            ),
+            spacing="1",
+            align="center",
+            flex="2"
+        ),
+        
+        # ✅ GÉNERO - SIN CAMBIOS
+        rx.badge(
+            paciente_data.genero,
+            variant="soft",
+            color_scheme=rx.match(
+                paciente_data.genero,
+                ("masculino", "blue"),
+                ("femenino", "pink"),
+                ("otro", "gray"),
+                "gray"
+            ),
+            align="center",
+            flex="1"
+        ),
+        
+        # ✅ CONTACTO - ACTUALIZADO PARA USAR telefono_display
+        rx.vstack(
+            rx.text(
+                f"{paciente_data.telefono_1}".strip(),  # ✅ Usa la propiedad que maneja telefono_1 y telefono_2
+                size="3", 
+                color=COLORS["gray"]["600"]
+            ),
+            rx.text(
+                rx.cond(
+                    paciente_data.email,
+                    paciente_data.email,
+                    "Sin email"
+                ),
+                size="2",
+                color=COLORS["gray"]["500"]
+            ),
+            spacing="1",
+            align="center",
+            flex="3"
+        ),
+        
+        # ✅ ESTADO - SIN CAMBIOS
+        rx.badge(
+            paciente_data.activo,
+            variant="soft",
+            color_scheme=rx.match(
+                paciente_data.activo,
+                (True, "green"),
+                (False, "red"),
+                "gray"
+            ),
+            
+            align="center",
+            flex="1"
+        ),
+        
+        # # ✅ ACCIONES - SIN CAMBIOS
+        # rx.hstack(
+        #     rx.tooltip(
+        #         rx.button(
+        #             rx.icon("edit", size=16),
+        #             size="2",
+        #             variant="ghost",
+        #             color=COLORS["primary"]["500"],
+        #             on_click=lambda: AdminState.open_paciente_modal(paciente_data)
+        #         ),
+        #         content="Editar paciente"
+        #     ),
+        #     rx.tooltip(
+        #         rx.button(
+        #             rx.icon("trash-2", size=16),
+        #             size="2",
+        #             variant="ghost",
+        #             color=COLORS["error"],
+        #             on_click=lambda: AdminState.open_delete_confirmation(paciente_data)
+        #         ),
+        #         content="Eliminar paciente"
+        #     ),
+        #     # Botón de reactivar solo si está inactivo
+        #     rx.cond(
+        #         paciente_data.activo == False,
+        #         rx.tooltip(
+        #             rx.button(
+        #                 rx.icon("refresh-cw", size=16),
+        #                 size="2",
+        #                 variant="ghost",
+        #                 color=COLORS["success"],
+        #                 on_click=lambda: AdminState.reactivate_paciente(paciente_data)
+        #             ),
+        #             content="Reactivar paciente"
+        #         ),
+        #         rx.box()
+        #     ),
+        #     spacing="1",
+        #     align="center",
+        #     flex="1"
+        # ),
+        
+        spacing="4",
+        align="center",
+        padding="16px 20px",
+        border_bottom=f"1px solid {COLORS['gray']['100']}",
+        _hover={"background": COLORS["gray"]["50"]},
         width="100%"
     )

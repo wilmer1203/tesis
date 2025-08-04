@@ -22,10 +22,12 @@ class PacientesService(BaseService):
         super().__init__()
         self.table = pacientes_table
   
+    
+    
     async def get_filtered_patients(self, 
                                   search: str = None, 
                                   genero: str = None, 
-                                  activos_only: bool = True) -> List[PacienteModel]:
+                                  activos_only: Optional[bool] = True) -> List[PacienteModel]:
         """
         Obtiene pacientes filtrados 
         
@@ -56,7 +58,7 @@ class PacientesService(BaseService):
                     logger.warning(f"Error convirtiendo paciente: {e}")
                     continue
             
-            logger.info(f"✅ Pacientes obtenidos: {len(pacientes_models)} registros")
+            print(f"✅ Pacientes obtenidos: {len(pacientes_models)} registros")
             return pacientes_models
             
         except PermissionError:
@@ -363,18 +365,7 @@ class PacientesService(BaseService):
         except Exception as e:
             self.handle_error("Error obteniendo paciente por ID", e)
             return None
-    
-    async def search_patients(self, search_term: str) -> List[PacienteModel]:
-        """
-        Busca pacientes por término general
-        
-        Args:
-            search_term: Término de búsqueda
-            
-        Returns:
-            Lista de pacientes encontrados
-        """
-        return await self.get_filtered_patients(search=search_term)
+
     
     async def get_patient_stats(self) -> Dict[str, Any]:
         """

@@ -109,7 +109,7 @@ class PacientesTable(BaseTable):
     @handle_supabase_error
     def get_filtered_patients(
         self,
-        activos_only: bool = True,
+        activos_only: Optional[bool] = True,
         busqueda: Optional[str] = None,
         genero: Optional[str] = None,
         limit: int = 100
@@ -122,8 +122,10 @@ class PacientesTable(BaseTable):
             query = self.table.select("*")
             
             # Filtro por estado activo
-            if activos_only:
-                query = query.eq("activo", True)
+            if activos_only is True:
+                query = query.eq("activo", True)  # Solo activos
+            elif activos_only is False:
+                query = query.eq("activo", False)
             
             # Filtro por género
             if genero:
@@ -203,13 +205,6 @@ class PacientesTable(BaseTable):
         response = self.table.select("*").eq("numero_historia", numero_historia).execute()
         return response.data[0] if response.data else None
     
-    @handle_supabase_error
-    def search_patients(self, search_term: str) -> List[Dict[str, Any]]:
-        """Busca pacientes por término general"""
-        return self.get_filtered_patients(
-            activos_only=True,
-            busqueda=search_term
-        )
     
     @handle_supabase_error
     def deactivate_patient(self, patient_id: str, motivo: Optional[str] = None) -> Dict[str, Any]:
@@ -286,22 +281,6 @@ class PacientesTable(BaseTable):
                 "mujeres": 0
             }
     
-    # @handle_supabase_error
-    # def get_patients_by_age_range(self, min_age: int, max_age: int) -> List[Dict[str, Any]]:
-    #     """Obtiene pacientes en un rango de edad"""
-    #     return self.get_filtered_patients(
-    #         activos_only=True,
-    #         edad_min=min_age,
-    #         edad_max=max_age
-    #     )
-    
-    @handle_supabase_error
-    def get_patients_by_gender(self, genero: str) -> List[Dict[str, Any]]:
-        """Obtiene pacientes por género"""
-        return self.get_filtered_patients(
-            activos_only=True,
-            genero=genero
-        )
     
     @handle_supabase_error
     def update_medical_info(self, 

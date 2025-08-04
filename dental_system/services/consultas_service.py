@@ -7,7 +7,7 @@ from typing import Dict, List, Optional, Any
 from datetime import date, datetime
 from .base_service import BaseService
 from dental_system.supabase.tablas import consultas_table, personal_table, services_table
-from dental_system.models import ConsultaModel
+from dental_system.models import ConsultaModel, PersonalModel
 import logging
 
 logger = logging.getLogger(__name__)
@@ -263,7 +263,6 @@ class ConsultasService(BaseService):
             True si se cambió correctamente
         """
         try:
-            logger.info(f"Cambiando estado de consulta {consultation_id} a {nuevo_estado}")
             
             # Verificar permisos
             self.require_permission("consultas", "actualizar")
@@ -301,7 +300,7 @@ class ConsultasService(BaseService):
         
         return nuevo_estado in valid_transitions.get(estado_actual, [])
     
-    async def get_support_data(self) -> Dict[str, List[Dict[str, Any]]]:
+    async def get_support_data(self) -> List[Dict[str, Any]]:
         """
         Obtiene datos de apoyo para consultas (odontólogos, servicios)
         REEMPLAZA múltiples métodos duplicados
@@ -315,55 +314,29 @@ class ConsultasService(BaseService):
             # Obtener odontólogos activos
             odontologos_data  = self.personal_table.get_dentists(incluir_inactivos=False)
             
-            # Obtener servicios activos
-            servicios_data = await self._get_active_services()
+            # # Obtener servicios activos
+            # servicios_data = await self._get_active_services()
             
-            return {
-                "odontologos": odontologos_data,
-                "servicios": servicios_data
-            }
-            
+            return odontologos_data
+                
         except Exception as e:
             self.handle_error("Error obteniendo datos de apoyo", e)
-            return {
-                "odontologos": [],
-                "servicios": []
-            }
+            return []
     
     async def _get_active_dentists(self) -> List[Dict[str, Any]]:
         """Obtiene lista de odontólogos activos"""
         try:
             # Usar método existente con fallback
             odontologos_data = self.personal_table.get_dentists(incluir_inactivos=False)
-            print("-*********************************************************")
-            print(odontologos_data)
+            
             processed_dentists = []
             for item in odontologos_data:
-                # Manejo robusto de nombres desde vista
-                nombre_completo = ""
-                
-                if 'nombre_completo' in item:
-                    nombre_completo = item['nombre_completo']
-                else:
-                    # Fallback: construir desde campos separados
-                    nombres = []
-                    if item.get('primer_nombre'):
-                        nombres.append(item['primer_nombre'])
-                    if item.get('segundo_nombre'):
-                        nombres.append(item['segundo_nombre'])
-                    if item.get('primer_apellido'):
-                        nombres.append(item['primer_apellido'])
-                    if item.get('segundo_apellido'):
-                        nombres.append(item['segundo_apellido'])
-                    nombre_completo = ' '.join(nombres) if nombres else 'Sin nombre'
-                
-                processed_dentists.append({
-                    'id': item.get('id', ''),
-                    'nombre_completo': nombre_completo,
-                    'especialidad': item.get('especialidad', ''),
-                    'estado_laboral': item.get('estado_laboral', 'activo'),
-                    'tipo_personal': item.get('tipo_personal', 'Odontólogo')
-                })
+                try:
+                    model = PersonalModel.from_dict(item)
+                    processed_dentists.append(model)
+                except Exception as e:
+                    logger.warning(f"Error convirtiendo personal: {e}")
+                    continue
             
             return processed_dentists
             
@@ -415,9 +388,6 @@ class ConsultasService(BaseService):
             self.handle_error("Error obteniendo consulta por ID", e)
             return None
     
-    async def cancel_consultation(self, consultation_id: str, motivo: str) -> bool:
-        """Cancela una consulta con motivo"""
-        return await self.change_consultation_status(consultation_id, "cancelada", motivo)
     
     async def confirm_consultation(self, consultation_id: str) -> bool:
         """Confirma una consulta programada"""
@@ -427,6 +397,78 @@ class ConsultasService(BaseService):
         """Marca una consulta como no asistida"""
         return await self.change_consultation_status(consultation_id, "no_asistio")
 
+    async def get_filtered_consultations_advanced(self,
+                                           search: str = None,
+                                           estado: str = None,
+                                           odontologo_id: str = None,
+                                           tipo_consulta: str = None,
+                                           fecha_inicio: date = None,
+                                           fecha_fin: date = None,
+                                           order_by_recent: bool = True) -> List[ConsultaModel]:
+        """
+        Obtiene consultas con filtros avanzados - ALIAS para compatibilidad
+        """
+        return await self.get_filtered_consultations(
+            estado=estado,
+            odontologo_id=odontologo_id,
+            search=search,
+            fecha_inicio=fecha_inicio,
+            fecha_fin=fecha_fin
+        )
+
+    async def cancel_consultation(self, consultation_id: str, motivo: str = None) -> bool:
+        """
+        Cancela una consulta con motivo específico
+        
+        Args:
+            consultation_id: ID de la consulta
+            motivo: Motivo de la cancelación
+            
+        Returns:
+            True si se canceló correctamente
+        """
+        try:
+            logger.info(f"Cancelando consulta: {consultation_id}")
+            
+            # Verificar permisos
+            self.require_permission("consultas", "actualizar")
+            
+            # Obtener consulta actual para validar
+            consulta_actual = self.consultas_table.get_by_id(consultation_id)
+            if not consulta_actual:
+                raise ValueError("Consulta no encontrada")
+            
+            # Validar que se pueda cancelar
+            if consulta_actual.get("estado") in ["completada"]:
+                raise ValueError("No se puede cancelar una consulta completada")
+            
+            # Actualizar con motivo en observaciones
+            data = {
+                "estado": "cancelada",
+                "observaciones_cita": f"CANCELADA: {motivo}" if motivo else "CANCELADA"
+            }
+            
+            result = self.consultas_table.update(consultation_id, data)
+            
+            if result:
+                logger.info(f"✅ Consulta cancelada: {consultation_id}")
+                return True
+            else:
+                raise ValueError("Error actualizando consulta en la base de datos")
+                
+        except PermissionError:
+            logger.warning("Usuario sin permisos para cancelar consultas")
+            raise
+        except Exception as e:
+            self.handle_error("Error cancelando consulta", e)
+            raise ValueError(f"Error inesperado: {str(e)}")
+
+    async def get_support_data_for_consultas(self) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        Obtiene datos de apoyo para consultas (odontólogos y servicios)
+        ALIAS para compatibilidad con AppState
+        """
+        return await self.get_support_data()
 
 # Instancia única para importar
 consultas_service = ConsultasService()

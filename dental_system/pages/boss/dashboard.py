@@ -5,12 +5,12 @@ Incluye sidebar de navegación y contenido dinámico según la página seleccion
 
 import reflex as rx
 from dental_system.components.role_specific.boss import boss_sidebar
-from dental_system.state.boss_state import BossState
+from dental_system.state.app_state import AppState
 from dental_system.state.admin_state import AdminState  
-from dental_system.pages.boss.reports.dashboard import boss_dashboard
-from dental_system.pages.boss.staff.list import personal_management_page
-from dental_system.pages.admin.patients.list import patients_management
-from dental_system.pages.admin.consultas_page import consultas_management
+from dental_system.pages.dashboard import boss_dashboard
+from dental_system.pages.personal_page import personal_management_page
+from dental_system.pages.pacientes_page import patients_management
+from dental_system.pages.consultas_page import consultas_management
 from dental_system.styles.themes import COLORS
 
 # ==========================================
@@ -26,7 +26,7 @@ def servicios_page_placeholder() -> rx.Component:
             rx.text("Aquí podrás gestionar el catálogo de servicios", text_align="center"),
             rx.button(
                 "Volver al Dashboard",
-                on_click=lambda: BossState.navigate_to("dashboard"),
+                on_click=lambda: AppState.navigate_to("dashboard"),
                 color_scheme="teal"
             ),
             spacing="4",
@@ -114,7 +114,7 @@ def consultas_view_page() -> rx.Component:
             
             rx.button(
                 "Volver al Dashboard",
-                on_click=lambda: BossState.navigate_to("dashboard"),
+                on_click=lambda: AppState.navigate_to("dashboard"),
                 color_scheme="teal",
                 margin_top="20px"
             ),
@@ -207,7 +207,7 @@ def pagos_view_page() -> rx.Component:
             
             rx.button(
                 "Volver al Dashboard",
-                on_click=lambda: BossState.navigate_to("dashboard"),
+                on_click=lambda: AppState.navigate_to("dashboard"),
                 color_scheme="teal",
                 margin_top="20px"
             ),
@@ -253,10 +253,10 @@ def boss_layout() -> rx.Component:
         # Contenido principal
         rx.box(
             main_content(),
-            margin_left=rx.cond(BossState.sidebar_collapsed, "80px", "280px"),
+            margin_left=rx.cond(AppState.sidebar_collapsed, "80px", "280px"),
             transition="margin-left 0.3s ease",
             width=rx.cond(
-                BossState.sidebar_collapsed, 
+                AppState.sidebar_collapsed, 
                 "calc(100% - 80px)", 
                 "calc(100% - 280px)"
             ),

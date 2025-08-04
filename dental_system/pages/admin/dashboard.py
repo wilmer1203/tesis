@@ -6,8 +6,8 @@ Incluye sidebar de navegación y contenido dinámico según la página seleccion
 import reflex as rx
 from dental_system.components.role_specific.admin import admin_sidebar
 from dental_system.state.admin_state import AdminState
-from dental_system.pages.admin.patients.list import patients_management_page  # ✅ IMPORTAR GESTIÓN DE PACIENTES
-from dental_system.pages.admin.consultas_page import consultas_management  # ✅ IMPORTAR GESTIÓN DE CONSULTAS
+from dental_system.pages.pacientes_page import patients_management_page  # ✅ IMPORTAR GESTIÓN DE PACIENTES
+from dental_system.pages.consultas_page import consultas_management  # ✅ IMPORTAR GESTIÓN DE CONSULTAS
 from dental_system.styles.themes import COLORS
 
 # ==========================================
