@@ -457,3 +457,7 @@ class PersonalTable(BaseTable):
                 "asistentes": 0,
                 "gerentes": 0
             }
+
+
+# Instancia única para importar
+personal_table = PersonalTable()

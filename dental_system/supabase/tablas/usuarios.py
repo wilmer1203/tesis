@@ -352,3 +352,4 @@ class UsersTable(BaseTable):
 
 # Instancia única para importar  
 users_table = UsersTable()
+usuarios_table = users_table  # Alias para consistencia

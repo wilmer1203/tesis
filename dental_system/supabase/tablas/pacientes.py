@@ -109,7 +109,7 @@ class PacientesTable(BaseTable):
     @handle_supabase_error
     def get_filtered_patients(
         self,
-        activos_only: Optional[bool] = True,
+        activos_only: Optional[bool] = None,
         busqueda: Optional[str] = None,
         genero: Optional[str] = None,
         limit: int = 100

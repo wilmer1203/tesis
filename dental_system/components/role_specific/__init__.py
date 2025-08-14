@@ -1,1 +1,0 @@
-"""Componentes específicos por rol"""

@@ -404,3 +404,8 @@ class PaymentsTable(BaseTable):
                     balance["saldo_pendiente"] += pago.get("saldo_pendiente", 0)
         
         return balance
+
+
+# Instancia única para importar  
+payments_table = PaymentsTable()
+pagos_table = payments_table  # Alias para consistencia

@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "Bash(del test_odontologia.py)",
+      "Bash(rm:*)",
+      "Bash(cp:*)",
+      "Bash(timeout 15 reflex run:*)",
+      "Bash(timeout 10 reflex run:*)",
+      "Bash(timeout 20 reflex run:*)",
+      "Bash(rg:*)",
+      "Bash(timeout 30 reflex run:*)",
+      "Bash(timeout:*)",
+      "Bash(grep:*)",
+      "WebFetch(domain:docs.reflex.dev)",
+      "Bash(git add:*)",
+      "Bash(reflex run:*)",
+      "Bash(reflex init:*)",
+      "Bash(bun install:*)",
+      "Bash(pip show:*)",
+      "Bash(reflex:*)"
+    ],
+    "deny": []
+  }
+}

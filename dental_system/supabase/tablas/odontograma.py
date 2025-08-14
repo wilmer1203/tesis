@@ -2,7 +2,7 @@
 Operaciones CRUD para las tablas odontograma y condiciones_diente
 """
 from typing import Dict, List, Optional, Any, Tuple
-from datetime import datetime
+from datetime import datetime, date
 from .base import BaseTable
 from ..client import handle_supabase_error
 import logging
@@ -475,3 +475,7 @@ class OdontogramsTable(BaseTable):
         ).order("posicion_en_cuadrante").execute()
         
         return response.data
+
+
+# Instancia única para importar
+odontograms_table = OdontogramsTable()

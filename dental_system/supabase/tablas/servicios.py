@@ -266,3 +266,8 @@ class ServicesTable(BaseTable):
         
         logger.info(f"Duplicando servicio {original['nombre']} como {nuevo_nombre}")
         return self.create(nuevo_servicio)
+
+
+# Instancia única para importar
+services_table = ServicesTable()
+servicios_table = services_table  # Alias para consistencia

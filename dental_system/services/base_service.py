@@ -34,7 +34,7 @@ class BaseService:
         
         # NUEVO: Debug para verificar el contexto
         user_role = self._extract_user_role()
-        print(f"[DEBUG] 🔧 BaseService.set_user_context - Usuario: {user_id}, Rol: {user_role}")
+        print(f"[DEBUG] BaseService.set_user_context - Usuario: {user_id}, Rol: {user_role}")
     
     def _extract_user_role(self) -> str:
         """
@@ -114,9 +114,9 @@ class BaseService:
             has_permission = action in module_permisos
             
             if has_permission:
-                print(f"[DEBUG] ✅ Permiso otorgado en BaseService: {user_role} -> {module}.{action}")
+                print(f"[DEBUG] Permiso otorgado en BaseService: {user_role} -> {module}.{action}")
             else:
-                print(f"[DEBUG] ❌ Permiso denegado en BaseService: {user_role} -> {module}.{action}")
+                print(f"[DEBUG] Permiso denegado en BaseService: {user_role} -> {module}.{action}")
                 print(f"[DEBUG] - Permisos del módulo {module}: {module_permisos}")
             
             return has_permission
@@ -261,8 +261,8 @@ class BaseService:
             Mensaje de éxito formateado
         """
         if name:
-            return f"✅ {entity.capitalize()} '{name}' {action} exitosamente"
-        return f"✅ {entity.capitalize()} {action} exitosamente"
+            return f"{entity.capitalize()} '{name}' {action} exitosamente"
+        return f"{entity.capitalize()} {action} exitosamente"
     
     def process_array_field(self, value: str, separator: str = ",") -> List[str]:
         """

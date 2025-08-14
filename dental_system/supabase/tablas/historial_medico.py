@@ -444,4 +444,11 @@ class MedicalHistoryTable(BaseTable):
         ).limit(limite).execute()
         
         return response.data
+
+
+# Instancia única para importar
+historial_medico_table = MedicalHistoryTable()
+
+# Alias para compatibilidad
+HistorialMedicoTable = MedicalHistoryTable
     

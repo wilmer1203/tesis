@@ -6,8 +6,9 @@ Elimina duplicación entre boss_state y admin_state
 from typing import Dict, List, Optional, Any
 from datetime import date, datetime
 from .base_service import BaseService
+from .cache_invalidation_hooks import invalidate_after_patient_operation, track_cache_invalidation
 from dental_system.supabase.tablas import pacientes_table
-from dental_system.models import PacienteModel
+from dental_system.models import PacienteModel, PacienteFormModel
 import logging
 
 logger = logging.getLogger(__name__)
@@ -27,7 +28,7 @@ class PacientesService(BaseService):
     async def get_filtered_patients(self, 
                                   search: str = None, 
                                   genero: str = None, 
-                                  activos_only: Optional[bool] = True) -> List[PacienteModel]:
+                                  activos_only: Optional[bool] = None) -> List[PacienteModel]:
         """
         Obtiene pacientes filtrados 
         
@@ -68,16 +69,16 @@ class PacientesService(BaseService):
             self.handle_error("Error obteniendo pacientes filtrados", e)
             return []
     
-    async def create_patient(self, form_data: Dict[str, str], user_id: str) -> Optional[Dict[str, Any]]:
+    async def create_patient(self, patient_form: PacienteFormModel, user_id: str) -> Optional[PacienteModel]:
         """
-        Crea un nuevo paciente - REEMPLAZA lógica duplicada
+        Crea un nuevo paciente con modelo tipado
         
         Args:
-            form_data: Datos del formulario
+            patient_form: Formulario tipado de paciente
             user_id: ID del usuario que crea
             
         Returns:
-            Paciente creado o None si hay error
+            PacienteModel creado o None si hay error
         """
         try:
             logger.info("Creando nuevo paciente")
@@ -85,77 +86,80 @@ class PacientesService(BaseService):
             # Verificar permisos
             self.require_permission("pacientes", "crear")
             
-            # Validar campos requeridos
-            required_fields = ["primer_nombre", "primer_apellido", "numero_documento"]
-            missing_fields = self.validate_required_fields(form_data, required_fields)
-            
-            if missing_fields:
-                error_msg = self.format_error_message("Datos incompletos", missing_fields)
+            # Validar formulario tipado
+            validation_errors = patient_form.validate_form()
+            if validation_errors:
+                error_msg = f"Errores de validación: {validation_errors}"
                 raise ValueError(error_msg)
             
             # Verificar que no exista el documento
-            existing = self.table.get_by_documento(form_data["numero_documento"])
+            existing = self.table.get_by_documento(patient_form.numero_documento)
             if existing:
                 raise ValueError("Ya existe un paciente con este número de documento")
             
             # Procesar campos de fecha
             fecha_nacimiento = None
-            if form_data.get("fecha_nacimiento"):
+            if patient_form.fecha_nacimiento:
                 try:
-                    fecha_nacimiento = datetime.strptime(form_data["fecha_nacimiento"], "%Y-%m-%d").date()
+                    fecha_nacimiento = datetime.strptime(patient_form.fecha_nacimiento, "%Y-%m-%d").date()
                 except ValueError:
                     raise ValueError("Formato de fecha inválido. Use YYYY-MM-DD")
             
             # Procesar arrays (alergias, medicamentos, etc.)
-            alergias = self.process_array_field(form_data.get("alergias", ""))
-            medicamentos = self.process_array_field(form_data.get("medicamentos_actuales", ""))
-            condiciones = self.process_array_field(form_data.get("condiciones_medicas", ""))
-            antecedentes = self.process_array_field(form_data.get("antecedentes_familiares", ""))
+            alergias = self.process_array_field(patient_form.alergias)
+            medicamentos = self.process_array_field(patient_form.medicamentos_actuales)
+            # Procesar información médica adicional
+            condiciones = self.process_array_field(patient_form.observaciones_medicas)
             
             # Crear paciente usando el método de la tabla
             result = self.table.create_patient_complete(
                 # Nombres separados
-                primer_nombre=form_data["primer_nombre"].strip(),
-                primer_apellido=form_data["primer_apellido"].strip(),
-                segundo_nombre=form_data.get("segundo_nombre", "").strip() or None,
-                segundo_apellido=form_data.get("segundo_apellido", "").strip() or None,
+                primer_nombre=patient_form.primer_nombre.strip(),
+                primer_apellido=patient_form.primer_apellido.strip(),
+                segundo_nombre=patient_form.segundo_nombre.strip() or None,
+                segundo_apellido=patient_form.segundo_apellido.strip() or None,
                 
                 # Documentación
-                numero_documento=form_data["numero_documento"],
+                numero_documento=patient_form.numero_documento,
                 registrado_por=user_id,
-                tipo_documento=form_data.get("tipo_documento", "CC"),
+                tipo_documento=patient_form.tipo_documento or "cedula",
                 fecha_nacimiento=fecha_nacimiento,
-                genero=form_data.get("genero") if form_data.get("genero") else None,
+                genero=patient_form.genero if patient_form.genero else None,
                 
                 # Teléfonos separados
-                telefono_1=form_data.get("telefono_1") if form_data.get("telefono_1") else None,
-                telefono_2=form_data.get("telefono_2") if form_data.get("telefono_2") else None,
+                telefono_1=patient_form.telefono_1 if patient_form.telefono_1 else None,
+                telefono_2=patient_form.telefono_2 if patient_form.telefono_2 else None,
                 
                 # Contacto y ubicación
-                email=form_data.get("email") if form_data.get("email") else None,
-                direccion=form_data.get("direccion") if form_data.get("direccion") else None,
-                ciudad=form_data.get("ciudad") if form_data.get("ciudad") else None,
-                departamento=form_data.get("departamento") if form_data.get("departamento") else None,
-                ocupacion=form_data.get("ocupacion") if form_data.get("ocupacion") else None,
-                estado_civil=form_data.get("estado_civil") if form_data.get("estado_civil") else None,
+                email=patient_form.email if patient_form.email else None,
+                direccion=patient_form.direccion if patient_form.direccion else None,
+                ciudad=patient_form.ciudad if patient_form.ciudad else None,
+                estado_civil=patient_form.estado_civil if patient_form.estado_civil else None,
                 
                 # Información médica
                 alergias=alergias if alergias else None,
                 medicamentos_actuales=medicamentos if medicamentos else None,
-                condiciones_medicas=condiciones if condiciones else None,
-                antecedentes_familiares=antecedentes if antecedentes else None,
-                observaciones=form_data.get("observaciones") if form_data.get("observaciones") else None
+                # enfermedades_cronicas=patient_form.enfermedades_cronicas if patient_form.enfermedades_cronicas else None,
+                observaciones=patient_form.observaciones_medicas if patient_form.observaciones_medicas else None,
+                
+                # Contacto de emergencia
+                # contacto_emergencia_nombre=patient_form.contacto_emergencia_nombre if patient_form.contacto_emergencia_nombre else None,
+                # contacto_emergencia_telefono=patient_form.contacto_emergencia_telefono if patient_form.contacto_emergencia_telefono else None,
+                # contacto_emergencia_relacion=patient_form.contacto_emergencia_relacion if patient_form.contacto_emergencia_relacion else None
             )
             
             if result:
-                nombre_display = self.construct_full_name(
-                    form_data["primer_nombre"],
-                    form_data.get("segundo_nombre"),
-                    form_data["primer_apellido"],
-                    form_data.get("segundo_apellido")
-                )
-                logger.info(f"✅ Paciente creado: {nombre_display}")
-                return result
+                # Crear modelo tipado del resultado
+                paciente_model = PacienteModel.from_dict(result)
+                
+                # 🗑️ INVALIDAR CACHE después de crear paciente
+                try:
+                    invalidate_after_patient_operation()
+                except Exception as cache_error:
+                    logger.warning(f"Error invalidando cache tras crear paciente: {cache_error}")
+                
+                logger.info(f"✅ Paciente creado: {paciente_model.nombre_completo}")
+                return paciente_model
             else:
                 raise ValueError("Error creando paciente en la base de datos")
                 
@@ -169,16 +173,16 @@ class PacientesService(BaseService):
             self.handle_error("Error creando paciente", e)
             raise ValueError(f"Error inesperado: {str(e)}")
     
-    async def update_patient(self, patient_id: str, form_data: Dict[str, str]) -> Optional[Dict[str, Any]]:
+    async def update_patient(self, patient_id: str, patient_form: PacienteFormModel) -> Optional[PacienteModel]:
         """
-        Actualiza un paciente existente
+        Actualiza un paciente existente con modelo tipado
         
         Args:
             patient_id: ID del paciente
-            form_data: Datos del formulario
+            patient_form: Formulario tipado de paciente
             
         Returns:
-            Paciente actualizado o None si hay error
+            PacienteModel actualizado o None si hay error
         """
         try:
             logger.info(f"Actualizando paciente: {patient_id}")
@@ -186,64 +190,62 @@ class PacientesService(BaseService):
             # Verificar permisos
             self.require_permission("pacientes", "actualizar")
             
-            # Validar campos requeridos
-            required_fields = ["primer_nombre", "primer_apellido", "numero_documento"]
-            missing_fields = self.validate_required_fields(form_data, required_fields)
-            
-            if missing_fields:
-                error_msg = self.format_error_message("Datos incompletos", missing_fields)
+            # Validar formulario tipado
+            validation_errors = patient_form.validate_form()
+            if validation_errors:
+                error_msg = f"Errores de validación: {validation_errors}"
                 raise ValueError(error_msg)
             
             # Verificar documento único (excluyendo el actual)
-            existing = self.table.get_by_documento(form_data["numero_documento"])
+            existing = self.table.get_by_documento(patient_form.numero_documento)
             if existing and existing.get("id") != patient_id:
                 raise ValueError("Ya existe otro paciente con este número de documento")
             
             # Procesar fecha
             fecha_nacimiento = None
-            if form_data.get("fecha_nacimiento"):
+            if patient_form.fecha_nacimiento:
                 try:
-                    fecha_nacimiento = datetime.strptime(form_data["fecha_nacimiento"], "%Y-%m-%d").date()
+                    fecha_nacimiento = datetime.strptime(patient_form.fecha_nacimiento, "%Y-%m-%d").date()
                 except ValueError:
                     raise ValueError("Formato de fecha inválido. Use YYYY-MM-DD")
             
             # Procesar arrays
-            alergias = self.process_array_field(form_data.get("alergias", ""))
-            medicamentos = self.process_array_field(form_data.get("medicamentos_actuales", ""))
-            condiciones = self.process_array_field(form_data.get("condiciones_medicas", ""))
-            antecedentes = self.process_array_field(form_data.get("antecedentes_familiares", ""))
+            alergias = self.process_array_field(patient_form.alergias)
+            medicamentos = self.process_array_field(patient_form.medicamentos_actuales)
             
             # Preparar datos para actualización
             data = {
                 # Nombres separados
-                "primer_nombre": form_data["primer_nombre"].strip(),
-                "primer_apellido": form_data["primer_apellido"].strip(),
-                "segundo_nombre": form_data.get("segundo_nombre", "").strip() or None,
-                "segundo_apellido": form_data.get("segundo_apellido", "").strip() or None,
+                "primer_nombre": patient_form.primer_nombre.strip(),
+                "primer_apellido": patient_form.primer_apellido.strip(),
+                "segundo_nombre": patient_form.segundo_nombre.strip() or None,
+                "segundo_apellido": patient_form.segundo_apellido.strip() or None,
                 
                 # Documentación
-                "numero_documento": form_data["numero_documento"],
-                "tipo_documento": form_data.get("tipo_documento", "CC"),
-                "genero": form_data.get("genero") if form_data.get("genero") else None,
+                "numero_documento": patient_form.numero_documento,
+                "tipo_documento": patient_form.tipo_documento or "cedula",
+                "genero": patient_form.genero if patient_form.genero else None,
                 
                 # Teléfonos separados
-                "telefono_1": form_data.get("telefono_1") if form_data.get("telefono_1") else None,
-                "telefono_2": form_data.get("telefono_2") if form_data.get("telefono_2") else None,
+                "telefono_1": patient_form.telefono_1 if patient_form.telefono_1 else None,
+                "telefono_2": patient_form.telefono_2 if patient_form.telefono_2 else None,
                 
                 # Contacto y ubicación
-                "email": form_data.get("email") if form_data.get("email") else None,
-                "direccion": form_data.get("direccion") if form_data.get("direccion") else None,
-                "ciudad": form_data.get("ciudad") if form_data.get("ciudad") else None,
-                "departamento": form_data.get("departamento") if form_data.get("departamento") else None,
-                "ocupacion": form_data.get("ocupacion") if form_data.get("ocupacion") else None,
-                "estado_civil": form_data.get("estado_civil") if form_data.get("estado_civil") else None,
+                "email": patient_form.email if patient_form.email else None,
+                "direccion": patient_form.direccion if patient_form.direccion else None,
+                "ciudad": patient_form.ciudad if patient_form.ciudad else None,
+                "estado_civil": patient_form.estado_civil if patient_form.estado_civil else None,
                 
                 # Información médica
                 "alergias": alergias if alergias else None,
                 "medicamentos_actuales": medicamentos if medicamentos else None,
-                "condiciones_medicas": condiciones if condiciones else None,
-                "antecedentes_familiares": antecedentes if antecedentes else None,
-                "observaciones": form_data.get("observaciones") if form_data.get("observaciones") else None
+                # "enfermedades_cronicas": patient_form.enfermedades_cronicas if patient_form.enfermedades_cronicas else None,
+                "observaciones": patient_form.observaciones_medicas if patient_form.observaciones_medicas else None,
+                
+                # Contacto de emergencia
+                # "contacto_emergencia_nombre": patient_form.contacto_emergencia_nombre if patient_form.contacto_emergencia_nombre else None,
+                # "contacto_emergencia_telefono": patient_form.contacto_emergencia_telefono if patient_form.contacto_emergencia_telefono else None,
+                # "contacto_emergencia_relacion": patient_form.contacto_emergencia_relacion if patient_form.contacto_emergencia_relacion else None
             }
             
             if fecha_nacimiento:
@@ -259,7 +261,11 @@ class PacientesService(BaseService):
                     form_data["primer_apellido"],
                     form_data.get("segundo_apellido")
                 )
-                logger.info(f"✅ Paciente actualizado: {nombre_display}")
+                
+                # 🗑️ INVALIDAR CACHE después de actualizar paciente
+                invalidate_after_patient_operation()
+                
+                logger.info(f"✅ Paciente actualizado: {nombre_display} (cache invalidado)")
                 return result
             else:
                 raise ValueError("Error actualizando paciente en la base de datos")

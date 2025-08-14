@@ -8,7 +8,8 @@ from datetime import date, datetime
 from decimal import Decimal
 from .base_service import BaseService
 from dental_system.supabase.tablas import personal_table, users_table
-from dental_system.models import PersonalModel
+from dental_system.models import PersonalModel, PersonalFormModel
+from .cache_invalidation_hooks import invalidate_after_staff_operation, track_cache_invalidation
 import logging
 
 logger = logging.getLogger(__name__)
@@ -70,7 +71,7 @@ class PersonalService(BaseService):
             self.handle_error("Error obteniendo personal filtrado", e)
             return []
     
-    async def create_staff_member(self, form_data: Dict[str, str], creator_user_id: str) -> Optional[Dict[str, Any]]:
+    async def create_staff_member(self, personal_form: PersonalFormModel, creator_user_id: str) -> Optional[PersonalModel]:
         """
         Crea un nuevo miembro del personal - PROCESO COMPLETO
         
@@ -107,6 +108,8 @@ class PersonalService(BaseService):
             existing_user = self.users_table.get_by_email(form_data["email"])
             if existing_user:
                 raise ValueError("Ya existe un usuario con este email")
+            
+            # verificar el monto antes de crear ____________________________________
             
             # Paso 1: Crear usuario en auth.users y tabla usuarios
             rol = self._map_tipo_personal_to_rol(form_data["tipo_personal"])
@@ -179,6 +182,13 @@ class PersonalService(BaseService):
                         form_data.get("segundo_apellido")
                     )
                     logger.info(f"✅ Personal creado: {nombre_display}")
+                    
+                    # 🗑️ INVALIDAR CACHE - personal creado afecta estadísticas
+                    try:
+                        invalidate_after_staff_operation()
+                    except Exception as cache_error:
+                        logger.warning(f"Error invalidando cache tras crear personal: {cache_error}")
+                    
                     return {
                         "success": True,
                         "personal": personal_result,
@@ -188,6 +198,7 @@ class PersonalService(BaseService):
                     raise ValueError("Error creando registro de personal")
                     
             except Exception as e:
+                # aqui va la funcion de eliminar el usuario____________________-
                 # Si falla la creación del personal, limpiar el usuario creado
                 logger.error(f"Error creando personal, limpiando usuario: {e}")
                 # TODO: Implementar limpieza del usuario si es necesario
@@ -203,7 +214,7 @@ class PersonalService(BaseService):
             self.handle_error("Error creando personal", e)
             raise ValueError(f"Error inesperado: {str(e)}")
     
-    async def update_staff_member(self, personal_id: str, form_data: Dict[str, str]) -> Optional[Dict[str, Any]]:
+    async def update_staff_member(self, personal_id: str, personal_form: PersonalFormModel) -> Optional[PersonalModel]:
         """
         Actualiza un miembro del personal existente
         
@@ -308,6 +319,13 @@ class PersonalService(BaseService):
                     form_data.get("segundo_apellido")
                 )
                 logger.info(f"✅ Personal actualizado: {nombre_display}")
+                
+                # 🗑️ INVALIDAR CACHE - personal actualizado puede afectar estadísticas
+                try:
+                    invalidate_after_staff_operation()
+                except Exception as cache_error:
+                    logger.warning(f"Error invalidando cache tras actualizar personal: {cache_error}")
+                
                 return result
             else:
                 raise ValueError("Error actualizando personal en la base de datos")
@@ -351,6 +369,13 @@ class PersonalService(BaseService):
             
             if result:
                 logger.info(f"✅ Personal desactivado correctamente")
+                
+                # 🗑️ INVALIDAR CACHE - personal desactivado afecta estadísticas activas
+                try:
+                    invalidate_after_staff_operation()
+                except Exception as cache_error:
+                    logger.warning(f"Error invalidando cache tras desactivar personal: {cache_error}")
+                
                 return True
             else:
                 raise ValueError("Error desactivando personal")
@@ -387,6 +412,13 @@ class PersonalService(BaseService):
             
             if result:
                 logger.info(f"✅ Personal reactivado correctamente")
+                
+                # 🗑️ INVALIDAR CACHE - personal reactivado afecta estadísticas activas
+                try:
+                    invalidate_after_staff_operation()
+                except Exception as cache_error:
+                    logger.warning(f"Error invalidando cache tras reactivar personal: {cache_error}")
+                
                 return True
             else:
                 raise ValueError("Error reactivando personal")
@@ -427,6 +459,51 @@ class PersonalService(BaseService):
             'Asistente': 'asistente'
         }
         return mapping.get(tipo_personal, 'administrador')
+    
+    async def get_personal_stats(self) -> Dict[str, Any]:
+        """
+        Obtiene estadísticas del personal
+        
+        Returns:
+            Dict con estadísticas del personal
+        """
+        try:
+            # Verificar permisos
+            if not self.check_permission("personal", "leer"):
+                raise PermissionError("Sin permisos para ver estadísticas de personal")
+            
+            # Obtener todos los empleados
+            personal_data = await self.get_filtered_personal()
+            
+            if not personal_data:
+                return {
+                    "total": 0,
+                    "activos": 0,
+                    "odontologos": 0,
+                    "administradores": 0,
+                    "asistentes": 0,
+                    "gerentes": 0
+                }
+            
+            # Calcular estadísticas
+            stats = {
+                "total": len(personal_data),
+                "activos": len([p for p in personal_data if p.estado_laboral == "activo"]),
+                "odontologos": len([p for p in personal_data if p.rol_nombre_computed == "odontologo"]),
+                "administradores": len([p for p in personal_data if p.rol_nombre_computed == "administrador"]),
+                "asistentes": len([p for p in personal_data if p.rol_nombre_computed == "asistente"]),
+                "gerentes": len([p for p in personal_data if p.rol_nombre_computed == "gerente"])
+            }
+            
+            logger.info(f"✅ Estadísticas personal calculadas: {stats}")
+            return stats
+            
+        except PermissionError:
+            logger.warning("Usuario sin permisos para ver estadísticas de personal")
+            raise
+        except Exception as e:
+            self.handle_error("Error obteniendo estadísticas de personal", e)
+            raise ValueError(f"Error inesperado: {str(e)}")
 
 
 # Instancia única para importar

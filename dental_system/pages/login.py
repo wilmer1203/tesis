@@ -13,7 +13,7 @@ def fondo() -> rx.Component:
         style={
             "width": "100%",
             "height": "100vh",
-            "background": "linear-gradient(120deg, #0f172a 0%, #1e293b 50%, #0d9488 100%)",
+            "background": f"linear-gradient(120deg,{COLORS["gray"]["950"]} 0%, {COLORS["blue"]["950"]} 50%, {COLORS["primary"]["700"]} 100%)",
         },
         position="absolute",
     )
@@ -22,9 +22,9 @@ def fondo() -> rx.Component:
 def mensaje_error() -> rx.Component:
     """🚨 Componente mejorado para mostrar errores"""
     return rx.cond(
-        AppState.login_error != "",
+        AppState.error_login != "",
         rx.callout(
-            AppState.login_error,
+            AppState.error_login ,
             color_scheme="red",
             size="2",
             width="100%",
@@ -81,7 +81,7 @@ def contenedor() -> rx.Component:
                             type_="email",
                             name="email",
                             required=True,       
-                            disabled=AppState.is_loading_auth                
+                            disabled=AppState.esta_cargando_auth                
 
                         ),
                         # Campo de contraseña
@@ -104,7 +104,7 @@ def contenedor() -> rx.Component:
                             type_="password",
                             name="password",
                             required=True,
-                            disabled=AppState.is_loading_auth
+                            disabled=AppState.esta_cargando_auth
                         ),
                         rx.vstack(
                             rx.link(
@@ -118,7 +118,7 @@ def contenedor() -> rx.Component:
                         ),                          
                         rx.button(
                             rx.cond(
-                                AppState.is_loading_auth,
+                                AppState.esta_cargando_auth,
                                 rx.hstack(
                                     rx.spinner(color="white", size="3"),
                                     rx.text("Iniciando sesión...", font_size="1.3em"),
@@ -133,7 +133,7 @@ def contenedor() -> rx.Component:
                                 )
                             ),
                             type="submit",
-                            disabled=AppState.is_loading_auth,
+                            disabled=AppState.esta_cargando_auth,
                             style=botton_login,
                              width="50%"
                         ),
@@ -141,7 +141,7 @@ def contenedor() -> rx.Component:
                         width="100%",
                         align="center",
                     ),
-                    on_submit=AppState.login,
+                    on_submit=AppState.iniciar_sesion,
                     width="100%",
                     height="100%",
                     flex_direction="column",
@@ -178,10 +178,10 @@ def login_page() -> rx.Component:
     return rx.fragment(
         # Redirección automática si ya está autenticado
         rx.cond(
-            AppState.is_authenticated,
+            AppState.esta_autenticado,
             rx.script(f"""
                 // Redirección automática según rol
-                const userRole = '{AppState.user_role}';
+                const userRole = '{AppState.rol_usuario}';
                 let redirectUrl = '/';
                 
                 if (userRole === 'gerente') {{
@@ -213,7 +213,7 @@ def login_page() -> rx.Component:
         
         # Limpieza automática de errores después de 5 segundos
         rx.cond(
-            AppState.login_error != "",
+            AppState.error_login != "",
             rx.script(f"""
                 setTimeout(function() {{
                     // Limpiar error después de 5 segundos

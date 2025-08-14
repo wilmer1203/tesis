@@ -7,7 +7,11 @@ from dental_system.styles.themes import COLORS, SHADOWS
 from dental_system.pages.dashboard import dashboard_page
 from dental_system.pages.pacientes_page import pacientes_page
 from dental_system.pages.personal_page import personal_page
-from dental_system.pages.consultas_page import consultas_page
+# from dental_system.pages.consultas_page import consultas_page_new
+# from dental_system.pages.servicios_page import servicios_page
+# from dental_system.pages.pagos_page import pagos_page
+# from dental_system.pages.odontologia_page import odontologia_page
+# from dental_system.pages.intervencion_page import intervencion_page
 from dental_system.pages.login import login_page
 from dental_system.components.common import sidebar
 from dental_system.utils.route_guard import (
@@ -40,27 +44,30 @@ def main_layout(page_content: rx.Component) -> rx.Component:
     🎯 LAYOUT PRINCIPAL SIMPLIFICADO
     ✅ UNA SOLA estructura que se adapta al rol
     """
-    return rx.cond(
-        AppState.is_authenticated,
-        rx.hstack(
-            # Sidebar de navegación
-            sidebar(),
-            
-            # 🔥 AQUÍ ESTÁ EL CAMBIO PRINCIPAL - USAR EL CONTENIDO DINÁMICO
-            rx.box(
-                page_content,  # Esto recibe el contenido que cambia
-                flex="1",
+    return rx.box(
+        rx.cond(
+        AppState.esta_autenticado,
+        
+            rx.hstack(
+                # Sidebar de navegación
+                sidebar(),
+                
+                # 🔥 AQUÍ ESTÁ EL CAMBIO PRINCIPAL - USAR EL CONTENIDO DINÁMICO
+                rx.box(
+                    page_content,  # Esto recibe el contenido que cambia
+                    flex="1",
+                    height="100vh",
+                    overflow_y="auto",
+                ),
+                
+                width="100%",
                 height="100vh",
-                overflow_y="auto",
-                background="var(--gray-1)"
+                spacing="0",
+                position= "absolute"
             ),
-            
-            width="100%",
-            height="100vh",
-            spacing="0"
-        ),
         # Si no está autenticado, solo mostrar login
         page_content,
+        )
     )
 
 
@@ -77,12 +84,13 @@ def main_content() -> rx.Component:
         AppState.current_page,
         ("dashboard", dashboard_page()),
         ("pacientes", pacientes_page()),
-        ("consultas", consultas_page()),
+        # ("consultas", consultas_page_new()),
         ("personal", personal_page()),
-        ("servicios", servicios_placeholder()),
+        # ("servicios", servicios_page()),
+        # ("pagos", pagos_page()),
+        # ("odontologia", odontologia_page()),
+        # ("intervencion", intervencion_page()),
         ("reportes", reportes_placeholder()),
-        ("pagos", pagos_placeholder()),
-        ("odontologia", odontologia_placeholder()),
         # Página por defecto
         dashboard_page(),
     ) # type: ignore
@@ -113,21 +121,21 @@ def dentist_page() -> rx.Component:
 def index_page() -> rx.Component:
     """🏠 Página de inicio que redirige según rol"""
     return rx.cond(
-        AppState.is_authenticated,
+        AppState.esta_autenticado,
         rx.cond(
-            AppState.user_role == "gerente",
+            AppState.rol_usuario == "gerente",
             rx.fragment(
                 rx.script('window.location.href = "/boss";'),
                 rx.center("Redirigiendo al dashboard del gerente...")
             ),
             rx.cond(
-                AppState.user_role == "administrador", 
+                AppState.rol_usuario == "administrador", 
                 rx.fragment(
                     rx.script('window.location.href = "/admin";'),
                     rx.center("Redirigiendo al dashboard del administrador...")
                 ),
                 rx.cond(
-                    AppState.user_role == "odontologo",
+                    AppState.rol_usuario == "odontologo",
                     rx.fragment(
                         rx.script('window.location.href = "/dentist";'),
                         rx.center("Redirigiendo al dashboard del odontólogo...")
@@ -143,22 +151,6 @@ def index_page() -> rx.Component:
 # 🚧 PLACEHOLDERS PARA MÓDULOS EN DESARROLLO
 # ==========================================
 
-def personal_placeholder() -> rx.Component:
-    """👥 Placeholder para gestión de personal"""
-    return rx.center(
-        rx.vstack(
-            rx.text("👥 Gestión de Personal", size="7", weight="bold"),
-            rx.text("Módulo en desarrollo", size="4", color="gray.600"),
-            rx.text("Aquí podrás gestionar el personal del consultorio"),
-            rx.button(
-                "Volver al Dashboard",
-                on_click=lambda: AppState.navigate_to("dashboard") # type: ignore
-            ),
-            spacing="4",
-            align="center"
-        ),
-        height="50vh"
-    )
 
 def servicios_placeholder() -> rx.Component:
     """📋 Placeholder para gestión de servicios"""
@@ -186,7 +178,7 @@ def reportes_placeholder() -> rx.Component:
             rx.text("Aquí podrás ver estadísticas y reportes"),
             rx.button(
                 "Volver al Dashboard",
-                on_click=lambda: AppState.navigate_to("dashboard") # type: ignore
+                # on_click=lambda: AppState.navigate_to("dashboard") # type: ignore
             ),
             spacing="4",
             align="center"
@@ -203,7 +195,7 @@ def pagos_placeholder() -> rx.Component:
             rx.text("Aquí podrás gestionar los pagos y facturación"),
             rx.button(
                 "Volver al Dashboard",
-                on_click=lambda: AppState.navigate_to("dashboard") # type: ignore
+                # on_click=lambda: AppState.navigate_to("dashboard") # type: ignore
             ),
             spacing="4",
             align="center"
@@ -246,9 +238,7 @@ def create_app() -> rx.App:
     
     app = rx.App(
         theme=app_theme,
-        stylesheets=[
-            "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-        ]
+        
     )
     
     # 🎯 RUTAS ESPECÍFICAS POR ROL - COMO QUERÍAS

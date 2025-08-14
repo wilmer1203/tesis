@@ -171,18 +171,20 @@ LIGHT_THEME = {
 DARK_THEME = {
     "name": "dark", 
     "colors": {
-        "background": COLORS["gray"]["950"],
-        "surface": COLORS["gray"]["900"],
-        "surface_secondary": COLORS["gray"]["800"],
-        "text_primary": COLORS["gray"]["50"],
-        "text_secondary": COLORS["gray"]["300"],
-        "text_muted": COLORS["gray"]["500"],
-        "border": COLORS["gray"]["700"],
-        "border_strong": COLORS["gray"]["600"],
-        "primary": COLORS["primary"]["400"],
-        "primary_hover": COLORS["primary"]["300"],
-        "primary_light": COLORS["primary"]["900"],
-        "shadow": "rgba(0, 0, 0, 0.3)"
+        "background": "#0a0b0d",           # Fondo sólido muy oscuro
+        "surface": "#1a1b1e",             # Superficie principal
+        "surface_secondary": "#242529",    # Superficie secundaria
+        "surface_elevated": "#2d2f33",     # Superficie elevada
+        "text_primary": COLORS["gray"]["100"],      # Texto principal
+        "text_secondary": COLORS["gray"]["300"],    # Texto secundario
+        "text_muted": COLORS["gray"]["500"],        # Texto desactivado
+        "border": "#3a3b3f",              # Bordes principales
+        "border_strong": "#4a4b4f",       # Bordes fuertes
+        "primary": COLORS["primary"]["400"],        # Color primario
+        "primary_hover": COLORS["primary"]["300"],  # Hover primario
+        "primary_light": COLORS["primary"]["800"],  # Primario claro
+        "shadow": "rgba(0, 0, 0, 0.5)",   # Sombras más pronunciadas
+        "accent": COLORS["secondary"]["400"]        # Color de acento
     }
 }
 
@@ -287,7 +289,24 @@ SHADOWS = {
     "lg": "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)",
     "xl": "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
     "2xl": "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
-    "inner": "inset 0 2px 4px 0 rgba(0, 0, 0, 0.05)"
+    "inner": "inset 0 2px 4px 0 rgba(0, 0, 0, 0.05)",
+    
+    # 🌟 SOMBRAS CRISTALINAS AVANZADAS
+    "crystal_sm": f"0 4px 12px rgba(28, 187, 186, 0.15), 0 2px 6px rgba(28, 187, 186, 0.1)",
+    "crystal_md": f"0 8px 25px rgba(28, 187, 186, 0.2), 0 4px 10px rgba(28, 187, 186, 0.15)",
+    "crystal_lg": f"0 15px 35px rgba(28, 187, 186, 0.25), 0 8px 15px rgba(28, 187, 186, 0.2)",
+    "crystal_xl": f"0 25px 50px rgba(28, 187, 186, 0.3), 0 15px 25px rgba(28, 187, 186, 0.25)",
+    
+    "glow_primary": f"0 0 20px {COLORS['primary']['500']}40, 0 0 40px {COLORS['primary']['500']}20, 0 0 60px {COLORS['primary']['500']}10",
+    "glow_secondary": f"0 0 20px {COLORS['secondary']['500']}40, 0 0 40px {COLORS['secondary']['500']}20",
+    "glow_success": f"0 0 20px {COLORS['success']['500']}40, 0 0 40px {COLORS['success']['500']}20",
+    
+    "glass_light": "0 8px 32px rgba(255, 255, 255, 0.37), inset 0 1px 0 rgba(255, 255, 255, 0.5)",
+    "glass_dark": "0 8px 32px rgba(0, 0, 0, 0.37), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
+    "glass_colored": f"0 8px 32px {COLORS['primary']['500']}25, inset 0 1px 0 rgba(255, 255, 255, 0.3)",
+    
+    "neon_border": f"inset 0 0 10px {COLORS['primary']['500']}30, 0 0 10px {COLORS['primary']['500']}20",
+    "premium_depth": "0 32px 64px rgba(0, 0, 0, 0.12), 0 16px 32px rgba(0, 0, 0, 0.08), 0 8px 16px rgba(0, 0, 0, 0.04)"
 }
 
 # ==========================================
@@ -351,15 +370,17 @@ TYPOGRAPHY = {
 }
 
 # ==========================================
-# 🎬 ANIMACIONES Y TRANSICIONES
+# 🎬 ANIMACIONES Y TRANSICIONES CRISTALINAS
 # ==========================================
 
 ANIMATIONS = {
     "duration": {
+        "ultra_fast": "100ms",
         "fast": "150ms",
         "normal": "250ms", 
         "slow": "350ms",
-        "slower": "500ms"
+        "slower": "500ms",
+        "ultra_slow": "800ms"
     },
     
     "easing": {
@@ -369,7 +390,10 @@ ANIMATIONS = {
         "ease_out": "ease-out", 
         "ease_in_out": "ease-in-out",
         "bounce": "cubic-bezier(0.68, -0.55, 0.265, 1.55)",
-        "smooth": "cubic-bezier(0.4, 0, 0.2, 1)"
+        "smooth": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "crystal": "cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+        "elastic": "cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+        "premium": "cubic-bezier(0.23, 1, 0.32, 1)"
     },
     
     "presets": {
@@ -377,7 +401,34 @@ ANIMATIONS = {
         "slide_up": "transform 250ms ease-out", 
         "scale": "transform 150ms ease-out",
         "button_hover": "all 150ms ease-in-out",
-        "modal": "all 250ms cubic-bezier(0.4, 0, 0.2, 1)"
+        "modal": "all 250ms cubic-bezier(0.4, 0, 0.2, 1)",
+        "crystal_hover": "all 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+        "floating": "transform 3s ease-in-out infinite alternate",
+        "pulse": "all 2s ease-in-out infinite",
+        "glow": "box-shadow 300ms ease-in-out",
+        "glass_hover": "all 200ms cubic-bezier(0.23, 1, 0.32, 1)",
+        "premium_slide": "all 400ms cubic-bezier(0.25, 0.46, 0.45, 0.94)"
+    },
+    
+    "keyframes": {
+        "floating": {
+            "0%": {"transform": "translateY(0px)"},
+            "50%": {"transform": "translateY(-10px)"},
+            "100%": {"transform": "translateY(0px)"}
+        },
+        "pulse_glow": {
+            "0%": {"box-shadow": f"0 0 5px {COLORS['primary']['400']}, 0 0 10px {COLORS['primary']['400']}, 0 0 15px {COLORS['primary']['400']}"},
+            "50%": {"box-shadow": f"0 0 10px {COLORS['primary']['500']}, 0 0 20px {COLORS['primary']['500']}, 0 0 30px {COLORS['primary']['500']}"},
+            "100%": {"box-shadow": f"0 0 5px {COLORS['primary']['400']}, 0 0 10px {COLORS['primary']['400']}, 0 0 15px {COLORS['primary']['400']}"}
+        },
+        "shimmer": {
+            "0%": {"background-position": "-200% center"},
+            "100%": {"background-position": "200% center"}
+        },
+        "rotate_glow": {
+            "0%": {"transform": "rotate(0deg)", "box-shadow": f"0 0 20px {COLORS['primary']['500']}40"},
+            "100%": {"transform": "rotate(360deg)", "box-shadow": f"0 0 20px {COLORS['secondary']['500']}40"}
+        }
     }
 }
 
@@ -467,15 +518,15 @@ COMPONENT_STYLES = {
     
     "input": {
         "base": {
-            "border_radius": RADIUS["md"],
+            "border_radius": RADIUS["xl"],
             "border": f"1px solid {COLORS['gray']['300']}",
-            "padding": f"{SPACING['2.5']} {SPACING['3']}",
+            # "padding": f"{SPACING['1']} {SPACING['2']}",
             "font_size": TYPOGRAPHY["font_size"]["base"],
             "transition": ANIMATIONS["presets"]["fade_in"],
             "_focus": {
                 "outline": "none",
                 "border_color": COLORS["primary"]["500"],
-                "box_shadow": f"0 0 0 3px {COLORS['primary']['100']}"
+                "box_shadow": SHADOWS["xl"]
             }
         }
     },
@@ -497,6 +548,110 @@ COMPONENT_STYLES = {
                 "border": f"1px solid {COLORS['gray']['200']}"
             }
         }
+    }
+}
+
+# ==========================================
+# 🌈 GRADIENTES CRISTALINOS AVANZADOS
+# ==========================================
+
+GRADIENTS = {
+    # Gradientes principales cristalinos
+    "crystal_primary": f"linear-gradient(135deg, {COLORS['primary']['400']}AA 0%, {COLORS['primary']['600']}DD 50%, {COLORS['blue']['500']}AA 100%)",
+    "crystal_secondary": f"linear-gradient(135deg, {COLORS['secondary']['400']}AA 0%, {COLORS['secondary']['600']}DD 50%, {COLORS['primary']['500']}AA 100%)",
+    
+    # Gradientes glass/glassmorphism
+    "glass_primary": f"linear-gradient(135deg, {COLORS['primary']['100']}40 0%, {COLORS['primary']['200']}80 50%, {COLORS['primary']['100']}40 100%)",
+    "glass_secondary": f"linear-gradient(135deg, {COLORS['secondary']['100']}40 0%, {COLORS['secondary']['200']}80 50%, {COLORS['secondary']['100']}40 100%)",
+    "glass_white": "linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0.1) 100%)",
+    
+    # Gradientes con efectos de resplandor
+    "neon_primary": f"linear-gradient(135deg, {COLORS['primary']['500']} 0%, {COLORS['blue']['600']} 50%, {COLORS['primary']['600']} 100%)",
+    "neon_secondary": f"linear-gradient(135deg, {COLORS['secondary']['500']} 0%, {COLORS['secondary']['600']} 50%, {COLORS['secondary']['700']} 100%)",
+    "neon_success": f"linear-gradient(135deg, {COLORS['success']['400']} 0%, {COLORS['success']['600']} 50%, {COLORS['success']['700']} 100%)",
+    
+    # Gradientes de fondo premium
+    "premium_bg": f"linear-gradient(135deg, {COLORS['gray']['50']} 0%, {COLORS['primary']['25']} 25%, {COLORS['secondary']['25']} 75%, {COLORS['gray']['50']} 100%)",
+    "premium_card": f"linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.7) 50%, rgba(255,255,255,0.9) 100%)",
+    
+    # Gradientes animados (para uso con keyframes)
+    "shimmer": f"linear-gradient(90deg, {COLORS['gray']['200']} 0%, {COLORS['gray']['100']} 50%, {COLORS['gray']['200']} 100%)",
+    "rainbow": f"linear-gradient(45deg, {COLORS['primary']['500']}, {COLORS['secondary']['500']}, {COLORS['success']['500']}, {COLORS['info']['500']})",
+    
+    # Gradientes para texto
+    "text_gradient_primary": f"linear-gradient(135deg, {COLORS['primary']['600']} 0%, {COLORS['blue']['500']} 100%)",
+    "text_gradient_premium": f"linear-gradient(135deg, {COLORS['primary']['700']} 0%, {COLORS['blue']['600']} 50%, {COLORS['secondary']['600']} 100%)",
+    
+    # Gradientes para bordes luminosos
+    "border_glow": f"linear-gradient(135deg, {COLORS['primary']['500']}60 0%, {COLORS['secondary']['500']}60 50%, {COLORS['blue']['500']}60 100%)",
+    "border_crystal": f"linear-gradient(135deg, rgba(255,255,255,0.5) 0%, {COLORS['primary']['200']}80 50%, rgba(255,255,255,0.5) 100%)",
+    
+    # Gradientes específicos para tema oscuro
+    "dark_bg": "linear-gradient(135deg, #0a0b0d 0%, #1a1b1e 100%)",
+    "dark_surface": f"linear-gradient(135deg, #1a1b1e 0%, #242529 100%)",
+    "dark_card": f"linear-gradient(135deg, #242529 0%, #2d2f33 100%)",
+    "dark_glass": "linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.05) 100%)"
+}
+
+# ==========================================
+# 🎭 EFECTOS GLASSMORPHISM AVANZADOS
+# ==========================================
+
+GLASS_EFFECTS = {
+    "light": {
+        "background": "rgba(255, 255, 255, 0.25)",
+        "backdrop_filter": "blur(20px)",
+        "border": "1px solid rgba(255, 255, 255, 0.18)",
+        "box_shadow": "0 8px 32px 0 rgba(31, 38, 135, 0.37)"
+    },
+    "medium": {
+        "background": "rgba(255, 255, 255, 0.15)",
+        "backdrop_filter": "blur(25px)",
+        "border": "1px solid rgba(255, 255, 255, 0.25)",
+        "box_shadow": "0 12px 40px 0 rgba(31, 38, 135, 0.4)"
+    },
+    "strong": {
+        "background": "rgba(255, 255, 255, 0.1)",
+        "backdrop_filter": "blur(30px)",
+        "border": "1px solid rgba(255, 255, 255, 0.3)",
+        "box_shadow": "0 16px 48px 0 rgba(31, 38, 135, 0.45)"
+    },
+    "colored_primary": {
+        "background": f"{COLORS['primary']['500']}15",
+        "backdrop_filter": "blur(20px)",
+        "border": f"1px solid {COLORS['primary']['500']}30",
+        "box_shadow": f"0 12px 40px 0 {COLORS['primary']['500']}25"
+    },
+    "colored_secondary": {
+        "background": f"{COLORS['secondary']['500']}15",
+        "backdrop_filter": "blur(20px)",
+        "border": f"1px solid {COLORS['secondary']['500']}30",
+        "box_shadow": f"0 12px 40px 0 {COLORS['secondary']['500']}25"
+    },
+    "crystal": {
+        "background": "rgba(255, 255, 255, 0.08)",
+        "backdrop_filter": "blur(40px) saturate(150%)",
+        "border": "1px solid rgba(255, 255, 255, 0.2)",
+        "box_shadow": f"0 20px 60px 0 {COLORS['primary']['500']}20, inset 0 1px 0 rgba(255, 255, 255, 0.3)"
+    }
+}
+
+# ==========================================
+# 🎨 EFECTOS NEUMORPHISM
+# ==========================================
+
+NEUMORPHISM = {
+    "light": {
+        "background": COLORS["gray"]["100"],
+        "box_shadow": f"12px 12px 24px {COLORS['gray']['300']}, -12px -12px 24px {COLORS['gray']['50']}"
+    },
+    "pressed": {
+        "background": COLORS["gray"]["100"],
+        "box_shadow": f"inset 8px 8px 16px {COLORS['gray']['300']}, inset -8px -8px 16px {COLORS['gray']['50']}"
+    },
+    "colored": {
+        "background": COLORS["primary"]["100"],
+        "box_shadow": f"12px 12px 24px {COLORS['primary']['200']}, -12px -12px 24px {COLORS['primary']['50']}"
     }
 }
 
@@ -643,6 +798,99 @@ def create_theme_object(base_theme: str = "light", role: str = "administrador") 
     }
 
 # ==========================================
+# 🌙 SISTEMA DE ESTILOS TEMA OSCURO REUTILIZABLE
+# ==========================================
+
+DARK_THEME_STYLES = {
+    # Fondos profesionales
+    "page_background": {
+        "background": f"linear-gradient(180deg, {COLORS['blue']['950']} 0%,{COLORS['gray']['900']} 20%, {COLORS['gray']['950']} 100%);",
+        "position": "relative",
+        "_before": {
+            "content": "''",
+            "position": "absolute",
+            "inset": "0",
+            "background": f"""
+                radial-gradient(circle at 15% 20%, {COLORS['primary']['500']}12 0%, transparent 50%),
+                radial-gradient(circle at 85% 80%, {COLORS['secondary']['500']}08 0%, transparent 50%),
+                radial-gradient(circle at 45% 10%, {COLORS['blue']['950']}06 0%, transparent 40%),
+                radial-gradient(circle at 75% 40%, {COLORS['success']['500']}04 0%, transparent 30%)
+            """,
+            "pointer_events": "none",
+            "z_index": "1"
+        },
+        "_after": {
+            "content": "''",
+            "position": "absolute",
+            "inset": "0",
+            "background": "url('data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100\" height=\"100\" viewBox=\"0 0 100 100\"><defs><pattern id=\"grain\" width=\"100\" height=\"100\" patternUnits=\"userSpaceOnUse\"><circle cx=\"25\" cy=\"25\" r=\"0.5\" fill=\"%23ffffff\" opacity=\"0.02\"/><circle cx=\"75\" cy=\"25\" r=\"0.3\" fill=\"%23ffffff\" opacity=\"0.015\"/><circle cx=\"50\" cy=\"50\" r=\"0.4\" fill=\"%23ffffff\" opacity=\"0.02\"/><circle cx=\"25\" cy=\"75\" r=\"0.2\" fill=\"%23ffffff\" opacity=\"0.01\"/><circle cx=\"75\" cy=\"75\" r=\"0.6\" fill=\"%23ffffff\" opacity=\"0.025\"/></pattern></defs><rect width=\"100\" height=\"100\" fill=\"url(%23grain)\"/></svg>')",
+            "opacity": "0.6",
+            "pointer_events": "none",
+            "z_index": "1"
+        }
+    },
+    
+    # Cards cristal reutilizables
+    "crystal_card": {
+        "background": "rgba(255, 255, 255, 0.08)",
+        "backdrop_filter": "blur(20px) saturate(180%)",
+        "border": "1px solid rgba(255, 255, 255, 0.2)",
+        "border_radius": RADIUS["3xl"],
+        "box_shadow": "0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
+        "transition": "all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+        "position": "relative",
+        "overflow": "hidden"
+    },
+    
+    # Tabla oscura profesional
+    "dark_table": {
+        "background": "rgba(255, 255, 255, 0.05)",
+        "backdrop_filter": "blur(20px) saturate(180%)",
+        "border": "1px solid rgba(255, 255, 255, 0.1)",
+        "border_radius": RADIUS["3xl"],
+        "box_shadow": "0 20px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
+        "overflow": "hidden"
+    },
+    
+    # Header de tabla
+    "table_header": {
+        "background": f"linear-gradient(135deg, {DARK_THEME['colors']['surface']} 0%, {DARK_THEME['colors']['surface_secondary']} 100%)",
+        "border_radius": RADIUS["xl"],
+        "box_shadow": "0 4px 12px rgba(0, 0, 0, 0.3)",
+        "border": f"1px solid {DARK_THEME['colors']['border']}",
+        "backdrop_filter": "blur(10px)"
+    },
+    
+    # Input de búsqueda
+    "search_input": {
+        "background": DARK_THEME["colors"]["surface_secondary"],
+        "border": f"2px solid {DARK_THEME['colors']['border']}",
+        "border_radius": RADIUS["2xl"],
+        "color": DARK_THEME["colors"]["text_primary"],
+        "transition": "all 0.2s ease-in-out",
+        "_focus": {
+            "outline": "none",
+            "border_color": COLORS["primary"]["400"],
+            "box_shadow": f"0 0 12px {COLORS['primary']['400']}40",
+            "background": DARK_THEME["colors"]["surface_elevated"]
+        },
+        "_hover": {
+            "border_color": COLORS["primary"]["300"],
+            "box_shadow": "0 2px 8px rgba(0, 0, 0, 0.2)"
+        }
+    },
+    
+    # Sidebar cristal
+    "sidebar": {
+        "background": "rgba(255, 255, 255, 0.06)",
+        "backdrop_filter": "blur(25px) saturate(150%)",
+        "border_right": "1px solid rgba(255, 255, 255, 0.15)",
+        "box_shadow": "4px 0 24px rgba(0, 0, 0, 0.4), inset 1px 0 0 rgba(255, 255, 255, 0.1)",
+        "position": "relative"
+    }
+}
+
+# ==========================================
 # 🎯 ESTILOS ESPECÍFICOS DENTALES
 # ==========================================
 
@@ -667,6 +915,130 @@ DENTAL_SPECIFIC = {
 }
 
 # ==========================================
+# 🛠️ FUNCIONES UTILITARIAS TEMA OSCURO
+# ==========================================
+
+def dark_page_background(**overrides) -> Dict[str, Any]:
+    """🌙 Fondo de página profesional para tema oscuro"""
+    base_style = DARK_THEME_STYLES["page_background"].copy()
+    base_style.update(overrides)
+    return base_style
+
+def dark_crystal_card(color: str = None, hover_lift: str = "6px", **overrides) -> Dict[str, Any]:
+    """💎 Card cristal con color personalizable"""
+    base_style = DARK_THEME_STYLES["crystal_card"].copy()
+    
+    if color:
+        # Agregar efectos de color específico
+        base_style.update({
+            "box_shadow": f"0 8px 32px rgba(0, 0, 0, 0.5), 0 4px 16px {color}20, inset 0 1px 0 rgba(255, 255, 255, 0.1)",
+            "_hover": {
+                "transform": f"translateY(-{hover_lift})",
+                "box_shadow": f"0 12px 40px rgba(0, 0, 0, 0.6), 0 8px 24px {color}30, inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+                "border_color": "rgba(255, 255, 255, 0.3)",
+                "background": "rgba(255, 255, 255, 0.12)"
+            },
+            # Borde superior con glow
+            "_before": {
+                "content": "''",
+                "position": "absolute",
+                "top": "0",
+                "left": "0",
+                "right": "0",
+                "height": "2px",
+                "background": f"linear-gradient(90deg, transparent 0%, {color} 50%, transparent 100%)",
+                "opacity": "0.9",
+                "box_shadow": f"0 0 8px {color}60"
+            }
+        })
+    
+    base_style.update(overrides)
+    return base_style
+
+def dark_sidebar_style(**overrides) -> Dict[str, Any]:
+    """🎭 Estilo de sidebar profesional con glassmorphism"""
+    base_style = DARK_THEME_STYLES["sidebar"].copy()
+    base_style.update(overrides)
+    return base_style
+
+def dark_table_container(**overrides) -> Dict[str, Any]:
+    """📊 Contenedor de tabla con efectos cristal"""
+    base_style = DARK_THEME_STYLES["dark_table"].copy()
+    base_style.update(overrides)
+    return base_style
+
+def dark_header_style(gradient_colors: List[str] = None, **overrides) -> Dict[str, Any]:
+    """📋 Header profesional con gradiente personalizable"""
+    if not gradient_colors:
+        gradient_colors = [DARK_THEME["colors"]["surface"], DARK_THEME["colors"]["surface_secondary"]]
+    
+    base_style = {
+        "background": f"linear-gradient(135deg, {gradient_colors[0]} 0%, {gradient_colors[1]} 100%)",
+        "border_radius": RADIUS["xl"],
+        "box_shadow": "0 4px 12px rgba(0, 0, 0, 0.3)",
+        "border": f"1px solid {DARK_THEME['colors']['border']}",
+        "backdrop_filter": "blur(10px)",
+        "padding": f"{SPACING['3']} {SPACING['6']}",
+        "border_bottom": f"1px solid {DARK_THEME['colors']['border']}"
+    }
+    
+    base_style.update(overrides)
+    return base_style
+
+def dark_search_input(**overrides) -> Dict[str, Any]:
+    """🔍 Input de búsqueda con tema oscuro"""
+    base_style = DARK_THEME_STYLES["search_input"].copy()
+    base_style.update(overrides)
+    return base_style
+
+def dark_nav_item_style(color: str = None) -> Dict[str, Any]:
+    """🧭 Estilo base para items de navegación (sin lógica condicional)"""
+    if not color:
+        color = COLORS["primary"]["500"]
+    
+    return {
+        "background": "transparent",
+        "color": DARK_THEME["colors"]["text_secondary"],
+        "border_radius": RADIUS["lg"],
+        "transition": "all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+        "position": "relative",
+        "_hover": {
+            "background": "rgba(255, 255, 255, 0.08)",
+            "color": DARK_THEME["colors"]["text_primary"],
+            "transform": "translateX(2px)",
+            "box_shadow": "0 2px 8px rgba(0, 0, 0, 0.2)"
+        }
+    }
+
+def dark_nav_item_active_style(color: str = None) -> Dict[str, Any]:
+    """🧭 Estilo para items de navegación activos"""
+    if not color:
+        color = COLORS["primary"]["500"]
+    
+    return {
+        "background": f"linear-gradient(135deg, {color}40 0%, {color}20 100%)",
+        "border": f"1px solid {color}60",
+        "border_radius": RADIUS["xl"],
+        "color": "white",
+        "box_shadow": f"0 4px 12px {color}30, inset 0 1px 0 rgba(255, 255, 255, 0.1)",
+        "transform": "translateX(4px)",
+        "backdrop_filter": "blur(10px)",
+        "position": "relative",
+        "_before": {
+            "content": "''",
+            "position": "absolute",
+            "left": "0",
+            "top": "50%",
+            "transform": "translateY(-50%)",
+            "width": "4px",
+            "height": "60%",
+            "background": f"linear-gradient(to bottom, {color} 0%, transparent 100%)",
+            "border_radius": "0 4px 4px 0",
+            "box_shadow": f"0 0 8px {color}80"
+        }
+    }
+
+# ==========================================
 # 📤 EXPORTS
 # ==========================================
 
@@ -688,6 +1060,12 @@ __all__ = [
     # Componentes
     "COMPONENT_STYLES",
     "DENTAL_SPECIFIC",
+    "DARK_THEME_STYLES",
+    
+    # 🌟 Nuevos elementos cristalinos
+    "GRADIENTS",
+    "GLASS_EFFECTS",
+    "NEUMORPHISM",
     
     # Funciones de utilidad
     "get_color",
@@ -697,5 +1075,15 @@ __all__ = [
     "darken_color",
     "lighten_color", 
     "get_contrast_color",
-    "create_theme_object"
+    "create_theme_object",
+    
+    # 🌙 Funciones tema oscuro
+    "dark_page_background",
+    "dark_crystal_card", 
+    "dark_sidebar_style",
+    "dark_table_container",
+    "dark_header_style",
+    "dark_search_input",
+    "dark_nav_item_style",
+    "dark_nav_item_active_style"
 ]

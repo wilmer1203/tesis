@@ -49,7 +49,7 @@ def create_protected_component(
     """
     return rx.cond(
         # PASO 1: ¿Está autenticado?
-        ~AppState.is_authenticated,
+        ~AppState.esta_autenticado,
         
         # ❌ NO AUTENTICADO → Página de login
         login_required_page(),
@@ -77,10 +77,10 @@ def build_role_check(required_roles: Optional[List[str]]):
     
     # Si solo hay un rol requerido, verificación simple
     if len(required_roles) == 1:
-        return AppState.user_role == required_roles[0]
+        return AppState.rol_usuario == required_roles[0]
     
     # Si hay múltiples roles, usar OR bitwise (|)
-    conditions = [AppState.user_role == role for role in required_roles]
+    conditions = [AppState.rol_usuario == role for role in required_roles]
     result = conditions[0]
     for condition in conditions[1:]:
         result = result | condition
@@ -194,7 +194,7 @@ def unauthorized_page(required_roles: Optional[List[str]] = None) -> rx.Componen
                 
                 # Info del usuario actual
                 rx.box(
-                    rx.text(f"Tu rol actual: {AppState.user_role}", color="gray.500", size="3"),
+                    rx.text(f"Tu rol actual: {AppState.rol_usuario}", color="gray.500", size="3"),
                     text_align="center",
                     padding="2"
                 ),
@@ -218,7 +218,7 @@ def unauthorized_page(required_roles: Optional[List[str]] = None) -> rx.Componen
                             rx.text("Cerrar Sesión"),
                             spacing="2"
                         ),
-                        on_click=AppState.logout_user,
+                        on_click=AppState.cerrar_sesion,
                         color_scheme="red",
                         size="3",
                         variant="outline"

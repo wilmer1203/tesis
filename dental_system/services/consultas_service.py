@@ -7,7 +7,8 @@ from typing import Dict, List, Optional, Any
 from datetime import date, datetime
 from .base_service import BaseService
 from dental_system.supabase.tablas import consultas_table, personal_table, services_table
-from dental_system.models import ConsultaModel, PersonalModel
+from dental_system.models import ConsultaModel, PersonalModel, ConsultaFormModel
+from .cache_invalidation_hooks import invalidate_after_consultation_operation, track_cache_invalidation
 import logging
 
 logger = logging.getLogger(__name__)
@@ -151,16 +152,16 @@ class ConsultasService(BaseService):
         
         return filtered
     
-    async def create_consultation(self, form_data: Dict[str, str], user_id: str) -> Optional[Dict[str, Any]]:
+    async def create_consultation(self, consulta_form: ConsultaFormModel, user_id: str) -> Optional[ConsultaModel]:
         """
-        Crea una nueva consulta - REEMPLAZA lógica duplicada
+        Crea una nueva consulta - TYPED MODEL
         
         Args:
-            form_data: Datos del formulario
+            consulta_form: Formulario tipado de consulta
             user_id: ID del usuario que crea
             
         Returns:
-            Consulta creada o None si hay error
+            ConsultaModel creada o None si hay error
         """
         try:
             logger.info("Creando nueva consulta")
@@ -168,29 +169,37 @@ class ConsultasService(BaseService):
             # Verificar permisos
             self.require_permission("consultas", "crear")
             
-            # Validar campos requeridos
-            required_fields = ["paciente_id", "odontologo_id"]
-            missing_fields = self.validate_required_fields(form_data, required_fields)
-            
-            if missing_fields:
-                error_msg = self.format_error_message("Datos incompletos", missing_fields)
+            # Validar formulario tipado
+            validation_errors = consulta_form.validate_form()
+            if validation_errors:
+                error_msg = f"Errores de validación: {validation_errors}"
                 raise ValueError(error_msg)
             
             # Crear consulta con fecha/hora actual (por orden de llegada)
             result = self.consultas_table.create_consultation(
-                paciente_id=form_data["paciente_id"],
-                odontologo_id=form_data["odontologo_id"],
+                paciente_id=consulta_form.paciente_id,
+                odontologo_id=consulta_form.odontologo_id,
                 fecha_programada=datetime.now(),  # Fecha/hora actual
-                tipo_consulta=form_data.get("tipo_consulta", "general"),
-                motivo_consulta=form_data.get("motivo_consulta") if form_data.get("motivo_consulta") else None,
-                observaciones_cita=form_data.get("observaciones_cita") if form_data.get("observaciones_cita") else None,
-                prioridad=form_data.get("prioridad", "normal"),
+                tipo_consulta=consulta_form.tipo_consulta or "general",
+                motivo_consulta=consulta_form.motivo_consulta if consulta_form.motivo_consulta else None,
+                observaciones_cita=consulta_form.observaciones_cita if consulta_form.observaciones_cita else None,
+                prioridad=consulta_form.prioridad or "normal",
                 programada_por=user_id
             )
             
             if result:
-                logger.info(f"✅ Consulta creada: {result.get('numero_consulta', 'N/A')}")
-                return result
+                # Crear modelo tipado del resultado
+                consulta_model = ConsultaModel.from_dict(result)
+                
+                logger.info(f"✅ Consulta creada: {consulta_model.numero_consulta}")
+                
+                # 🗑️ INVALIDAR CACHE - consulta creada afecta estadísticas
+                try:
+                    invalidate_after_consultation_operation()
+                except Exception as cache_error:
+                    logger.warning(f"Error invalidando cache tras crear consulta: {cache_error}")
+                
+                return consulta_model
             else:
                 raise ValueError("Error creando consulta en la base de datos")
                 
@@ -204,16 +213,16 @@ class ConsultasService(BaseService):
             self.handle_error("Error creando consulta", e)
             raise ValueError(f"Error inesperado: {str(e)}")
     
-    async def update_consultation(self, consultation_id: str, form_data: Dict[str, str]) -> Optional[Dict[str, Any]]:
+    async def update_consultation(self, consultation_id: str, consulta_form: ConsultaFormModel) -> Optional[ConsultaModel]:
         """
         Actualiza una consulta existente
         
         Args:
             consultation_id: ID de la consulta
-            form_data: Datos del formulario
+            consulta_form: Formulario tipado de consulta
             
         Returns:
-            Consulta actualizada o None si hay error
+            ConsultaModel actualizada o None si hay error
         """
         try:
             logger.info(f"Actualizando consulta: {consultation_id}")
@@ -221,25 +230,41 @@ class ConsultasService(BaseService):
             # Verificar permisos
             self.require_permission("consultas", "actualizar")
             
+            # Validar formulario tipado
+            validation_errors = consulta_form.validate_form()
+            if validation_errors:
+                error_msg = f"Errores de validación: {validation_errors}"
+                raise ValueError(error_msg)
+            
             # Preparar datos de actualización
             data = {
-                "motivo_consulta": form_data.get("motivo_consulta") if form_data.get("motivo_consulta") else None,
-                "observaciones_cita": form_data.get("observaciones_cita") if form_data.get("observaciones_cita") else None,
-                "tipo_consulta": form_data.get("tipo_consulta", "general"),
-                "prioridad": form_data.get("prioridad", "normal")
+                "motivo_consulta": consulta_form.motivo_consulta if consulta_form.motivo_consulta else None,
+                "observaciones_cita": consulta_form.observaciones_cita if consulta_form.observaciones_cita else None,
+                "tipo_consulta": consulta_form.tipo_consulta or "general",
+                "prioridad": consulta_form.prioridad or "normal"
             }
             
             # Solo permitir cambiar odontólogo si está en estado programada
             current_consulta = self.consultas_table.get_by_id(consultation_id)
             if current_consulta and current_consulta.get("estado") == "programada":
-                if form_data.get("odontologo_id") and form_data["odontologo_id"] != current_consulta.get("odontologo_id"):
-                    data["odontologo_id"] = form_data["odontologo_id"]
+                if consulta_form.odontologo_id and consulta_form.odontologo_id != current_consulta.get("odontologo_id"):
+                    data["odontologo_id"] = consulta_form.odontologo_id
             
             result = self.consultas_table.update(consultation_id, data)
             
             if result:
+                # Crear modelo tipado del resultado
+                consulta_model = ConsultaModel.from_dict(result)
+                
                 logger.info(f"✅ Consulta actualizada correctamente")
-                return result
+                
+                # 🗑️ INVALIDAR CACHE - consulta actualizada afecta estadísticas
+                try:
+                    invalidate_after_consultation_operation()
+                except Exception as cache_error:
+                    logger.warning(f"Error invalidando cache tras actualizar consulta: {cache_error}")
+                
+                return consulta_model
             else:
                 raise ValueError("Error actualizando consulta")
                 
@@ -269,13 +294,22 @@ class ConsultasService(BaseService):
             
             # Validar transición de estado
             consulta_actual = self.consultas_table.get_by_id(consultation_id)
-            if consulta_actual and not self._is_valid_status_transition(consulta_actual.get("estado"), nuevo_estado):
-                raise ValueError(f"Transición de estado no válida")
+            print(consulta_actual)
+            if consulta_actual.get("estado") != "en_progreso":
+                if consulta_actual and not self._is_valid_status_transition(consulta_actual.get("estado"), nuevo_estado):
+                    raise ValueError(f"Transición de estado no válida")
             
             result = self.consultas_table.update_status(consultation_id, nuevo_estado, notas)
             
             if result:
                 logger.info(f"✅ Estado de consulta cambiado a: {nuevo_estado}")
+                
+                # 🗑️ INVALIDAR CACHE - cambio de estado afecta estadísticas real-time
+                try:
+                    invalidate_after_consultation_operation()
+                except Exception as cache_error:
+                    logger.warning(f"Error invalidando cache tras cambiar estado consulta: {cache_error}")
+                
                 return True
             else:
                 raise ValueError("Error cambiando estado de consulta")
@@ -290,8 +324,7 @@ class ConsultasService(BaseService):
     def _is_valid_status_transition(self, estado_actual: str, nuevo_estado: str) -> bool:
         """Validar si la transición de estado es válida"""
         valid_transitions = {
-            "programada": ["confirmada", "en_progreso", "cancelada", "no_asistio"],
-            "confirmada": ["en_progreso", "cancelada", "no_asistio"],
+            "programada": ["en_progreso", "cancelada", "no_asistio"],
             "en_progreso": ["completada", "cancelada"],
             "completada": [],  # Estado final
             "cancelada": ["programada"],  # Puede reprogramarse
@@ -300,24 +333,27 @@ class ConsultasService(BaseService):
         
         return nuevo_estado in valid_transitions.get(estado_actual, [])
     
-    async def get_support_data(self) -> List[Dict[str, Any]]:
+    async def get_support_data(self) -> List[PersonalModel]:
         """
-        Obtiene datos de apoyo para consultas (odontólogos, servicios)
+        Obtiene datos de apoyo para consultas (odontólogos)
         REEMPLAZA múltiples métodos duplicados
         
         Returns:
-            Diccionario con odontólogos y servicios
+            Lista de PersonalModel con odontólogos activos
         """
         try:
             logger.info("Obteniendo datos de apoyo para consultas")
             
             # Obtener odontólogos activos
-            odontologos_data  = self.personal_table.get_dentists(incluir_inactivos=False)
+            odontologos_data = self.personal_table.get_dentists(incluir_inactivos=False)
             
-            # # Obtener servicios activos
-            # servicios_data = await self._get_active_services()
+            # ✅ Convertir a modelos PersonalModel
+            odontologos_models = [
+                PersonalModel.from_dict(odontologo_data) 
+                for odontologo_data in odontologos_data
+            ]
             
-            return odontologos_data
+            return odontologos_models
                 
         except Exception as e:
             self.handle_error("Error obteniendo datos de apoyo", e)
@@ -463,9 +499,9 @@ class ConsultasService(BaseService):
             self.handle_error("Error cancelando consulta", e)
             raise ValueError(f"Error inesperado: {str(e)}")
 
-    async def get_support_data_for_consultas(self) -> Dict[str, List[Dict[str, Any]]]:
+    async def get_support_data_for_consultas(self) -> List[PersonalModel]:
         """
-        Obtiene datos de apoyo para consultas (odontólogos y servicios)
+        Obtiene datos de apoyo para consultas (odontólogos)
         ALIAS para compatibilidad con AppState
         """
         return await self.get_support_data()
