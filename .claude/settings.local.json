@@ -18,7 +18,8 @@
       "Bash(reflex init:*)",
       "Bash(bun install:*)",
       "Bash(pip show:*)",
-      "Bash(reflex:*)"
+      "Bash(reflex:*)",
+      "Bash(powershell:*)"
     ],
     "deny": []
   }

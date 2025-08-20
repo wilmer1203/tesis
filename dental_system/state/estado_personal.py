@@ -78,7 +78,7 @@ class EstadoPersonal(rx.State, mixin=True):
     ]
     
     # Filtros por categoría
-    filtro_rol: str = "todos"  # todos, odontologo, administrador, asistente
+    filtro_rol: str = "todos"  # todos, Gerente, Administrador, Odontólogo, Asistente
     filtro_especialidad: str = "todas"
     filtro_estado_empleado: str = "activos"  # todos, activos, inactivos
     
@@ -164,25 +164,19 @@ class EstadoPersonal(rx.State, mixin=True):
                 resultado = [
                     emp for emp in resultado
                     if (termino_lower in emp.nombre_completo.lower() or
-                        termino_lower in emp.cedula.lower() or
+                        termino_lower in emp.numero_documento.lower() or
                         termino_lower in emp.telefono.lower() or
                         (emp.especialidad and termino_lower in emp.especialidad.lower()) or
                         (emp.email and termino_lower in emp.email.lower()))
                 ]
             
-            # Filtro por rol
-            if self.filtro_rol != "todos":
-                resultado = [emp for emp in resultado if emp.rol_nombre_computed == self.filtro_rol]
+            # Filtro por rol: Ya aplicado en backend via service
             
             # Filtro por especialidad
             if self.filtro_especialidad != "todas":
                 resultado = [emp for emp in resultado if emp.especialidad == self.filtro_especialidad]
             
-            # Filtro por estado
-            if self.filtro_estado_empleado == "activos":
-                resultado = [emp for emp in resultado if emp.estado_laboral == "activo"]
-            elif self.filtro_estado_empleado == "inactivos":
-                resultado = [emp for emp in resultado if emp.estado_laboral != "activo"]
+            # Filtro por estado: Ya aplicado en backend via service
             
             # Aplicar ordenamiento
             if self.campo_ordenamiento_personal == "nombre":
@@ -576,7 +570,7 @@ class EstadoPersonal(rx.State, mixin=True):
             "segundo_apellido": empleado.segundo_apellido or "",
             
             # Identificación y contacto
-            "cedula": empleado.numero_documento or "",
+            "numero_documento": empleado.numero_documento or "",
             "telefono": empleado.celular or "",
             "email": empleado.usuario.email or "",
             "direccion": empleado.direccion or "",
@@ -638,7 +632,7 @@ class EstadoPersonal(rx.State, mixin=True):
         
         # Campos requeridos
         campos_requeridos = [
-            "nombre", "apellido", "cedula", "telefono", "fecha_ingreso", "rol_id"
+            "nombre", "apellido", "numero_documento", "telefono", "fecha_ingreso", "rol_id"
         ]
         
         for campo in campos_requeridos:
@@ -648,10 +642,10 @@ class EstadoPersonal(rx.State, mixin=True):
         
         # Validaciones específicas
         
-        # Cédula única
-        cedula = self.formulario_empleado.get("cedula", "").strip()
-        if cedula and len(cedula) < 7:
-            self.errores_validacion_empleado["cedula"] = "La cédula debe tener al menos 7 dígitos"
+        # Número de documento único
+        numero_documento = self.formulario_empleado.get("numero_documento", "").strip()
+        if numero_documento and len(numero_documento) < 7:
+            self.errores_validacion_empleado["numero_documento"] = "El número de documento debe tener al menos 7 dígitos"
         
         # Email válido
         email = self.formulario_empleado.get("email", "").strip()
@@ -784,22 +778,34 @@ class EstadoPersonal(rx.State, mixin=True):
                 if self.empleado_seleccionado:
                     self.cargar_empleado_en_formulario(self.empleado_seleccionado)
                 # Abrir modal editar
-                if hasattr(self, 'abrir_modal_personal'):
-                    self.abrir_modal_personal("editar")
+                self.abrir_modal_personal("editar")
                 logger.info(f"📝 Modal editar personal abierto: {personal_id}")
             else:
-                # Modo crear: limpiar selección
+                # Modo crear: limpiar selección y abrir modal
                 self.empleado_seleccionado = None
                 self.id_empleado_seleccionado = ""
-                self.limpiar_formulario_empleado()
+                self.limpiar_formulario_empleado()  
                 # Abrir modal crear
-                if hasattr(self, 'abrir_modal_personal'):
-                    self.abrir_modal_personal("crear")
-                logger.info("➕ Modal crear personal abierto")
+                self.abrir_modal_personal("crear")  
+                logger.info("✅ Modal crear personal abierto")
                 
         except Exception as e:
             self.handle_error("abrir modal personal", e)
     
+    @rx.event
+    async def eliminar_personal(self):
+        """
+        🗑️ DESACTIVAR/ELIMINAR PERSONAL SELECCIONADO
+        
+        Utiliza self.personal_to_delete para desactivar el empleado
+        """
+        if self.personal_to_delete and self.personal_to_delete.id:
+            await self.activar_desactivar_empleado(self.personal_to_delete.id, False)
+            # Limpiar variable después de eliminar
+            self.personal_to_delete = None
+        else:
+            print("❌ No hay personal seleccionado para eliminar.")
+
     @rx.event  
     async def seleccionar_personal_para_eliminar(self, personal_id: str):
         """🗑️ Seleccionar personal para eliminar"""

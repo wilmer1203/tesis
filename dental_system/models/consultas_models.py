@@ -227,6 +227,64 @@ class MotivosConsultaModel(rx.Base):
         )
 
 
+class ConsultaConOrdenModel(rx.Base):
+    """Modelo tipado para consultas con información de orden de llegada"""
+    consulta: ConsultaModel = ConsultaModel()
+    orden: int = 0
+    tiempo_espera_estimado: str = "~30 min"
+    es_siguiente: bool = False
+    
+    @classmethod
+    def from_consulta(cls, consulta: ConsultaModel, orden: int, tiempo_espera: str, es_siguiente: bool = False) -> "ConsultaConOrdenModel":
+        """Crear instancia desde ConsultaModel con datos de orden"""
+        return cls(
+            consulta=consulta,
+            orden=orden,
+            tiempo_espera_estimado=tiempo_espera,
+            es_siguiente=es_siguiente
+        )
+    
+    @property
+    def numero_turno_display(self) -> str:
+        """Número de turno formateado para mostrar"""
+        return f"#{self.orden:02d}"
+    
+    @property
+    def estado_con_orden(self) -> str:
+        """Estado con información de orden"""
+        if self.es_siguiente:
+            return "Siguiente"
+        elif self.orden == 1:
+            return "En atención"
+        else:
+            return f"Turno #{self.orden}"
+    
+    @property
+    def paciente_nombre(self) -> str:
+        """Acceso directo al nombre del paciente"""
+        return self.consulta.paciente_nombre
+    
+    @property
+    def paciente_documento(self) -> str:
+        """Acceso directo al documento del paciente"""
+        return self.consulta.paciente_documento
+    
+    @property
+    def motivo_consulta(self) -> str:
+        """Acceso directo al motivo de consulta"""
+        return self.consulta.motivo_consulta
+    
+    @property
+    def estado_display(self) -> str:
+        """Estado formateado para mostrar"""
+        return self.consulta.estado_display
+    
+    @property
+    def prioridad_color(self) -> str:
+        """Color de prioridad"""
+        return self.consulta.prioridad_color
+
+
 class HorarioAtencionModel(rx.Base):
     """Modelo para horarios de atención por odontólogo"""
     odontologo_id: str = ""

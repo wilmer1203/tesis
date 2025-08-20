@@ -7,7 +7,8 @@ from dental_system.styles.themes import COLORS, SHADOWS
 from dental_system.pages.dashboard import dashboard_page
 from dental_system.pages.pacientes_page import pacientes_page
 from dental_system.pages.personal_page import personal_page
-# from dental_system.pages.consultas_page import consultas_page_new
+from dental_system.pages.consultas_page import consultas_page
+from dental_system.pages.consultas_test import consultas_test_page
 # from dental_system.pages.servicios_page import servicios_page
 # from dental_system.pages.pagos_page import pagos_page
 # from dental_system.pages.odontologia_page import odontologia_page
@@ -84,7 +85,8 @@ def main_content() -> rx.Component:
         AppState.current_page,
         ("dashboard", dashboard_page()),
         ("pacientes", pacientes_page()),
-        # ("consultas", consultas_page_new()),
+        ("consultas", consultas_page()),
+        ("consultas_test", consultas_test_page()),  # 🧪 Página de prueba temporal
         ("personal", personal_page()),
         # ("servicios", servicios_page()),
         # ("pagos", pagos_page()),

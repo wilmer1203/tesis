@@ -246,7 +246,7 @@ class PersonalFormModel(rx.Base):
     segundo_apellido: str = ""
     
     # Identificación
-    cedula: str = ""
+    numero_documento: str = ""
     telefono: str = ""
     email: str = ""
     direccion: str = ""
@@ -279,8 +279,8 @@ class PersonalFormModel(rx.Base):
         if not self.primer_apellido.strip():
             errors.setdefault("primer_apellido", []).append("Primer apellido es requerido")
         
-        if not self.cedula.strip():
-            errors.setdefault("cedula", []).append("Cédula es requerida")
+        if not self.numero_documento.strip():
+            errors.setdefault("numero_documento", []).append("Número de documento es requerido")
         
         if self.crear_usuario:
             if not self.usuario_email.strip():
@@ -309,7 +309,7 @@ class PersonalFormModel(rx.Base):
             "segundo_nombre": self.segundo_nombre,
             "primer_apellido": self.primer_apellido,
             "segundo_apellido": self.segundo_apellido,
-            "cedula": self.cedula,
+            "numero_documento": self.numero_documento,
             "telefono": self.telefono,
             "email": self.email,
             "direccion": self.direccion,
@@ -338,7 +338,7 @@ class PersonalFormModel(rx.Base):
             segundo_nombre=str(data.get("segundo_nombre", "")),
             primer_apellido=str(data.get("primer_apellido", "")),
             segundo_apellido=str(data.get("segundo_apellido", "")),
-            cedula=str(data.get("cedula", "")),
+            numero_documento=str(data.get("numero_documento", "")),
             telefono=str(data.get("telefono", "")),
             email=str(data.get("email", "")),
             direccion=str(data.get("direccion", "")),

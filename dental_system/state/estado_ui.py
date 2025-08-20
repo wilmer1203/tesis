@@ -235,9 +235,10 @@ class EstadoUI(rx.State, mixin=True):
     def abrir_modal_personal(self, tipo: str, datos: Dict[str, Any] = None):
         """👨‍⚕️ Abrir modal de personal"""
         self.cerrar_todos_los_modales()
-        
+        print("estamos en abrir modal")
         if tipo == "crear":
             self.modal_crear_personal_abierto = True
+            print("se cambio a TRUE  del modal crear personal")
             self.datos_temporales_personal = {}
         elif tipo == "editar":
             self.modal_editar_personal_abierto = True
@@ -266,6 +267,13 @@ class EstadoUI(rx.State, mixin=True):
         self.tipo_alerta = tipo
         print(f"🔔 Modal alerta ({tipo}): {titulo}")
     
+    @rx.event
+    def cerrar_modal(self, is_open: bool = False):
+        """❌ Cerrar el modal actual (alias para cerrar_todos_los_modales)"""
+        if not is_open:  # Solo cerrar si is_open es False
+            self.cerrar_todos_los_modales()
+            print("🔄 Cerrando modal - variables cambiadas a False")
+
     @rx.event
     def cerrar_todos_los_modales(self):
         """❌ Cerrar todos los modales abiertos"""
@@ -303,6 +311,15 @@ class EstadoUI(rx.State, mixin=True):
         self.datos_temporales_personal = {}
         
         print("❌ Todos los modales cerrados")
+    
+    # ==========================================
+    # 📱 SETTERS PARA MODALES (Requeridos por UI)
+    # ==========================================
+    
+    @rx.event
+    def set_modal_crear_consulta_abierto(self, abierto: bool):
+        """📅 Setter para modal de crear consulta"""
+        self.modal_crear_consulta_abierto = abierto
     
     # ==========================================
     # 📱 FORMULARIOS MULTI-PASO

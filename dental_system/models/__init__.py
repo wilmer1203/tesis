@@ -16,7 +16,8 @@ from .consultas_models import (
     TurnoModel,
     ConsultasStatsModel,
     MotivosConsultaModel,
-    HorarioAtencionModel
+    HorarioAtencionModel,
+    ConsultaConOrdenModel
 )
 
 from .personal_models import (
@@ -94,6 +95,7 @@ __all__ = [
     "ConsultasStatsModel",
     "MotivosConsultaModel", 
     "HorarioAtencionModel",
+    "ConsultaConOrdenModel",
     
     # ✅ PERSONAL Y USUARIOS
     "UsuarioModel",

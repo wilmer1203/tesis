@@ -1088,10 +1088,38 @@ def personal_table() -> rx.Component:
                 on_change=AppState.buscar_personal
             ),
             
-            rx.text(
-                "Filtros temporalmente deshabilitados", 
-                size="2", 
-                color="gray"
+            # Filtros funcionales
+            rx.hstack(
+                # Filtro por tipo de cargo/rol
+                rx.vstack(
+                    rx.text("Cargo:", size="2", weight="medium", color="gray.700"),
+                    rx.select(
+                        ["todos", "Gerente", "Administrador", "Odontólogo", "Asistente"],
+                        placeholder="Seleccionar cargo",
+                        value=AppState.filtro_rol,
+                        on_change=AppState.filtrar_por_rol,
+                        width="150px"
+                    ),
+                    spacing="1",
+                    align="start"
+                ),
+                
+                # Filtro por estado
+                rx.vstack(
+                    rx.text("Estado:", size="2", weight="medium", color="gray.700"),
+                    rx.select(
+                        ["todos", "activos", "inactivos"],
+                        placeholder="Seleccionar estado", 
+                        value=AppState.filtro_estado_empleado,
+                        on_change=AppState.filtrar_por_estado,
+                        width="120px"
+                    ),
+                    spacing="1",
+                    align="start"
+                ),
+                
+                spacing="4",
+                align="end"
             ),
 
             # Botón Nuevo Personal movido aquí

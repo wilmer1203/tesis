@@ -514,7 +514,7 @@ def multi_step_patient_form() -> rx.Component:
         ),
         
         open=AppState.modal_crear_paciente_abierto | AppState.modal_editar_paciente_abierto,
-        on_open_change=lambda open: rx.cond(~open, AppState.cerrar_todos_los_modales(), None)
+        on_open_change=AppState.cerrar_todos_los_modales
     )
 
 def _patient_form_step_1() -> rx.Component:
@@ -867,7 +867,7 @@ def multi_step_staff_form() -> rx.Component:
         ),
         
         open=AppState.modal_crear_personal_abierto | AppState.modal_editar_personal_abierto,
-        on_open_change=lambda open: rx.cond(~open, AppState.cerrar_todos_los_modales(), None)
+        on_open_change=AppState.cerrar_todos_los_modales
     )
 
 def _staff_form_step_1() -> rx.Component:
@@ -937,15 +937,15 @@ def _staff_form_step_1() -> rx.Component:
         rx.grid(
             enhanced_form_field(
                 label="Número de Documento",
-                field_name="cedula",
-                value=rx.cond(AppState.formulario_personal_data, AppState.formulario_personal_data.cedula, ""),
+                field_name="numero_documento",
+                value=rx.cond(AppState.formulario_personal_data, AppState.formulario_personal_data.numero_documento, ""),
                 on_change=AppState.actualizar_campo_formulario_empleado,
                 placeholder="12345678",
                 required=True,
                 icon="id-card",
                 pattern="[0-9]+",
                 max_length=20,
-                validation_error=rx.cond(AppState.errores_validacion_empleado, AppState.errores_validacion_empleado.get("cedula", ""), "")
+                validation_error=rx.cond(AppState.errores_validacion_empleado, AppState.errores_validacion_empleado.get("numero_documento", ""), "")
             ),
             enhanced_form_field(
                 label="Teléfono Principal",

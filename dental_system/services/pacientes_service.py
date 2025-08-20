@@ -256,10 +256,10 @@ class PacientesService(BaseService):
             
             if result:
                 nombre_display = self.construct_full_name(
-                    form_data["primer_nombre"],
-                    form_data.get("segundo_nombre"),
-                    form_data["primer_apellido"],
-                    form_data.get("segundo_apellido")
+                    data["primer_nombre"],
+                    data.get("segundo_nombre"),
+                    data["primer_apellido"],
+                    data.get("segundo_apellido")
                 )
                 
                 # 🗑️ INVALIDAR CACHE después de actualizar paciente

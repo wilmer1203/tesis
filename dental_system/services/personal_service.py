@@ -76,7 +76,7 @@ class PersonalService(BaseService):
         Crea un nuevo miembro del personal - PROCESO COMPLETO
         
         Args:
-            form_data: Datos del formulario
+            personal_form: Formulario tipado de personal
             creator_user_id: ID del usuario que crea
             
         Returns:
@@ -87,6 +87,9 @@ class PersonalService(BaseService):
             
             # Verificar permisos
             self.require_permission("personal", "crear")
+            
+            # Convertir formulario tipado a dict
+            form_data = personal_form.to_dict()
             
             # Validar campos requeridos
             required_fields = ["primer_nombre", "primer_apellido", "numero_documento", "email", "celular", "tipo_personal"]
@@ -220,7 +223,7 @@ class PersonalService(BaseService):
         
         Args:
             personal_id: ID del personal
-            form_data: Datos del formulario
+            personal_form: Formulario tipado de personal
             
         Returns:
             Personal actualizado o None si hay error
@@ -230,6 +233,9 @@ class PersonalService(BaseService):
             
             # Verificar permisos
             self.require_permission("personal", "actualizar")
+            
+            # Convertir formulario tipado a dict
+            form_data = personal_form.to_dict()
             
             # Validar campos requeridos (sin password para actualización)
             required_fields = ["primer_nombre", "primer_apellido", "numero_documento", "email", "celular", "tipo_personal"]

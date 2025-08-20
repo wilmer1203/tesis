@@ -87,7 +87,7 @@ def delete_personal_confirmation_modal() -> rx.Component:
             rx.hstack(
                 rx.button(
                     "Cancelar",
-                    on_click=AppState.cerrar_modal,
+                    on_click=AppState.cerrar_todos_los_modales,
                     style={
                         **GLASS_EFFECTS["light"],
                         "border": f"1px solid {COLORS['gray']['300']}60",
@@ -397,7 +397,7 @@ def personal_page() -> rx.Component:
                 }
             ),
             multi_step_staff_form(),  # ✅ Formulario multi-step staff reactivado
-            # delete_personal_confirmation_modal(),  # TODO: Arreglar modal de eliminación
+            delete_personal_confirmation_modal(),  # ✅ Modal de eliminación reactivado
             # Utilizar función utilitaria para el fondo de página
             style={
                 **dark_page_background(),

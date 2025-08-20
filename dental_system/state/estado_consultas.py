@@ -108,6 +108,21 @@ class EstadoConsultas(rx.State,mixin=True):
     buscar_por_paciente: str = ""
     buscar_por_diagnostico: str = ""
     
+    # Variables adicionales para UI
+    pacientes_search_modal: str = ""
+    consulta_form: Dict[str, Any] = {
+        "paciente_id": "",
+        "odontologo_id": "",
+        "motivo_consulta": "",
+        "tipo_consulta": "",
+        "prioridad": "rutina",
+        "observaciones": ""
+    }
+    
+    # Variables de mensajes
+    success_message: str = ""
+    error_message: str = ""
+    
     # ==========================================
     # 📅 ESTADÍSTICAS Y MÉTRICAS CACHE
     # ==========================================
@@ -136,7 +151,7 @@ class EstadoConsultas(rx.State,mixin=True):
     # ==========================================
     
     @rx.var(cache=True)
-    def consultas_filtradas_display(self) -> List[ConsultaModel]:
+    def consultas_filtradas(self) -> List[ConsultaModel]:
         """🔍 Consultas filtradas según criterios actuales"""
         consultas = self.lista_consultas
         
@@ -644,6 +659,26 @@ class EstadoConsultas(rx.State,mixin=True):
         return [c for c in self.consultas_hoy if c.estado == "completada"]
     
     @rx.var(cache=True)
+    def consultas_completadas_list(self) -> List[ConsultaModel]:
+        """✅ Alias para consultas completadas (compatibilidad UI)"""
+        return self.consultas_completadas_hoy_lista
+    
+    @rx.var(cache=True)
+    def consultas_canceladas_list(self) -> List[ConsultaModel]:
+        """❌ Lista de consultas canceladas hoy"""
+        return [c for c in self.consultas_hoy if c.estado == "cancelada"]
+    
+    @rx.var(cache=True)
+    def show_consulta_modal(self) -> bool:
+        """🪟 Estado del modal de consulta (delegado a EstadoUI)"""
+        return self.modal_crear_consulta_abierto  # Acceso directo por mixin
+
+    @rx.var(cache=True)
+    def consultas_canceladas(self) -> int:
+        """❌ Número de consultas canceladas hoy"""
+        return len(self.consultas_canceladas_list)
+    
+    @rx.var(cache=True)
     def total_turnos_pendientes(self) -> int:
         """📊 Total de turnos pendientes"""
         return len(self.consultas_pendientes_hoy)
@@ -882,3 +917,105 @@ class EstadoConsultas(rx.State,mixin=True):
         self.cache_timestamp_consultas = ""
         
         logger.info("🧹 Datos de consultas limpiados")
+    
+    # ==========================================
+    # 📅 FUNCIONES ADICIONALES FALTANTES PARA UI
+    # ==========================================
+    
+    @rx.event
+    def buscar_pacientes_modal(self, termino: str):
+        """🔍 Buscar pacientes en modal"""
+        self.pacientes_search_modal = termino
+        print(f"🔍 Buscando pacientes en modal: {termino}")
+    
+    @rx.event
+    def update_consulta_form(self, campo: str, valor: str):
+        """📝 Actualizar campo del formulario de consulta"""
+        self.consulta_form[campo] = valor
+        print(f"📝 Formulario consulta actualizado: {campo} = {valor}")
+    
+    @rx.event
+    async def guardar_consulta(self):
+        """💾 Guardar nueva consulta"""
+        print("💾 Guardando nueva consulta...")
+        try:
+            await self.crear_consulta(self.consulta_form)
+            # Limpiar formulario después de guardar
+            self.consulta_form = {
+                "paciente_id": "",
+                "odontologo_id": "",
+                "motivo_consulta": "",
+                "tipo_consulta": "",
+                "prioridad": "rutina",
+                "observaciones": ""
+            }
+            self.success_message = "Consulta creada exitosamente"
+            self.error_message = ""
+            print("✅ Consulta guardada exitosamente")
+        except Exception as e:
+            self.error_message = f"Error guardando consulta: {str(e)}"
+            self.success_message = ""
+            print(f"❌ Error guardando consulta: {str(e)}")
+    
+    @rx.event
+    def set_show_consulta_modal(self, mostrar: bool):
+        """🪟 Controlar visibilidad del modal (manejado por EstadoUI)"""
+        print(f"🪟 Modal consulta: {mostrar}")
+        # Esta función es un alias para compatibilidad
+        # El modal real es manejado por EstadoUI.abrir_modal_consulta()
+    
+    @rx.event
+    def debug_boton_click(self):
+        """🔥 Debug: Verificar si el botón funciona"""
+        print("🔥 DEBUG: Botón clickeado correctamente")
+        print("🔥 DEBUG: Llamando seleccionar_y_abrir_modal_consulta...")
+        return self.seleccionar_y_abrir_modal_consulta("")
+    
+    @rx.event
+    async def seleccionar_y_abrir_modal_consulta(self, consulta_id: str = ""):
+        """📅 Seleccionar consulta y abrir modal usando EstadoUI correctamente"""
+        print("🔥 FUNCIÓN LLAMADA - seleccionar_y_abrir_modal_consulta")
+        print(f"🔥 consulta_id recibido: '{consulta_id}'")
+        
+        try:
+            if consulta_id:
+                # Modo editar: seleccionar la consulta primero
+                consulta = self._buscar_consulta_por_id(consulta_id)
+                if consulta:
+                    self.consulta_seleccionada = consulta
+                    self.id_consulta_seleccionada = consulta_id
+                    # Cargar datos en el formulario
+                    self.consulta_form = {
+                        "paciente_id": consulta.paciente_id,
+                        "odontologo_id": consulta.odontologo_id,
+                        "motivo_consulta": consulta.motivo_consulta,
+                        "tipo_consulta": consulta.tipo_consulta or "",
+                        "prioridad": consulta.prioridad or "rutina",
+                        "observaciones": consulta.observaciones or ""
+                    }
+                print("🔥 Llamando abrir_modal_consulta('editar')")
+                self.abrir_modal_consulta("editar")
+            else:
+                # Modo crear: limpiar selección
+                self.consulta_seleccionada = ConsultaModel()
+                self.id_consulta_seleccionada = ""
+                self.consulta_form = {
+                    "paciente_id": "",
+                    "odontologo_id": "",
+                    "motivo_consulta": "",
+                    "tipo_consulta": "",
+                    "prioridad": "rutina",
+                    "observaciones": ""
+                }
+                print("🔥 Llamando abrir_modal_consulta('crear')")
+                self.abrir_modal_consulta("crear")
+                print("🔥 Regresó de abrir_modal_consulta('crear')")
+                
+            print(f"🔥 Modal debería estar abierto: {self.modal_crear_consulta_abierto}")
+            print("🔥 FUNCIÓN COMPLETADA EXITOSAMENTE")
+            
+        except Exception as e:
+            print(f"🔥 ERROR: {str(e)}")
+            print(f"🔥 Tipo de error: {type(e)}")
+            import traceback
+            traceback.print_exc()

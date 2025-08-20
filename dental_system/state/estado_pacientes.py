@@ -402,6 +402,20 @@ class EstadoPacientes(rx.State,mixin=True):
             self.cargando_operacion = False
     
     @rx.event
+    async def ejecutar_eliminar_paciente(self):
+        """
+        🗑️ EJECUTAR ELIMINACIÓN DEL PACIENTE SELECCIONADO
+        
+        Utiliza self.paciente_para_eliminar para eliminar el paciente
+        """
+        if self.paciente_para_eliminar and self.paciente_para_eliminar.id:
+            await self.eliminar_paciente(self.paciente_para_eliminar.id)
+            # Limpiar variable después de eliminar
+            self.paciente_para_eliminar = None
+        else:
+            print("❌ No hay paciente seleccionado para eliminar")
+    
+    @rx.event
     async def seleccionar_paciente(self, id_paciente: str):
         """
         🎯 SELECCIONAR PACIENTE PARA OPERACIONES
@@ -877,8 +891,7 @@ class EstadoPacientes(rx.State,mixin=True):
                 if self.paciente_seleccionado:
                     self.cargar_paciente_en_formulario(self.paciente_seleccionado)
                 # Abrir modal editar
-                if hasattr(self, 'abrir_modal_paciente'):
-                    self.abrir_modal_paciente("editar")
+                self.abrir_modal_paciente("editar")
                 logger.info(f"📝 Modal editar paciente abierto: {paciente_id}")
             else:
                 # Modo crear: limpiar selección
@@ -888,8 +901,7 @@ class EstadoPacientes(rx.State,mixin=True):
                 self.formulario_paciente_data = PacienteFormModel()
                 self.errores_validacion_paciente = {}
                 # Abrir modal crear
-                if hasattr(self, 'abrir_modal_paciente'):
-                    self.abrir_modal_paciente("crear")
+                self.abrir_modal_paciente("crear")
                 logger.info("➕ Modal crear paciente abierto")
                 
         except Exception as e:

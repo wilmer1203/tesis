@@ -219,7 +219,7 @@ def delete_paciente_confirmation_modal() -> rx.Component:
             rx.hstack(
                 rx.button(
                     "Cancelar",
-                    on_click=AppState.cerrar_modal,
+                    on_click=AppState.cerrar_todos_los_modales,
                     style={
                         **GLASS_EFFECTS["light"],
                         "border": f"1px solid {COLORS['gray']['300']}60",
@@ -238,8 +238,8 @@ def delete_paciente_confirmation_modal() -> rx.Component:
                 ),
                 rx.button(
                     "Eliminar Paciente",
-                    on_click=AppState.eliminar_paciente,
-                    loading=AppState.is_loading_pacientes,
+                    on_click=AppState.ejecutar_eliminar_paciente,
+                    loading=AppState.cargando_pacientes,
                     style={
                         "background": GRADIENTS["neon_primary"].replace(COLORS["primary"]["500"], COLORS["error"]["500"]).replace(COLORS["blue"]["600"], COLORS["error"]["600"]),
                         "color": "white",
@@ -321,13 +321,13 @@ def reactivate_confirmation_modal() -> rx.Component:
                     "Cancelar",
                     variant="soft",
                     color_scheme="gray",
-                    on_click=AppState.cerrar_modal
+                    on_click=AppState.cerrar_todos_los_modales
                 ),
                 rx.button(
                     "Reactivar",
                     color_scheme="green",
                     on_click=AppState.ejecutar_reactivar_paciente,
-                    loading=AppState.is_loading_pacientes
+                    loading=AppState.cargando_pacientes
                 ),
                 spacing="3",
                 justify="end",
@@ -441,7 +441,7 @@ def pacientes_page() -> rx.Component:
             }
         ),
         multi_step_patient_form(),  # ✅ Formulario multi-step reactivado
-        # delete_paciente_confirmation_modal(),  # TODO: Arreglar modal de eliminación
+        delete_paciente_confirmation_modal(),  # ✅ Modal de eliminación reactivado
         # reactivate_confirmation_modal(),  # TODO: Arreglar modal de reactivación
         # Utilizar función utilitaria para el fondo de página
         style={
