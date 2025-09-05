@@ -111,6 +111,10 @@ class PacientesService(BaseService):
             # Procesar información médica adicional
             condiciones = self.process_array_field(patient_form.observaciones_medicas)
             
+            # Procesar información médica adicional
+            condiciones_medicas = self.process_array_field(patient_form.condiciones_medicas) if hasattr(patient_form, 'condiciones_medicas') and patient_form.condiciones_medicas else None
+            antecedentes_familiares = self.process_array_field(patient_form.antecedentes_familiares) if hasattr(patient_form, 'antecedentes_familiares') and patient_form.antecedentes_familiares else None
+            
             # Crear paciente usando el método de la tabla
             result = self.table.create_patient_complete(
                 # Nombres separados
@@ -122,30 +126,36 @@ class PacientesService(BaseService):
                 # Documentación
                 numero_documento=patient_form.numero_documento,
                 registrado_por=user_id,
-                tipo_documento=patient_form.tipo_documento or "cedula",
+                tipo_documento=patient_form.tipo_documento or "CI",
                 fecha_nacimiento=fecha_nacimiento,
                 genero=patient_form.genero if patient_form.genero else None,
                 
                 # Teléfonos separados
-                telefono_1=patient_form.telefono_1 if patient_form.telefono_1 else None,
-                telefono_2=patient_form.telefono_2 if patient_form.telefono_2 else None,
+                celular_1=patient_form.celular_1 if patient_form.celular_1 else None,
+                celular_2=patient_form.celular_2 if patient_form.celular_2 else None,
                 
                 # Contacto y ubicación
-                email=patient_form.email if patient_form.email else None,
+                email=patient_form.email.strip() if patient_form.email and patient_form.email.strip() else None,
                 direccion=patient_form.direccion if patient_form.direccion else None,
                 ciudad=patient_form.ciudad if patient_form.ciudad else None,
+                departamento=patient_form.departamento if patient_form.departamento else None,
+                ocupacion=patient_form.ocupacion if patient_form.ocupacion else None,
                 estado_civil=patient_form.estado_civil if patient_form.estado_civil else None,
                 
                 # Información médica
                 alergias=alergias if alergias else None,
                 medicamentos_actuales=medicamentos if medicamentos else None,
-                # enfermedades_cronicas=patient_form.enfermedades_cronicas if patient_form.enfermedades_cronicas else None,
+                condiciones_medicas=condiciones_medicas,
+                antecedentes_familiares=antecedentes_familiares,
                 observaciones=patient_form.observaciones_medicas if patient_form.observaciones_medicas else None,
                 
-                # Contacto de emergencia
-                # contacto_emergencia_nombre=patient_form.contacto_emergencia_nombre if patient_form.contacto_emergencia_nombre else None,
-                # contacto_emergencia_telefono=patient_form.contacto_emergencia_telefono if patient_form.contacto_emergencia_telefono else None,
-                # contacto_emergencia_relacion=patient_form.contacto_emergencia_relacion if patient_form.contacto_emergencia_relacion else None
+                # Contacto de emergencia como JSONB (esquema v4.1)
+                contacto_emergencia={
+                    "nombre": patient_form.contacto_emergencia_nombre if patient_form.contacto_emergencia_nombre else "",
+                    "telefono": patient_form.contacto_emergencia_telefono if patient_form.contacto_emergencia_telefono else "",
+                    "relacion": patient_form.contacto_emergencia_relacion if patient_form.contacto_emergencia_relacion else "",
+                    "direccion": patient_form.contacto_emergencia_direccion if patient_form.contacto_emergencia_direccion else ""
+                } if any([patient_form.contacto_emergencia_nombre, patient_form.contacto_emergencia_telefono]) else {}
             )
             
             if result:
@@ -227,8 +237,8 @@ class PacientesService(BaseService):
                 "genero": patient_form.genero if patient_form.genero else None,
                 
                 # Teléfonos separados
-                "telefono_1": patient_form.telefono_1 if patient_form.telefono_1 else None,
-                "telefono_2": patient_form.telefono_2 if patient_form.telefono_2 else None,
+                "celular_1": patient_form.celular_1 if patient_form.celular_1 else None,
+                "celular_2": patient_form.celular_2 if patient_form.celular_2 else None,
                 
                 # Contacto y ubicación
                 "email": patient_form.email if patient_form.email else None,
@@ -242,10 +252,13 @@ class PacientesService(BaseService):
                 # "enfermedades_cronicas": patient_form.enfermedades_cronicas if patient_form.enfermedades_cronicas else None,
                 "observaciones": patient_form.observaciones_medicas if patient_form.observaciones_medicas else None,
                 
-                # Contacto de emergencia
-                # "contacto_emergencia_nombre": patient_form.contacto_emergencia_nombre if patient_form.contacto_emergencia_nombre else None,
-                # "contacto_emergencia_telefono": patient_form.contacto_emergencia_telefono if patient_form.contacto_emergencia_telefono else None,
-                # "contacto_emergencia_relacion": patient_form.contacto_emergencia_relacion if patient_form.contacto_emergencia_relacion else None
+                # Contacto de emergencia como JSONB (esquema v4.1)
+                "contacto_emergencia": {
+                    "nombre": patient_form.contacto_emergencia_nombre if patient_form.contacto_emergencia_nombre else "",
+                    "telefono": patient_form.contacto_emergencia_telefono if patient_form.contacto_emergencia_telefono else "",
+                    "relacion": patient_form.contacto_emergencia_relacion if patient_form.contacto_emergencia_relacion else "",
+                    "direccion": patient_form.contacto_emergencia_direccion if patient_form.contacto_emergencia_direccion else ""
+                } if any([patient_form.contacto_emergencia_nombre, patient_form.contacto_emergencia_telefono]) else {}
             }
             
             if fecha_nacimiento:

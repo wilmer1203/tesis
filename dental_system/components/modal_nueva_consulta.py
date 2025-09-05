@@ -14,6 +14,7 @@
 
 import reflex as rx
 from dental_system.state.app_state import AppState
+from dental_system.state.estado_consultas import EstadoConsultas
 from dental_system.components.common import primary_button, secondary_button
 
 # ==========================================
@@ -67,12 +68,12 @@ def selector_odontologo() -> rx.Component:
                     lambda odontologo: rx.select.item(
                         rx.hstack(
                             rx.icon("user-round", size=16),
-                            rx.text(odontologo.nombre_completo),
+                            rx.text(f"{odontologo.primer_nombre} {odontologo.primer_apellido}"),
                             rx.text(
                                 f"({odontologo.especialidad})",
                                 style={"color": MODAL_STYLES["text_secondary"], "font_size": "0.85rem"}
                             ),
-                            spacing="0.5rem",
+                            spacing="1",
                             align="center"
                         ),
                         value=odontologo.id
@@ -87,11 +88,11 @@ def selector_odontologo() -> rx.Component:
                     "overflow_y": "auto"
                 }
             ),
-            value=AppState.consulta_form_odontologo_id,
-            on_value_change=AppState.set_consulta_form_odontologo_id,
+            value=rx.cond(AppState.formulario_consulta_data, AppState.formulario_consulta_data.primer_odontologo_id, ""),
+            on_change=lambda v: AppState.set_formulario_consulta_field("primer_odontologo_id", v),
             size="3"
         ),
-        spacing="0.5rem",
+        spacing="1",
         width="100%",
         align="start"
     )
@@ -111,8 +112,8 @@ def buscador_paciente() -> rx.Component:
         # Input de búsqueda
         rx.input(
             placeholder="🔍 Buscar por nombre o documento...",
-            value=AppState.consulta_form_busqueda_paciente,
-            on_change=AppState.set_consulta_form_busqueda_paciente,
+            value=rx.cond(AppState.formulario_consulta_data, AppState.formulario_consulta_data.paciente_nombre, AppState.consulta_form_busqueda_paciente),
+            on_change=AppState.actualizar_campo_paciente_consulta,
             style={
                 "background": MODAL_STYLES["surface"],
                 "border": f"1px solid {MODAL_STYLES['border']}",
@@ -130,10 +131,10 @@ def buscador_paciente() -> rx.Component:
         
         # Lista de resultados filtrados
         rx.cond(
-            AppState.consulta_form_busqueda_paciente != "",
+            (AppState.consulta_form_busqueda_paciente != "") & ~AppState.modal_editar_consulta_abierto,
             rx.box(
                 rx.cond(
-                    AppState.pacientes_filtrados_modal.length() > 0,
+                    AppState.pacientes_filtrados_modal_count > 0,
                     rx.vstack(
                         rx.foreach(
                             AppState.pacientes_filtrados_modal,
@@ -197,7 +198,7 @@ def buscador_paciente() -> rx.Component:
                                 "font_size": "0.85rem"
                             }
                         ),
-                        spacing="0.25rem",
+                        spacing="1",
                         align="start"
                     ),
                     rx.spacer(),
@@ -212,7 +213,7 @@ def buscador_paciente() -> rx.Component:
                         },
                         on_click=AppState.limpiar_paciente_seleccionado
                     ),
-                    spacing="0.75rem",
+                    spacing="2",
                     align="center",
                     width="100%"
                 ),
@@ -227,19 +228,19 @@ def buscador_paciente() -> rx.Component:
             rx.box()
         ),
         
-        spacing="0.5rem",
+        spacing="4",
         width="100%",
         align="start"
     )
 
-def paciente_resultado_item(paciente: rx.Var[dict]) -> rx.Component:
+def paciente_resultado_item(paciente: rx.Var) -> rx.Component:
     """👤 Item individual de resultado de búsqueda"""
     return rx.box(
         rx.hstack(
             rx.icon("user", size=16, color=MODAL_STYLES["text_secondary"]),
             rx.vstack(
                 rx.text(
-                    paciente.nombre_completo,
+                    f"{paciente.primer_nombre} {paciente.primer_apellido}",
                     style={
                         "font_weight": "600",
                         "color": MODAL_STYLES["text_primary"],
@@ -247,13 +248,13 @@ def paciente_resultado_item(paciente: rx.Var[dict]) -> rx.Component:
                     }
                 ),
                 rx.text(
-                    f"CC: {paciente.numero_documento} | Tel: {paciente.telefono_1}",
+                    f"CC: {paciente.numero_documento}",
                     style={
                         "color": MODAL_STYLES["text_secondary"],
                         "font_size": "0.8rem"
                     }
                 ),
-                spacing="0.25rem",
+                spacing="1",
                 align="start"
             ),
             rx.spacer(),
@@ -268,7 +269,7 @@ def paciente_resultado_item(paciente: rx.Var[dict]) -> rx.Component:
                 },
                 on_click=lambda: AppState.seleccionar_paciente_modal(paciente.id)
             ),
-            spacing="0.75rem",
+            spacing="4",
             align="center",
             width="100%"
         ),
@@ -318,11 +319,11 @@ def campos_adicionales() -> rx.Component:
                     rx.select.item("Cirugía", value="cirugia"),
                     rx.select.item("Otro", value="otro")
                 ),
-                value=AppState.consulta_form_tipo_consulta,
-                on_value_change=AppState.set_consulta_form_tipo_consulta,
+                value=rx.cond(AppState.formulario_consulta_data, AppState.formulario_consulta_data.tipo_consulta, "general"),
+                on_change=lambda v: AppState.set_formulario_consulta_field("tipo_consulta", v),
                 default_value="general"
             ),
-            spacing="0.5rem",
+            spacing="1",
             width="100%",
             align="start"
         ),
@@ -342,7 +343,7 @@ def campos_adicionales() -> rx.Component:
                     rx.hstack(
                         rx.icon("circle", size=12, color="#10b981"),
                         rx.text("Normal", style={"font_size": "0.85rem"}),
-                        spacing="0.25rem",
+                        spacing="1",
                         align="center"
                     ),
                     size="2",
@@ -362,7 +363,7 @@ def campos_adicionales() -> rx.Component:
                     rx.hstack(
                         rx.icon("circle", size=12, color="#f59e0b"),
                         rx.text("Urgente", style={"font_size": "0.85rem"}),
-                        spacing="0.25rem",
+                        spacing="1",
                         align="center"
                     ),
                     size="2",
@@ -382,7 +383,7 @@ def campos_adicionales() -> rx.Component:
                     rx.hstack(
                         rx.icon("circle", size=12, color="#ef4444"),
                         rx.text("Emergencia", style={"font_size": "0.85rem"}),
-                        spacing="0.25rem",
+                        spacing="1",
                         align="center"
                     ),
                     size="2",
@@ -398,10 +399,10 @@ def campos_adicionales() -> rx.Component:
                     },
                     on_click=lambda: AppState.set_consulta_form_prioridad("emergencia")
                 ),
-                spacing="0.5rem",
+                spacing="2",
                 width="100%"
             ),
-            spacing="0.5rem",
+            spacing="5",
             width="100%",
             align="start"
         ),
@@ -418,9 +419,9 @@ def campos_adicionales() -> rx.Component:
             ),
             rx.text_area(
                 placeholder="¿Por qué viene el paciente? (opcional)",
-                value=AppState.consulta_form_motivo,
-                on_change=AppState.set_consulta_form_motivo,
-                rows=3,
+                value=rx.cond(AppState.formulario_consulta_data, AppState.formulario_consulta_data.motivo_consulta, ""),
+                on_change=lambda v: AppState.set_formulario_consulta_field("motivo_consulta", v),
+                rows="3",
                 style={
                     "background": MODAL_STYLES["surface"],
                     "border": f"1px solid {MODAL_STYLES['border']}",
@@ -435,12 +436,12 @@ def campos_adicionales() -> rx.Component:
                     "_placeholder": {"color": MODAL_STYLES["text_secondary"]}
                 }
             ),
-            spacing="0.5rem",
+            spacing="2",
             width="100%",
             align="start"
         ),
         
-        spacing="1.5rem",
+        spacing="6",
         width="100%",
         align="start"
     )
@@ -455,7 +456,11 @@ def modal_nueva_consulta() -> rx.Component:
         rx.dialog.content(
             # Header
             rx.dialog.title(
-                "Nueva Consulta",
+                rx.cond(
+                    AppState.modal_editar_consulta_abierto,
+                    "Editar Consulta",
+                    "Nueva Consulta"
+                ),
                 style={
                     "color": MODAL_STYLES["text_primary"],
                     "font_size": "1.5rem",
@@ -481,25 +486,36 @@ def modal_nueva_consulta() -> rx.Component:
                         rx.dialog.close(
                             secondary_button(
                                 "Cancelar",
-                                style={"background": "transparent", "color": MODAL_STYLES["text_secondary"]}
+                                # style={"background": "transparent", "color": MODAL_STYLES["text_secondary"]}
                             )
                         ),
                         primary_button(
-                            "Crear Consulta",
-                            icon="calendar-plus",
+                            rx.cond(
+                                AppState.modal_editar_consulta_abierto,
+                                "Actualizar Consulta",
+                                "Crear Consulta"
+                            ),
+                            icon=rx.cond(
+                                AppState.modal_editar_consulta_abierto,
+                                "edit",
+                                "calendar-plus"
+                            ),
                             loading=AppState.cargando_crear_consulta,
-                            style={"background": MODAL_STYLES["primary"]}
+                            on_click=rx.cond(
+                                AppState.modal_editar_consulta_abierto,
+                                AppState.actualizar_consulta,
+                                AppState.guardar_consulta_modal
+                            )
                         ),
-                        spacing="1rem",
+                        spacing="5",
                         justify="end",
                         width="100%"
                     ),
                     
-                    spacing="1.5rem",
+                    spacing="6",
                     width="100%",
                     align="start"
                 ),
-                on_submit=AppState.crear_nueva_consulta
             ),
             
             style={
@@ -513,6 +529,6 @@ def modal_nueva_consulta() -> rx.Component:
                 "overflow_y": "auto"
             }
         ),
-        open=AppState.modal_crear_consulta_abierto,
-        on_open_change=AppState.set_modal_crear_consulta_abierto
+        open=AppState.modal_crear_consulta_abierto | AppState.modal_editar_consulta_abierto,
+        on_open_change=AppState.cerrar_todos_los_modales
     )

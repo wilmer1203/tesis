@@ -39,7 +39,7 @@ def boton_nueva_consulta_flotante() -> rx.Component:
                 "box_shadow": "0 6px 20px rgba(37, 99, 235, 0.4)"
             }
         },
-        on_click=AppState.abrir_modal_crear_consulta
+        on_click=lambda: AppState.seleccionar_y_abrir_modal_consulta("")
     )
 
 def doctor_card_mejorado(doctor: rx.Var) -> rx.Component:
@@ -311,7 +311,7 @@ def botones_accion_consulta(consulta: rx.Var) -> rx.Component:
                     "font_size": "0.7rem",
                     "padding": "4px 8px"
                 },
-                on_click=lambda: AppState.cambiar_estado_consulta(consulta.id, "en_curso")
+                on_click=lambda: AppState.iniciar_atencion_consulta(consulta.id)
             ),
             rx.button(
                 "❌",
@@ -323,7 +323,7 @@ def botones_accion_consulta(consulta: rx.Var) -> rx.Component:
                     "font_size": "0.7rem",
                     "padding": "4px 6px"
                 },
-                on_click=lambda: AppState.cancelar_consulta(consulta.id)
+                on_click=lambda: AppState.cancelar_consulta(consulta.id, "Cancelada desde interfaz")
             ),
             spacing="1",
             width="100%"
@@ -341,7 +341,7 @@ def botones_accion_consulta(consulta: rx.Var) -> rx.Component:
                         "font_size": "0.7rem",
                         "padding": "4px 8px"
                     },
-                    on_click=lambda: AppState.cambiar_estado_consulta(consulta.id, "completada")
+                    on_click=lambda: AppState.completar_consulta(consulta.id, {})
                 ),
                 rx.button(
                     "⏸️",
@@ -353,7 +353,7 @@ def botones_accion_consulta(consulta: rx.Var) -> rx.Component:
                         "font_size": "0.7rem",
                         "padding": "4px 6px"
                     },
-                    on_click=lambda: AppState.cambiar_estado_consulta(consulta.id, "programada")
+                    on_click=lambda: AppState.actualizar_estado_consulta_intervencion(consulta.id, "programada")
                 ),
                 spacing="1",
                 width="100%"

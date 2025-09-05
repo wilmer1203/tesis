@@ -15,7 +15,7 @@ PATRÓN: Substate con get_estado_odontologia() en AppState
 
 import reflex as rx
 from datetime import date, datetime
-from typing import Dict, Any, List, Optional, Union
+from typing import Dict, Any, List, Optional, Union, Tuple
 import logging
 
 # Servicios y modelos
@@ -27,7 +27,10 @@ from dental_system.models import (
     IntervencionModel,
     ServicioModel,
     OdontogramaModel,
-    DienteModel
+    DienteModel,
+    IntervencionFormModel,
+    OdontologoStatsModel,
+    CondicionDienteModel
 )
 
 logger = logging.getLogger(__name__)
@@ -60,6 +63,32 @@ class EstadoOdontologia(rx.State,mixin=True):
     intervencion_actual: IntervencionModel = IntervencionModel()
     
     # ==========================================
+    # 🔄 PACIENTES DISPONIBLES (DE OTROS ODONTÓLOGOS)
+    # ==========================================
+    
+    # Pacientes que pueden ser atendidos (ya fueron vistos por otro odontólogo)
+    pacientes_disponibles_otros: List[PacienteModel] = []
+    consultas_disponibles_otros: List[ConsultaModel] = []
+    total_pacientes_disponibles: int = 0
+    
+    # ==========================================
+    # 📊 ESTADÍSTICAS DEL DASHBOARD
+    # ==========================================
+    
+    # Estadísticas del día para el odontólogo (modelo tipado)
+    estadisticas_dia: OdontologoStatsModel = OdontologoStatsModel()
+    
+    # ==========================================
+    # 📋 HISTORIAL CLÍNICO DEL PACIENTE ACTUAL
+    # ==========================================
+    
+    # Historial médico completo del paciente seleccionado (modelo tipado)
+    historial_paciente_actual: List[CondicionDienteModel] = []
+    intervenciones_anteriores: List[IntervencionModel] = []
+    ultima_consulta_info: Optional[ConsultaModel] = None
+    tiene_historial_cargado: bool = False
+    
+    # ==========================================
     # 🦷 SERVICIOS ODONTOLÓGICOS
     # ==========================================
     
@@ -75,25 +104,50 @@ class EstadoOdontologia(rx.State,mixin=True):
     # 🦷 FORMULARIO DE INTERVENCIÓN
     # ==========================================
     
-    # Datos del formulario de intervención
-    formulario_intervencion: Dict[str, Any] = {
-        "servicio_id": "",
-        "procedimiento_realizado": "",
-        "materiales_utilizados": "",
-        "anestesia_utilizada": "ninguna",  # ninguna, local, regional, general
-        "duracion_minutos": "",
-        "precio_final": "",
-        "descuento": "0",
-        "instrucciones_paciente": "",
-        "requiere_control": "false",
-        "fecha_control_sugerida": "",
-        "dientes_afectados": [],  # Array de números de dientes
-        "complicaciones": "",
-        "observaciones": ""
-    }
+    # Formulario de intervención (modelo tipado)
+    formulario_intervencion: IntervencionFormModel = IntervencionFormModel()
     
     # Validaciones del formulario
     errores_validacion_intervencion: Dict[str, str] = {}
+    
+    # Variables auxiliares para el formulario
+    precio_servicio_base: float = 0.0  # Precio base del servicio seleccionado
+    
+    # ==========================================
+    # 📊 COMPUTED VARS PARA ODONTOGRAMA
+    # ==========================================
+    
+    @rx.var
+    def odontogram_stats_summary(self) -> List[Tuple[str, int]]:
+        """📊 Estadísticas del odontograma como lista de tuplas (nombre, cantidad)"""
+        try:
+            total_dientes = 32
+            dientes_con_condiciones = len(self.condiciones_odontograma) + len(self.cambios_pendientes_odontograma)
+            dientes_sanos = total_dientes - dientes_con_condiciones
+            
+            # Contar por tipo de condición (simplificado)
+            condiciones_caries = 0
+            condiciones_obturaciones = 0
+            condiciones_otros = dientes_con_condiciones
+            
+            return [
+                ("Sanos", dientes_sanos),
+                ("Caries", condiciones_caries), 
+                ("Obturaciones", condiciones_obturaciones),
+                ("Otros", condiciones_otros)
+            ]
+        except Exception:
+            return [("Sanos", 32), ("Caries", 0), ("Obturaciones", 0), ("Otros", 0)]
+    
+    # ==========================================
+    # 📊 HISTORIAL CLÍNICO
+    # ==========================================
+    
+    # Intervenciones anteriores del paciente
+    intervenciones_anteriores: List[IntervencionModel] = []
+    
+    # Historial de consultas del paciente actual
+    historial_paciente_actual: List[ConsultaModel] = []
     
     # ==========================================
     # 🦷 ODONTOGRAMA FDI (32 DIENTES)
@@ -105,7 +159,18 @@ class EstadoOdontologia(rx.State,mixin=True):
     
     # Estado visual del odontograma
     diente_seleccionado: Optional[int] = None
+    superficie_seleccionada: str = "oclusal"  # oclusal, mesial, distal, vestibular, lingual
+    condiciones_odontograma: Dict[int, Dict[str, str]] = {}  # {diente: {superficie: condicion}}
+    cambios_pendientes_odontograma: Dict[int, Dict[str, str]] = {}  # Cambios no guardados
     modo_odontograma: str = "visualizacion"  # visualizacion, edicion
+    modal_condicion_abierto: bool = False  # Estado del modal selector de condición
+    termino_busqueda_condicion: str = ""  # Búsqueda en modal de condiciones
+    categoria_condicion_seleccionada: str = "todas"  # Filtro de categoría de condiciones
+    
+    # Variables para la selección de condiciones
+    selected_condition_to_apply: Optional[str] = None  # Condición seleccionada para aplicar
+    current_surface_condition: Optional[str] = None  # Condición actual de la superficie seleccionada
+    is_applying_condition: bool = False  # Indica si se está aplicando una condición
     
     # Cuadrantes FDI
     cuadrante_1: List[int] = [11, 12, 13, 14, 15, 16, 17, 18]  # Superior derecho
@@ -227,23 +292,43 @@ class EstadoOdontologia(rx.State,mixin=True):
             return "Sin turno"
     
     @rx.var(cache=True)
-    def estadisticas_del_dia(self) -> Dict[str, int]:
-        """Estadísticas del día para el odontólogo"""
+    def estadisticas_del_dia_computed(self) -> OdontologoStatsModel:
+        """Estadísticas computadas del día para el odontólogo"""
         try:
-            return {
-                "total_consultas": len(self.consultas_asignadas),
-                "programadas": len(self.consultas_por_estado.get("programada", [])),
-                "en_progreso": len(self.consultas_por_estado.get("en_progreso", [])),
-                "completadas": len(self.consultas_por_estado.get("completada", []))
+            # Combinar estadísticas del servicio con cálculos locales
+            stats_data = {
+                "consultas_hoy": len(self.consultas_asignadas),
+                "pacientes_asignados": len(self.pacientes_asignados),
+                "consultas_pendientes_hoy": len(self.consultas_por_estado.get("programada", [])),
+                "intervenciones_mes": len(self.consultas_por_estado.get("completada", [])),
+                "tratamientos_pendientes": len(self.consultas_por_estado.get("en_progreso", [])),
             }
+            # Usar estadísticas base del servicio si están disponibles
+            if hasattr(self.estadisticas_dia, 'ingresos_generados_mes'):
+                stats_data.update({
+                    "ingresos_generados_mes": self.estadisticas_dia.ingresos_generados_mes,
+                    "promedio_tiempo_consulta": self.estadisticas_dia.promedio_tiempo_consulta,
+                    "consultas_semana": self.estadisticas_dia.consultas_semana,
+                    "consultas_mes": self.estadisticas_dia.consultas_mes
+                })
+            
+            return OdontologoStatsModel.from_dict(stats_data)
         except Exception:
-            return {"total_consultas": 0, "programadas": 0, "en_progreso": 0, "completadas": 0}
+            return OdontologoStatsModel()
     
     @rx.var(cache=True)
     def dientes_afectados_texto(self) -> str:
         """Texto descriptivo de dientes afectados en intervención"""
         try:
-            dientes = self.formulario_intervencion.get("dientes_afectados", [])
+            # Obtener dientes desde el formulario tipado
+            if isinstance(self.formulario_intervencion.dientes_afectados, str):
+                if self.formulario_intervencion.dientes_afectados.strip():
+                    dientes = [int(x.strip()) for x in self.formulario_intervencion.dientes_afectados.split(",") if x.strip().isdigit()]
+                else:
+                    dientes = []
+            else:
+                dientes = self.formulario_intervencion.dientes_afectados or []
+            
             if not dientes:
                 return "Ningún diente seleccionado"
             
@@ -263,39 +348,42 @@ class EstadoOdontologia(rx.State,mixin=True):
     
     async def cargar_pacientes_asignados(self):
         """
-        Cargar pacientes asignados al odontólogo por orden de llegada
+        Cargar consultas asignadas al odontólogo por orden de llegada
         """
-        from dental_system.state.estado_auth import EstadoAuth
-        
-        auth_state = self.get_state(EstadoAuth)
-        
-        if not auth_state.is_authenticated or auth_state.user_role != "odontologo":
-            logger.warning("Usuario no autorizado para ver pacientes asignados")
+        # Verificar autenticación
+        if not self.esta_autenticado or self.rol_usuario != "odontologo":
+            logger.warning(f"Usuario no autorizado para ver pacientes asignados")
             return
         
         self.cargando_pacientes_asignados = True
         
         try:
-            # Establecer contexto en el servicio
-            odontologia_service.set_user_context(
-                user_id=auth_state.user_profile.get("id"),
-                role=auth_state.user_role,
-                personal_id=auth_state.personal_id
-            )
+            # Usar servicio de consultas para obtener consultas completas con modelos
+            from dental_system.services.consultas_service import consultas_service
             
-            # Obtener pacientes asignados por orden de llegada
-            pacientes_data = await odontologia_service.get_pacientes_asignados_por_orden()
-            consultas_data = await odontologia_service.get_consultas_asignadas()
+            # Establecer contexto
+            consultas_service.set_user_context(self.id_usuario, self.perfil_usuario)
             
-            self.pacientes_asignados = pacientes_data
-            self.consultas_asignadas = consultas_data
-            self.total_pacientes_asignados = len(pacientes_data)
+            # Obtener consultas del día para este odontólogo
+            consultas_asignadas = await consultas_service.get_today_consultations(self.id_personal)
             
-            logger.info(f"✅ Pacientes asignados cargados: {len(pacientes_data)}")
+            # Filtrar solo las que están en espera o en progreso (no completadas)
+            self.consultas_asignadas = [
+                c for c in consultas_asignadas 
+                if c.estado in ["en_espera", "programada", "en_progreso", "en_atencion"]
+            ]
+            
+            # BACKWARD COMPATIBILITY: Mantener pacientes_asignados para otros componentes
+            # Extraer solo los pacientes de las consultas
+            self.pacientes_asignados = [c.paciente for c in self.consultas_asignadas if c.paciente]
+            
+            self.total_pacientes_asignados = len(self.consultas_asignadas)
+            
+            logger.info(f"✅ Consultas asignadas cargadas: {len(self.consultas_asignadas)}")
             
         except Exception as e:
-            logger.error(f"❌ Error cargando pacientes asignados: {e}")
-            self.handle_error("Error al cargar pacientes asignados", e)
+            logger.error(f"❌ Error cargando consultas asignadas: {e}")
+            self.handle_error("Error al cargar consultas asignadas", e)
             
         finally:
             self.cargando_pacientes_asignados = False
@@ -337,6 +425,143 @@ class EstadoOdontologia(rx.State,mixin=True):
             
         except Exception as e:
             logger.error(f"❌ Error cargando odontograma: {e}")
+    
+    async def cargar_consultas_disponibles_otros(self):
+        """
+        🔄 Cargar consultas disponibles de otros odontólogos
+        
+        Estas son consultas donde el paciente ya fue atendido por otro odontólogo
+        pero puede necesitar una segunda intervención (derivación).
+        """
+        # Auth variables available via mixin pattern
+    
+        
+        if not self.esta_autenticado or self.rol_usuario != "odontologo":
+            logger.warning("Usuario no autorizado para ver consultas disponibles")
+            return
+        
+        try:
+            # Establecer contexto en el servicio
+            odontologia_service.set_user_context(
+                user_id=self.id_usuario,
+                user_profile=self.perfil_usuario
+            )
+            
+            # Obtener consultas disponibles para tomar
+            pacientes_disponibles = await odontologia_service.get_pacientes_disponibles(self.id_personal)
+            
+            self.pacientes_disponibles_otros = pacientes_disponibles
+            self.total_pacientes_disponibles = len(pacientes_disponibles)
+            
+            logger.info(f"✅ Consultas disponibles cargadas: {len(pacientes_disponibles)}")
+            
+        except Exception as e:
+            logger.error(f"❌ Error cargando consultas disponibles: {e}")
+    
+    async def cargar_estadisticas_dia(self):
+        """
+        📊 Cargar estadísticas del día para el dashboard del odontólogo
+        """
+        if not self.esta_autenticado or self.rol_usuario != "odontologo":
+            return
+        
+        try:
+            # Obtener estadísticas del servicio
+            stats_data = await odontologia_service.get_estadisticas_odontologo(self.id_personal)
+            
+            # Crear modelo tipado desde los datos
+            if stats_data:
+                self.estadisticas_dia = OdontologoStatsModel.from_dict(stats_data)
+            else:
+                self.estadisticas_dia = OdontologoStatsModel()
+            
+            logger.info(f"✅ Estadísticas del día actualizadas")
+            
+        except Exception as e:
+            logger.error(f"❌ Error cargando estadísticas: {e}")
+            # Mantener valores por defecto en caso de error
+    
+    async def cargar_historial_paciente(self, paciente_id: str):
+        """
+        📋 Cargar historial clínico completo del paciente actual
+        
+        Args:
+            paciente_id: ID del paciente del cual cargar historial
+        """
+        if not paciente_id:
+            logger.warning("ID de paciente no proporcionado para cargar historial")
+            return
+        
+        self.tiene_historial_cargado = False
+        
+        try:
+            # Obtener historial médico
+            historial_data = await odontologia_service.get_historial_paciente_completo(paciente_id)
+            
+            # Obtener intervenciones anteriores
+            intervenciones_data = await odontologia_service.get_intervenciones_anteriores_paciente(paciente_id)
+            
+            # Obtener información de última consulta
+            ultima_consulta_data = await odontologia_service.get_ultima_consulta_paciente(paciente_id)
+            
+            # Convertir a modelos tipados
+            self.historial_paciente_actual = [
+                CondicionDienteModel.from_dict(item) for item in (historial_data or [])
+                if isinstance(item, dict)
+            ]
+            self.intervenciones_anteriores = intervenciones_data or []
+            self.ultima_consulta_info = ConsultaModel.from_dict(ultima_consulta_data) if ultima_consulta_data else None
+            self.tiene_historial_cargado = True
+            
+            logger.info(f"✅ Historial cargado para paciente {paciente_id}: {len(historial_data)} entradas")
+            
+        except Exception as e:
+            logger.error(f"❌ Error cargando historial del paciente {paciente_id}: {e}")
+            self.historial_paciente_actual = []
+            self.intervenciones_anteriores = []
+            self.ultima_consulta_info = None
+    
+    async def tomar_paciente_disponible(self, paciente: PacienteModel, consulta_id: str):
+        """
+        🔄 Tomar un paciente disponible de otro odontólogo para nueva intervención
+        
+        Args:
+            paciente: Modelo del paciente a tomar
+            consulta_id: ID de la consulta asociada
+        """
+        # Auth variables available via mixin pattern
+        from dental_system.state.estado_ui import EstadoUI
+        ui_state = self.get_state(EstadoUI)
+        
+        try:
+            # Cambiar el estado de la consulta para derivación
+            resultado = await odontologia_service.derivar_paciente_a_odontologo(
+                consulta_id=consulta_id,
+                nuevo_odontologo_id=self.id_personal,
+                motivo_derivacion="Requiere intervención adicional"
+            )
+            
+            if resultado:
+                # Mover paciente de disponibles a asignados
+                self.pacientes_disponibles_otros = [
+                    p for p in self.pacientes_disponibles_otros if p.id != paciente.id
+                ]
+                self.pacientes_asignados.append(paciente)
+                
+                # Actualizar contadores
+                self.total_pacientes_disponibles = len(self.pacientes_disponibles_otros)
+                self.total_pacientes_asignados = len(self.pacientes_asignados)
+                
+                ui_state.mostrar_toast_exito(f"Paciente {paciente.nombre_completo} asignado exitosamente")
+                logger.info(f"✅ Paciente {paciente.nombre_completo} tomado de otro odontólogo")
+                
+                # Recargar datos para mantener sincronización
+                await self.cargar_pacientes_asignados()
+                await self.cargar_consultas_disponibles_otros()
+            
+        except Exception as e:
+            logger.error(f"❌ Error tomando paciente disponible: {e}")
+            ui_state.mostrar_toast_error("Error al tomar paciente")
     
     # ==========================================
     # 🦷 GESTIÓN DE CONSULTAS E INTERVENCIONES
@@ -429,27 +654,26 @@ class EstadoOdontologia(rx.State,mixin=True):
         if not self.validar_formulario_intervencion():
             return
         
-        from dental_system.state.estado_auth import EstadoAuth
+        # Auth variables available via mixin pattern
         from dental_system.state.estado_ui import EstadoUI
-        
-        auth_state = self.get_state(EstadoAuth)
+
         ui_state = self.get_state(EstadoUI)
         
         self.creando_intervencion = True
         
         try:
-            # Preparar datos para crear intervención
-            datos_intervencion = {
-                **self.formulario_intervencion,
+            # Preparar datos para crear intervención usando modelo tipado
+            datos_intervencion = self.formulario_intervencion.to_dict()
+            datos_intervencion.update({
                 "consulta_id": self.consulta_actual.id,
                 "paciente_id": self.paciente_actual.id,
-                "odontologo_id": auth_state.personal_id
-            }
+                "odontologo_id": self.id_personal
+            })
             
             # Crear intervención
             nueva_intervencion = await odontologia_service.create_intervencion(
                 form_data=datos_intervencion,
-                user_id=auth_state.user_profile.get("id")
+                user_id=self.perfil_usuario.get("id") if self.perfil_usuario else ""
             )
             
             # Limpiar formulario
@@ -487,9 +711,9 @@ class EstadoOdontologia(rx.State,mixin=True):
                 self.servicio_seleccionado = servicio
                 self.id_servicio_seleccionado = servicio_id
                 
-                # Actualizar formulario
-                self.formulario_intervencion["servicio_id"] = servicio_id
-                self.formulario_intervencion["precio_final"] = str(servicio.precio_base or 0)
+                # Actualizar formulario tipado
+                self.formulario_intervencion.servicio_id = servicio_id
+                self.formulario_intervencion.precio_final = str(servicio.precio_base or 0)
                 
                 logger.info(f"✅ Servicio seleccionado: {servicio.nombre}")
                 
@@ -498,7 +722,9 @@ class EstadoOdontologia(rx.State,mixin=True):
     
     def actualizar_campo_intervencion(self, campo: str, valor: Any):
         """Actualizar campo del formulario de intervención"""
-        self.formulario_intervencion[campo] = valor
+        # Usar setattr para modelos tipados en lugar de dict access
+        if hasattr(self.formulario_intervencion, campo):
+            setattr(self.formulario_intervencion, campo, valor)
         
         # Limpiar error del campo si existe
         if campo in self.errores_validacion_intervencion:
@@ -506,35 +732,42 @@ class EstadoOdontologia(rx.State,mixin=True):
     
     def agregar_diente_afectado(self, numero_diente: int):
         """Agregar diente a la lista de afectados"""
-        dientes_actuales = self.formulario_intervencion.get("dientes_afectados", [])
+        # Convertir string a lista si es necesario
+        if isinstance(self.formulario_intervencion.dientes_afectados, str):
+            if self.formulario_intervencion.dientes_afectados.strip():
+                dientes_actuales = [int(x.strip()) for x in self.formulario_intervencion.dientes_afectados.split(",") if x.strip().isdigit()]
+            else:
+                dientes_actuales = []
+        else:
+            dientes_actuales = list(self.formulario_intervencion.dientes_afectados) if self.formulario_intervencion.dientes_afectados else []
+        
         if numero_diente not in dientes_actuales:
             dientes_actuales.append(numero_diente)
-            self.formulario_intervencion["dientes_afectados"] = dientes_actuales
+            self.formulario_intervencion.dientes_afectados = ",".join(map(str, dientes_actuales))
     
     def quitar_diente_afectado(self, numero_diente: int):
         """Quitar diente de la lista de afectados"""
-        dientes_actuales = self.formulario_intervencion.get("dientes_afectados", [])
+        # Convertir string a lista si es necesario
+        if isinstance(self.formulario_intervencion.dientes_afectados, str):
+            if self.formulario_intervencion.dientes_afectados.strip():
+                dientes_actuales = [int(x.strip()) for x in self.formulario_intervencion.dientes_afectados.split(",") if x.strip().isdigit()]
+            else:
+                dientes_actuales = []
+        else:
+            dientes_actuales = list(self.formulario_intervencion.dientes_afectados) if self.formulario_intervencion.dientes_afectados else []
+        
         if numero_diente in dientes_actuales:
             dientes_actuales.remove(numero_diente)
-            self.formulario_intervencion["dientes_afectados"] = dientes_actuales
+            self.formulario_intervencion.dientes_afectados = ",".join(map(str, dientes_actuales))
     
     def limpiar_formulario_intervencion(self):
         """Limpiar todos los datos del formulario"""
-        self.formulario_intervencion = {
-            "servicio_id": "",
-            "procedimiento_realizado": "",
-            "materiales_utilizados": "",
-            "anestesia_utilizada": "ninguna",
-            "duracion_minutos": "",
-            "precio_final": "",
-            "descuento": "0",
-            "instrucciones_paciente": "",
-            "requiere_control": "false",
-            "fecha_control_sugerida": "",
-            "dientes_afectados": [],
-            "complicaciones": "",
-            "observaciones": ""
-        }
+        # Usar modelo tipado en lugar de diccionario
+        self.formulario_intervencion = IntervencionFormModel(
+            anestesia_utilizada="ninguna",
+            descuento="0",
+            requiere_control=False
+        )
         
         self.errores_validacion_intervencion = {}
         self.servicio_seleccionado = ServicioModel()
@@ -542,35 +775,32 @@ class EstadoOdontologia(rx.State,mixin=True):
     
     def validar_formulario_intervencion(self) -> bool:
         """Validar formulario de intervención"""
-        self.errores_validacion_intervencion = {}
+        # Usar el método validate_form del modelo tipado
+        errores = self.formulario_intervencion.validate_form()
         
-        # Campos requeridos
-        campos_requeridos = [
-            "servicio_id", "procedimiento_realizado", "precio_final"
-        ]
+        # Validaciones adicionales
+        if self.formulario_intervencion.precio_final:
+            try:
+                precio = float(self.formulario_intervencion.precio_final)
+                if precio <= 0:
+                    errores.setdefault("precio_final", []).append("El precio debe ser mayor a 0")
+            except ValueError:
+                errores.setdefault("precio_final", []).append("Precio inválido")
         
-        for campo in campos_requeridos:
-            valor = self.formulario_intervencion.get(campo, "")
-            if not str(valor).strip():
-                self.errores_validacion_intervencion[campo] = "Este campo es requerido"
+        if self.formulario_intervencion.descuento:
+            try:
+                descuento = float(self.formulario_intervencion.descuento)
+                if descuento < 0 or descuento > 100:
+                    errores.setdefault("descuento", []).append("Descuento debe estar entre 0 y 100")
+            except ValueError:
+                errores.setdefault("descuento", []).append("Descuento inválido")
         
-        # Validar precio
-        try:
-            precio = float(self.formulario_intervencion.get("precio_final", "0"))
-            if precio <= 0:
-                self.errores_validacion_intervencion["precio_final"] = "El precio debe ser mayor a 0"
-        except ValueError:
-            self.errores_validacion_intervencion["precio_final"] = "Precio inválido"
+        # Convertir errores a formato plano para compatibilidad
+        self.errores_validacion_intervencion = {
+            campo: "; ".join(lista_errores) for campo, lista_errores in errores.items()
+        }
         
-        # Validar descuento
-        try:
-            descuento = float(self.formulario_intervencion.get("descuento", "0"))
-            if descuento < 0 or descuento > 100:
-                self.errores_validacion_intervencion["descuento"] = "Descuento debe estar entre 0 y 100"
-        except ValueError:
-            self.errores_validacion_intervencion["descuento"] = "Descuento inválido"
-        
-        return len(self.errores_validacion_intervencion) == 0
+        return len(errores) == 0
     
     # ==========================================
     # 🦷 GESTIÓN DEL ODONTOGRAMA
@@ -595,8 +825,14 @@ class EstadoOdontologia(rx.State,mixin=True):
     def obtener_color_diente(self, numero_diente: int) -> str:
         """Obtener color del diente según su estado"""
         try:
+            # Obtener dientes afectados desde formulario tipado
+            dientes_afectados = []
+            if isinstance(self.formulario_intervencion.dientes_afectados, str):
+                if self.formulario_intervencion.dientes_afectados.strip():
+                    dientes_afectados = [int(x.strip()) for x in self.formulario_intervencion.dientes_afectados.split(",") if x.strip().isdigit()]
+            
             # Si está en dientes afectados, resaltar
-            if numero_diente in self.formulario_intervencion.get("dientes_afectados", []):
+            if numero_diente in dientes_afectados:
                 return "#ff6b6b"  # Rojo para seleccionados
             
             # Color por defecto (sano)
@@ -691,11 +927,9 @@ class EstadoOdontologia(rx.State,mixin=True):
     @rx.var(cache=True)
     def formulario_intervencion_valido(self) -> bool:
         """📝 Verificar si formulario de intervención es válido"""
-        campos_requeridos = ["servicio_id", "procedimiento_realizado", "precio_final"]
-        for campo in campos_requeridos:
-            if not str(self.formulario_intervencion.get(campo, "")).strip():
-                return False
-        return True
+        # Usar validación del modelo tipado
+        errores = self.formulario_intervencion.validate_form()
+        return len(errores) == 0
     
     @rx.var(cache=True)
     def texto_estado_consulta_actual(self) -> str:
@@ -714,7 +948,15 @@ class EstadoOdontologia(rx.State,mixin=True):
     def resumen_dientes_seleccionados(self) -> str:
         """🦷 Resumen de dientes seleccionados en odontograma"""
         try:
-            dientes = self.formulario_intervencion.get("dientes_afectados", [])
+            # Obtener dientes desde el formulario tipado
+            if isinstance(self.formulario_intervencion.dientes_afectados, str):
+                if self.formulario_intervencion.dientes_afectados.strip():
+                    dientes = [int(x.strip()) for x in self.formulario_intervencion.dientes_afectados.split(",") if x.strip().isdigit()]
+                else:
+                    dientes = []
+            else:
+                dientes = self.formulario_intervencion.dientes_afectados or []
+            
             if not dientes:
                 return "Ningún diente seleccionado"
             
@@ -821,6 +1063,10 @@ class EstadoOdontologia(rx.State,mixin=True):
         self.diente_seleccionado = None
         self.modo_odontograma = "visualizacion"
         
+        # Limpiar formulario y estadísticas
+        self.formulario_intervencion = IntervencionFormModel()
+        self.estadisticas_dia = OdontologoStatsModel()
+        
         # Limpiar filtros
         self.filtro_estado_consulta = "programada"
         self.filtro_fecha_consulta = ""
@@ -838,4 +1084,347 @@ class EstadoOdontologia(rx.State,mixin=True):
         self.modo_formulario = "crear"
         
         logger.info("🧹 Datos de odontología limpiados")
+    
+    # ==========================================
+    # 💡 COMPUTED VARIABLES ADICIONALES OPTIMIZADAS
+    # ==========================================
+    
+    @rx.var(cache=True)
+    def pacientes_disponibles_filtrados(self) -> List[PacienteModel]:
+        """🔄 Lista filtrada de pacientes disponibles de otros odontólogos"""
+        if not self.pacientes_disponibles_otros:
+            return []
+        
+        try:
+            resultado = self.pacientes_disponibles_otros.copy()
+            
+            # Filtro por búsqueda si está activo
+            if self.termino_busqueda_pacientes and len(self.termino_busqueda_pacientes) >= 2:
+                termino_lower = self.termino_busqueda_pacientes.lower()
+                resultado = [
+                    p for p in resultado
+                    if (termino_lower in p.nombre_completo.lower() or
+                        termino_lower in p.numero_documento.lower() or
+                        termino_lower in p.numero_historia.lower())
+                ]
+            
+            # Ordenar por prioridad y fecha
+            return sorted(resultado, key=lambda p: (
+                -1 if hasattr(p, 'prioridad') and p.prioridad == 'urgente' else 0,
+                p.nombre_completo
+            ))
+            
+        except Exception as e:
+            logger.error(f"Error en pacientes_disponibles_filtrados: {e}")
+            return []
+    
+    @rx.var(cache=True)
+    def estadisticas_dashboard_optimizadas(self) -> Dict[str, Any]:
+        """📊 Estadísticas optimizadas para dashboard del odontólogo"""
+        try:
+            base_stats = {
+                "pacientes_asignados": len(self.pacientes_asignados),
+                "pacientes_disponibles": len(self.pacientes_disponibles_otros),
+                "consultas_programadas": len(self.consultas_por_estado.get("programada", [])),
+                "consultas_en_progreso": len(self.consultas_por_estado.get("en_progreso", [])),
+                "consultas_completadas": len(self.consultas_por_estado.get("completada", [])),
+            }
+            
+            # Combinar con estadísticas del servicio si están disponibles
+            base_stats.update(self.estadisticas_dia)
+            
+            return base_stats
+            
+        except Exception as e:
+            logger.error(f"Error en estadisticas_dashboard_optimizadas: {e}")
+            return {
+                "pacientes_asignados": 0,
+                "pacientes_disponibles": 0,
+                "consultas_programadas": 0,
+                "consultas_en_progreso": 0,
+                "consultas_completadas": 0,
+            }
+    
+    @rx.var(cache=True)
+    def tiene_pacientes_para_atender(self) -> bool:
+        """⚡ Verificar si hay pacientes listos para atención"""
+        return (
+            len(self.pacientes_asignados) > 0 or 
+            len(self.pacientes_disponibles_otros) > 0
+        )
+    
+    @rx.var(cache=True)
+    def proxima_consulta_info(self) -> Dict[str, str]:
+        """📅 Información de la próxima consulta en orden"""
+        try:
+            consultas_programadas = self.consultas_por_estado.get("programada", [])
+            
+            if not consultas_programadas:
+                return {
+                    "tiene_proxima": "false",
+                    "paciente": "No hay consultas programadas",
+                    "tiempo_estimado": "N/A"
+                }
+            
+            # Obtener la primera consulta (orden de llegada)
+            proxima_consulta = consultas_programadas[0]
+            paciente = next(
+                (p for p in self.pacientes_asignados if p.id == proxima_consulta.paciente_id),
+                None
+            )
+            
+            return {
+                "tiene_proxima": "true",
+                "paciente": paciente.nombre_completo if paciente else "Paciente no encontrado",
+                "tiempo_estimado": "15-30 min",
+                "prioridad": getattr(proxima_consulta, 'prioridad', 'normal')
+            }
+            
+        except Exception as e:
+            logger.error(f"Error en proxima_consulta_info: {e}")
+            return {
+                "tiene_proxima": "false",
+                "paciente": "Error",
+                "tiempo_estimado": "N/A"
+            }
+    
+    @rx.var(cache=True)
+    def resumen_actividad_dia(self) -> str:
+        """📋 Resumen textual de la actividad del día"""
+        try:
+            total_consultas = len(self.consultas_asignadas)
+            completadas = len(self.consultas_por_estado.get("completada", []))
+            en_progreso = len(self.consultas_por_estado.get("en_progreso", []))
+            programadas = len(self.consultas_por_estado.get("programada", []))
+            
+            if total_consultas == 0:
+                return "Sin consultas asignadas hoy"
+            
+            if completadas == total_consultas:
+                return f"Día completado: {completadas} consultas finalizadas"
+            
+            resumen_parts = []
+            if programadas > 0:
+                resumen_parts.append(f"{programadas} en espera")
+            if en_progreso > 0:
+                resumen_parts.append(f"{en_progreso} en atención")
+            if completadas > 0:
+                resumen_parts.append(f"{completadas} completadas")
+                
+            return f"Actividad: {', '.join(resumen_parts)}"
+            
+        except Exception as e:
+            logger.error(f"Error en resumen_actividad_dia: {e}")
+            return "Error calculando actividad"
+    
+    @rx.var(cache=True)
+    def alerta_pacientes_urgentes(self) -> Dict[str, Any]:
+        """🚨 Verificar si hay pacientes urgentes que requieren atención inmediata"""
+        try:
+            urgentes_asignados = [
+                p for p in self.pacientes_asignados 
+                if hasattr(p, 'prioridad') and p.prioridad in ['urgente', 'alta']
+            ]
+            
+            urgentes_disponibles = [
+                p for p in self.pacientes_disponibles_otros
+                if hasattr(p, 'prioridad') and p.prioridad in ['urgente', 'alta']
+            ]
+            
+            total_urgentes = len(urgentes_asignados) + len(urgentes_disponibles)
+            
+            return {
+                "tiene_urgentes": total_urgentes > 0,
+                "cantidad": total_urgentes,
+                "mensaje": f"{total_urgentes} paciente{'s' if total_urgentes != 1 else ''} urgente{'s' if total_urgentes != 1 else ''}" if total_urgentes > 0 else "No hay pacientes urgentes"
+            }
+            
+        except Exception as e:
+            logger.error(f"Error en alerta_pacientes_urgentes: {e}")
+            return {
+                "tiene_urgentes": False,
+                "cantidad": 0,
+                "mensaje": "Error verificando urgencias"
+            }
+    
+    @rx.var(cache=True)
+    def puede_tomar_mas_pacientes(self) -> bool:
+        """⚡ Verificar si el odontólogo puede tomar más pacientes"""
+        return (
+            len(self.consultas_por_estado.get("en_progreso", [])) < 3 and  # Máximo 3 en progreso
+            len(self.pacientes_disponibles_otros) > 0
+        )
+    
+    @rx.var(cache=True)
+    def historial_paciente_resumen(self) -> Dict[str, Any]:
+        """📋 Resumen del historial del paciente actual"""
+        try:
+            if not self.tiene_historial_cargado or not self.historial_paciente_actual:
+                return {
+                    "tiene_historial": False,
+                    "total_entradas": 0,
+                    "ultima_consulta": "Sin historial",
+                    "intervenciones_previas": 0
+                }
+            
+            return {
+                "tiene_historial": True,
+                "total_entradas": len(self.historial_paciente_actual),
+                "ultima_consulta": self.ultima_consulta_info.fecha_programada if self.ultima_consulta_info else "Sin consultas previas",
+                "intervenciones_previas": len(self.intervenciones_anteriores),
+                "ultima_intervencion": self.intervenciones_anteriores[0].procedimiento_realizado if self.intervenciones_anteriores else "Sin intervenciones previas"
+            }
+            
+        except Exception as e:
+            logger.error(f"Error en historial_paciente_resumen: {e}")
+            return {
+                "tiene_historial": False,
+                "total_entradas": 0,
+                "ultima_consulta": "Error",
+                "intervenciones_previas": 0
+            }
+
+    # ==========================================
+    # 🦷 MÉTODOS DE ODONTOGRAMA
+    # ==========================================
+
+    async def seleccionar_diente_superficie(self, numero_diente: int, nombre_superficie: str):
+        """
+        🦷 Seleccionar un diente y su superficie en el odontograma
+        
+        Args:
+            numero_diente: Número FDI del diente (11-48)
+            nombre_superficie: Nombre de la superficie (oclusal, mesial, distal, vestibular, lingual)
+        """
+        try:
+            # Validar número de diente FDI
+            if numero_diente not in (self.cuadrante_1 + self.cuadrante_2 + self.cuadrante_3 + self.cuadrante_4):
+                logger.warning(f"Número de diente inválido: {numero_diente}")
+                return
+                
+            # Validar superficie
+            superficies_validas = ["oclusal", "mesial", "distal", "vestibular", "lingual"]
+            if nombre_superficie not in superficies_validas:
+                logger.warning(f"Superficie inválida: {nombre_superficie}")
+                return
+                
+            # Actualizar selección
+            self.diente_seleccionado = numero_diente
+            self.superficie_seleccionada = nombre_superficie
+            
+            logger.info(f"✅ Seleccionado diente {numero_diente}, superficie {nombre_superficie}")
+            
+        except Exception as e:
+            logger.error(f"❌ Error seleccionando diente/superficie: {e}")
+
+    async def seleccionar_diente(self, numero_diente: int):
+        """
+        🦷 Seleccionar solo un diente en el odontograma (sin superficie específica)
+        
+        Args:
+            numero_diente: Número FDI del diente (11-48)
+        """
+        try:
+            # Validar número de diente FDI
+            if numero_diente not in (self.cuadrante_1 + self.cuadrante_2 + self.cuadrante_3 + self.cuadrante_4):
+                logger.warning(f"Número de diente inválido: {numero_diente}")
+                return
+                
+            # Actualizar selección (mantener superficie actual)
+            self.diente_seleccionado = numero_diente
+            
+            logger.info(f"✅ Seleccionado diente {numero_diente}")
+            
+        except Exception as e:
+            logger.error(f"❌ Error seleccionando diente: {e}")
+
+    async def abrir_modal_condicion(self):
+        """🔧 Abrir modal selector de condición dental"""
+        self.modal_condicion_abierto = True
+
+    async def cerrar_modal_condicion(self):
+        """🔧 Cerrar modal selector de condición dental"""
+        self.modal_condicion_abierto = False
+
+    async def establecer_condicion_diente(self, numero_diente: int, superficie: str, condicion: str):
+        """🦷 Establecer condición de una superficie del diente"""
+        try:
+            if numero_diente not in self.cambios_pendientes_odontograma:
+                self.cambios_pendientes_odontograma[numero_diente] = {}
+            
+            self.cambios_pendientes_odontograma[numero_diente][superficie] = condicion
+            logger.info(f"✅ Condición establecida: Diente {numero_diente}, {superficie} = {condicion}")
+            
+        except Exception as e:
+            logger.error(f"❌ Error estableciendo condición: {e}")
+
+    async def actualizar_busqueda_condicion(self, termino: str):
+        """🔍 Actualizar término de búsqueda de condiciones"""
+        self.termino_busqueda_condicion = termino
+
+    async def cambiar_categoria_condicion(self, categoria: str):
+        """📂 Cambiar filtro de categoría de condiciones"""
+        self.categoria_condicion_seleccionada = categoria
+
+    async def seleccionar_condicion_aplicar(self, condicion: str):
+        """🦷 Seleccionar condición que se va a aplicar"""
+        self.selected_condition_to_apply = condicion
+        
+    async def actualizar_condicion_superficie_actual(self):
+        """🔄 Actualizar condición actual de la superficie seleccionada"""
+        if self.diente_seleccionado and self.superficie_seleccionada:
+            # Obtener condición de cambios pendientes o actual
+            if self.diente_seleccionado in self.cambios_pendientes_odontograma:
+                condicion_pendiente = self.cambios_pendientes_odontograma[self.diente_seleccionado].get(self.superficie_seleccionada)
+                if condicion_pendiente:
+                    self.current_surface_condition = condicion_pendiente
+                    return
+            
+            # Si no hay cambios pendientes, obtener de condiciones actuales
+            if self.diente_seleccionado in self.condiciones_odontograma:
+                condicion_actual = self.condiciones_odontograma[self.diente_seleccionado].get(self.superficie_seleccionada)
+                self.current_surface_condition = condicion_actual if condicion_actual else "sano"
+            else:
+                self.current_surface_condition = "sano"
+        else:
+            self.current_surface_condition = None
+
+    async def apply_selected_condition(self):
+        """🦷 Aplicar la condición seleccionada al diente y superficie actual"""
+        try:
+            if not (self.selected_condition_to_apply and self.diente_seleccionado and self.superficie_seleccionada):
+                return
+                
+            self.is_applying_condition = True
+            
+            # Aplicar la condición a los cambios pendientes
+            await self.establecer_condicion_diente(
+                self.diente_seleccionado, 
+                self.superficie_seleccionada, 
+                self.selected_condition_to_apply
+            )
+            
+            # Actualizar la condición actual
+            await self.actualizar_condicion_superficie_actual()
+            
+            # Limpiar selección
+            self.selected_condition_to_apply = None
+            self.modal_condicion_abierto = False
+            
+            logger.info(f"✅ Condición aplicada exitosamente: {self.selected_condition_to_apply}")
+            
+        except Exception as e:
+            logger.error(f"❌ Error aplicando condición: {e}")
+        finally:
+            self.is_applying_condition = False
+
+    async def restaurar_precio_base(self):
+        """💰 Restaurar precio base del servicio al formulario"""
+        try:
+            if self.servicio_seleccionado and self.servicio_seleccionado.precio_base:
+                precio_base = self.servicio_seleccionado.precio_base
+                self.formulario_intervencion.precio_final = str(precio_base)
+                logger.info(f"✅ Precio restaurado a base: ${precio_base}")
+        except Exception as e:
+            logger.error(f"❌ Error restaurando precio base: {e}")
 

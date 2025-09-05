@@ -168,27 +168,6 @@ def quick_actions_panel() -> rx.Component:
             ),
             rx.button(
                 rx.hstack(
-                    rx.icon("zap", size=18),
-                    rx.text("Urgencia", weight="medium"),
-                    spacing="2",
-                    align="center"
-                ),
-                color_scheme="red",
-                size="3",
-                on_click=lambda: AppState.seleccionar_y_abrir_modal_consulta(""),
-                style={
-                    "background": f"linear-gradient(135deg, {COLORS['error']['600']} 0%, {COLORS['error']['500']} 100%)",
-                    "border": "none",
-                    "box_shadow": f"0 4px 12px rgba({COLORS['error']['500']}, 0.3)",
-                    "transition": "all 0.3s ease",
-                    "_hover": {
-                        "transform": "translateY(-2px)",
-                        "box_shadow": f"0 6px 20px rgba({COLORS['error']['500']}, 0.4)"
-                    }
-                }
-            ),
-            rx.button(
-                rx.hstack(
                     rx.icon("search", size=18),
                     rx.text("Buscar Paciente", weight="medium"),
                     spacing="2",

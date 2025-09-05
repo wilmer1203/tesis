@@ -121,9 +121,6 @@ class PersonalService(BaseService):
                 email=form_data["email"],
                 password=form_data["password"],
                 rol=rol,
-                telefono=form_data.get("telefono", ""),
-                nombre=form_data["primer_nombre"],
-                apellido=form_data["primer_apellido"],
                 activo=True,
                 method='admin'
             )
@@ -167,14 +164,17 @@ class PersonalService(BaseService):
                     numero_documento=form_data["numero_documento"],
                     celular=form_data["celular"],
                     tipo_personal=form_data["tipo_personal"],
-                    tipo_documento=form_data.get("tipo_documento", "CC"),
+                    tipo_documento=form_data.get("tipo_documento", "CI"),  # CORREGIDO: CI para Venezuela
                     fecha_nacimiento=fecha_nacimiento,
                     direccion=form_data.get("direccion") if form_data.get("direccion") else None,
                     especialidad=form_data.get("especialidad") if form_data.get("especialidad") else None,
                     numero_licencia=form_data.get("numero_licencia") if form_data.get("numero_licencia") else None,
                     fecha_contratacion=fecha_contratacion,
                     salario=salario,
-                    observaciones=form_data.get("observaciones") if form_data.get("observaciones") else None
+                    observaciones=form_data.get("observaciones") if form_data.get("observaciones") else None,
+                    # ✅ CAMPOS CRÍTICOS PARA SISTEMA DE COLAS
+                    acepta_pacientes_nuevos=form_data.get("acepta_pacientes_nuevos", True),
+                    orden_preferencia=form_data.get("orden_preferencia", 1)
                 )
                 
                 if personal_result:
@@ -192,11 +192,8 @@ class PersonalService(BaseService):
                     except Exception as cache_error:
                         logger.warning(f"Error invalidando cache tras crear personal: {cache_error}")
                     
-                    return {
-                        "success": True,
-                        "personal": personal_result,
-                        "usuario": user_result
-                    }
+                    # Convertir el diccionario a PersonalModel para consistency
+                    return PersonalModel.from_dict(personal_result)
                 else:
                     raise ValueError("Error creando registro de personal")
                     
@@ -268,7 +265,7 @@ class PersonalService(BaseService):
                     # Actualizar email del usuario
                     self.users_table.update(usuario_id, {
                         "email": form_data["email"],
-                        "telefono": form_data.get("telefono", "")
+                        "telefono": ""  # Campo eliminado, solo usar celular
                     })
             
             # Procesar fecha de nacimiento
@@ -297,7 +294,7 @@ class PersonalService(BaseService):
                 
                 # Documentación
                 "numero_documento": form_data["numero_documento"],
-                "tipo_documento": form_data.get("tipo_documento", "CC"),
+                "tipo_documento": form_data.get("tipo_documento", "CI"),
                 "celular": form_data["celular"],
                 "tipo_personal": form_data["tipo_personal"],
                 
@@ -332,7 +329,8 @@ class PersonalService(BaseService):
                 except Exception as cache_error:
                     logger.warning(f"Error invalidando cache tras actualizar personal: {cache_error}")
                 
-                return result
+                # Convertir el diccionario a PersonalModel para consistency
+                return PersonalModel.from_dict(result)
             else:
                 raise ValueError("Error actualizando personal en la base de datos")
                 
@@ -466,6 +464,7 @@ class PersonalService(BaseService):
         }
         return mapping.get(tipo_personal, 'administrador')
     
+
     async def get_personal_stats(self) -> Dict[str, Any]:
         """
         Obtiene estadísticas del personal

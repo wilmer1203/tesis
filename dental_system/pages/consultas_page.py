@@ -15,7 +15,7 @@ Reemplaza el diseño de tabla tradicional
 
 import reflex as rx
 from dental_system.state.app_state import AppState
-from dental_system.components.modal_nueva_consulta_simple import modal_nueva_consulta_simple
+from dental_system.components.modal_nueva_consulta import modal_nueva_consulta
 
 # 🌙 COLORES TEMA OSCURO PROFESIONAL
 DARK_COLORS = {
@@ -63,7 +63,7 @@ def boton_nueva_consulta_flotante() -> rx.Component:
                 "box_shadow": f"0 12px 40px rgba(49, 130, 206, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)"
             }
         },
-        on_click=AppState.abrir_modal_crear_consulta
+        on_click=lambda: AppState.seleccionar_y_abrir_modal_consulta("")
     )
 
 def doctor_card_dinamico(doctor: rx.Var) -> rx.Component:
@@ -106,7 +106,7 @@ def doctor_card_dinamico(doctor: rx.Var) -> rx.Component:
                 # Info del doctor con tema oscuro
                 rx.vstack(
                     rx.text(
-                        doctor.nombre_completo,
+                         f"{doctor.primer_nombre} {doctor.primer_apellido}",
                         font_weight="700",
                         size="4",
                         color=DARK_COLORS["text_primary"],
@@ -635,7 +635,7 @@ def botones_accion_dark(consulta: rx.Var) -> rx.Component:
                          "box_shadow": f"0 8px 25px rgba(56, 161, 105, 0.4)"
                      }
                  },
-                 on_click=lambda: AppState.cambiar_estado_consulta(consulta.id, "en_curso"),
+                 on_click=lambda: AppState.iniciar_atencion_consulta(consulta.id, "en_curso"),
                  loading=AppState.cargando_consultas
              ),
              rx.button(
@@ -653,7 +653,7 @@ def botones_accion_dark(consulta: rx.Var) -> rx.Component:
                          "transform": "translateY(-2px)"
                      }
                  },
-                 on_click=lambda: AppState.cancelar_consulta(consulta.id),
+                 on_click=lambda: AppState.cancelar_consulta(consulta.id, "Cancelada desde interfaz"),
                  loading=AppState.cargando_consultas
              ),
              spacing="2",
@@ -681,7 +681,7 @@ def botones_accion_dark(consulta: rx.Var) -> rx.Component:
                          "box_shadow": f"0 8px 25px rgba(49, 130, 206, 0.4)"
                      }
                  },
-                 on_click=lambda: AppState.cambiar_estado_consulta(consulta.id, "completada"),
+                 on_click=lambda: AppState.completar_consulta(consulta.id, {}),
                  loading=AppState.cargando_consultas
              ),
              rx.button(
@@ -699,7 +699,7 @@ def botones_accion_dark(consulta: rx.Var) -> rx.Component:
                          "transform": "translateY(-2px)"
                      }
                  },
-                 on_click=lambda: AppState.cambiar_estado_consulta(consulta.id, "programada"),
+                 on_click=lambda: AppState.actualizar_estado_consulta_intervencion(consulta.id, "programada"),
                  loading=AppState.cargando_consultas
              ),
              spacing="2",
@@ -942,7 +942,7 @@ def botones_accion_funcionales(consulta: rx.Var) -> rx.Component:
                      "padding": "4px 8px",
                      "_hover": {"background": "#059669"}
                  },
-                 on_click=lambda: AppState.cambiar_estado_consulta(consulta.id, "en_curso"),
+                 on_click=lambda: AppState.iniciar_atencion_consulta(consulta.id, "en_curso"),
                  loading=AppState.cargando_consultas
              ),
              rx.button(
@@ -956,7 +956,7 @@ def botones_accion_funcionales(consulta: rx.Var) -> rx.Component:
                      "padding": "4px 6px",
                      "_hover": {"background": "rgba(239, 68, 68, 0.1)"}
                  },
-                 on_click=lambda: AppState.cancelar_consulta(consulta.id),
+                 on_click=lambda: AppState.cancelar_consulta(consulta.id, "Cancelada desde interfaz"),
                  loading=AppState.cargando_consultas
              ),
              spacing="1",
@@ -975,7 +975,7 @@ def botones_accion_funcionales(consulta: rx.Var) -> rx.Component:
                      "padding": "4px 8px",
                      "_hover": {"background": "#1d4ed8"}
                  },
-                 on_click=lambda: AppState.cambiar_estado_consulta(consulta.id, "completada"),
+                 on_click=lambda: AppState.completar_consulta(consulta.id, {}),
                  loading=AppState.cargando_consultas
              ),
              rx.button(
@@ -989,7 +989,7 @@ def botones_accion_funcionales(consulta: rx.Var) -> rx.Component:
                      "padding": "4px 6px",
                      "_hover": {"background": "rgba(245, 158, 11, 0.1)"}
                  },
-                 on_click=lambda: AppState.cambiar_estado_consulta(consulta.id, "programada"),
+                 on_click=lambda: AppState.actualizar_estado_consulta_intervencion(consulta.id, "programada"),
                  loading=AppState.cargando_consultas
              ),
              spacing="1",
@@ -1027,7 +1027,7 @@ def botones_accion_funcionales_fase3(consulta: rx.Var) -> rx.Component:
                          "box_shadow": "0 4px 12px rgba(16, 185, 129, 0.3)"
                      }
                  },
-                 on_click=lambda: AppState.cambiar_estado_consulta(consulta.id, "en_curso"),
+                 on_click=lambda: AppState.iniciar_atencion_consulta(consulta.id, "en_curso"),
                  loading=AppState.cargando_consultas
              ),
              rx.button(
@@ -1046,7 +1046,7 @@ def botones_accion_funcionales_fase3(consulta: rx.Var) -> rx.Component:
                          "transform": "translateY(-1px)"
                      }
                  },
-                 on_click=lambda: AppState.cancelar_consulta(consulta.id),
+                 on_click=lambda: AppState.cancelar_consulta(consulta.id, "Cancelada desde interfaz"),
                  loading=AppState.cargando_consultas
              ),
              spacing="2",
@@ -1077,7 +1077,7 @@ def botones_accion_funcionales_fase3(consulta: rx.Var) -> rx.Component:
                          "box_shadow": "0 4px 12px rgba(37, 99, 235, 0.3)"
                      }
                  },
-                 on_click=lambda: AppState.cambiar_estado_consulta(consulta.id, "completada"),
+                 on_click=lambda: AppState.completar_consulta(consulta.id, {}),
                  loading=AppState.cargando_consultas
              ),
              rx.button(
@@ -1096,7 +1096,7 @@ def botones_accion_funcionales_fase3(consulta: rx.Var) -> rx.Component:
                          "transform": "translateY(-1px)"
                      }
                  },
-                 on_click=lambda: AppState.cambiar_estado_consulta(consulta.id, "programada"),
+                 on_click=lambda: AppState.actualizar_estado_consulta_intervencion(consulta.id, "programada"),
                  loading=AppState.cargando_consultas
              ),
              spacing="2",
@@ -1295,7 +1295,7 @@ def consultas_page() -> rx.Component:
     """📅 Página principal de consultas con nuevo diseño"""
     return rx.box(
         # Modal de nueva consulta
-        modal_nueva_consulta_simple(),
+        modal_nueva_consulta(),
         
         # Botón flotante
         boton_nueva_consulta_flotante(),
@@ -1345,7 +1345,8 @@ def consultas_page() -> rx.Component:
                                     AppState.odontologos_disponibles,
                                     lambda doctor: doctor_card_dinamico(doctor)
                                 ),
-                                columns="repeat(auto-fit, minmax(300px, 1fr))",
+                                columns="repeat(auto-fit, minmax(300px, 2fr))",
+                                
                                 gap="1.5rem",
                                 width="100%"
                             ),
@@ -1383,7 +1384,7 @@ def consultas_page() -> rx.Component:
                     # Sidebar resumen dinámico (30% ancho)
                     rx.box(
                         resumen_lateral_dinamico(),
-                        style={"width": "300px", "flex_shrink": "0"}
+                        style={"width": "300px", "flex_shrink": "0", "min_height": "100vh"}
                     ),
                     
                     spacing="0",
@@ -1397,26 +1398,26 @@ def consultas_page() -> rx.Component:
                 }
             ),
             
-            # Mobile: Stack vertical
-            rx.box(
-                rx.cond(
-                    AppState.odontologos_disponibles.length() > 0,
-                    rx.vstack(
-                        rx.foreach(
-                            AppState.odontologos_disponibles,
-                            doctor_card_dinamico
-                        ),
-                        spacing="4",
-                        width="100%"
-                    ),
-                    rx.text("No hay odontólogos disponibles", color=DARK_COLORS["text_muted"])
-                ),
-                style={
-                    "display": {"@initial": "block", "@lg": "none"},
-                    "padding": "1rem",
-                    "padding_top": "5rem"  # Space para botón flotante
-                }
-            )
+            # # Mobile: Stack vertical
+            # rx.box(
+            #     rx.cond(
+            #         AppState.odontologos_disponibles.length() > 0,
+            #         rx.vstack(
+            #             rx.foreach(
+            #                 AppState.odontologos_disponibles,
+            #                 doctor_card_dinamico
+            #             ),
+            #             spacing="4",
+            #             width="100%"
+            #         ),
+            #         rx.text("No hay odontólogos disponibles", color=DARK_COLORS["text_muted"])
+            #     ),
+            #     style={
+            #         "display": {"@initial": "block", "@lg": "none"},
+            #         "padding": "1rem",
+            #         "padding_top": "5rem"  # Space para botón flotante
+            #     }
+            # )
         ),
         
         style={

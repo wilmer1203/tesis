@@ -277,15 +277,15 @@ def patient_row(patient: rx.Var[PacienteModel]) -> rx.Component:
         rx.table.cell(
             rx.vstack(
                 rx.text(
-                    f"{patient.primer_nombre} {patient.primer_apellido}",
+                    patient.primer_nombre + " " + patient.primer_apellido,
                     size="3",
                     weight="medium",
-                    color=COLORS["gray"]["800"]
+                    color=COLORS["gray"]["50"]
                 ),
                 rx.text(
                     rx.cond(
                         patient.numero_historia,
-                        f"HC: {patient.numero_historia}",
+                        "HC: " + patient.numero_historia,
                         "HC: Sin asignar"
                     ),
                     size="2",
@@ -299,14 +299,18 @@ def patient_row(patient: rx.Var[PacienteModel]) -> rx.Component:
         
         # Edad
         rx.table.cell(
-            rx.text(
-                rx.cond(
-                    patient.edad,
-                    f"{patient.edad} años",
-                    "Sin dato"
+            rx.cond(
+                patient.edad,
+                rx.text(
+                    patient.edad.to(str) + " años",
+                    size="3",
+                    color=COLORS["gray"]["50"]
                 ),
-                size="3",
-                color=COLORS["gray"]["700"]
+                rx.text(
+                    "N/A",
+                    size="3",
+                    color=COLORS["gray"]["400"]
+                )
             ),
             style=DATA_CELL
         ),
@@ -344,12 +348,12 @@ def patient_row(patient: rx.Var[PacienteModel]) -> rx.Component:
         rx.table.cell(
             rx.box(
                 rx.text(
-                    f"{rx.cond(patient.tipo_documento, patient.tipo_documento, 'CC')}-{patient.numero_documento}",
+                    patient.tipo_documento + "-" + patient.numero_documento,
                     size="3",
                     font_family=TYPOGRAPHY["font_family"]["mono"]
                 ),
                 padding=SPACING["2"],
-                background=COLORS["gray"]["50"],
+                background=COLORS["gray"]["800"],
                 border_radius=RADIUS["md"]
             ),
             style=DATA_CELL
@@ -358,13 +362,13 @@ def patient_row(patient: rx.Var[PacienteModel]) -> rx.Component:
         # Contacto
         rx.table.cell(
             rx.cond(
-                patient.telefono_1,
+                patient.celular_1,
                 rx.hstack(
                     rx.icon("phone", size=16, color=COLORS["primary"]["500"]),
-                    rx.text(patient.telefono_1, size="3"),
+                    rx.text(patient.celular_1, size="3"),
                     spacing="2"
                 ),
-                rx.text("Sin teléfono", size="3", color=COLORS["gray"]["400"])
+                rx.text("Sin celular", size="3", color=COLORS["gray"]["400"])
             ),
             style=DATA_CELL
         ),
@@ -390,7 +394,7 @@ def patient_row(patient: rx.Var[PacienteModel]) -> rx.Component:
                     icon="calendar-plus",
                     tooltip="Nueva Consulta",
                     color=COLORS["secondary"]["600"],
-                    action=lambda: AppState.abrir_modal_consulta("crear", {"paciente_id": patient.id, "paciente_nombre": f"{patient.primer_nombre} {patient.primer_apellido}"})
+                    action=lambda: AppState.abrir_modal_consulta("crear", {"paciente_id": patient.id, "paciente_nombre": patient.nombre_completo})
                 ),
                 
                 rx.cond(
@@ -399,13 +403,13 @@ def patient_row(patient: rx.Var[PacienteModel]) -> rx.Component:
                         icon="trash-2",
                         tooltip="Desactivar",
                         color=COLORS["error"]["600"],
-                        action=lambda: AppState.abrir_modal_confirmacion(f"Eliminar Paciente", f"¿Está seguro de eliminar a {patient.primer_nombre} {patient.primer_apellido}?", f"eliminar_paciente:{patient.id}")
+                        action=lambda: AppState.abrir_modal_confirmacion("Eliminar Paciente", "¿Está seguro de eliminar a " + patient.nombre_completo + "?", "eliminar_paciente:" + patient.id)
                     ),
                     action_button(
                         icon="refresh-cw",
                         tooltip="Reactivar",
                         color=COLORS["success"]["600"],
-                        action=lambda: AppState.abrir_modal_confirmacion(f"Reactivar Paciente", f"¿Está seguro de reactivar a {patient.primer_nombre} {patient.primer_apellido}?", f"reactivar_paciente:{patient.id}")
+                        action=lambda: AppState.abrir_modal_confirmacion("Reactivar Paciente", "¿Está seguro de reactivar a " + patient.nombre_completo + "?", "reactivar_paciente:" + patient.id)
                     )
                 ),
                 
@@ -1052,14 +1056,14 @@ def consulta_actions(consulta: rx.Var[ConsultaModel]) -> rx.Component:
             icon="play",
             tooltip="Iniciar",
             color=COLORS["warning"]["600"],
-            action=lambda: AppState.cambiar_estado_consulta(consulta.id, "en_progreso")
+            action=lambda: AppState.iniciar_atencion_consulta(consulta.id)
         ),
         
         action_button(
             icon="check",
             tooltip="Completar",
             color=COLORS["success"]["600"],
-            action=lambda: AppState.cambiar_estado_consulta(consulta.id, "completada")
+            action=lambda: AppState.completar_consulta(consulta.id, {})
         ),
         
         action_button(
@@ -1255,11 +1259,11 @@ def personal_row(personal: rx.Var[PersonalModel]) -> rx.Component:
         # Contacto
         rx.table.cell(
             rx.cond(
-                (personal.usuario.telefono | personal.celular),
+                personal.celular,
                 rx.hstack(
                     rx.icon("phone", size=16, color=COLORS["success"]["400"]),
                     rx.text(
-                        rx.cond(personal.usuario.telefono, personal.usuario.telefono, personal.celular),
+                        personal.celular,
                         size="3",
                         color=DARK_THEME["colors"]["text_primary"],
                         weight="medium"
@@ -1270,7 +1274,7 @@ def personal_row(personal: rx.Var[PersonalModel]) -> rx.Component:
                 rx.hstack(
                     rx.icon("phone-off", size=16, color=DARK_THEME["colors"]["text_muted"]),
                     rx.text(
-                        "Sin teléfono", 
+                        "Sin celular", 
                         size="3", 
                         color=DARK_THEME["colors"]["text_muted"],
                         style={"font_style": "italic"}

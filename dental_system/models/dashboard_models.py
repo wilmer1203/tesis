@@ -88,6 +88,27 @@ class OdontologoStatsModel(rx.Base):
     # Próximas actividades
     consultas_pendientes_hoy: int = 0
     controles_programados: int = 0
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "OdontologoStatsModel":
+        """Crear instancia desde diccionario"""
+        if not data or not isinstance(data, dict):
+            return cls()
+        
+        return cls(
+            consultas_hoy=int(data.get("consultas_hoy", 0)),
+            consultas_semana=int(data.get("consultas_semana", 0)),
+            consultas_mes=int(data.get("consultas_mes", 0)),
+            pacientes_asignados=int(data.get("pacientes_asignados", 0)),
+            pacientes_nuevos_mes=int(data.get("pacientes_nuevos_mes", 0)),
+            intervenciones_mes=int(data.get("intervenciones_mes", 0)),
+            tratamientos_completados=int(data.get("tratamientos_completados", 0)),
+            tratamientos_pendientes=int(data.get("tratamientos_pendientes", 0)),
+            ingresos_generados_mes=float(data.get("ingresos_generados_mes", 0.0)),
+            promedio_tiempo_consulta=float(data.get("promedio_tiempo_consulta", 0.0)),
+            consultas_pendientes_hoy=int(data.get("consultas_pendientes_hoy", 0)),
+            controles_programados=int(data.get("controles_programados", 0))
+        )
 
 
 class AsistenteStatsModel(rx.Base):

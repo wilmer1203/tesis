@@ -7,12 +7,11 @@ from dental_system.styles.themes import COLORS, SHADOWS
 from dental_system.pages.dashboard import dashboard_page
 from dental_system.pages.pacientes_page import pacientes_page
 from dental_system.pages.personal_page import personal_page
-from dental_system.pages.consultas_page import consultas_page
-from dental_system.pages.consultas_test import consultas_test_page
-# from dental_system.pages.servicios_page import servicios_page
-# from dental_system.pages.pagos_page import pagos_page
-# from dental_system.pages.odontologia_page import odontologia_page
-# from dental_system.pages.intervencion_page import intervencion_page
+from dental_system.pages.consultas_page_v41 import consultas_page_v41
+# from dental_system.pages.servicios_page import servicios_page  # TODO: Fix estado_servicios integration
+# from dental_system.pages.pagos_page import pagos_page  # TODO: Implement pagos module
+from dental_system.pages.odontologia_page import odontologia_page
+from dental_system.pages.intervencion_page_v2 import intervencion_page_v2
 from dental_system.pages.login import login_page
 from dental_system.components.common import sidebar
 from dental_system.utils.route_guard import (
@@ -85,13 +84,12 @@ def main_content() -> rx.Component:
         AppState.current_page,
         ("dashboard", dashboard_page()),
         ("pacientes", pacientes_page()),
-        ("consultas", consultas_page()),
-        ("consultas_test", consultas_test_page()),  # 🧪 Página de prueba temporal
+        ("consultas", consultas_page_v41()),
         ("personal", personal_page()),
-        # ("servicios", servicios_page()),
-        # ("pagos", pagos_page()),
-        # ("odontologia", odontologia_page()),
-        # ("intervencion", intervencion_page()),
+        # ("servicios", servicios_page()),  # TODO: Completar integración estado servicios
+        # ("pagos", pagos_page()),  # TODO: Implementar módulo pagos
+        ("odontologia", odontologia_page()),
+        ("intervencion", intervencion_page_v2()),
         ("reportes", reportes_placeholder()),
         # Página por defecto
         dashboard_page(),
@@ -239,8 +237,7 @@ def create_app() -> rx.App:
     """🚀 CREAR APLICACIÓN CON RUTAS POR ROL"""
     
     app = rx.App(
-        theme=app_theme,
-        
+        theme=app_theme
     )
     
     # 🎯 RUTAS ESPECÍFICAS POR ROL - COMO QUERÍAS

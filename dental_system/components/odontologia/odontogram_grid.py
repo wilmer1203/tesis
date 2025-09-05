@@ -142,9 +142,9 @@ def odontogram_interactive_grid() -> rx.Component:
             # Superior derecho (18-11)
             odontogram_quadrant(
                 "superior_derecho",
-                AppState.odontogram_conditions,
-                AppState.selected_tooth,
-                AppState.pending_odontogram_changes
+                {},  # Placeholder - AppState.condiciones_odontograma
+                AppState.diente_seleccionado,
+                AppState.cambios_pendientes_odontograma  # Placeholder - AppState.cambios_pendientes_odontograma
             ),
             
             # Separador central (línea media)
@@ -160,9 +160,9 @@ def odontogram_interactive_grid() -> rx.Component:
             # Superior izquierdo (21-28)
             odontogram_quadrant(
                 "superior_izquierdo", 
-                AppState.odontogram_conditions,
-                AppState.selected_tooth,
-                AppState.pending_odontogram_changes
+                {},  # Placeholder - AppState.condiciones_odontograma
+                AppState.diente_seleccionado,
+                AppState.cambios_pendientes_odontograma  # Placeholder - AppState.cambios_pendientes_odontograma
             ),
             
             spacing="2",
@@ -184,9 +184,9 @@ def odontogram_interactive_grid() -> rx.Component:
             # Inferior derecho (48-41)
             odontogram_quadrant(
                 "inferior_derecho",
-                AppState.odontogram_conditions, 
-                AppState.selected_tooth,
-                AppState.pending_odontogram_changes
+                AppState.condiciones_odontograma, 
+                AppState.diente_seleccionado,
+                AppState.cambios_pendientes_odontograma
             ),
             
             # Separador central (línea media)
@@ -202,9 +202,9 @@ def odontogram_interactive_grid() -> rx.Component:
             # Inferior izquierdo (31-38)
             odontogram_quadrant(
                 "inferior_izquierdo",
-                AppState.odontogram_conditions,
-                AppState.selected_tooth, 
-                AppState.pending_odontogram_changes
+                AppState.condiciones_odontograma,
+                AppState.diente_seleccionado, 
+                AppState.cambios_pendientes_odontograma
             ),
             
             spacing="2",
@@ -256,8 +256,8 @@ def odontogram_toolbar() -> rx.Component:
                     size="2",
                     variant="ghost",
                     color_scheme="gray",
-                    on_click=AppState.undo_last_change,
-                    disabled=rx.cond(AppState.can_undo, False, True)
+                    on_click=rx.noop,  # Placeholder - AppState.undo_last_change
+                    disabled=True  # Placeholder - rx.cond(AppState.can_undo, False, True)
                 ),
                 content="Deshacer último cambio"
             ),
@@ -269,8 +269,8 @@ def odontogram_toolbar() -> rx.Component:
                     size="2", 
                     variant="ghost",
                     color_scheme="gray",
-                    on_click=AppState.redo_last_change,
-                    disabled=rx.cond(AppState.can_redo, False, True)
+                    on_click=rx.noop,  # Placeholder - AppState.redo_last_change
+                    disabled=True  # Placeholder - rx.cond(AppState.can_redo, False, True)
                 ),
                 content="Rehacer último cambio"
             ),
@@ -284,7 +284,7 @@ def odontogram_toolbar() -> rx.Component:
                     size="2",
                     variant="ghost", 
                     color_scheme="orange",
-                    on_click=AppState.reset_odontogram_changes
+                    on_click=rx.noop  # Placeholder - AppState.reset_odontogram_changes
                 ),
                 content="Resetear todos los cambios"
             ),
@@ -293,15 +293,15 @@ def odontogram_toolbar() -> rx.Component:
             rx.tooltip(
                 rx.button(
                     rx.cond(
-                        AppState.is_saving_odontogram,
+                        False,  # Placeholder - AppState.is_saving_odontogram
                         rx.spinner(size="3"),
                         rx.icon(tag="save", size=16)
                     ),
                     "Guardar Cambios",
                     size="2",
                     color_scheme="green",
-                    on_click=AppState.save_odontogram_changes,
-                    disabled=rx.cond(AppState.odontogram_modified, False, True)
+                    on_click=rx.noop,  # Placeholder - AppState.save_odontogram_changes
+                    disabled=True  # Placeholder - rx.cond(AppState.odontogram_modified, False, True)
                 ),
                 content="Guardar cambios en base de datos"
             ),

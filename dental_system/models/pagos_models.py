@@ -326,3 +326,107 @@ class CuentaPorCobrarModel(rx.Base):
             "alto": "#dc3545"     # Rojo
         }
         return colors.get(self.nivel_riesgo, "#007bff")
+
+
+# ==========================================
+# 📝 FORMULARIOS DE PAGOS
+# ==========================================
+
+class PagoFormModel(rx.Base):
+    """
+    📝 FORMULARIO DE CREACIÓN/EDICIÓN DE PAGOS
+    
+    Reemplaza: form_data: Dict[str, str] en pagos_service
+    """
+    
+    # Referencias
+    paciente_id: str = ""
+    consulta_id: str = ""  # Opcional
+    
+    # Montos
+    monto_total: str = "0"
+    monto_pagado: str = "0"
+    descuento_aplicado: str = "0"
+    impuestos: str = "0"
+    
+    # Método y detalles de pago
+    metodo_pago: str = "efectivo"  # efectivo, tarjeta_credito, transferencia, etc.
+    referencia_pago: str = ""
+    concepto: str = ""
+    
+    # Estado y autorización
+    estado_pago: str = "completado"  # pendiente, completado, anulado
+    autorizado_por: str = ""
+    motivo_descuento: str = ""
+    
+    # Observaciones
+    observaciones: str = ""
+    
+    def validate_form(self) -> Dict[str, List[str]]:
+        """Validar campos requeridos y montos"""
+        errors = {}
+        
+        if not self.paciente_id.strip():
+            errors.setdefault("paciente_id", []).append("Paciente es requerido")
+        
+        try:
+            monto_total = float(self.monto_total)
+            if monto_total <= 0:
+                errors.setdefault("monto_total", []).append("Monto total debe ser mayor a 0")
+        except (ValueError, TypeError):
+            errors.setdefault("monto_total", []).append("Monto total debe ser un número válido")
+        
+        return errors
+    
+    def to_dict(self) -> Dict[str, str]:
+        """Convertir a dict para compatibilidad"""
+        return {
+            "paciente_id": self.paciente_id,
+            "consulta_id": self.consulta_id,
+            "monto_total": self.monto_total,
+            "monto_pagado": self.monto_pagado,
+            "descuento_aplicado": self.descuento_aplicado,
+            "impuestos": self.impuestos,
+            "metodo_pago": self.metodo_pago,
+            "referencia_pago": self.referencia_pago,
+            "concepto": self.concepto,
+            "estado_pago": self.estado_pago,
+            "autorizado_por": self.autorizado_por,
+            "motivo_descuento": self.motivo_descuento,
+            "observaciones": self.observaciones,
+        }
+
+
+class PagoParcialFormModel(rx.Base):
+    """
+    📝 FORMULARIO PARA PAGOS PARCIALES
+    
+    Usado en: process_partial_payment
+    """
+    
+    monto_adicional: str = "0"
+    metodo_pago: str = "efectivo"
+    referencia_pago: str = ""
+    observaciones: str = ""
+    
+    def validate_form(self) -> Dict[str, List[str]]:
+        """Validar monto adicional"""
+        errors = {}
+        
+        try:
+            monto = float(self.monto_adicional)
+            if monto <= 0:
+                errors.setdefault("monto_adicional", []).append("Monto debe ser mayor a 0")
+        except (ValueError, TypeError):
+            errors.setdefault("monto_adicional", []).append("Monto debe ser un número válido")
+        
+        return errors
+    
+    def to_dict(self) -> Dict[str, str]:
+        """Convertir a dict para compatibilidad"""
+        return {
+            "monto_adicional": self.monto_adicional,
+            "metodo_pago": self.metodo_pago,
+            "referencia_pago": self.referencia_pago,
+            "observaciones": self.observaciones,
+        }

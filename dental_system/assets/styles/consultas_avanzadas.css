@@ -1,0 +1,310 @@
+/* 
+🎨 ESTILOS AVANZADOS PARA CONSULTAS MEJORADAS
+==============================================
+
+Estilos CSS específicos para las nuevas funcionalidades:
+- Sistema de prioridades con colores
+- Animaciones suaves
+- Efectos glassmorphism
+- Estados de pacientes
+- Responsive design
+*/
+
+/* ==========================================
+   📊 QUEUE CONTROL BAR STYLES
+   ========================================== */
+
+.queue-control-bar {
+    background: rgba(26, 31, 46, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(15px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+}
+
+.stat-card-blue {
+    border-left: 4px solid #3182ce;
+    background: rgba(49, 130, 206, 0.1);
+}
+
+.stat-card-red {
+    border-left: 4px solid #e53e3e;
+    background: rgba(229, 62, 62, 0.1);
+}
+
+.stat-card-orange {
+    border-left: 4px solid #d69e2e;
+    background: rgba(214, 158, 46, 0.1);
+}
+
+.stat-card-green {
+    border-left: 4px solid #38a169;
+    background: rgba(56, 161, 105, 0.1);
+}
+
+.stat-card-purple {
+    border-left: 4px solid #805ad5;
+    background: rgba(128, 90, 213, 0.1);
+}
+
+/* ==========================================
+   🚨 SISTEMA DE PRIORIDADES
+   ========================================== */
+
+.patient-card-enhanced {
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+}
+
+.patient-card-enhanced:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+/* Prioridad Urgente */
+.priority-urgente {
+    border-left: 6px solid #e53e3e !important;
+    background: linear-gradient(135deg, 
+        rgba(229, 62, 62, 0.15) 0%, 
+        rgba(26, 31, 46, 0.9) 100%) !important;
+    box-shadow: 0 8px 32px rgba(229, 62, 62, 0.25),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    animation: urgent-pulse 2s infinite;
+}
+
+@keyframes urgent-pulse {
+    0%, 100% { box-shadow: 0 8px 32px rgba(229, 62, 62, 0.25); }
+    50% { box-shadow: 0 8px 32px rgba(229, 62, 62, 0.4); }
+}
+
+/* Prioridad Alta */
+.priority-alta {
+    border-left: 6px solid #d69e2e !important;
+    background: linear-gradient(135deg, 
+        rgba(214, 158, 46, 0.12) 0%, 
+        rgba(26, 31, 46, 0.9) 100%) !important;
+    box-shadow: 0 6px 24px rgba(214, 158, 46, 0.2);
+}
+
+/* Prioridad Normal */
+.priority-normal {
+    border-left: 6px solid #38a169 !important;
+    background: linear-gradient(135deg, 
+        rgba(56, 161, 105, 0.1) 0%, 
+        rgba(26, 31, 46, 0.9) 100%) !important;
+    box-shadow: 0 4px 20px rgba(56, 161, 105, 0.15);
+}
+
+/* Prioridad Baja */
+.priority-baja {
+    border-left: 6px solid #718096 !important;
+    background: linear-gradient(135deg, 
+        rgba(113, 128, 150, 0.08) 0%, 
+        rgba(26, 31, 46, 0.9) 100%) !important;
+    box-shadow: 0 4px 16px rgba(113, 128, 150, 0.1);
+}
+
+/* ==========================================
+   🏥 ESTADOS DE CONSULTA
+   ========================================== */
+
+/* En Espera */
+.estado-en_espera {
+    border-top: 3px solid #d69e2e;
+}
+
+.estado-en_espera::before {
+    content: "⏳";
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    font-size: 14px;
+    opacity: 0.7;
+}
+
+/* En Atención */
+.estado-en_atencion {
+    border-top: 3px solid #38a169;
+    background: linear-gradient(135deg, 
+        rgba(56, 161, 105, 0.08) 0%, 
+        rgba(26, 31, 46, 0.9) 100%) !important;
+    animation: in-progress-glow 3s ease-in-out infinite;
+}
+
+@keyframes in-progress-glow {
+    0%, 100% { box-shadow: 0 6px 24px rgba(56, 161, 105, 0.2); }
+    50% { box-shadow: 0 8px 32px rgba(56, 161, 105, 0.3); }
+}
+
+.estado-en_atencion::before {
+    content: "🔄";
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    font-size: 14px;
+    animation: spin 2s linear infinite;
+}
+
+/* Completada */
+.estado-completada {
+    border-top: 3px solid #3182ce;
+    opacity: 0.8;
+}
+
+.estado-completada::before {
+    content: "✅";
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    font-size: 14px;
+}
+
+/* ==========================================
+   🎛️ FILTROS Y CONTROLES
+   ========================================== */
+
+.filter-bar {
+    background: rgba(26, 31, 46, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+}
+
+.alerts-panel {
+    animation: slide-down 0.3s ease-out;
+}
+
+@keyframes slide-down {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ==========================================
+   👨‍⚕️ COLUMNAS DE DOCTORES
+   ========================================== */
+
+.doctor-header-enhanced {
+    background: rgba(26, 31, 46, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(15px);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.doctor-column-enhanced {
+    background: rgba(15, 20, 25, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    padding: 16px;
+    backdrop-filter: blur(5px);
+}
+
+/* ==========================================
+   📈 ANALYTICS PANEL
+   ========================================== */
+
+.analytics-panel {
+    background: rgba(26, 31, 46, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(15px);
+}
+
+/* ==========================================
+   🔄 MODAL DE TRANSFERENCIA
+   ========================================== */
+
+.transfer-patient-info {
+    background: rgba(49, 130, 206, 0.1);
+    border: 1px solid rgba(49, 130, 206, 0.3);
+    border-radius: 8px;
+    padding: 12px;
+}
+
+/* ==========================================
+   ⚡ ANIMACIONES Y EFECTOS
+   ========================================== */
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@keyframes bounce-in {
+    0% { transform: scale(0.8); opacity: 0; }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.patient-card-enhanced {
+    animation: bounce-in 0.4s ease-out;
+}
+
+/* Hover effects para botones de acción */
+.patient-action-buttons button:hover {
+    transform: scale(1.05);
+    transition: transform 0.2s ease;
+}
+
+/* ==========================================
+   📱 RESPONSIVE DESIGN
+   ========================================== */
+
+@media (max-width: 768px) {
+    .queue-control-bar {
+        padding: 1rem;
+    }
+    
+    .stat-card-blue,
+    .stat-card-red,
+    .stat-card-orange,
+    .stat-card-green,
+    .stat-card-purple {
+        margin: 4px 0;
+    }
+    
+    .patient-card-enhanced {
+        margin: 8px 0;
+    }
+    
+    .doctor-column-enhanced {
+        margin: 12px 0;
+    }
+}
+
+/* ==========================================
+   🎨 UTILIDADES
+   ========================================== */
+
+.glass-effect {
+    background: rgba(26, 31, 46, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+}
+
+.glow-blue {
+    box-shadow: 0 4px 20px rgba(49, 130, 206, 0.3);
+}
+
+.glow-red {
+    box-shadow: 0 4px 20px rgba(229, 62, 62, 0.3);
+}
+
+.glow-green {
+    box-shadow: 0 4px 20px rgba(56, 161, 105, 0.3);
+}
+
+.glow-yellow {
+    box-shadow: 0 4px 20px rgba(214, 158, 46, 0.3);
+}
+
+/* Smooth transitions para todos los elementos interactivos */
+* {
+    transition: all 0.2s ease;
+}

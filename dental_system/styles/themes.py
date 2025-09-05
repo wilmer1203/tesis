@@ -22,7 +22,7 @@ import colorsys
 COLORS = {
     # Colores primarios (Turquesa dental) - Expandidos
     "primary": {
-        "25": "#F0FDFC",
+        "25": "#FFFFFF",
         "50": "#E6F9F8",
         "100": "#B3F0ED", 
         "200": "#80E7E2",

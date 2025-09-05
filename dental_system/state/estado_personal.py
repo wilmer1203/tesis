@@ -55,8 +55,8 @@ class EstadoPersonal(rx.State, mixin=True):
     empleado_seleccionado: Optional[PersonalModel] = None
     id_empleado_seleccionado: str = ""
     
-    # Formulario de empleado (datos temporales)
-    formulario_empleado: Dict[str, Any] = {}
+    # Formulario de empleado (datos temporales) - MODELO TIPADO
+    formulario_empleado: PersonalFormModel = PersonalFormModel()
     errores_validacion_empleado: Dict[str, str] = {}
     
     # ==========================================
@@ -107,11 +107,11 @@ class EstadoPersonal(rx.State, mixin=True):
     estadisticas_personal: PersonalStatsModel = PersonalStatsModel()
     ultima_actualizacion_stats_personal: str = ""
     
-    # Cache de operaciones pesadas
-    cache_personal_activo: List[PersonalModel] = []
-    cache_odontologos_disponibles: List[PersonalModel] = []
-    cache_timestamp_personal: str = ""
-    cache_validez_minutos_personal: int = 20
+    # UNUSED - [2025-01-04] - Variables de cache no utilizadas
+    # cache_personal_activo: List[PersonalModel] = []
+    # cache_odontologos_disponibles: List[PersonalModel] = []
+    # cache_timestamp_personal: str = ""
+    # cache_validez_minutos_personal: int = 20
     
     # Estados de carga
     cargando_lista_personal: bool = False
@@ -165,7 +165,7 @@ class EstadoPersonal(rx.State, mixin=True):
                     emp for emp in resultado
                     if (termino_lower in emp.nombre_completo.lower() or
                         termino_lower in emp.numero_documento.lower() or
-                        termino_lower in emp.telefono.lower() or
+                        termino_lower in emp.celular.lower() or
                         (emp.especialidad and termino_lower in emp.especialidad.lower()) or
                         (emp.email and termino_lower in emp.email.lower()))
                 ]
@@ -255,25 +255,26 @@ class EstadoPersonal(rx.State, mixin=True):
         except Exception:
             return {}
     
-    @rx.var(cache=True)
-    def empleados_activos_count(self) -> int:
-        """Cantidad de empleados activos"""
-        try:
-            return len([emp for emp in self.lista_personal if emp.estado_laboral == "activo"])
-        except Exception:
-            return 0
+    # UNUSED - [2025-01-04] - Computed vars no utilizados
+    # @rx.var(cache=True)
+    # def empleados_activos_count(self) -> int:
+    #     """Cantidad de empleados activos"""
+    #     try:
+    #         return len([emp for emp in self.lista_personal if emp.estado_laboral == "activo"])
+    #     except Exception:
+    #         return 0
     
-    @rx.var(cache=True)
-    def especialidades_en_uso(self) -> List[str]:
-        """Lista de especialidades que tienen empleados asignados"""
-        try:
-            especialidades = set()
-            for emp in self.lista_personal:
-                if emp.estado_laboral == "activo" and emp.especialidad:
-                    especialidades.add(emp.especialidad)
-            return sorted(list(especialidades))
-        except Exception:
-            return []
+    # @rx.var(cache=True)
+    # def especialidades_en_uso(self) -> List[str]:
+    #     """Lista de especialidades que tienen empleados asignados"""
+    #     try:
+    #         especialidades = set()
+    #         for emp in self.lista_personal:
+    #             if emp.estado_laboral == "activo" and emp.especialidad:
+    #                 especialidades.add(emp.especialidad)
+    #         return sorted(list(especialidades))
+    #     except Exception:
+    #         return []
     
     # ==========================================
     # 🔄 MÉTODOS DE CARGA DE DATOS
@@ -399,17 +400,18 @@ class EstadoPersonal(rx.State, mixin=True):
         self.pagina_actual_personal = 1
         await self.cargar_lista_personal()
     
-    async def ordenar_personal(self, campo: str):
-        """Cambiar ordenamiento de la lista"""
-        if self.campo_ordenamiento_personal == campo:
-            # Toggle dirección si es el mismo campo
-            self.direccion_ordenamiento_personal = "desc" if self.direccion_ordenamiento_personal == "asc" else "asc"
-        else:
-            # Nuevo campo, empezar en ascendente
-            self.campo_ordenamiento_personal = campo
-            self.direccion_ordenamiento_personal = "asc"
-        
-        # Las computed vars se actualizarán automáticamente
+    # UNUSED - [2025-01-04] - Método de ordenamiento no utilizado
+    # async def ordenar_personal(self, campo: str):
+    #     """Cambiar ordenamiento de la lista"""
+    #     if self.campo_ordenamiento_personal == campo:
+    #         # Toggle dirección si es el mismo campo
+    #         self.direccion_ordenamiento_personal = "desc" if self.direccion_ordenamiento_personal == "asc" else "asc"
+    #     else:
+    #         # Nuevo campo, empezar en ascendente
+    #         self.campo_ordenamiento_personal = campo
+    #         self.direccion_ordenamiento_personal = "asc"
+    #     
+    #     # Las computed vars se actualizarán automáticamente
     
     # ==========================================
     # ➕ MÉTODOS CRUD DE PERSONAL
@@ -434,10 +436,16 @@ class EstadoPersonal(rx.State, mixin=True):
         self.cargando_operacion_personal = True
         
         try:
+            # Establecer contexto de usuario en el servicio
+            personal_service.set_user_context(
+                user_id=self.id_usuario,
+                user_profile=self.perfil_usuario
+            )
+            
             # Crear empleado
-            nuevo_empleado = await personal_service.create_personal(
-                form_data=self.formulario_empleado,
-                user_id=self.id_usuario
+            nuevo_empleado = await personal_service.create_staff_member(
+                self.formulario_empleado,
+                self.id_usuario
             )
             
             # Agregar a la lista
@@ -475,11 +483,16 @@ class EstadoPersonal(rx.State, mixin=True):
         self.cargando_operacion_personal = True
         
         try:
+            # Establecer contexto de usuario en el servicio
+            personal_service.set_user_context(
+                user_id=self.id_usuario,
+                user_profile=self.perfil_usuario
+            )
+            
             # Actualizar empleado
-            empleado_actualizado = await personal_service.update_personal(
+            empleado_actualizado = await personal_service.update_staff_member(
                 personal_id=getattr(self.empleado_seleccionado, 'id', self.id_empleado_seleccionado),
-                form_data=self.formulario_empleado,
-                user_id=self.id_usuario
+                personal_form=self.formulario_empleado,
             )
             
             # Actualizar en la lista
@@ -561,8 +574,8 @@ class EstadoPersonal(rx.State, mixin=True):
         self.empleado_seleccionado = empleado
         self.id_empleado_seleccionado = empleado.id
         
-        # Mapear modelo a formulario - TODOS LOS CAMPOS DISPONIBLES
-        self.formulario_empleado = {
+        # ✅ MAPEAR MODELO A FORMULARIO TIPADO
+        empleado_dict = {
             # Nombres completos
             "primer_nombre": empleado.primer_nombre or "",
             "segundo_nombre": empleado.segundo_nombre or "",
@@ -571,7 +584,7 @@ class EstadoPersonal(rx.State, mixin=True):
             
             # Identificación y contacto
             "numero_documento": empleado.numero_documento or "",
-            "telefono": empleado.celular or "",
+            "celular": empleado.celular or "",            # Solo celular
             "email": empleado.usuario.email or "",
             "direccion": empleado.direccion or "",
             
@@ -589,16 +602,23 @@ class EstadoPersonal(rx.State, mixin=True):
             
             # Información adicional
             "fecha_nacimiento": empleado.fecha_nacimiento or "",
-            "tipo_documento": empleado.tipo_documento or "CC",
+            
+            # ✅ CAMPOS CRÍTICOS PARA SISTEMA DE COLAS
+            "acepta_pacientes_nuevos": empleado.acepta_pacientes_nuevos,
+            "orden_preferencia": empleado.orden_preferencia,
+            "tipo_documento": empleado.tipo_documento or "CI",
             "observaciones": empleado.observaciones or ""
         }
+        
+        # ✅ CONVERTIR A MODELO TIPADO
+        self.formulario_empleado = PersonalFormModel.from_dict(empleado_dict)
         
         # Limpiar errores
         self.errores_validacion_empleado = {}
     
     def limpiar_formulario_empleado(self):
         """Limpiar todos los datos del formulario"""
-        self.formulario_empleado = {}
+        self.formulario_empleado = PersonalFormModel()  # ✅ RESET CON MODELO TIPADO
         self.errores_validacion_empleado = {}
         self.empleado_seleccionado = None
         self.id_empleado_seleccionado = ""
@@ -613,11 +633,18 @@ class EstadoPersonal(rx.State, mixin=True):
         self.errores_usuario = {}
     
     def actualizar_campo_formulario_empleado(self, campo: str, valor: str):
-        """Actualizar campo específico del formulario"""
-        if not self.formulario_empleado:
-            self.formulario_empleado = {}
-        
-        self.formulario_empleado[campo] = valor
+        """Actualizar campo específico del formulario tipado"""
+        # ✅ ACTUALIZAR CAMPO EN MODELO TIPADO usando setattr
+        if hasattr(self.formulario_empleado, campo):
+            # Convertir valor según el tipo del campo
+            if campo in ["acepta_pacientes_nuevos"]:
+                valor = bool(valor)
+            elif campo in ["orden_preferencia"]:
+                valor = int(valor) if valor.isdigit() else 1
+            
+            setattr(self.formulario_empleado, campo, valor)
+        else:
+            print(f"⚠️ Campo {campo} no existe en PersonalFormModel")
         
         # Limpiar error específico del campo
         if campo in self.errores_validacion_empleado:
@@ -630,40 +657,52 @@ class EstadoPersonal(rx.State, mixin=True):
         """
         self.errores_validacion_empleado = {}
         
-        # Campos requeridos
+        # ✅ CAMPOS REQUERIDOS CON MODELO TIPADO
         campos_requeridos = [
-            "nombre", "apellido", "numero_documento", "telefono", "fecha_ingreso", "rol_id"
+            "primer_nombre", "primer_apellido", "numero_documento", "celular", "email"
         ]
         
+        # ✅ AGREGAR CONTRASEÑA PARA USUARIOS NUEVOS
+        if not self.empleado_seleccionado:  # Solo para nuevos usuarios
+            campos_requeridos.append("usuario_password")
+        
         for campo in campos_requeridos:
-            valor = self.formulario_empleado.get(campo, "").strip()
+            valor = getattr(self.formulario_empleado, campo, "")
+            if isinstance(valor, str):
+                valor = valor.strip()
             if not valor:
                 self.errores_validacion_empleado[campo] = "Este campo es requerido"
         
-        # Validaciones específicas
+        # ✅ VALIDACIONES ESPECÍFICAS CON MODELO TIPADO
         
         # Número de documento único
-        numero_documento = self.formulario_empleado.get("numero_documento", "").strip()
+        numero_documento = self.formulario_empleado.numero_documento.strip() if self.formulario_empleado.numero_documento else ""
         if numero_documento and len(numero_documento) < 7:
             self.errores_validacion_empleado["numero_documento"] = "El número de documento debe tener al menos 7 dígitos"
         
         # Email válido
-        email = self.formulario_empleado.get("email", "").strip()
+        email = self.formulario_empleado.email.strip() if self.formulario_empleado.email else ""
         if email and "@" not in email:
             self.errores_validacion_empleado["email"] = "Email inválido"
         
-        # Teléfono válido
-        telefono = self.formulario_empleado.get("telefono", "").strip()
-        if telefono and len(telefono) < 10:
-            self.errores_validacion_empleado["telefono"] = "Teléfono debe tener al menos 10 dígitos"
+        # Celular válido (requerido)
+        celular = self.formulario_empleado.celular.strip() if self.formulario_empleado.celular else ""
+        if celular and len(celular) < 10:
+            self.errores_validacion_empleado["celular"] = "Celular debe tener al menos 10 dígitos"
         
         # Salario válido
-        salario = self.formulario_empleado.get("salario", "").strip()
+        salario = self.formulario_empleado.salario.strip() if self.formulario_empleado.salario else ""
         if salario:
             try:
                 float(salario)
             except ValueError:
                 self.errores_validacion_empleado["salario"] = "Salario debe ser un número válido"
+        
+        # ✅ CONTRASEÑA VÁLIDA (solo para usuarios nuevos)
+        if not self.empleado_seleccionado:
+            password = self.formulario_empleado.usuario_password.strip() if self.formulario_empleado.usuario_password else ""
+            if password and len(password) < 6:
+                self.errores_validacion_empleado["usuario_password"] = "La contraseña debe tener al menos 6 caracteres"
         
         return len(self.errores_validacion_empleado) == 0
     
@@ -688,11 +727,12 @@ class EstadoPersonal(rx.State, mixin=True):
         if 1 <= numero_pagina <= info["total_paginas"]:
             self.pagina_actual_personal = numero_pagina
     
-    def cambiar_empleados_por_pagina(self, cantidad: int):
-        """Cambiar cantidad de empleados por página"""
-        self.empleados_por_pagina = cantidad
-        self.pagina_actual_personal = 1  # Reset a primera página
-        self._calcular_paginacion_personal()
+    # UNUSED - [2025-01-04] - Método de paginación no utilizado
+    # def cambiar_empleados_por_pagina(self, cantidad: int):
+    #     """Cambiar cantidad de empleados por página"""
+    #     self.empleados_por_pagina = cantidad
+    #     self.pagina_actual_personal = 1  # Reset a primera página
+    #     self._calcular_paginacion_personal()
     
     def _calcular_paginacion_personal(self):
         """Recalcular paginación basado en filtros actuales"""
@@ -719,19 +759,20 @@ class EstadoPersonal(rx.State, mixin=True):
             # Si no se puede mostrar toast, solo log
             pass
     
-    def limpiar_cache_personal(self):
-        """Limpiar cache de personal para forzar recarga"""
-        self.cache_personal_activo = []
-        self.cache_odontologos_disponibles = []
-        self.cache_timestamp_personal = ""
-        logger.info("🧹 Cache de personal limpiado")
+    # UNUSED - [2025-01-04] - Métodos de cache no utilizados
+    # def limpiar_cache_personal(self):
+    #     """Limpiar cache de personal para forzar recarga"""
+    #     self.cache_personal_activo = []
+    #     self.cache_odontologos_disponibles = []
+    #     self.cache_timestamp_personal = ""
+    #     logger.info("🧹 Cache de personal limpiado")
     
-    async def refrescar_datos_personal(self):
-        """Refrescar todos los datos de personal"""
-        self.limpiar_cache_personal()
-        await self.cargar_lista_personal()
-        await self.cargar_estadisticas_personal()
-        logger.info("🔄 Datos de personal refrescados")
+    # async def refrescar_datos_personal(self):
+    #     """Refrescar todos los datos de personal"""
+    #     self.limpiar_cache_personal()
+    #     await self.cargar_lista_personal()
+    #     await self.cargar_estadisticas_personal()
+    #     logger.info("🔄 Datos de personal refrescados")
     
     # ==========================================
     # 📱 FUNCIONES DE MODAL

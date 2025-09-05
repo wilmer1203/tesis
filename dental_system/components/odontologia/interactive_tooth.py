@@ -222,7 +222,7 @@ def tooth_surface(
     return rx.tooltip(
         rx.box(
             style=surface_style,
-            on_click=lambda: AppState.select_tooth_surface(tooth_number, surface_name)
+            on_click=lambda: AppState.seleccionar_diente_superficie(tooth_number, surface_name)
         ),
         content=f"{surface_name.title()}: {CONDITION_NAMES.get(condition, condition)}"
     )
@@ -289,46 +289,46 @@ def interactive_tooth(
             tooth_number, 
             "oclusal", 
             rx.cond(pending_changes, 
-                   rx.cond(pending_changes["oclusal"], pending_changes["oclusal"], conditions.get("oclusal", "sano")),
+                   rx.cond(rx.cond(pending_changes, pending_changes.get("oclusal"), None), rx.cond(pending_changes, pending_changes.get("oclusal"), None), conditions.get("oclusal", "sano")),
                    conditions.get("oclusal", "sano")),
-            is_selected & (AppState.selected_surface == "oclusal"),
-            rx.cond(pending_changes, rx.cond(pending_changes["oclusal"], True, False), False)
+            is_selected & (AppState.superficie_seleccionada == "oclusal"),
+            rx.cond(pending_changes, rx.cond(rx.cond(pending_changes, pending_changes.get("oclusal"), None), True, False), False)
         ),
         tooth_surface(
             tooth_number,
             "mesial",
             rx.cond(pending_changes, 
-                   rx.cond(pending_changes["mesial"], pending_changes["mesial"], conditions.get("mesial", "sano")),
+                   rx.cond(rx.cond(pending_changes, pending_changes.get("mesial"), None), rx.cond(pending_changes, pending_changes.get("mesial"), None), conditions.get("mesial", "sano")),
                    conditions.get("mesial", "sano")),
-            is_selected & (AppState.selected_surface == "mesial"),
-            rx.cond(pending_changes, rx.cond(pending_changes["mesial"], True, False), False)
+            is_selected & (AppState.superficie_seleccionada == "mesial"),
+            rx.cond(pending_changes, rx.cond(rx.cond(pending_changes, pending_changes.get("mesial"), None), True, False), False)
         ),
         tooth_surface(
             tooth_number,
             "distal", 
             rx.cond(pending_changes, 
-                   rx.cond(pending_changes["distal"], pending_changes["distal"], conditions.get("distal", "sano")),
+                   rx.cond(rx.cond(pending_changes, pending_changes.get("distal"), None), rx.cond(pending_changes, pending_changes.get("distal"), None), conditions.get("distal", "sano")),
                    conditions.get("distal", "sano")),
-            is_selected & (AppState.selected_surface == "distal"),
-            rx.cond(pending_changes, rx.cond(pending_changes["distal"], True, False), False)
+            is_selected & (AppState.superficie_seleccionada == "distal"),
+            rx.cond(pending_changes, rx.cond(rx.cond(pending_changes, pending_changes.get("distal"), None), True, False), False)
         ),
         tooth_surface(
             tooth_number,
             "vestibular",
             rx.cond(pending_changes, 
-                   rx.cond(pending_changes["vestibular"], pending_changes["vestibular"], conditions.get("vestibular", "sano")),
+                   rx.cond(rx.cond(pending_changes, pending_changes.get("vestibular"), None), rx.cond(pending_changes, pending_changes.get("vestibular"), None), conditions.get("vestibular", "sano")),
                    conditions.get("vestibular", "sano")),
-            is_selected & (AppState.selected_surface == "vestibular"), 
-            rx.cond(pending_changes, rx.cond(pending_changes["vestibular"], True, False), False)
+            is_selected & (AppState.superficie_seleccionada == "vestibular"), 
+            rx.cond(pending_changes, rx.cond(rx.cond(pending_changes, pending_changes.get("vestibular"), None), True, False), False)
         ),
         tooth_surface(
             tooth_number,
             "lingual",
             rx.cond(pending_changes, 
-                   rx.cond(pending_changes["lingual"], pending_changes["lingual"], conditions.get("lingual", "sano")),
+                   rx.cond(rx.cond(pending_changes, pending_changes.get("lingual"), None), rx.cond(pending_changes, pending_changes.get("lingual"), None), conditions.get("lingual", "sano")),
                    conditions.get("lingual", "sano")),
-            is_selected & (AppState.selected_surface == "lingual"),
-            rx.cond(pending_changes, rx.cond(pending_changes["lingual"], True, False), False)
+            is_selected & (AppState.superficie_seleccionada == "lingual"),
+            rx.cond(pending_changes, rx.cond(rx.cond(pending_changes, pending_changes.get("lingual"), None), True, False), False)
         ),
         
         # Indicador de modificaciones (pequeño punto naranja)
@@ -351,7 +351,7 @@ def interactive_tooth(
         ),
         
         style=container_style,
-        on_click=lambda: AppState.select_tooth(tooth_number)
+        on_click=lambda: AppState.seleccionar_diente(tooth_number)
     )
 
 # ==========================================
@@ -406,19 +406,19 @@ def is_condition_valid_for_surface(condition: str, surface: str, tooth_type: str
 def selected_tooth_info_panel() -> rx.Component:
     """Panel informativo del diente seleccionado"""
     return rx.cond(
-        AppState.selected_tooth,
+        AppState.diente_seleccionado,
         rx.box(
             rx.vstack(
                 rx.text(
-                    f"Diente: {AppState.selected_tooth}",
+                    f"Diente: {AppState.diente_seleccionado}",
                     size="4",
                     weight="bold",
                     color=COLORS["primary"]["500"]
                 ),
                 rx.cond(
-                    AppState.selected_surface,
+                    AppState.superficie_seleccionada,
                     rx.text(
-                        f"Superficie: {AppState.selected_surface}",
+                        f"Superficie: {AppState.superficie_seleccionada}",
                         size="3",
                         color=DARK_THEME["colors"]["text_secondary"]
                     )

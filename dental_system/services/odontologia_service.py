@@ -108,17 +108,11 @@ class OdontologiaService(BaseService):
                 raise PermissionError("Sin permisos para acceder a las consultas")
             
             # Usar personal_id directamente sin conversión
-            print(f"[DEBUG] 🔍 Buscando consultas de hoy para odontólogo personal_id: {personal_id}")
+            # Obtener consultas del día
             consultas_hoy = self.consultas_table.get_today_consultations(personal_id)
-            print(f"[DEBUG] 📅 Consultas de hoy encontradas: {len(consultas_hoy)}")
-            
-            # Debug: mostrar todas las consultas encontradas
-            for i, consulta in enumerate(consultas_hoy):
-                print(f"[DEBUG] 📋 Consulta {i+1}: ID={consulta.get('id')}, Estado={consulta.get('estado')}, Fecha={consulta.get('fecha_programada')}")
             
             # Filtrar solo las programadas y en progreso
             consultas = [c for c in consultas_hoy if c.get("estado") in ["programada", "en_progreso"]]
-            print(f"[DEBUG] ✅ Consultas filtradas (programada/en_progreso): {len(consultas)}")
             
             # Enriquecer con datos del paciente
             pacientes_asignados = []
@@ -500,7 +494,7 @@ class OdontologiaService(BaseService):
                 "total_pacientes_atendidos": len(set(i.get("paciente_id") for i in intervenciones_completadas))
             }
             
-            logger.info(f"✅ Estadísticas obtenidas para odontólogo {odontologo_id}")
+            logger.info(f"✅ Estadísticas obtenidas para personal {personal_id}")
             return estadisticas
             
         except Exception as e:

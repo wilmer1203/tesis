@@ -24,6 +24,7 @@ from dental_system.models import (
     ServicioModel,
     ServicioStatsModel,
     CategoriaServicioModel,
+    EstadisticaCategoriaModel,
     ServicioFormModel
 )
 
@@ -321,20 +322,13 @@ class EstadoServicios(rx.State,mixin=True):
             return []
     
     @rx.var(cache=True)
-    def estadisticas_por_categoria(self) -> Dict[str, Dict[str, Any]]:
-        """Estadísticas detalladas por categoría"""
+    def estadisticas_por_categoria(self) -> Dict[str, EstadisticaCategoriaModel]:
+        """Estadísticas detalladas por categoría usando modelos tipados"""
         try:
             stats = {}
             for categoria, servicios in self.servicios_por_categoria.items():
                 if servicios:
-                    precios = [s.precio_base for s in servicios if s.precio_base]
-                    stats[categoria] = {
-                        "total": len(servicios),
-                        "precio_promedio": sum(precios) / len(precios) if precios else 0,
-                        "precio_min": min(precios) if precios else 0,
-                        "precio_max": max(precios) if precios else 0,
-                        "mas_popular": max(servicios, key=lambda x: x.veces_usado or 0).nombre if servicios else ""
-                    }
+                    stats[categoria] = EstadisticaCategoriaModel.from_servicios_list(servicios)
             return stats
         except Exception:
             return {}
@@ -367,22 +361,16 @@ class EstadoServicios(rx.State,mixin=True):
         Carga la lista de servicios desde el servicio
         Disponible para todos los roles (lectura), solo Gerente puede editar
         """
-        from dental_system.state.estado_auth import EstadoAuth
-        
-        auth_state = self.get_state(EstadoAuth)
-        
-        if not auth_state.is_authenticated:
+        # Verificar autenticación usando propiedades del mixin
+        if not self.esta_autenticado:
             logger.warning("Usuario no autenticado intentando cargar servicios")
             return
         
         self.cargando_lista_servicios = True
         
         try:
-            # Establecer contexto de usuario en el servicio
-            servicios_service.set_user_context(
-                user_id=auth_state.user_profile.get("id"),
-                role=auth_state.user_role
-            )
+            # Establecer contexto de usuario en el servicio usando propiedades correctas del mixin
+            servicios_service.set_user_context(self.id_usuario, self.perfil_usuario)
             
             # Obtener servicios con filtros actuales
             servicios_data = await servicios_service.get_filtered_services(
@@ -514,32 +502,33 @@ class EstadoServicios(rx.State,mixin=True):
     
     async def crear_servicio(self):
         """
-        Crear nuevo servicio con validaciones
+        Crear nuevo servicio avec validations
         Solo accesible por Gerente
         """
-        from dental_system.state.estado_auth import EstadoAuth
         from dental_system.state.estado_ui import EstadoUI
         
-        auth_state = self.get_state(EstadoAuth)
         ui_state = self.get_state(EstadoUI)
         
-        # Verificar permisos
-        if not auth_state.user_role == "gerente":
+        # Verificar permisos usando la propiedad correcta del mixin
+        if not self.rol_usuario == "gerente":
             ui_state.mostrar_toast_error("Solo el gerente puede crear servicios")
             return
         
-        # Validar formulario
-        if not self.validar_formulario_servicio():
+        # Validar formulario usando modelo tipado
+        errores = self.formulario_servicio_data.validate_servicio()
+        if errores:
+            self.errores_validacion_servicio = {field: errors[0] for field, errors in errores.items()}
             return
         
         self.cargando_operacion_servicio = True
         
         try:
-            # Crear servicio
+            # Crear servicio usando modelo tipado
             nuevo_servicio = await servicios_service.create_service(
-                form_data=self.formulario_servicio,
-                user_id=auth_state.user_profile.get("id")
+                form_data=self.formulario_servicio_data,
+                user_id=self.id_usuario,
             )
+            
             
             # Agregar a la lista
             self.lista_servicios.append(nuevo_servicio)
@@ -566,7 +555,10 @@ class EstadoServicios(rx.State,mixin=True):
         if not self.servicio_seleccionado or not self.servicio_seleccionado.id:
             return
         
-        if not self.validar_formulario_servicio():
+        # Validar formulario usando modelo tipado
+        errores = self.formulario_servicio_data.validate_servicio()
+        if errores:
+            self.errores_validacion_servicio = {field: errors[0] for field, errors in errores.items()}
             return
         
         from dental_system.state.estado_auth import EstadoAuth
@@ -578,11 +570,11 @@ class EstadoServicios(rx.State,mixin=True):
         self.cargando_operacion_servicio = True
         
         try:
-            # Actualizar servicio
+            # Actualizar servicio usando modelo tipado
             servicio_actualizado = await servicios_service.update_service(
                 service_id=self.servicio_seleccionado.id,
-                form_data=self.formulario_servicio,
-                user_id=auth_state.user_profile.get("id")
+                form_data=self.formulario_servicio_data,
+                user_id=self.id_usuario
             )
             
             # Actualizar en la lista
@@ -610,14 +602,12 @@ class EstadoServicios(rx.State,mixin=True):
     
     async def activar_desactivar_servicio(self, servicio_id: str, activar: bool):
         """Activar o desactivar servicio (soft delete)"""
-        from dental_system.state.estado_auth import EstadoAuth
         from dental_system.state.estado_ui import EstadoUI
         
-        auth_state = self.get_state(EstadoAuth)
         ui_state = self.get_state(EstadoUI)
         
-        # Verificar permisos
-        if not auth_state.user_role == "gerente":
+        # Verificar permisos usando la propiedad correcta del mixin
+        if not self.rol_usuario == "gerente":
             ui_state.mostrar_toast_error("Solo el gerente puede cambiar el estado de servicios")
             return
         
@@ -625,7 +615,7 @@ class EstadoServicios(rx.State,mixin=True):
             success = await servicios_service.toggle_service_status(
                 service_id=servicio_id,
                 activo=activar,
-                user_id=auth_state.user_profile.get("id")
+                user_id=self.id_usuario
             )
             
             if success:
@@ -651,7 +641,10 @@ class EstadoServicios(rx.State,mixin=True):
         self.servicio_seleccionado = servicio
         self.id_servicio_seleccionado = servicio.id
         
-        # Mapear modelo a formulario
+        # Cargar en modelo tipado usando factory method
+        self.formulario_servicio_data = ServicioFormModel.from_servicio_model(servicio)
+        
+        # Mantener formulario Dict para backward compatibility temporal
         self.formulario_servicio = {
             "codigo": servicio.codigo,
             "nombre": servicio.nombre,
@@ -675,6 +668,7 @@ class EstadoServicios(rx.State,mixin=True):
     def limpiar_formulario_servicio(self):
         """Limpiar todos los datos del formulario"""
         self.formulario_servicio = {}
+        self.formulario_servicio_data = ServicioFormModel()  # Limpiar modelo tipado
         self.errores_validacion_servicio = {}
         self.servicio_seleccionado = ServicioModel()
         self.id_servicio_seleccionado = ""
@@ -684,72 +678,17 @@ class EstadoServicios(rx.State,mixin=True):
         if not self.formulario_servicio:
             self.formulario_servicio = {}
         
+        # Actualizar formulario Dict (backward compatibility)
         self.formulario_servicio[campo] = valor
+        
+        # Actualizar modelo tipado
+        if hasattr(self.formulario_servicio_data, campo):
+            setattr(self.formulario_servicio_data, campo, valor)
         
         # Limpiar error específico del campo
         if campo in self.errores_validacion_servicio:
             del self.errores_validacion_servicio[campo]
     
-    def validar_formulario_servicio(self) -> bool:
-        """
-        Validar datos del formulario de servicio
-        Returns True si es válido, False caso contrario
-        """
-        self.errores_validacion_servicio = {}
-        
-        # Campos requeridos
-        campos_requeridos = [
-            "nombre", "categoria", "precio_base"
-        ]
-        
-        for campo in campos_requeridos:
-            valor = self.formulario_servicio.get(campo, "").strip()
-            if not valor:
-                self.errores_validacion_servicio[campo] = "Este campo es requerido"
-        
-        # Validaciones específicas
-        
-        # Precio base válido
-        precio_base = self.formulario_servicio.get("precio_base", "").strip()
-        if precio_base:
-            try:
-                precio = float(precio_base)
-                if precio <= 0:
-                    self.errores_validacion_servicio["precio_base"] = "El precio debe ser mayor a 0"
-            except ValueError:
-                self.errores_validacion_servicio["precio_base"] = "Precio inválido"
-        
-        # Validar rango de precios
-        precio_min = self.formulario_servicio.get("precio_minimo", "").strip()
-        precio_max = self.formulario_servicio.get("precio_maximo", "").strip()
-        
-        if precio_min and precio_max and precio_base:
-            try:
-                p_min = float(precio_min)
-                p_max = float(precio_max)
-                p_base = float(precio_base)
-                
-                if p_min > p_base:
-                    self.errores_validacion_servicio["precio_minimo"] = "Precio mínimo no puede ser mayor al precio base"
-                if p_max < p_base:
-                    self.errores_validacion_servicio["precio_maximo"] = "Precio máximo no puede ser menor al precio base"
-                if p_min > p_max:
-                    self.errores_validacion_servicio["precio_maximo"] = "Precio máximo debe ser mayor al mínimo"
-                    
-            except ValueError:
-                pass  # Ya se validó en precio_base
-        
-        # Duración válida
-        duracion = self.formulario_servicio.get("duracion_estimada", "").strip()
-        if duracion:
-            try:
-                dur = int(duracion)
-                if dur <= 0:
-                    self.errores_validacion_servicio["duracion_estimada"] = "La duración debe ser mayor a 0"
-            except ValueError:
-                self.errores_validacion_servicio["duracion_estimada"] = "Duración debe ser un número entero"
-        
-        return len(self.errores_validacion_servicio) == 0
     
     # ==========================================
     # 📄 MÉTODOS DE PAGINACIÓN
@@ -856,19 +795,17 @@ class EstadoServicios(rx.State,mixin=True):
     # ==========================================
     
     @rx.event
-    async def cargar_lista_servicios(self):
-        """📋 CARGAR LISTA COMPLETA DE SERVICIOS - COORDINACIÓN CON APPSTATE"""
+    async def cargar_servicios_basico(self):
+        """📋 CARGAR LISTA BÁSICA DE SERVICIOS PARA APPSTATE"""
         try:
             self.cargando_lista_servicios = True
             
-            # Cargar desde el servicio
-            servicios_data = await servicios_service.get_all_services()
+            # Establecer contexto básico si está disponible
+            if hasattr(self, 'id_usuario') and self.id_usuario:
+                servicios_service.set_user_context(self.id_usuario, self.perfil_usuario)
             
-            # Convertir a modelos tipados
-            self.lista_servicios = [
-                ServicioModel.from_dict(servicio) 
-                for servicio in servicios_data
-            ]
+            # Cargar todos los servicios sin filtros complejos
+            self.lista_servicios = await servicios_service.get_all_services()
             self.total_servicios = len(self.lista_servicios)
             
             logger.info(f"✅ {len(self.lista_servicios)} servicios cargados")

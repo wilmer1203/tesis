@@ -199,30 +199,87 @@ class ServicioStatsModel(rx.Base):
     duracion_promedio: float = 0.0  # En minutos
 
 
+class EstadisticaCategoriaModel(rx.Base):
+    """Modelo para estadísticas específicas de una categoría de servicio"""
+    total: int = 0
+    precio_promedio: float = 0.0
+    precio_min: float = 0.0
+    precio_max: float = 0.0
+    mas_popular: str = ""
+    
+    @classmethod
+    def from_servicios_list(cls, servicios: List["ServicioModel"]) -> "EstadisticaCategoriaModel":
+        """Crear estadísticas desde lista de servicios de una categoría"""
+        if not servicios:
+            return cls()
+        
+        precios = [s.precio_base for s in servicios if s.precio_base and s.precio_base > 0]
+        
+        # Encontrar el más popular
+        mas_popular = ""
+        if servicios:
+            servicio_popular = max(servicios, key=lambda x: getattr(x, 'veces_usado', 0) or 0)
+            mas_popular = servicio_popular.nombre
+        
+        return cls(
+            total=len(servicios),
+            precio_promedio=sum(precios) / len(precios) if precios else 0.0,
+            precio_min=min(precios) if precios else 0.0,
+            precio_max=max(precios) if precios else 0.0,
+            mas_popular=mas_popular
+        )
+    
+    @property
+    def precio_promedio_display(self) -> str:
+        """Precio promedio formateado"""
+        return f"${self.precio_promedio:,.2f}"
+    
+    @property
+    def rango_precios_display(self) -> str:
+        """Rango de precios formateado"""
+        if self.precio_min == self.precio_max:
+            return f"${self.precio_min:,.2f}"
+        return f"${self.precio_min:,.2f} - ${self.precio_max:,.2f}"
+
+
 class IntervencionModel(rx.Base):
-    """Modelo para intervenciones/tratamientos realizados"""
+    """Modelo para intervenciones/tratamientos realizados - Esquema BD v4.1"""
+    # Campos principales coincidentes con la BD
     id: Optional[str] = ""
     consulta_id: str = ""
-    servicio_id: str = ""
     odontologo_id: str = ""
     asistente_id: Optional[str] = ""
+    
+    # Control temporal
     hora_inicio: str = ""
     hora_fin: Optional[str] = ""
     duracion_real: Optional[str] = ""
-    dientes_afectados: List[str] = []
+    
+    # Detalles clínicos
+    dientes_afectados: List[int] = []  # INTEGER[] en BD
     diagnostico_inicial: Optional[str] = ""
     procedimiento_realizado: str = ""
     materiales_utilizados: List[str] = []
     anestesia_utilizada: Optional[str] = ""
     complicaciones: Optional[str] = ""
-    precio_acordado: float = 0.0
-    descuento: float = 0.0
-    precio_final: float = 0.0
-    estado: str = "completada"
+    
+    # Información económica en múltiples monedas (COMO EN BD)
+    total_bs: float = 0.0
+    total_usd: float = 0.0
+    descuento_bs: float = 0.0
+    descuento_usd: float = 0.0
+    
+    # Estado del procedimiento
+    estado: str = "completada"  # en_progreso, completada, suspendida
+    
+    # Seguimiento
     requiere_control: bool = False
     fecha_control_sugerida: Optional[str] = ""
-    instrucciones_paciente: Optional[str] = ""
     fecha_registro: str = ""
+    
+    # Campos adicionales para compatibilidad con componentes existentes
+    precio_final: float = 0.0  # Calculado como total_bs + total_usd
+    observaciones: Optional[str] = ""  # Para componentes que lo necesiten
     
     # Información relacionada
     servicio_nombre: str = ""
@@ -243,7 +300,6 @@ class IntervencionModel(rx.Base):
         return cls(
             id=str(data.get("id", "")),
             consulta_id=str(data.get("consulta_id", "")),
-            servicio_id=str(data.get("servicio_id", "")),
             odontologo_id=str(data.get("odontologo_id", "")),
             asistente_id=str(data.get("asistente_id", "") if data.get("asistente_id") else ""),
             hora_inicio=str(data.get("hora_inicio", "")),
@@ -255,14 +311,22 @@ class IntervencionModel(rx.Base):
             materiales_utilizados=data.get("materiales_utilizados", []),
             anestesia_utilizada=str(data.get("anestesia_utilizada", "") if data.get("anestesia_utilizada") else ""),
             complicaciones=str(data.get("complicaciones", "") if data.get("complicaciones") else ""),
-            precio_acordado=float(data.get("precio_acordado", 0)),
-            descuento=float(data.get("descuento", 0)),
-            precio_final=float(data.get("precio_final", 0)),
+            
+            # Nuevos campos económicos según BD
+            total_bs=float(data.get("total_bs", 0)),
+            total_usd=float(data.get("total_usd", 0)),
+            descuento_bs=float(data.get("descuento_bs", 0)),
+            descuento_usd=float(data.get("descuento_usd", 0)),
+            
+            # Estado y seguimiento
             estado=str(data.get("estado", "completada")),
             requiere_control=bool(data.get("requiere_control", False)),
             fecha_control_sugerida=str(data.get("fecha_control_sugerida", "") if data.get("fecha_control_sugerida") else ""),
-            instrucciones_paciente=str(data.get("instrucciones_paciente", "") if data.get("instrucciones_paciente") else ""),
             fecha_registro=str(data.get("fecha_registro", "")),
+            
+            # Compatibilidad hacia atrás
+            precio_final=float(data.get("precio_final", 0)) or (float(data.get("total_bs", 0)) + float(data.get("total_usd", 0))),
+            observaciones=str(data.get("observaciones", "") if data.get("observaciones") else ""),
             
             # Información relacionada
             servicio_nombre=str(servicio_data.get("nombre", "") if servicio_data else ""),
@@ -378,3 +442,127 @@ class MaterialModel(rx.Base):
             return "🟡 Stock Bajo"
         else:
             return "🟢 Disponible"
+
+
+# ==========================================
+# 📝 FORMULARIOS DE SERVICIOS
+# ==========================================
+
+class ServicioFormModel(rx.Base):
+    """
+    📝 FORMULARIO DE CREACIÓN/EDICIÓN DE SERVICIOS
+    
+    Reemplaza: form_data: Dict[str, str] en servicios_service
+    """
+    
+    # Información básica
+    nombre: str = ""
+    descripcion: str = ""
+    categoria: str = "preventiva"  # preventiva, restaurativa, estetica, cirugia, etc.
+    
+    # Precios
+    precio_base: str = "0"
+    precio_minimo: str = "0"
+    precio_maximo: str = "0"
+    
+    # Detalles del servicio
+    duracion_estimada: str = "30"  # minutos
+    requiere_consulta_previa: bool = False
+    requiere_autorizacion: bool = False
+    
+    # Materiales e instrucciones
+    material_incluido: str = ""
+    instrucciones_pre: str = ""
+    instrucciones_post: str = ""
+    
+    # Estado
+    activo: bool = True
+    
+    @classmethod
+    def from_servicio_model(cls, servicio: "ServicioModel") -> "ServicioFormModel":
+        """Crear instancia de formulario desde ServicioModel para edición"""
+        return cls(
+            nombre=servicio.nombre,
+            descripcion=servicio.descripcion or "",
+            categoria=servicio.categoria or "preventiva",
+            precio_base=str(servicio.precio_base) if servicio.precio_base else "0",
+            precio_minimo=str(servicio.precio_minimo) if servicio.precio_minimo else "0",
+            precio_maximo=str(servicio.precio_maximo) if servicio.precio_maximo else "0",
+            duracion_estimada=str(servicio.duracion_estimada).replace(" minutes", "") if servicio.duracion_estimada else "30",
+            requiere_consulta_previa=getattr(servicio, 'requiere_cita_previa', False),
+            requiere_autorizacion=servicio.requiere_autorizacion,
+            material_incluido=servicio.material_incluido_display if hasattr(servicio, 'material_incluido_display') else "",
+            instrucciones_pre=servicio.instrucciones_pre or "",
+            instrucciones_post=servicio.instrucciones_post or "",
+            activo=servicio.activo
+        )
+    
+    def validate_servicio(self) -> Dict[str, List[str]]:
+        """Validar campos específicos de servicios (alias para validate_form)"""
+        return self.validate_form()
+    
+    def validate_form(self) -> Dict[str, List[str]]:
+        """Validar campos requeridos y formato"""
+        errors = {}
+        
+        if not self.nombre.strip():
+            errors.setdefault("nombre", []).append("Nombre del servicio es requerido")
+        
+        if not self.categoria.strip():
+            errors.setdefault("categoria", []).append("Categoría es requerida")
+        
+        # Validar precio base
+        try:
+            precio_base = float(self.precio_base)
+            if precio_base <= 0:
+                errors.setdefault("precio_base", []).append("Precio base debe ser mayor a 0")
+        except (ValueError, TypeError):
+            errors.setdefault("precio_base", []).append("Precio base debe ser un número válido")
+        
+        # Validar precios mínimo y máximo si están presentes
+        try:
+            if self.precio_minimo and self.precio_minimo.strip():
+                precio_min = float(self.precio_minimo)
+                precio_base = float(self.precio_base)
+                if precio_min > precio_base:
+                    errors.setdefault("precio_minimo", []).append("Precio mínimo no puede ser mayor al precio base")
+        except (ValueError, TypeError):
+            errors.setdefault("precio_minimo", []).append("Precio mínimo debe ser un número válido")
+        
+        try:
+            if self.precio_maximo and self.precio_maximo.strip():
+                precio_max = float(self.precio_maximo)
+                precio_base = float(self.precio_base)
+                if precio_max < precio_base:
+                    errors.setdefault("precio_maximo", []).append("Precio máximo no puede ser menor al precio base")
+        except (ValueError, TypeError):
+            errors.setdefault("precio_maximo", []).append("Precio máximo debe ser un número válido")
+        
+        # Validar duración
+        try:
+            if self.duracion_estimada and self.duracion_estimada.strip():
+                duracion = int(self.duracion_estimada)
+                if duracion <= 0:
+                    errors.setdefault("duracion_estimada", []).append("Duración debe ser mayor a 0 minutos")
+        except (ValueError, TypeError):
+            errors.setdefault("duracion_estimada", []).append("Duración debe ser un número entero de minutos")
+        
+        return errors
+    
+    def to_dict(self) -> Dict[str, str]:
+        """Convertir a dict para compatibilidad"""
+        return {
+            "nombre": self.nombre,
+            "descripcion": self.descripcion,
+            "categoria": self.categoria,
+            "precio_base": self.precio_base,
+            "precio_minimo": self.precio_minimo,
+            "precio_maximo": self.precio_maximo,
+            "duracion_estimada": self.duracion_estimada,
+            "requiere_consulta_previa": str(self.requiere_consulta_previa),
+            "requiere_autorizacion": str(self.requiere_autorizacion),
+            "material_incluido": self.material_incluido,
+            "instrucciones_pre": self.instrucciones_pre,
+            "instrucciones_post": self.instrucciones_post,
+            "activo": str(self.activo),
+        }

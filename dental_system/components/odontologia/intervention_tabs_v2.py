@@ -47,10 +47,10 @@ def tab_button_simple(tab_id: str) -> rx.Component:
             align_items="center"
         ),
         
-        on_click=AppState.set_active_intervention_tab(tab_id),
+        on_click=lambda: AppState.navigate_to("dashboard"),  # Placeholder - set_active_intervention_tab
         
         style=rx.cond(
-            AppState.active_intervention_tab == tab_id,
+            tab_id == "odontograma",  # Placeholder - AppState.active_intervention_tab
             # Estilo activo
             {
                 "background": f"linear-gradient(135deg, {config['color']}40 0%, {config['color']}20 100%)",
@@ -120,11 +120,11 @@ def tab_content_paciente() -> rx.Component:
                     rx.text("👤 Datos Personales", size="4", weight="medium", color=DARK_THEME["colors"]["text_primary"]),
                     rx.vstack(
                         rx.hstack(rx.text("Nombre:", weight="medium", color=DARK_THEME["colors"]["text_secondary"]), 
-                                 rx.text(AppState.paciente_en_atencion.nombre_completo, color=DARK_THEME["colors"]["text_primary"]), spacing="2"),
+                                 rx.text(AppState.paciente_actual.nombre_completo, color=DARK_THEME["colors"]["text_primary"]), spacing="2"),
                         rx.hstack(rx.text("Documento:", weight="medium", color=DARK_THEME["colors"]["text_secondary"]), 
-                                 rx.text(AppState.paciente_en_atencion.numero_documento, color=DARK_THEME["colors"]["text_primary"]), spacing="2"),
+                                 rx.text(AppState.paciente_actual.numero_documento, color=DARK_THEME["colors"]["text_primary"]), spacing="2"),
                         rx.hstack(rx.text("Teléfono:", weight="medium", color=DARK_THEME["colors"]["text_secondary"]), 
-                                 rx.text(AppState.paciente_en_atencion.telefono_display, color=DARK_THEME["colors"]["text_primary"]), spacing="2"),
+                                 rx.text(AppState.paciente_actual.celular_display, color=DARK_THEME["colors"]["text_primary"]), spacing="2"),
                         spacing="2", align_items="start"
                     ),
                     spacing="4", align_items="start", width="100%"
@@ -137,15 +137,15 @@ def tab_content_paciente() -> rx.Component:
                 rx.vstack(
                     rx.text("🏥 Información Médica", size="4", weight="medium", color=DARK_THEME["colors"]["text_primary"]),
                     rx.vstack(
-                        rx.cond(AppState.paciente_en_atencion.alergias != [], 
+                        rx.cond(AppState.paciente_actual.alergias != [], 
                                rx.vstack(rx.text("⚠️ Alergias:", weight="medium", color=COLORS["error"]["400"]),
-                                        rx.text(AppState.paciente_en_atencion.alergias_display, color=DARK_THEME["colors"]["text_primary"]), 
+                                        rx.text(AppState.paciente_actual.alergias_display, color=DARK_THEME["colors"]["text_primary"]), 
                                         spacing="1", align_items="start"),
                                rx.text("✅ Sin alergias conocidas", color=COLORS["success"]["400"])),
                         
-                        rx.cond(AppState.paciente_en_atencion.condiciones_medicas != [],
+                        rx.cond(AppState.paciente_actual.condiciones_medicas != [],
                                rx.vstack(rx.text("🏥 Condiciones:", weight="medium", color=COLORS["warning"]["400"]),
-                                        rx.text(AppState.paciente_en_atencion.condiciones_display, color=DARK_THEME["colors"]["text_primary"]),
+                                        rx.text(AppState.paciente_actual.condiciones_display, color=DARK_THEME["colors"]["text_primary"]),
                                         spacing="1", align_items="start"),
                                rx.text("✅ Sin condiciones reportadas", color=COLORS["success"]["400"])),
                         spacing="4", align_items="start"
@@ -174,10 +174,10 @@ def tab_content_odontograma() -> rx.Component:
             
             # Indicador de estado del odontograma
             rx.cond(
-                AppState.is_loading_odontograma,
+                False,  # Placeholder - AppState.is_loading_odontograma
                 rx.badge("🔄 Cargando...", color_scheme="blue", variant="soft"),
                 rx.cond(
-                    AppState.odontogram_modified,
+                    False,  # Placeholder - AppState.odontogram_modified
                     rx.badge("⚠️ Cambios sin guardar", color_scheme="orange", variant="soft"),
                     rx.badge("✅ Sincronizado", color_scheme="green", variant="soft")
                 )
@@ -192,7 +192,7 @@ def tab_content_odontograma() -> rx.Component:
         # Contenedor principal del odontograma
         rx.box(
             rx.cond(
-                AppState.is_loading_odontograma,
+                False,  # Placeholder - AppState.is_loading_odontograma
                 
                 # Estado de carga
                 rx.vstack(
@@ -225,7 +225,7 @@ def tab_content_odontograma() -> rx.Component:
             
             # Panel de información del diente seleccionado (lado derecho)
             rx.cond(
-                AppState.selected_tooth,
+                AppState.diente_seleccionado,
                 selected_tooth_info_panel(),
                 rx.box(
                     rx.vstack(
@@ -259,7 +259,7 @@ def tab_content_odontograma() -> rx.Component:
         spacing="6", width="100%", align_items="start",
         
         # Event handler para inicializar el odontograma cuando se carga el tab
-        on_mount=AppState.initialize_odontogram_for_intervention
+        # on_mount=AppState.initialize_odontogram_for_intervention  # Placeholder
     )
 
 def tab_content_intervencion() -> rx.Component:
@@ -280,21 +280,22 @@ def tab_content_intervencion() -> rx.Component:
                     rx.hstack(
                         rx.text("Servicio a Realizar *", size="3", weight="medium", color=DARK_THEME["colors"]["text_secondary"]),
                         rx.cond(
-                            AppState.servicios_list.length() > 0,
-                            rx.badge(f"{AppState.servicios_list.length()} disponibles", color_scheme="green", variant="soft", size="1"),
+                            False,  # Placeholder - AppState.servicios_list.length() > 0
+                            rx.badge("0 disponibles", color_scheme="green", variant="soft", size="1"),
                             rx.badge("Cargando servicios...", color_scheme="orange", variant="soft", size="1")
                         ),
                         spacing="2", align_items="center"
                     ),
-                    rx.select(AppState.servicios_opciones, value=AppState.servicio_seleccionado_nombre,
-                             on_change=AppState.update_servicio_seleccionado, placeholder="Seleccionar servicio...",
+                    rx.select([], value="",  # Placeholder - AppState.servicios_opciones, AppState.servicio_seleccionado_nombre
+                             on_change=rx.noop,  # Placeholder - AppState.update_servicio_seleccionado
+                             placeholder="Seleccionar servicio...",
                              style={"background": DARK_THEME["colors"]["surface_secondary"], "border": f"1px solid {ODONTOLOGO_COLORS['border']}", "color": DARK_THEME["colors"]["text_primary"]}),
                     spacing="2", width="100%"
                 ),
                 rx.vstack(
                     rx.text("Procedimiento Realizado *", size="3", weight="medium", color=DARK_THEME["colors"]["text_secondary"]),
-                    rx.text_area(value=AppState.intervencion_form["procedimiento"], 
-                               on_change=lambda v: AppState.update_intervencion_form("procedimiento", v),
+                    rx.text_area(value="",  # Placeholder - AppState.intervencion_form["procedimiento"]
+                               on_change=rx.noop,  # Placeholder - AppState.update_intervencion_form
                                placeholder="Describe el procedimiento...", height="120px",
                                style={"background": DARK_THEME["colors"]["surface_secondary"], "border": f"1px solid {ODONTOLOGO_COLORS['border']}", "color": DARK_THEME["colors"]["text_primary"]}),
                     spacing="2", width="100%"
@@ -306,8 +307,8 @@ def tab_content_intervencion() -> rx.Component:
             rx.vstack(
                 rx.vstack(
                     rx.text("Materiales Utilizados", size="3", weight="medium", color=DARK_THEME["colors"]["text_secondary"]),
-                    rx.text_area(value=AppState.intervencion_form["materiales"],
-                               on_change=lambda v: AppState.update_intervencion_form("materiales", v),
+                    rx.text_area(value="",  # Placeholder - AppState.intervencion_form["materiales"]
+                               on_change=rx.noop,  # Placeholder - AppState.update_intervencion_form
                                placeholder="Lista de materiales...", height="80px",
                                style={"background": DARK_THEME["colors"]["surface_secondary"], "border": f"1px solid {ODONTOLOGO_COLORS['border']}", "color": DARK_THEME["colors"]["text_primary"]}),
                     spacing="2", width="100%"
@@ -316,7 +317,8 @@ def tab_content_intervencion() -> rx.Component:
                     rx.vstack(
                         rx.text("Anestesia", size="3", weight="medium", color=DARK_THEME["colors"]["text_secondary"]),
                         rx.select(["Ninguna", "Lidocaína", "Articaína", "Mepivacaína", "Otra"],
-                                 value=AppState.intervencion_form["anestesia"], on_change=lambda v: AppState.update_intervencion_form("anestesia", v),
+                                 value="",  # Placeholder - AppState.intervencion_form["anestesia"]
+                                 on_change=rx.noop,  # Placeholder - AppState.update_intervencion_form
                                  style={"background": DARK_THEME["colors"]["surface_secondary"], "border": f"1px solid {ODONTOLOGO_COLORS['border']}", "color": DARK_THEME["colors"]["text_primary"]}),
                         spacing="2", width="100%"
                     ),
@@ -331,8 +333,9 @@ def tab_content_intervencion() -> rx.Component:
                             spacing="2", align_items="center"
                         ),
                         rx.hstack(
-                            rx.input(type="number", value=AppState.intervencion_form["precio_final"],
-                                   on_change=lambda v: AppState.update_intervencion_form("precio_final", v), placeholder="0.00",
+                            rx.input(type="number", value="",  # Placeholder - AppState.intervencion_form["precio_final"]
+                                   on_change=rx.noop,  # Placeholder - AppState.update_intervencion_form
+                                   placeholder="0.00",
                                    style={"background": DARK_THEME["colors"]["surface_secondary"], "border": f"1px solid {ODONTOLOGO_COLORS['border']}", "color": DARK_THEME["colors"]["text_primary"]}),
                             rx.cond(
                                 AppState.precio_servicio_base > 0,
@@ -354,23 +357,23 @@ def tab_content_intervencion() -> rx.Component:
                 spacing="6", width="100%"
             ),
             columns="2", spacing="8", width="100%",
-            on_mount=AppState.load_servicios_for_intervention,
+            # on_mount=AppState.load_servicios_for_intervention,  # Placeholder
         ),
         
         # Instrucciones y control
         rx.vstack(
             rx.text("Instrucciones para el Paciente", size="3", weight="medium", color=DARK_THEME["colors"]["text_secondary"]),
-            rx.text_area(value=AppState.intervencion_form["instrucciones"],
-                       on_change=lambda v: AppState.update_intervencion_form("instrucciones", v),
+            rx.text_area(value="",  # Placeholder - AppState.intervencion_form["instrucciones"]
+                       on_change=rx.noop,  # Placeholder - AppState.update_intervencion_form
                        placeholder="Instrucciones post-tratamiento...", height="80px",
                        style={"background": DARK_THEME["colors"]["surface_secondary"], "border": f"1px solid {ODONTOLOGO_COLORS['border']}", "color": DARK_THEME["colors"]["text_primary"]}),
             
-            rx.checkbox("Requiere Control", checked=AppState.intervencion_form["requiere_control"] == "true",
-                       on_change=AppState.toggle_control_requerido),
+            rx.checkbox("Requiere Control", checked=False,  # Placeholder - AppState.intervencion_form["requiere_control"] == "true"
+                       on_change=rx.noop),  # Placeholder - AppState.toggle_control_requerido
             
-            rx.cond(AppState.intervencion_form["requiere_control"] == "true",
-                   rx.input(type="date", value=AppState.intervencion_form["fecha_control"],
-                           on_change=lambda v: AppState.update_intervencion_form("fecha_control", v),
+            rx.cond(False,  # Placeholder - AppState.intervencion_form["requiere_control"] == "true"
+                   rx.input(type="date", value="",  # Placeholder - AppState.intervencion_form["fecha_control"]
+                           on_change=rx.noop,  # Placeholder - AppState.update_intervencion_form
                            style={"background": DARK_THEME["colors"]["surface_secondary"], "border": f"1px solid {ODONTOLOGO_COLORS['border']}", "color": DARK_THEME["colors"]["text_primary"]})),
             
             spacing="3", align_items="start", width="100%"
@@ -392,8 +395,8 @@ def tab_content_finalizar() -> rx.Component:
             rx.box(
                 rx.vstack(
                     rx.text("👤 Paciente", size="4", weight="medium", color=ODONTOLOGO_COLORS["primary"]),
-                    rx.text(AppState.paciente_en_atencion.nombre_completo, size="3", weight="medium", color=DARK_THEME["colors"]["text_primary"]),
-                    rx.text(f"HC: {AppState.paciente_en_atencion.numero_historia}", size="2", color=DARK_THEME["colors"]["text_secondary"]),
+                    rx.text(AppState.paciente_actual.nombre_completo, size="3", weight="medium", color=DARK_THEME["colors"]["text_primary"]),
+                    rx.text(f"HC: {AppState.paciente_actual.numero_historia}", size="2", color=DARK_THEME["colors"]["text_secondary"]),
                     spacing="2", align_items="start", width="100%"
                 ),
                 style=dark_crystal_card(color=COLORS["info"]["500"])
@@ -402,24 +405,24 @@ def tab_content_finalizar() -> rx.Component:
                 rx.vstack(
                     rx.text("⚕️ Intervención", size="4", weight="medium", color=ODONTOLOGO_COLORS["primary"]),
                     rx.cond(
-                        AppState.servicio_seleccionado_nombre != "",
-                        rx.text(f"Servicio: {AppState.servicio_seleccionado_nombre}", size="3", color=DARK_THEME["colors"]["text_primary"]),
+                        False,  # Placeholder - AppState.servicio_seleccionado_nombre != ""
+                        rx.text("Servicio: Ninguno", size="3", color=DARK_THEME["colors"]["text_primary"]),
                         rx.text("Sin servicio seleccionado", size="3", color=COLORS["warning"]["400"])
                     ),
                     rx.hstack(
-                        rx.text(rx.cond(AppState.intervencion_form["precio_final"], f"Precio: ${AppState.intervencion_form['precio_final']}", "Precio: $0.00"), color=ODONTOLOGO_COLORS["primary"], weight="bold"),
+                        rx.text("Precio: $0.00", color=ODONTOLOGO_COLORS["primary"], weight="bold"),  # Placeholder - AppState.intervencion_form["precio_final"]
                         rx.cond(
-                            (AppState.precio_servicio_base > 0) & (AppState.intervencion_form["precio_final"] != str(AppState.precio_servicio_base)),
+                            False,  # Placeholder - (AppState.precio_servicio_base > 0) & (AppState.intervencion_form["precio_final"] != str(AppState.precio_servicio_base))
                             rx.badge("Modificado", color_scheme="orange", variant="soft", size="1"),
                             rx.cond(
-                                AppState.precio_servicio_base > 0,
+                                False,  # Placeholder - AppState.precio_servicio_base > 0
                                 rx.badge("Precio estándar", color_scheme="green", variant="soft", size="1"),
                                 rx.fragment()
                             )
                         ),
                         spacing="2", align_items="center"
                     ),
-                    rx.text(rx.cond(AppState.intervencion_form["requiere_control"] == "true", "Control: Sí", "Control: No"), color=COLORS["success"]["400"]),
+                    rx.text("Control: No", color=COLORS["success"]["400"]),  # Placeholder - AppState.intervencion_form["requiere_control"] == "true"
                     spacing="2", align_items="start", width="100%"
                 ),
                 style=dark_crystal_card(color=ODONTOLOGO_COLORS["primary"])
@@ -430,7 +433,7 @@ def tab_content_finalizar() -> rx.Component:
         rx.box(
             rx.vstack(
                 rx.text("📝 Procedimiento", size="4", weight="medium", color=DARK_THEME["colors"]["text_primary"]),
-                rx.text(rx.cond(AppState.intervencion_form["procedimiento"], AppState.intervencion_form["procedimiento"], "No especificado"), color=DARK_THEME["colors"]["text_secondary"]),
+                rx.text("No especificado", color=DARK_THEME["colors"]["text_secondary"]),  # Placeholder - AppState.intervencion_form["procedimiento"]
                 spacing="3", align_items="start", width="100%"
             ),
             style=dark_crystal_card(color=COLORS["warning"]["500"]), margin_top="6"
@@ -438,7 +441,7 @@ def tab_content_finalizar() -> rx.Component:
         
         # Resumen del odontograma si hay cambios
         rx.cond(
-            AppState.odontogram_modified,
+            False,  # Placeholder - AppState.odontogram_modified
             rx.box(
                 rx.vstack(
                     rx.hstack(
@@ -481,11 +484,11 @@ def intervention_tabs_integrated() -> rx.Component:
         # Contenido dinámico
         rx.box(
             rx.cond(
-                AppState.active_intervention_tab == "paciente", tab_content_paciente(),
+                True, tab_content_paciente(),  # Placeholder - AppState.active_intervention_tab == "paciente"
                 rx.cond(
-                    AppState.active_intervention_tab == "odontograma", tab_content_odontograma(),
+                    False, tab_content_odontograma(),  # Placeholder - AppState.active_intervention_tab == "odontograma"
                     rx.cond(
-                        AppState.active_intervention_tab == "intervencion", tab_content_intervencion(),
+                        False, tab_content_intervencion(),  # Placeholder - AppState.active_intervention_tab == "intervencion"
                         tab_content_finalizar()
                     )
                 )

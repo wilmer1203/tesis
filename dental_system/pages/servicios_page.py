@@ -276,9 +276,8 @@ def services_controls() -> rx.Component:
         # Búsqueda
         rx.input(
             placeholder="🔍 Buscar por código, nombre o descripción...",
-            value=AppState.servicios_search,
-            on_change=AppState.set_servicios_search,
-            on_key_down=AppState.handle_servicios_search_keydown,
+            value=AppState.termino_busqueda_servicios,
+            on_change=AppState.set_termino_busqueda_servicios,
             size="3",
             width="400px"
         ),
@@ -287,15 +286,15 @@ def services_controls() -> rx.Component:
         rx.select(
             ["todas", "Consulta", "Preventiva", "Restaurativa", "Endodoncia", "Periodoncia", "Cirugía", "Ortodoncia", "Prostodoncia", "Estética"],
             placeholder="Todas las categorías",
-            value=AppState.servicios_categoria_filter,
-            on_change=AppState.set_servicios_categoria_filter,
+            value=AppState.filtro_categoria,
+            on_change=AppState.set_filtro_categoria,
             size="3"
         ),
         
         # Toggle activos/todos
         rx.switch(
-            checked=AppState.servicios_show_only_active,
-            on_change=AppState.set_servicios_show_only_active,
+            checked=AppState.mostrar_solo_activos_servicios,
+            on_change=AppState.set_mostrar_solo_activos_servicios,
             color_scheme="teal"
         ),
         rx.text("Solo activos", size="2", color="gray.700"),
@@ -306,8 +305,8 @@ def services_controls() -> rx.Component:
         primary_button(
             text="Nuevo Servicio",
             icon="plus",
-            on_click=AppState.open_new_servicio_modal,
-            loading=AppState.is_loading_servicios
+            # on_click=AppState.crear_servicio,  # TODO: Implementar modal
+            loading=AppState.cargando_operacion_servicio
         ),
         
         spacing="3",

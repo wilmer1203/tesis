@@ -178,7 +178,7 @@ def condition_button(
         ),
         
         style=button_style,
-        on_click=lambda: AppState.select_condition_to_apply(condition_key),
+        on_click=lambda: AppState.seleccionar_condicion_aplicar(condition_key),
         _hover={
             "transform": "scale(1.02)",
             "box_shadow": f"0 6px 20px {condition_color}30"
@@ -263,8 +263,8 @@ def condition_search_filters() -> rx.Component:
             rx.icon(tag="search", size=16, color=DARK_THEME["colors"]["text_secondary"]),
             rx.input(
                 placeholder="Buscar condición...",
-                value=AppState.condition_search_term,
-                on_change=AppState.set_condition_search_term,
+                value=AppState.termino_busqueda_condicion,
+                on_change=AppState.actualizar_busqueda_condicion,
                 style={
                     "background": DARK_THEME["colors"]["surface_secondary"],
                     "border": f"1px solid {DARK_THEME['colors']['primary']}",
@@ -281,8 +281,8 @@ def condition_search_filters() -> rx.Component:
             rx.select(
                 ["todas", "basicas", "restaurativas", "protesicas", "preventivas", 
                  "quirurgicas", "endodonticas", "materiales", "estados"],
-                value=AppState.condition_category_filter,
-                on_change=AppState.set_condition_category_filter,
+                value=AppState.categoria_condicion_seleccionada,
+                on_change=AppState.cambiar_categoria_condicion,
                 placeholder="Todas las categorías",
                 style={
                     "background": DARK_THEME["colors"]["surface_secondary"],
@@ -370,7 +370,7 @@ def condition_selector_modal() -> rx.Component:
     """
     
     return rx.cond(
-        AppState.condition_modal_open,
+        AppState.modal_condicion_abierto,
         rx.box(
             # Modal container
             rx.box(
@@ -385,7 +385,7 @@ def condition_selector_modal() -> rx.Component:
                                 color="white"
                             ),
                             rx.text(
-                                f"Diente: {AppState.selected_tooth} | Superficie: {AppState.selected_surface}",
+                                f"Diente: {AppState.diente_seleccionado} | Superficie: {AppState.superficie_seleccionada}",
                                 size="3",
                                 color="rgba(255, 255, 255, 0.8)"
                             ),
@@ -397,7 +397,7 @@ def condition_selector_modal() -> rx.Component:
                             size="2",
                             variant="ghost",
                             color_scheme="gray",
-                            on_click=AppState.close_condition_modal
+                            on_click=AppState.cerrar_modal_condicion
                         ),
                         spacing="4", align_items="start", width="100%"
                     ),
@@ -419,7 +419,7 @@ def condition_selector_modal() -> rx.Component:
                         rx.vstack(
                             # Mostrar todas las categorías si el filtro es "todas"
                             rx.cond(
-                                AppState.condition_category_filter == "todas",
+                                AppState.categoria_condicion_seleccionada == "todas",
                                 rx.vstack(
                                     condition_category_section("basicas", CONDITION_CATEGORIES["basicas"], AppState.current_surface_condition, AppState.selected_condition_to_apply),
                                     condition_category_section("restaurativas", CONDITION_CATEGORIES["restaurativas"], AppState.current_surface_condition, AppState.selected_condition_to_apply),
@@ -433,25 +433,25 @@ def condition_selector_modal() -> rx.Component:
                                 ),
                                 # Mostrar solo la categoría seleccionada
                                 rx.cond(
-                                    AppState.condition_category_filter == "basicas",
+                                    AppState.categoria_condicion_seleccionada == "basicas",
                                     condition_category_section("basicas", CONDITION_CATEGORIES["basicas"], AppState.current_surface_condition, AppState.selected_condition_to_apply),
                                     rx.cond(
-                                        AppState.condition_category_filter == "restaurativas",
+                                        AppState.categoria_condicion_seleccionada == "restaurativas",
                                         condition_category_section("restaurativas", CONDITION_CATEGORIES["restaurativas"], AppState.current_surface_condition, AppState.selected_condition_to_apply),
                                         rx.cond(
-                                            AppState.condition_category_filter == "protesicas",
+                                            AppState.categoria_condicion_seleccionada == "protesicas",
                                             condition_category_section("protesicas", CONDITION_CATEGORIES["protesicas"], AppState.current_surface_condition, AppState.selected_condition_to_apply),
                                             rx.cond(
-                                                AppState.condition_category_filter == "preventivas",
+                                                AppState.categoria_condicion_seleccionada == "preventivas",
                                                 condition_category_section("preventivas", CONDITION_CATEGORIES["preventivas"], AppState.current_surface_condition, AppState.selected_condition_to_apply),
                                                 rx.cond(
-                                                    AppState.condition_category_filter == "quirurgicas",
+                                                    AppState.categoria_condicion_seleccionada == "quirurgicas",
                                                     condition_category_section("quirurgicas", CONDITION_CATEGORIES["quirurgicas"], AppState.current_surface_condition, AppState.selected_condition_to_apply),
                                                     rx.cond(
-                                                        AppState.condition_category_filter == "endodonticas",
+                                                        AppState.categoria_condicion_seleccionada == "endodonticas",
                                                         condition_category_section("endodonticas", CONDITION_CATEGORIES["endodonticas"], AppState.current_surface_condition, AppState.selected_condition_to_apply),
                                                         rx.cond(
-                                                            AppState.condition_category_filter == "materiales",
+                                                            AppState.categoria_condicion_seleccionada == "materiales",
                                                             condition_category_section("materiales", CONDITION_CATEGORIES["materiales"], AppState.current_surface_condition, AppState.selected_condition_to_apply),
                                                             condition_category_section("estados", CONDITION_CATEGORIES["estados"], AppState.current_surface_condition, AppState.selected_condition_to_apply)
                                                         )
@@ -489,7 +489,7 @@ def condition_selector_modal() -> rx.Component:
                                 size="3",
                                 variant="outline",
                                 color_scheme="gray",
-                                on_click=AppState.close_condition_modal
+                                on_click=AppState.cerrar_modal_condicion
                             ),
                             rx.button(
                                 rx.cond(

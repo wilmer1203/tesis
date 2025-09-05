@@ -28,15 +28,16 @@ class PersonalTable(BaseTable):
                             tipo_personal: str,
                             segundo_nombre: Optional[str] = None,
                             segundo_apellido: Optional[str] = None,
-                            tipo_documento: str = 'CC',
+                            tipo_documento: str = 'CI',
                             fecha_nacimiento: Optional[date] = None,
                             direccion: Optional[str] = None,
                             especialidad: Optional[str] = None,
                             numero_licencia: Optional[str] = None,
                             fecha_contratacion: Optional[date] = None,
                             salario: Optional[Decimal] = None,
-                            horario_trabajo: Optional[Dict[str, Any]] = None,
-                            observaciones: Optional[str] = None) -> Dict[str, Any]:
+                            observaciones: Optional[str] = None,
+                            acepta_pacientes_nuevos: bool = True,
+                            orden_preferencia: int = 1) -> Dict[str, Any]:
         """
         Crea un nuevo registro de personal con nombres separados - ACTUALIZADA
         """
@@ -70,10 +71,12 @@ class PersonalTable(BaseTable):
             data["fecha_contratacion"] = date.today().isoformat()
         if salario:
             data["salario"] = float(salario)
-        if horario_trabajo:
-            data["horario_trabajo"] = horario_trabajo
         if observaciones and observaciones.strip():
             data["observaciones"] = observaciones.strip()
+        
+        # ✅ CAMPOS CRÍTICOS PARA SISTEMA DE COLAS
+        data["acepta_pacientes_nuevos"] = acepta_pacientes_nuevos
+        data["orden_preferencia"] = orden_preferencia
         
         print("------------------------------------------------------------------------------------")
        
@@ -298,19 +301,6 @@ class PersonalTable(BaseTable):
         logger.info(f"Actualizando estado laboral de {staff_id} a {nuevo_estado}")
         return self.update(staff_id, data)
     
-    @handle_supabase_error
-    def update_schedule(self, staff_id: str, nuevo_horario: Dict[str, str]) -> Dict[str, Any]:
-        """
-        Actualiza el horario de trabajo
-        
-        Args:
-            staff_id: ID del personal
-            nuevo_horario: Nuevo horario {dia: "HH:MM-HH:MM"}
-            
-        Returns:
-            Personal actualizado
-        """
-        return self.update(staff_id, {"horario_trabajo": nuevo_horario})
     
     @handle_supabase_error
     def update_salary(self, 

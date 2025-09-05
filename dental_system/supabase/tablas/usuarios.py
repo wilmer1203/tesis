@@ -28,9 +28,6 @@ class UsersTable(BaseTable):
         email: str,
         password: str,
         rol: str = 'administrador',
-        telefono: str = '',
-        nombre: str = '',
-        apellido: str = '',
         avatar_url: str = '',
         activo: bool = True,
         configuraciones: dict = None, # type: ignore
@@ -72,9 +69,6 @@ class UsersTable(BaseTable):
             # Paso 1: Crear usuario en auth.users
             user_metadata = {
                 'rol': rol,
-                'telefono': telefono,
-                'nombre': nombre,
-                'apellido': apellido,
                 'avatar_url': avatar_url,
                 'managed_by': 'python'
             }
@@ -92,7 +86,6 @@ class UsersTable(BaseTable):
                     auth_user_id=auth_user['id'],
                     email=email,
                     rol=rol,
-                    telefono=telefono,
                     avatar_url=avatar_url,
                     configuraciones=configuraciones
                 )
@@ -149,7 +142,7 @@ class UsersTable(BaseTable):
         }
       
 
-    def _create_user_record(self, auth_user_id: str, email: str, rol: str, telefono: str, avatar_url: str, configuraciones: dict) -> Optional[Dict[str, Any]]:
+    def _create_user_record(self, auth_user_id: str, email: str, rol: str, avatar_url: str, configuraciones: dict) -> Optional[Dict[str, Any]]:
         """Crear registro en tabla usuarios"""
         logger.info("📝 Creando registro en tabla usuarios...")
         
@@ -163,7 +156,6 @@ class UsersTable(BaseTable):
             user_data = {
                 'auth_user_id': auth_user_id,
                 'email': email,
-                'telefono': telefono if telefono else None,
                 'rol_id': rol_id,
                 'avatar_url': avatar_url if avatar_url else None,
                 'activo': True,
@@ -187,38 +179,33 @@ class UsersTable(BaseTable):
             raise
     
     def _get_role_id(self, rol_name: str) -> Optional[str]:
-        """Obtener ID del rol con fallbacks"""
+        """Obtener ID del rol con fallbacks manuales"""
         try:
-            # Usar función SQL que creamos
-            result = self.client.rpc('get_role_id_by_name', {'role_name': rol_name}).execute()
-            
-            if result.data:
-                return result.data[0] if isinstance(result.data, list) else result.data
-            
-            # Fallback manual si la función no existe
-            logger.warning("Función get_role_id_by_name no disponible, usando fallback manual")
+            logger.info(f"Buscando ID para rol: {rol_name}")
             
             # Buscar rol exacto
             rol_response = self.client.table("roles").select("id").eq("nombre", rol_name).eq("activo", True).execute()
             if rol_response.data:
+                logger.info(f"✅ Rol '{rol_name}' encontrado: {rol_response.data[0]['id']}")
                 return rol_response.data[0]["id"]
             
             # Fallback a administrador
             admin_response = self.client.table("roles").select("id").eq("nombre", "administrador").eq("activo", True).execute()
             if admin_response.data:
-                logger.warning(f"Rol '{rol_name}' no encontrado, usando administrador")
+                logger.warning(f"⚠️ Rol '{rol_name}' no encontrado, usando administrador")
                 return admin_response.data[0]["id"]
             
             # Fallback al primer rol disponible
             first_response = self.client.table("roles").select("id").eq("activo", True).order("nombre").limit(1).execute()
             if first_response.data:
-                logger.warning("Rol administrador no encontrado, usando primer rol disponible")
+                logger.warning("⚠️ Rol administrador no encontrado, usando primer rol disponible")
                 return first_response.data[0]["id"]
             
+            logger.error("❌ No se encontraron roles activos en la base de datos")
             return None
             
         except Exception as e:
-            logger.error(f"Error obteniendo rol ID: {e}")
+            logger.error(f"❌ Error obteniendo rol ID: {e}")
             return None
     
  

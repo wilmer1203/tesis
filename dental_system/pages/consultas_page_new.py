@@ -377,7 +377,7 @@ def consulta_quick_actions(consulta: rx.Var[ConsultaModel]) -> rx.Component:
                     "font_weight": "500",
                     "_hover": {"background": "#059669"}
                 },
-                on_click=lambda: AppState.cambiar_estado_consulta(consulta.id, "en_curso")
+                on_click=lambda: AppState.iniciar_atencion_consulta(consulta.id)
             ),
             rx.button(
                 rx.icon("x", size=14),
@@ -389,7 +389,7 @@ def consulta_quick_actions(consulta: rx.Var[ConsultaModel]) -> rx.Component:
                     "padding": "6px",
                     "_hover": {"background": f"rgba(239, 68, 68, 0.1)"}
                 },
-                on_click=lambda: AppState.cancelar_consulta(consulta.id)
+                on_click=lambda: AppState.cancelar_consulta(consulta.id, "Cancelada desde interfaz")
             ),
             spacing="2",
             width="100%"
@@ -414,7 +414,7 @@ def consulta_quick_actions(consulta: rx.Var[ConsultaModel]) -> rx.Component:
                         "font_weight": "500",
                         "_hover": {"background": "#1d4ed8"}
                     },
-                    on_click=lambda: AppState.cambiar_estado_consulta(consulta.id, "completada")
+                    on_click=lambda: AppState.completar_consulta(consulta.id, {})
                 ),
                 rx.button(
                     rx.icon("pause", size=14),
@@ -426,7 +426,7 @@ def consulta_quick_actions(consulta: rx.Var[ConsultaModel]) -> rx.Component:
                         "padding": "6px",
                         "_hover": {"background": f"rgba(245, 158, 11, 0.1)"}
                     },
-                    on_click=lambda: AppState.cambiar_estado_consulta(consulta.id, "programada")
+                    on_click=lambda: AppState.actualizar_estado_consulta_intervencion(consulta.id, "programada")
                 ),
                 spacing="2",
                 width="100%"
@@ -654,7 +654,7 @@ def boton_nueva_consulta_principal() -> rx.Component:
                     "box_shadow": "0 6px 20px rgba(37, 99, 235, 0.4)"
                 }
             },
-            on_click=AppState.abrir_modal_crear_consulta
+            on_click=lambda: AppState.seleccionar_y_abrir_modal_consulta("")
         ),
         style={
             "position": "fixed",

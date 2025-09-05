@@ -94,9 +94,9 @@ def modal_nueva_consulta_simple() -> rx.Component:
                                                 color="#6b7280"
                                             ),
                                             rx.cond(
-                                                paciente.telefono_display != "",
+                                                paciente.celular_display != "",
                                                 rx.text(
-                                                    f"📞 {paciente.telefono_display}",
+                                                    "📞 " + paciente.celular_display,
                                                     size="2",
                                                     color="#2563eb"
                                                 ),

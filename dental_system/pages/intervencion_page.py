@@ -1,65 +1,77 @@
-# 🦷 PÁGINA DE INTERVENCIÓN ODONTOLÓGICA - FASE 1 COMPLETADA
+# 🦷 PÁGINA DE INTERVENCIÓN ODONTOLÓGICA - REFACTORIZADA COMPLETAMENTE
 # dental_system/pages/intervencion_page.py
 
 import reflex as rx
 from dental_system.state.app_state import AppState
+from dental_system.components.common import page_header, primary_button, secondary_button
+from dental_system.components.odontologia.panel_paciente import panel_informacion_paciente
+from dental_system.components.odontologia.panel_historial import panel_historial_notas
 from dental_system.components.odontologia.intervention_tabs_v2 import intervention_tabs_integrated
-from dental_system.styles.themes import (
-    COLORS, DARK_THEME, RADIUS, SPACING, SHADOWS, ROLE_THEMES,
-    dark_page_background, dark_crystal_card
-)
+from dental_system.styles.themes import COLORS, RADIUS, SPACING, SHADOWS
 
 # ==========================================
-# 🎨 ESTILOS PARA PÁGINA PRINCIPAL
+# 🎨 ESTILOS PARA LA NUEVA ARQUITECTURA
 # ==========================================
 
-# Colores específicos para odontólogos
-ODONTOLOGO_THEME = {
-    "primary": COLORS["success"]["500"],        # Verde profesional
-    "secondary": COLORS["primary"]["500"],      # Turquesa dental
-    "accent": COLORS["primary"]["400"],         # Acento turquesa claro
-    "border": "rgba(255, 255, 255, 0.2)"      # Bordes cristal
+# Layout principal de 3 paneles
+MAIN_LAYOUT_STYLE = {
+    "display": "grid",
+    "grid_template_columns": "30% 50% 20%",  # Panel paciente | Panel central | Panel historial
+    "gap": SPACING["4"],
+    "height": "calc(100vh - 140px)",  # Altura total menos header
+    "width": "100%",
+    "padding": "0"
 }
 
-# Header compacto del paciente
-PATIENT_HEADER_STYLE = {
-    "background": "rgba(255, 255, 255, 0.06)",
-    "backdrop_filter": "blur(20px) saturate(150%)",
-    "border": f"1px solid {ODONTOLOGO_THEME['border']}",
-    "border_radius": RADIUS["2xl"],
-    "box_shadow": "0 4px 16px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
-    "padding": f"{SPACING['4']} {SPACING['6']}",
-    "margin_bottom": SPACING["6"],
+# Estilos para cada panel
+PANEL_BASE_STYLE = {
+    "height": "100%",
+    "overflow": "hidden",
     "position": "relative"
 }
 
-# Botones flotantes
-FLOATING_ACTIONS_STYLE = {
-    "position": "fixed",
-    "bottom": SPACING["8"],
-    "right": SPACING["8"],
-    "z_index": "100",
-    "display": "flex",
-    "flex_direction": "column",
-    "gap": SPACING["3"]
+PANEL_CENTRAL_STYLE = {
+    **PANEL_BASE_STYLE,
+    "background": "white",
+    "border_radius": RADIUS["xl"],
+    "box_shadow": SHADOWS["lg"],
+    "border": f"1px solid {COLORS['gray']['200']}"
 }
 
-FLOATING_BUTTON_STYLE = {
-    "width": "60px",
-    "height": "60px",
-    "border_radius": RADIUS["full"],
-    "box_shadow": "0 8px 32px rgba(0, 0, 0, 0.4)",
-    "backdrop_filter": "blur(20px)",
-    "border": f"1px solid {ODONTOLOGO_THEME['border']}",
-    "transition": "all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
-    "cursor": "pointer",
+# Header de navegación para la página
+PAGE_HEADER_STYLE = {
+    "background": f"linear-gradient(135deg, {COLORS['primary']['500']} 0%, {COLORS['primary']['600']} 100%)",
+    "color": "white",
+    "padding": SPACING["4"],
+    "border_radius": RADIUS["lg"],
+    "margin_bottom": SPACING["4"],
+    "box_shadow": SHADOWS["lg"]
+}
+
+# Botones de acción en el header
+ACTION_BUTTONS_STYLE = {
+    "position": "fixed",
+    "top": SPACING["4"],
+    "right": SPACING["4"],
+    "z_index": "999",
     "display": "flex",
-    "align_items": "center",
-    "justify_content": "center"
+    "gap": SPACING["2"]
+}
+
+# Responsive para tablets
+TABLET_RESPONSIVE = {
+    "@media (max-width: 1024px)": {
+        "grid_template_columns": "35% 45% 20%"  # Más espacio para paciente en tablet
+    },
+    "@media (max-width: 768px)": {
+        "grid_template_columns": "100%",  # Stack vertical en móvil
+        "grid_template_rows": "auto auto auto",
+        "height": "auto"
+    }
 }
 
 # ==========================================
-# 🧩 COMPONENTES ESPECÍFICOS
+# 🧩 COMPONENTES DE LA NUEVA ARQUITECTURA
 # ==========================================
 
 def compact_patient_header() -> rx.Component:
@@ -85,7 +97,7 @@ def compact_patient_header() -> rx.Component:
                     rx.hstack(
                         rx.badge(f"HC: {AppState.paciente_en_atencion.numero_historia}", color_scheme="blue", variant="soft", size="1"),
                         rx.badge(f"CI: {AppState.paciente_en_atencion.numero_documento}", color_scheme="gray", variant="soft", size="1"),
-                        rx.badge(f"Tel: {AppState.paciente_en_atencion.telefono_display}", color_scheme="green", variant="soft", size="1"),
+                        rx.badge(f"Tel: {AppState.paciente_en_atencion.celular_display}", color_scheme="green", variant="soft", size="1"),
                         spacing="2"
                     ),
                     spacing="1", align_items="start"

@@ -32,9 +32,15 @@ class BaseService:
         self.current_user_id = user_id
         self.current_user_profile = user_profile
         
-        # NUEVO: Debug para verificar el contexto
+        # 🔍 DEBUG: Verificar qué está recibiendo
+        print(f"🔍 BaseService.set_user_context recibió:")
+        print(f"   user_id: {user_id}")
+        print(f"   user_profile tipo: {type(user_profile)}")
+        print(f"   user_profile keys: {list(user_profile.keys()) if user_profile else 'VACIÓ'}")
+        if user_profile and 'rol' in user_profile:
+            print(f"   rol en perfil: {user_profile['rol']}")
+        
         user_role = self._extract_user_role()
-        print(f"[DEBUG] BaseService.set_user_context - Usuario: {user_id}, Rol: {user_role}")
     
     def _extract_user_role(self) -> str:
         """
@@ -98,7 +104,6 @@ class BaseService:
             True si tiene permiso
         """
         if not self.current_user_profile:
-            print(f"[DEBUG] ❌ No hay user_profile para verificar {module}.{action}")
             return False
         
         try:
@@ -107,23 +112,18 @@ class BaseService:
             user_role = self._extract_user_role()
             
             if not permisos:
-                print(f"[DEBUG] ❌ No se encontraron permisos para {user_role} en {module}.{action}")
                 return False
             
             module_permisos = permisos.get(module, [])
             has_permission = action in module_permisos
             
-            if has_permission:
-                print(f"[DEBUG] Permiso otorgado en BaseService: {user_role} -> {module}.{action}")
-            else:
-                print(f"[DEBUG] Permiso denegado en BaseService: {user_role} -> {module}.{action}")
-                print(f"[DEBUG] - Permisos del módulo {module}: {module_permisos}")
+            # Permiso verificado
             
             return has_permission
             
         except Exception as e:
             logger.warning(f"Error verificando permisos: {e}")
-            print(f"[DEBUG] ⚠️ Error verificando permisos {module}.{action}: {e}")
+            # Error verificando permisos
             return False
     
     def require_permission(self, module: str, action: str):
@@ -146,9 +146,7 @@ class BaseService:
             
             # DEBUG adicional para diagnóstico
             permisos = self._extract_user_permissions()
-            print(f"[DEBUG] 🔍 Permisos disponibles: {list(permisos.keys())}")
-            if module in permisos:
-                print(f"[DEBUG] 🔍 Permisos de {module}: {permisos[module]}")
+            # Permisos disponibles para debug si es necesario
             
             raise PermissionError(error_msg)
     

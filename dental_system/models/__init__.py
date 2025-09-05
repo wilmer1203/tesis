@@ -8,7 +8,8 @@ from .pacientes_models import (
     PacienteModel,
     PacientesStatsModel,
     ContactoEmergenciaModel,
-    AlergiaModel
+    AlergiaModel,
+    PacienteFormModel
 )
 
 from .consultas_models import (
@@ -17,7 +18,10 @@ from .consultas_models import (
     ConsultasStatsModel,
     MotivosConsultaModel,
     HorarioAtencionModel,
-    ConsultaConOrdenModel
+    ConsultaConOrdenModel,
+    ConsultaFormModel,
+    ConsultaFinalizacionModel,
+    ConsultaResumenModel
 )
 
 from .personal_models import (
@@ -27,15 +31,18 @@ from .personal_models import (
     PersonalStatsModel,
     HorarioTrabajoModel,
     EspecialidadModel,
-    PermisoModel
+    PermisoModel,
+    PersonalFormModel
 )
 
 from .servicios_models import (
     ServicioModel,
     CategoriaServicioModel,
     ServicioStatsModel,
+    EstadisticaCategoriaModel,
     IntervencionModel,
-    MaterialModel
+    MaterialModel,
+    ServicioFormModel
 )
 
 from .pagos_models import (
@@ -44,7 +51,9 @@ from .pagos_models import (
     FacturaModel,
     ConceptoPagoModel,
     BalanceGeneralModel,
-    CuentaPorCobrarModel
+    CuentaPorCobrarModel,
+    PagoFormModel,
+    PagoParcialFormModel
 )
 
 from .odontologia_models import (
@@ -52,7 +61,8 @@ from .odontologia_models import (
     DienteModel,
     CondicionDienteModel,
     HistorialClinicoModel,
-    PlanTratamientoModel
+    PlanTratamientoModel,
+    IntervencionFormModel
 )
 
 from .dashboard_models import (
@@ -68,16 +78,7 @@ from .dashboard_models import (
     KPIModel
 )
 
-# ✅ MODELOS DE FORMULARIOS (Reemplazar Dict[str,str])
-from .form_models import (
-    PacienteFormModel,
-    ConsultaFormModel,
-    PersonalFormModel,
-    ServicioFormModel,
-    PagoFormModel,
-    PagoParcialFormModel,
-    IntervencionFormModel
-)
+# ✅ FORMULARIOS AHORA INTEGRADOS EN SUS MÓDULOS RESPECTIVOS
 
 # ✅ MODELOS DE AUTENTICACIÓN (Mantener separado)
 from .auth import AuthSession as AuthModel
@@ -110,6 +111,7 @@ __all__ = [
     "ServicioModel",
     "CategoriaServicioModel",
     "ServicioStatsModel",
+    "EstadisticaCategoriaModel",
     "IntervencionModel",
     "MaterialModel",
     
@@ -143,6 +145,8 @@ __all__ = [
     # ✅ MODELOS DE FORMULARIOS
     "PacienteFormModel",
     "ConsultaFormModel", 
+    "ConsultaFinalizacionModel",
+    "ConsultaResumenModel",
     "PersonalFormModel",
     "ServicioFormModel",
     "PagoFormModel",

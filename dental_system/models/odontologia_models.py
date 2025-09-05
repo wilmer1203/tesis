@@ -441,3 +441,81 @@ class PlanTratamientoModel(rx.Base):
     def progreso_display(self) -> str:
         """Progreso formateado"""
         return f"{self.progreso_actual}%"
+
+
+# ==========================================
+# 📝 FORMULARIOS DE ODONTOLOGÍA
+# ==========================================
+
+class IntervencionFormModel(rx.Base):
+    """
+    📝 FORMULARIO DE INTERVENCIÓN ODONTOLÓGICA
+    
+    Usado en: odontologia_service para intervenciones
+    """
+    
+    # Referencias
+    consulta_id: str = ""
+    servicio_id: str = ""
+    odontologo_id: str = ""
+    asistente_id: str = ""
+    
+    # Detalles clínicos
+    diagnostico_inicial: str = ""
+    procedimiento_realizado: str = ""
+    dientes_afectados: str = ""  # Lista separada por comas
+    
+    # Materiales y anestesia
+    materiales_utilizados: str = ""
+    anestesia_utilizada: str = ""
+    
+    # Precio y seguimiento
+    precio_acordado: str = "0"
+    descuento: str = "0"
+    precio_final: str = "0"
+    
+    # Control
+    requiere_control: bool = False
+    fecha_control_sugerida: str = ""
+    instrucciones_paciente: str = ""
+    
+    # Observaciones
+    complicaciones: str = ""
+    observaciones: str = ""
+    
+    def validate_form(self) -> Dict[str, List[str]]:
+        """Validar campos de intervención"""
+        errors = {}
+        
+        if not self.consulta_id.strip():
+            errors.setdefault("consulta_id", []).append("Consulta es requerida")
+        
+        if not self.servicio_id.strip():
+            errors.setdefault("servicio_id", []).append("Servicio es requerido")
+        
+        if not self.odontologo_id.strip():
+            errors.setdefault("odontologo_id", []).append("Odontólogo es requerido")
+        
+        return errors
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convertir a dict - Any porque puede contener listas"""
+        return {
+            "consulta_id": self.consulta_id,
+            "servicio_id": self.servicio_id,
+            "odontologo_id": self.odontologo_id,
+            "asistente_id": self.asistente_id,
+            "diagnostico_inicial": self.diagnostico_inicial,
+            "procedimiento_realizado": self.procedimiento_realizado,
+            "dientes_afectados": self.dientes_afectados,
+            "materiales_utilizados": self.materiales_utilizados,
+            "anestesia_utilizada": self.anestesia_utilizada,
+            "precio_acordado": self.precio_acordado,
+            "descuento": self.descuento,
+            "precio_final": self.precio_final,
+            "requiere_control": self.requiere_control,
+            "fecha_control_sugerida": self.fecha_control_sugerida,
+            "instrucciones_paciente": self.instrucciones_paciente,
+            "complicaciones": self.complicaciones,
+            "observaciones": self.observaciones,
+        }

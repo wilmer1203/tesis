@@ -21,14 +21,14 @@ class PacienteModel(rx.Base):
     
     # Documentación
     numero_documento: str = ""
-    tipo_documento: str = "CC"
+    tipo_documento: str = "CI"
     fecha_nacimiento: Optional[str] = ""
     edad: Optional[int] = None
     genero: Optional[str] = ""
     
-    # ✅ TELÉFONOS SEPARADOS (según estructura DB actualizada)
-    telefono_1: Optional[str] = ""
-    telefono_2: Optional[str] = ""
+    # ✅ CELULARES SEPARADOS (según esquema v4.1)
+    celular_1: Optional[str] = ""
+    celular_2: Optional[str] = ""
     
     email: Optional[str] = ""
     direccion: Optional[str] = ""
@@ -36,6 +36,9 @@ class PacienteModel(rx.Base):
     departamento: Optional[str] = ""
     ocupacion: Optional[str] = ""
     estado_civil: Optional[str] = ""
+    
+    # Contacto de emergencia (JSONB en BD)
+    contacto_emergencia: Dict[str, Any] = {}
     
     # Información médica
     alergias: List[str] = []
@@ -67,14 +70,14 @@ class PacienteModel(rx.Base):
             segundo_apellido=str(data.get("segundo_apellido", "") if data.get("segundo_apellido") else ""),
             
             numero_documento=str(data.get("numero_documento", "")),
-            tipo_documento=str(data.get("tipo_documento", "CC")),
+            tipo_documento=str(data.get("tipo_documento", "CI")),
             fecha_nacimiento=str(data.get("fecha_nacimiento", "") if data.get("fecha_nacimiento") else ""),
             edad=data.get("edad") if isinstance(data.get("edad"), int) else None,
             genero=str(data.get("genero", "") if data.get("genero") else ""),
             
-            # ✅ TELÉFONOS SEPARADOS
-            telefono_1=str(data.get("telefono_1", "") if data.get("telefono_1") else ""),
-            telefono_2=str(data.get("telefono_2", "") if data.get("telefono_2") else ""),
+            # ✅ CELULARES SEPARADOS
+            celular_1=str(data.get("celular_1", "") if data.get("celular_1") else ""),
+            celular_2=str(data.get("celular_2", "") if data.get("celular_2") else ""),
             
             email=str(data.get("email", "") if data.get("email") else ""),
             direccion=str(data.get("direccion", "") if data.get("direccion") else ""),
@@ -94,7 +97,10 @@ class PacienteModel(rx.Base):
             fecha_registro=str(data.get("fecha_registro", "")),
             fecha_actualizacion=str(data.get("fecha_actualizacion", "")),
             registrado_por=str(data.get("registrado_por", "") if data.get("registrado_por") else ""),
-            activo=bool(data.get("activo", True))
+            activo=bool(data.get("activo", True)),
+            
+            # Contacto emergencia
+            contacto_emergencia=data.get("contacto_emergencia", {}) if isinstance(data.get("contacto_emergencia"), dict) else {}
         )
     
     @property
@@ -113,19 +119,47 @@ class PacienteModel(rx.Base):
         return " ".join(nombres) if nombres else "Sin nombre"
 
     @property
+    def edad_calculada(self) -> int:
+        """Calcular edad desde fecha de nacimiento"""
+        if not self.fecha_nacimiento:
+            return 0
+        
+        try:
+            from datetime import date
+            # Convertir string fecha a objeto date si es necesario
+            if isinstance(self.fecha_nacimiento, str) and self.fecha_nacimiento:
+                from datetime import datetime
+                fecha_nac = datetime.strptime(self.fecha_nacimiento, "%Y-%m-%d").date()
+            else:
+                fecha_nac = self.fecha_nacimiento
+            
+            if not fecha_nac:
+                return 0
+                
+            hoy = date.today()
+            edad = hoy.year - fecha_nac.year
+            if (hoy.month, hoy.day) < (fecha_nac.month, fecha_nac.day):
+                edad -= 1
+            return max(0, edad)
+        except:
+            return 0
+
+    @property
     def edad_display(self) -> str:
         """Propiedad para mostrar la edad"""
-        return f"{self.edad} años" if self.edad else "N/A"
+        # Usar edad de BD si existe, sino calcular desde fecha nacimiento
+        edad = self.edad if self.edad else self.edad_calculada
+        return f"{edad} años" if edad and edad > 0 else "N/A"
     
     @property
-    def telefono_display(self) -> str:
-        """Propiedad para mostrar el teléfono principal"""
-        if self.telefono_1:
-            return self.telefono_1
-        elif self.telefono_2:
-            return self.telefono_2
+    def celular_display(self) -> str:
+        """Propiedad para mostrar el celular principal"""
+        if self.celular_1:
+            return self.celular_1
+        elif self.celular_2:
+            return self.celular_2
         else:
-            return "Sin teléfono"
+            return "Sin celular"
     
     @property
     def fecha_registro_display(self) -> str:
@@ -142,10 +176,10 @@ class PacienteModel(rx.Base):
     def contacto_display(self) -> str:
         """Propiedad para mostrar información de contacto resumida"""
         contactos = []
-        if self.telefono_1:
-            contactos.append(f"Tel1: {self.telefono_1}")
-        if self.telefono_2:
-            contactos.append(f"Tel2: {self.telefono_2}")
+        if self.celular_1:
+            contactos.append(f"Cel1: {self.celular_1}")
+        if self.celular_2:
+            contactos.append(f"Cel2: {self.celular_2}")
         if self.email:
             contactos.append(f"Email: {self.email}")
         
@@ -166,6 +200,23 @@ class PacienteModel(rx.Base):
         """Propiedad para mostrar condiciones médicas como string"""
         return ", ".join(self.condiciones_medicas) if self.condiciones_medicas else "Sin condiciones reportadas"
 
+    @property 
+    def contacto_emergencia_display(self) -> str:
+        """Propiedad para mostrar contacto de emergencia"""
+        if not self.contacto_emergencia or not isinstance(self.contacto_emergencia, dict):
+            return "Sin contacto emergencia"
+        
+        nombre = self.contacto_emergencia.get("nombre", "")
+        telefono = self.contacto_emergencia.get("telefono", "")
+        relacion = self.contacto_emergencia.get("relacion", "")
+        
+        if nombre and telefono:
+            return f"{nombre} ({relacion}) - {telefono}" if relacion else f"{nombre} - {telefono}"
+        elif nombre:
+            return f"{nombre} ({relacion})" if relacion else nombre
+        else:
+            return "Sin contacto emergencia"
+
     def matches_search(self, search_term: str) -> bool:
         """Verificar si el paciente coincide con el término de búsqueda"""
         if not search_term:
@@ -179,8 +230,8 @@ class PacienteModel(rx.Base):
             self.segundo_apellido.lower() if self.segundo_apellido else "",
             self.numero_documento.lower(),
             self.email.lower() if self.email else "",
-            self.telefono_1.lower() if self.telefono_1 else "",
-            self.telefono_2.lower() if self.telefono_2 else "",
+            self.celular_1.lower() if self.celular_1 else "",
+            self.celular_2.lower() if self.celular_2 else "",
             self.numero_historia.lower()
         ]
         
@@ -243,4 +294,167 @@ class AlergiaModel(rx.Base):
             severidad=str(data.get("severidad", "leve")),
             reaccion=str(data.get("reaccion", "")),
             fecha_diagnostico=str(data.get("fecha_diagnostico", "") if data.get("fecha_diagnostico") else "")
+        )
+
+
+# ==========================================
+# 📝 FORMULARIOS DE PACIENTES
+# ==========================================
+
+class PacienteFormModel(rx.Base):
+    """
+    📝 FORMULARIO DE CREACIÓN/EDICIÓN DE PACIENTES
+    
+    Reemplaza: form_data: Dict[str, str] en pacientes_service
+    """
+    
+    # Datos personales básicos
+    primer_nombre: str = ""
+    segundo_nombre: str = ""
+    primer_apellido: str = ""
+    segundo_apellido: str = ""
+    
+    # Identificación y contacto
+    numero_documento: str = ""
+    numero_historia: str = ""
+    tipo_documento: str = "CI"  # CI, Pasaporte (según esquema v4.1)
+    celular_1: str = ""
+    celular_2: str = ""
+    email: str = ""
+    
+    # Datos demográficos
+    fecha_nacimiento: str = ""  # YYYY-MM-DD format
+    edad: str = ""
+    genero: str = ""  # masculino, femenino, otro
+    direccion: str = ""
+    ciudad: str = ""
+    departamento: str = ""
+    estado_civil: str = ""
+    ocupacion: str = ""
+    
+    # Información médica
+    alergias: str = ""
+    medicamentos_actuales: str = ""
+    condiciones_medicas: str = ""
+    antecedentes_familiares: str = ""
+    observaciones_medicas: str = ""
+    
+    # Contacto emergencia
+    contacto_emergencia_nombre: str = ""
+    contacto_emergencia_telefono: str = ""
+    contacto_emergencia_relacion: str = ""
+    contacto_emergencia_direccion: str = ""
+    
+    # Estado
+    activo: bool = True
+    
+    def validate_form(self) -> Dict[str, List[str]]:
+        """Validar campos requeridos y formato"""
+        errors = {}
+        
+        if not self.primer_nombre.strip():
+            errors.setdefault("primer_nombre", []).append("Primer nombre es requerido")
+        
+        if not self.primer_apellido.strip():
+            errors.setdefault("primer_apellido", []).append("Primer apellido es requerido")
+        
+        if not self.numero_documento.strip():
+            errors.setdefault("numero_documento", []).append("Número de documento es requerido")
+        
+        if self.email:
+            email_clean = self.email.strip()
+            if not email_clean:
+                pass  # Email vacío es válido
+            elif "@" not in email_clean or "." not in email_clean.split("@")[-1] or email_clean.endswith(","):
+                errors.setdefault("email", []).append("Email debe tener formato válido (ej: usuario@dominio.com)")
+        
+        return errors
+    
+    @property
+    def nombre_completo(self) -> str:
+        """Nombre completo formateado"""
+        nombres = [self.primer_nombre, self.segundo_nombre]
+        apellidos = [self.primer_apellido, self.segundo_apellido]
+        
+        nombres_str = " ".join(n for n in nombres if n.strip())
+        apellidos_str = " ".join(a for a in apellidos if a.strip())
+        
+        return f"{nombres_str} {apellidos_str}".strip()
+    
+    def to_dict(self) -> Dict[str, str]:
+        """Convertir a dict para compatibilidad con servicios existentes"""
+        return {
+            "primer_nombre": self.primer_nombre,
+            "segundo_nombre": self.segundo_nombre,
+            "primer_apellido": self.primer_apellido,
+            "segundo_apellido": self.segundo_apellido,
+            "numero_documento": self.numero_documento,
+            "numero_historia": self.numero_historia,
+            "tipo_documento": self.tipo_documento,
+            "celular_1": self.celular_1,
+            "celular_2": self.celular_2,
+            "email": self.email,
+            "fecha_nacimiento": self.fecha_nacimiento,
+            "edad": self.edad,
+            "genero": self.genero,
+            "direccion": self.direccion,
+            "ciudad": self.ciudad,
+            "departamento": self.departamento,
+            "estado_civil": self.estado_civil,
+            "ocupacion": self.ocupacion,
+            "alergias": self.alergias,
+            "medicamentos_actuales": self.medicamentos_actuales,
+            "condiciones_medicas": self.condiciones_medicas,
+            "antecedentes_familiares": self.antecedentes_familiares,
+            "observaciones_medicas": self.observaciones_medicas,
+            
+            # Contacto emergencia como JSONB
+            "contacto_emergencia": {
+                "nombre": self.contacto_emergencia_nombre,
+                "telefono": self.contacto_emergencia_telefono,
+                "relacion": self.contacto_emergencia_relacion,
+                "direccion": self.contacto_emergencia_direccion
+            } if any([self.contacto_emergencia_nombre, self.contacto_emergencia_telefono]) else {},
+            
+            "activo": str(self.activo)
+        }
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "PacienteFormModel":
+        """Crear instancia desde diccionario"""
+        if not data or not isinstance(data, dict):
+            return cls()
+        
+        return cls(
+            primer_nombre=str(data.get("primer_nombre", "")),
+            segundo_nombre=str(data.get("segundo_nombre", "")),
+            primer_apellido=str(data.get("primer_apellido", "")),
+            segundo_apellido=str(data.get("segundo_apellido", "")),
+            numero_documento=str(data.get("numero_documento", "")),
+            numero_historia=str(data.get("numero_historia", "")),
+            tipo_documento=str(data.get("tipo_documento", "CI")),
+            celular_1=str(data.get("celular_1", "")),
+            celular_2=str(data.get("celular_2", "")),
+            email=str(data.get("email", "")),
+            fecha_nacimiento=str(data.get("fecha_nacimiento", "")),
+            edad=str(data.get("edad", "")),
+            genero=str(data.get("genero", "")),
+            direccion=str(data.get("direccion", "")),
+            ciudad=str(data.get("ciudad", "")),
+            departamento=str(data.get("departamento", "")),
+            estado_civil=str(data.get("estado_civil", "")),
+            ocupacion=str(data.get("ocupacion", "")),
+            alergias=str(data.get("alergias", "")),
+            medicamentos_actuales=str(data.get("medicamentos_actuales", "")),
+            condiciones_medicas=str(data.get("condiciones_medicas", "")),
+            antecedentes_familiares=str(data.get("antecedentes_familiares", "")),
+            observaciones_medicas=str(data.get("observaciones_medicas", "")),
+            
+            # Contacto emergencia desde JSONB
+            contacto_emergencia_nombre=str(data.get("contacto_emergencia", {}).get("nombre", "") if isinstance(data.get("contacto_emergencia"), dict) else ""),
+            contacto_emergencia_telefono=str(data.get("contacto_emergencia", {}).get("telefono", "") if isinstance(data.get("contacto_emergencia"), dict) else ""),
+            contacto_emergencia_relacion=str(data.get("contacto_emergencia", {}).get("relacion", "") if isinstance(data.get("contacto_emergencia"), dict) else ""),
+            contacto_emergencia_direccion=str(data.get("contacto_emergencia", {}).get("direccion", "") if isinstance(data.get("contacto_emergencia"), dict) else ""),
+            
+            activo=data.get("activo", True) if isinstance(data.get("activo"), bool) else str(data.get("activo", "True")).lower() == "true"
         )

@@ -80,6 +80,7 @@ class EstadoUI(rx.State, mixin=True):
     modal_confirmacion_abierto: bool = False
     modal_alerta_abierto: bool = False
     modal_info_abierto: bool = False
+    modal_cambio_odontologo_abierto: bool = False
     
     # Contenido de modales dinámicos
     titulo_modal_confirmacion: str = ""
@@ -265,7 +266,12 @@ class EstadoUI(rx.State, mixin=True):
         self.titulo_modal_alerta = titulo
         self.mensaje_modal_alerta = mensaje
         self.tipo_alerta = tipo
-        print(f"🔔 Modal alerta ({tipo}): {titulo}")
+    
+    @rx.event
+    def abrir_modal_cambio_odontologo(self):
+        """🔄 Abrir modal de cambio de odontólogo"""
+        self.modal_cambio_odontologo_abierto = True
+        print("🔄 Modal cambio odontólogo abierto")
     
     @rx.event
     def cerrar_modal(self, is_open: bool = False):
@@ -304,6 +310,7 @@ class EstadoUI(rx.State, mixin=True):
         self.modal_confirmacion_abierto = False
         self.modal_alerta_abierto = False
         self.modal_info_abierto = False
+        self.modal_cambio_odontologo_abierto = False
         
         # Limpiar datos temporales
         self.datos_temporales_paciente = {}
@@ -320,6 +327,11 @@ class EstadoUI(rx.State, mixin=True):
     def set_modal_crear_consulta_abierto(self, abierto: bool):
         """📅 Setter para modal de crear consulta"""
         self.modal_crear_consulta_abierto = abierto
+    
+    @rx.event
+    def set_modal_editar_consulta_abierto(self, abierto: bool):
+        """📅 Setter para modal de editar consulta"""
+        self.modal_editar_consulta_abierto = abierto
     
     # ==========================================
     # 📱 FORMULARIOS MULTI-PASO

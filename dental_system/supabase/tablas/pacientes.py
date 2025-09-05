@@ -33,13 +33,13 @@ class PacientesTable(BaseTable):
         segundo_apellido: Optional[str] = None,
         
         # Documentación y datos básicos
-        tipo_documento: str = "CC",
+        tipo_documento: str = "CI",
         fecha_nacimiento: Optional[date] = None,
         genero: Optional[str] = None,
         
-        # ✅ TELÉFONOS SEPARADOS
-        telefono_1: Optional[str] = None,
-        telefono_2: Optional[str] = None,
+        # ✅ CELULARES SEPARADOS (esquema v4.1)
+        celular_1: Optional[str] = None,
+        celular_2: Optional[str] = None,
         
         # Contacto y ubicación
         email: Optional[str] = None,
@@ -54,7 +54,10 @@ class PacientesTable(BaseTable):
         medicamentos_actuales: Optional[List[str]] = None,
         condiciones_medicas: Optional[List[str]] = None,
         antecedentes_familiares: Optional[List[str]] = None,
-        observaciones: Optional[str] = None
+        observaciones: Optional[str] = None,
+        
+        # Contacto de emergencia (esquema v4.1)
+        contacto_emergencia: Optional[Dict[str, Any]] = None
     ) -> Optional[Dict[str, Any]]:
         """
         Crea un nuevo paciente con información completa
@@ -78,10 +81,10 @@ class PacientesTable(BaseTable):
             data["fecha_nacimiento"] = fecha_nacimiento.isoformat()
         if genero and genero.strip():
             data["genero"] = genero.strip()
-        if telefono_1 and telefono_1.strip():
-            data["telefono_1"] = telefono_1.strip()
-        if telefono_2 and telefono_2.strip():
-            data["telefono_2"] = telefono_2.strip()
+        if celular_1 and celular_1.strip():
+            data["celular_1"] = celular_1.strip()
+        if celular_2 and celular_2.strip():
+            data["celular_2"] = celular_2.strip()
         if email and email.strip():
             data["email"] = email.strip().lower()
         if direccion and direccion.strip():
@@ -104,6 +107,8 @@ class PacientesTable(BaseTable):
             data["antecedentes_familiares"] = antecedentes_familiares
         if observaciones and observaciones.strip():
             data["observaciones"] = observaciones.strip()
+        if contacto_emergencia:
+            data["contacto_emergencia"] = contacto_emergencia
         return self.create(data)
      
     @handle_supabase_error

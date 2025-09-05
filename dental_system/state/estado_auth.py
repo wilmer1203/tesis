@@ -55,14 +55,14 @@ class EstadoAuth(rx.State, mixin=True):
     error_login: str = ""
     esta_cargando_auth: bool = False
     
-    # Estados de formularios multi-paso
-    paso_formulario_paciente: int = 0
-    errores_formulario_paciente: Dict[str, str] = {}
-    puede_continuar_form_paciente: bool = True
+    # UNUSED - [2025-01-04] - Estados de formularios multi-paso no utilizados
+    # paso_formulario_paciente: int = 0
+    # errores_formulario_paciente: Dict[str, str] = {}
+    # puede_continuar_form_paciente: bool = True
     
-    paso_formulario_personal: int = 0
-    errores_formulario_personal: Dict[str, str] = {}
-    puede_continuar_form_personal: bool = True
+    # paso_formulario_personal: int = 0
+    # errores_formulario_personal: Dict[str, str] = {}
+    # puede_continuar_form_personal: bool = True
     
     # ==========================================
     # 🔐 MÉTODOS PRINCIPALES DE AUTENTICACIÓN
@@ -102,27 +102,45 @@ class EstadoAuth(rx.State, mixin=True):
             sesion, info_usuario = auth.sign_in(email, contraseña)
 
             if sesion and info_usuario:
+                # Debug: mostrar información de usuario
+                print(f"🔍 DEBUG AUTH - info_usuario: {info_usuario}")
+                print(f"🔍 DEBUG AUTH - rol disponible: {info_usuario.get('rol')}")
+                
                 # Actualizar estado de autenticación
                 self.esta_autenticado = True
                 self.id_usuario = info_usuario["id"]
                 self.email_usuario = info_usuario["email"]
-                self.rol_usuario = info_usuario["rol"]["nombre"]
+                self.rol_usuario = info_usuario.get("rol", {}).get("nombre", "unknown")
+                
+                print(f"🔍 DEBUG AUTH - rol_usuario final: {self.rol_usuario}")
                 self.perfil_usuario = info_usuario
                 self.usuario_actual = info_usuario
                 
-                # 🔄 OBTENER PERSONAL_ID si es odontólogo o personal usando el servicio
+                # 🔄 OBTENER PERSONAL_ID y datos críticos si es odontólogo o personal
                 self.id_personal = ""
                 if self.rol_usuario in ["odontologo", "asistente"]:
                     try:
                         from dental_system.supabase.tablas.personal import personal_table
-                        datos_personal = personal_table.get_by_usuario_id(self.id_usuario)
-                        if datos_personal:
-                            self.id_personal = datos_personal["id"]
-                            print(f"🔄 Personal ID obtenido: usuario {self.id_usuario} → personal {self.id_personal}")
+                        from dental_system.models.personal_models import PersonalModel
+                        
+                        # Usar tabla directamente (ya existe el método)
+                        personal_data = personal_table.get_by_usuario_id(self.id_usuario)
+                        if personal_data:
+                            personal_model = PersonalModel.from_dict(personal_data)
+                            self.id_personal = personal_model.id
+                            
+                            # ✅ AGREGAR CAMPOS CRÍTICOS PARA SISTEMA DE COLAS
+                            if personal_model.acepta_pacientes_nuevos is not None:
+                                self.perfil_usuario['acepta_pacientes_nuevos'] = personal_model.acepta_pacientes_nuevos
+                            if personal_model.orden_preferencia is not None:
+                                self.perfil_usuario['orden_preferencia'] = personal_model.orden_preferencia
+                            
+                            print(f"🔄 Personal completo obtenido: usuario {self.id_usuario} → personal {self.id_personal}")
+                            print(f"🎯 Acepta pacientes: {personal_model.acepta_pacientes_nuevos}, Orden: {personal_model.orden_preferencia}")
                         else:
                             print(f"⚠️ No se encontró personal para usuario {self.id_usuario}")
                     except Exception as e:
-                        print(f"❌ Error obteniendo id_personal: {e}")
+                        print(f"❌ Error obteniendo personal completo: {e}")
                 
                 print(f"✅ Usuario autenticado: {self.email_usuario} - Rol: {self.rol_usuario} - Personal ID: {self.id_personal}")
                 
@@ -170,14 +188,14 @@ class EstadoAuth(rx.State, mixin=True):
         self.usuario_actual = {}
         self.permisos_usuario = []
         
-        # Limpiar estados de formulario
-        self.paso_formulario_paciente = 0
-        self.errores_formulario_paciente = {}
-        self.puede_continuar_form_paciente = True
+        # UNUSED - [2025-01-04] - Limpiar estados de formulario comentados
+        # self.paso_formulario_paciente = 0
+        # self.errores_formulario_paciente = {}
+        # self.puede_continuar_form_paciente = True
         
-        self.paso_formulario_personal = 0
-        self.errores_formulario_personal = {}
-        self.puede_continuar_form_personal = True
+        # self.paso_formulario_personal = 0
+        # self.errores_formulario_personal = {}
+        # self.puede_continuar_form_personal = True
         
         # Control de sesión
         self.token_sesion = ""
@@ -219,35 +237,36 @@ class EstadoAuth(rx.State, mixin=True):
     # 🔐 COMPUTED VARS PARA PERMISOS Y VALIDACIONES
     # ==========================================
     
-    @rx.var(cache=True)  # ✅ OPTIMIZACIÓN: Cache validación de permisos
-    def tiene_permiso_pacientes(self) -> bool:
-        """👥 Verifica si puede gestionar pacientes"""
-        return self.rol_usuario in ["gerente", "administrador"]
+    # UNUSED - [2025-01-04] - Computed vars de permisos no utilizados
+    # @rx.var(cache=True)  # ✅ OPTIMIZACIÓN: Cache validación de permisos
+    # def tiene_permiso_pacientes(self) -> bool:
+    #     """👥 Verifica si puede gestionar pacientes"""
+    #     return self.rol_usuario in ["gerente", "administrador"]
     
-    @rx.var(cache=True)  # ✅ OPTIMIZACIÓN: Cache validación de permisos
-    def tiene_permiso_consultas(self) -> bool:
-        """📅 Verifica si puede gestionar consultas"""
-        return self.rol_usuario in ["gerente", "administrador", "odontologo"]
+    # @rx.var(cache=True)  # ✅ OPTIMIZACIÓN: Cache validación de permisos
+    # def tiene_permiso_consultas(self) -> bool:
+    #     """📅 Verifica si puede gestionar consultas"""
+    #     return self.rol_usuario in ["gerente", "administrador", "odontologo"]
     
-    @rx.var(cache=True)  # ✅ OPTIMIZACIÓN: Cache validación de permisos
-    def tiene_permiso_personal(self) -> bool:
-        """👨‍⚕️ Verifica si puede gestionar personal"""
-        return self.rol_usuario == "gerente"
+    # @rx.var(cache=True)  # ✅ OPTIMIZACIÓN: Cache validación de permisos
+    # def tiene_permiso_personal(self) -> bool:
+    #     """👨‍⚕️ Verifica si puede gestionar personal"""
+    #     return self.rol_usuario == "gerente"
     
-    @rx.var(cache=True)  # ✅ OPTIMIZACIÓN: Cache validación de permisos
-    def tiene_permiso_servicios(self) -> bool:
-        """🏥 Verifica si puede gestionar servicios"""
-        return self.rol_usuario == "gerente"
+    # @rx.var(cache=True)  # ✅ OPTIMIZACIÓN: Cache validación de permisos
+    # def tiene_permiso_servicios(self) -> bool:
+    #     """🏥 Verifica si puede gestionar servicios"""
+    #     return self.rol_usuario == "gerente"
     
-    @rx.var(cache=True)  # ✅ OPTIMIZACIÓN: Cache validación de permisos
-    def tiene_permiso_pagos(self) -> bool:
-        """💳 Verifica si puede gestionar pagos"""
-        return self.rol_usuario in ["gerente", "administrador"]
+    # @rx.var(cache=True)  # ✅ OPTIMIZACIÓN: Cache validación de permisos
+    # def tiene_permiso_pagos(self) -> bool:
+    #     """💳 Verifica si puede gestionar pagos"""
+    #     return self.rol_usuario in ["gerente", "administrador"]
     
-    @rx.var(cache=True)  # ✅ OPTIMIZACIÓN: Cache validación de permisos
-    def tiene_permiso_odontologia(self) -> bool:
-        """🦷 Verifica si puede usar módulo odontológico"""
-        return self.rol_usuario in ["gerente", "odontologo"]
+    # @rx.var(cache=True)  # ✅ OPTIMIZACIÓN: Cache validación de permisos
+    # def tiene_permiso_odontologia(self) -> bool:
+    #     """🦷 Verifica si puede usar módulo odontológico"""
+    #     return self.rol_usuario in ["gerente", "odontologo"]
     
     @rx.var(cache=True)  # ✅ OPTIMIZACIÓN: Cache display de usuario
     def nombre_usuario_display(self) -> str:
@@ -284,17 +303,18 @@ class EstadoAuth(rx.State, mixin=True):
             bool(self.email_usuario)
         )
     
-    @rx.var(cache=True)  # ✅ OPTIMIZACIÓN: Cache tipo de dashboard
-    def tipo_dashboard(self) -> str:
-        """📊 Tipo de dashboard según rol"""
-        if self.rol_usuario == "gerente":
-            return "completo"
-        elif self.rol_usuario == "administrador":
-            return "administrativo"
-        elif self.rol_usuario == "odontologo":
-            return "clinico"
-        else:
-            return "basico"
+    # UNUSED - [2025-01-04] - Computed var tipo_dashboard no utilizado
+    # @rx.var(cache=True)  # ✅ OPTIMIZACIÓN: Cache tipo de dashboard
+    # def tipo_dashboard(self) -> str:
+    #     """📊 Tipo de dashboard según rol"""
+    #     if self.rol_usuario == "gerente":
+    #         return "completo"
+    #     elif self.rol_usuario == "administrador":
+    #         return "administrativo"
+    #     elif self.rol_usuario == "odontologo":
+    #         return "clinico"
+    #     else:
+    #         return "basico"
     
     # ==========================================
     # 🔐 MÉTODOS DE UTILIDAD PARA SERVICIOS
@@ -370,52 +390,52 @@ class EstadoAuth(rx.State, mixin=True):
         return operacion in permisos_modulo
     
     # ==========================================
-    # 🔐 MÉTODOS PARA FORMULARIOS MULTI-PASO
+    # 🔐 MÉTODOS PARA FORMULARIOS MULTI-PASO - UNUSED [2025-01-04]
     # ==========================================
     
-    @rx.event
-    def avanzar_paso_formulario_paciente(self):
-        """➡️ Avanzar paso en formulario de paciente"""
-        if self.puede_continuar_form_paciente and self.paso_formulario_paciente < 3:
-            self.paso_formulario_paciente += 1
-            print(f"📝 Formulario paciente: paso {self.paso_formulario_paciente}")
+    # @rx.event
+    # def avanzar_paso_formulario_paciente(self):
+    #     """➡️ Avanzar paso en formulario de paciente"""
+    #     if self.puede_continuar_form_paciente and self.paso_formulario_paciente < 3:
+    #         self.paso_formulario_paciente += 1
+    #         print(f"📝 Formulario paciente: paso {self.paso_formulario_paciente}")
     
-    @rx.event
-    def retroceder_paso_formulario_paciente(self):
-        """⬅️ Retroceder paso en formulario de paciente"""
-        if self.paso_formulario_paciente > 0:
-            self.paso_formulario_paciente -= 1
-            print(f"📝 Formulario paciente: paso {self.paso_formulario_paciente}")
+    # @rx.event
+    # def retroceder_paso_formulario_paciente(self):
+    #     """⬅️ Retroceder paso en formulario de paciente"""
+    #     if self.paso_formulario_paciente > 0:
+    #         self.paso_formulario_paciente -= 1
+    #         print(f"📝 Formulario paciente: paso {self.paso_formulario_paciente}")
     
-    @rx.event
-    def resetear_formulario_paciente(self):
-        """🔄 Resetear formulario de paciente"""
-        self.paso_formulario_paciente = 0
-        self.errores_formulario_paciente = {}
-        self.puede_continuar_form_paciente = True
-        print("🔄 Formulario paciente reseteado")
+    # @rx.event
+    # def resetear_formulario_paciente(self):
+    #     """🔄 Resetear formulario de paciente"""
+    #     self.paso_formulario_paciente = 0
+    #     self.errores_formulario_paciente = {}
+    #     self.puede_continuar_form_paciente = True
+    #     print("🔄 Formulario paciente reseteado")
     
-    @rx.event
-    def avanzar_paso_formulario_personal(self):
-        """➡️ Avanzar paso en formulario de personal"""
-        if self.puede_continuar_form_personal and self.paso_formulario_personal < 3:
-            self.paso_formulario_personal += 1
-            print(f"📝 Formulario personal: paso {self.paso_formulario_personal}")
+    # @rx.event
+    # def avanzar_paso_formulario_personal(self):
+    #     """➡️ Avanzar paso en formulario de personal"""
+    #     if self.puede_continuar_form_personal and self.paso_formulario_personal < 3:
+    #         self.paso_formulario_personal += 1
+    #         print(f"📝 Formulario personal: paso {self.paso_formulario_personal}")
     
-    @rx.event
-    def retroceder_paso_formulario_personal(self):
-        """⬅️ Retroceder paso en formulario de personal"""
-        if self.paso_formulario_personal > 0:
-            self.paso_formulario_personal -= 1
-            print(f"📝 Formulario personal: paso {self.paso_formulario_personal}")
+    # @rx.event
+    # def retroceder_paso_formulario_personal(self):
+    #     """⬅️ Retroceder paso en formulario de personal"""
+    #     if self.paso_formulario_personal > 0:
+    #         self.paso_formulario_personal -= 1
+    #         print(f"📝 Formulario personal: paso {self.paso_formulario_personal}")
     
-    @rx.event 
-    def resetear_formulario_personal(self):
-        """🔄 Resetear formulario de personal"""
-        self.paso_formulario_personal = 0
-        self.errores_formulario_personal = {}
-        self.puede_continuar_form_personal = True
-        print("🔄 Formulario personal reseteado")
+    # @rx.event 
+    # def resetear_formulario_personal(self):
+    #     """🔄 Resetear formulario de personal"""
+    #     self.paso_formulario_personal = 0
+    #     self.errores_formulario_personal = {}
+    #     self.puede_continuar_form_personal = True
+    #     print("🔄 Formulario personal reseteado")
     
     # ==========================================
     # 🔐 VALIDACIONES DE SEGURIDAD
