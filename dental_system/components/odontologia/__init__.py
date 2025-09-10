@@ -9,11 +9,6 @@ Componentes especializados para el módulo odontológico:
 - Formularios de intervención especializados
 """
 
-from .intervention_tabs import (
-    intervention_tabs_container,
-    tab_navigation_header,
-    tab_navigation_footer
-)
 
 from .intervention_tabs_v2 import (
     intervention_tabs_integrated,
@@ -21,9 +16,6 @@ from .intervention_tabs_v2 import (
 )
 
 __all__ = [
-    "intervention_tabs_container",
-    "tab_navigation_header", 
-    "tab_navigation_footer",
     "intervention_tabs_integrated",
     "tabs_navigation"
 ]

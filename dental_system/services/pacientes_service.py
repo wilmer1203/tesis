@@ -385,6 +385,34 @@ class PacientesService(BaseService):
             self.handle_error("Error obteniendo paciente por ID", e)
             return None
 
+    def get_patient_by_id_sync(self, patient_id: str) -> Optional[PacienteModel]:
+        """
+        Obtiene un paciente por ID de forma síncrona
+        Para casos donde no se puede usar async (como event handlers de Reflex)
+        
+        Args:
+            patient_id: ID del paciente
+            
+        Returns:
+            Modelo del paciente o None
+        """
+        try:
+            # Verificar permisos 
+            if not self.check_permission("pacientes", "leer"):
+                logger.warning(f"Usuario sin permisos para leer pacientes")
+                return None
+            
+            # Obtener datos directamente de la tabla
+            data = self.table.get_by_id(patient_id)
+            
+            if data:
+                return PacienteModel.from_dict(data)
+            return None
+            
+        except Exception as e:
+            self.handle_error("Error obteniendo paciente por ID (sync)", e)
+            return None
+
     
     async def get_patient_stats(self) -> Dict[str, Any]:
         """

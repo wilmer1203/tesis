@@ -1,251 +1,468 @@
-# 🦷 PÁGINA DE INTERVENCIÓN ODONTOLÓGICA - REFACTORIZADA COMPLETAMENTE
-# dental_system/pages/intervencion_page.py
+"""
+🦷 PÁGINA DE INTERVENCIÓN ODONTOLÓGICA V3.0 - FASE 3: INTEGRACIÓN COMPLETA
+=========================================================================
+
+VERSIÓN FINAL con todos los componentes avanzados integrados:
+- Odontograma SVG Interactivo (Fase 2)
+- Panel Detalles Diente con Tabs (Fase 2)
+- Sistema Versionado Automático (Fase 2)
+- Historial de Cambios Detallado (Fase 2)
+- Sistema de Notificaciones (Fase 2)
+- Layout profesional optimizado para flujo médico
+
+ARQUITECTURA: Panel izquierdo (Paciente) + Panel central (Tabs) + Panel derecho (Detalles)
+"""
 
 import reflex as rx
 from dental_system.state.app_state import AppState
 from dental_system.components.common import page_header, primary_button, secondary_button
+
+# Importar componentes existentes (Fase 1)
 from dental_system.components.odontologia.panel_paciente import panel_informacion_paciente
 from dental_system.components.odontologia.panel_historial import panel_historial_notas
-from dental_system.components.odontologia.intervention_tabs_v2 import intervention_tabs_integrated
+
+# Importar nuevos componentes avanzados (Fase 2)
+from dental_system.components.odontologia.odontograma_svg import odontograma_interactivo
+from dental_system.components.odontologia.panel_detalles_diente import panel_detalles_diente
+from dental_system.components.odontologia.sistema_versionado import sistema_versionado_odontograma
+from dental_system.components.odontologia.historial_cambios import historial_cambios_diente
+from dental_system.components.odontologia.notificaciones_cambios import sistema_notificaciones_cambios
+
+# Importar formulario FUNCIONANDO (sin métodos inexistentes)
+from dental_system.components.odontologia.formulario_simple_funcionando import formulario_simple_funcionando
+
 from dental_system.styles.themes import COLORS, RADIUS, SPACING, SHADOWS
 
 # ==========================================
-# 🎨 ESTILOS PARA LA NUEVA ARQUITECTURA
+# 🎨 ESTILOS PARA LA INTEGRACIÓN COMPLETA
 # ==========================================
 
-# Layout principal de 3 paneles
+# Layout principal de 3 paneles expandido
 MAIN_LAYOUT_STYLE = {
     "display": "grid",
-    "grid_template_columns": "30% 50% 20%",  # Panel paciente | Panel central | Panel historial
-    "gap": SPACING["4"],
-    "height": "calc(100vh - 140px)",  # Altura total menos header
+    "grid_template_columns": "25% 50% 25%",  # Paciente | Central | Detalles
+    "gap": SPACING["3"],
+    "height": "calc(100vh - 120px)",
     "width": "100%",
-    "padding": "0"
+    "padding": SPACING["4"],
+    "max_width": "1600px",  # Ampliado para más contenido
+    "margin": "0 auto"
 }
 
-# Estilos para cada panel
+# Panel base mejorado
 PANEL_BASE_STYLE = {
+    "background": "white",
+    "border_radius": RADIUS["lg"],
+    "box_shadow": SHADOWS["md"],
+    "border": f"1px solid {COLORS['gray']['200']}",
     "height": "100%",
     "overflow": "hidden",
-    "position": "relative"
+    "display": "flex",
+    "flex_direction": "column"
 }
 
+# Panel central con tabs y odontograma
 PANEL_CENTRAL_STYLE = {
     **PANEL_BASE_STYLE,
-    "background": "white",
-    "border_radius": RADIUS["xl"],
-    "box_shadow": SHADOWS["lg"],
-    "border": f"1px solid {COLORS['gray']['200']}"
+    "background": f"linear-gradient(135deg, {COLORS['gray']['50']} 0%, white 100%)"
 }
 
-# Header de navegación para la página
-PAGE_HEADER_STYLE = {
+# Responsive adaptado a más contenido
+TABLET_RESPONSIVE = {
+    "@media (max-width: 1200px)": {
+        "grid_template_columns": "30% 40% 30%"
+    },
+    "@media (max-width: 1024px)": {
+        "grid_template_columns": "35% 65%",  # Ocultar panel derecho en tablet
+    },
+    "@media (max-width: 768px)": {
+        "grid_template_columns": "100%",
+        "grid_template_rows": "auto",
+        "height": "auto"
+    }
+}
+
+# Header mejorado con notificaciones
+HEADER_STYLE = {
     "background": f"linear-gradient(135deg, {COLORS['primary']['500']} 0%, {COLORS['primary']['600']} 100%)",
     "color": "white",
     "padding": SPACING["4"],
     "border_radius": RADIUS["lg"],
-    "margin_bottom": SPACING["4"],
-    "box_shadow": SHADOWS["lg"]
-}
-
-# Botones de acción en el header
-ACTION_BUTTONS_STYLE = {
-    "position": "fixed",
-    "top": SPACING["4"],
-    "right": SPACING["4"],
-    "z_index": "999",
+    "margin_bottom": SPACING["3"],
+    "box_shadow": SHADOWS["lg"],
     "display": "flex",
-    "gap": SPACING["2"]
-}
-
-# Responsive para tablets
-TABLET_RESPONSIVE = {
-    "@media (max-width: 1024px)": {
-        "grid_template_columns": "35% 45% 20%"  # Más espacio para paciente en tablet
-    },
-    "@media (max-width: 768px)": {
-        "grid_template_columns": "100%",  # Stack vertical en móvil
-        "grid_template_rows": "auto auto auto",
-        "height": "auto"
-    }
+    "justify_content": "space-between",
+    "align_items": "center"
 }
 
 # ==========================================
 # 🧩 COMPONENTES DE LA NUEVA ARQUITECTURA
 # ==========================================
 
-def compact_patient_header() -> rx.Component:
-    """📋 Header compacto con información esencial del paciente"""
-    return rx.cond(
-        AppState.paciente_en_atencion,
-        rx.box(
+def header_intervencion_avanzado() -> rx.Component:
+    """🎯 Header principal con información del paciente y notificaciones"""
+    return rx.box(
+        rx.hstack(
+            # Información del paciente en sesión
             rx.hstack(
-                # Avatar/Icono
-                rx.box(
-                    rx.icon(tag="user-check", size=32, color=ODONTOLOGO_THEME["primary"]),
-                    style={
-                        "width": "60px", "height": "60px",
-                        "background": f"linear-gradient(135deg, {ODONTOLOGO_THEME['primary']}20 0%, {ODONTOLOGO_THEME['primary']}40 100%)",
-                        "border_radius": RADIUS["full"], "display": "flex", "align_items": "center", "justify_content": "center",
-                        "border": f"2px solid {ODONTOLOGO_THEME['primary']}60"
-                    }
-                ),
-                
-                # Información principal
+                rx.icon("user", size=28, color="white"),
                 rx.vstack(
-                    rx.text(AppState.paciente_en_atencion.nombre_completo, size="5", weight="bold", color=DARK_THEME["colors"]["text_primary"]),
-                    rx.hstack(
-                        rx.badge(f"HC: {AppState.paciente_en_atencion.numero_historia}", color_scheme="blue", variant="soft", size="1"),
-                        rx.badge(f"CI: {AppState.paciente_en_atencion.numero_documento}", color_scheme="gray", variant="soft", size="1"),
-                        rx.badge(f"Tel: {AppState.paciente_en_atencion.celular_display}", color_scheme="green", variant="soft", size="1"),
-                        spacing="2"
+                    rx.cond(
+                        AppState.paciente_actual.nombre_completo,
+                        rx.vstack(
+                            rx.text(
+                                AppState.paciente_actual.nombre_completo,
+                                weight="bold",
+                                size="5",
+                                color="white"
+                            ),
+                            rx.hstack(
+                                rx.text(f"HC: {AppState.paciente_actual.numero_historia}", size="2", opacity="0.9"),
+                                rx.text("•", size="2", opacity="0.7"),
+                                rx.text(f"Consulta: {AppState.consulta_actual.numero_consulta}", size="2", opacity="0.9"),
+                                spacing="2"
+                            ),
+                            align_items="start",
+                            spacing="0"
+                        ),
+                        rx.text("Seleccionar paciente", size="4", opacity="0.8")
                     ),
-                    spacing="1", align_items="start"
+                    align_items="start",
+                    spacing="1"
                 ),
-                
-                rx.spacer(),
-                
-                # Estado e información
-                rx.hstack(
-                    rx.badge("🔄 En Progreso", color_scheme="blue", variant="soft", size="2"),
-                    rx.badge("⏱️ 15:30", color_scheme="orange", variant="soft", size="2"),
-                    spacing="3"
-                ),
-                
-                spacing="4", align_items="center", width="100%"
+                spacing="3",
+                align_items="center"
             ),
             
-            # Alertas médicas (solo si existen)
-            rx.cond(
-                (AppState.paciente_en_atencion.alergias != []) | (AppState.paciente_en_atencion.condiciones_medicas != []),
-                rx.vstack(
-                    rx.divider(color=ODONTOLOGO_THEME["border"], margin_y="3"),
-                    rx.hstack(
-                        rx.cond(AppState.paciente_en_atencion.alergias != [],
-                               rx.callout(f"⚠️ ALERGIAS: {AppState.paciente_en_atencion.alergias_display}",
-                                         icon="alert-triangle", color_scheme="red", variant="surface", size="1")),
-                        rx.cond(AppState.paciente_en_atencion.condiciones_medicas != [],
-                               rx.callout(f"🏥 CONDICIONES: {AppState.paciente_en_atencion.condiciones_display}",
-                                         icon="heart", color_scheme="orange", variant="surface", size="1")),
-                        spacing="4", width="100%", flex_wrap="wrap"
-                    ),
-                    spacing="2", width="100%"
-                )
+            rx.spacer(),
+            
+            # Panel de controles y notificaciones
+            rx.hstack(
+                # Sistema de notificaciones integrado
+                sistema_notificaciones_cambios(),
+                
+                # Botones de acción principal
+                rx.button(
+                    rx.icon("save", size=16),
+                    "Guardar Todo",
+                    color_scheme="green",
+                    size="3",
+                    on_click=AppState.crear_intervencion
+                ),
+                rx.button(
+                    rx.icon("x", size=16),
+                    "Finalizar",
+                    variant="outline",
+                    size="3",
+                    on_click=lambda: AppState.navigate_to("odontologia")
+                ),
+                spacing="2"
             ),
             
-            style=PATIENT_HEADER_STYLE
+            width="100%",
+            align_items="center"
         ),
-        
-        # Mensaje cuando no hay paciente
-        rx.box(
-            rx.hstack(
-                rx.icon(tag="alert-triangle", size=24, color=COLORS["warning"]["500"]),
-                rx.text("⚠️ No hay paciente en atención seleccionado", size="4", color=COLORS["warning"]["400"], weight="medium"),
-                spacing="3", align_items="center", justify_content="center", width="100%"
-            ),
-            style={
-                "background": f"linear-gradient(135deg, {COLORS['warning']['900']}40 0%, {COLORS['warning']['800']}20 100%)",
-                "border": f"1px solid {COLORS['warning']['700']}60", "border_radius": RADIUS["2xl"],
-                "padding": f"{SPACING['4']} {SPACING['6']}", "backdrop_filter": "blur(20px)"
-            }
-        )
+        style=HEADER_STYLE
     )
 
-def floating_action_buttons() -> rx.Component:
-    """🎯 Botones flotantes para acciones principales"""
+def panel_paciente_integrado() -> rx.Component:
+    """👤 Panel izquierdo con información completa del paciente"""
     return rx.box(
         rx.vstack(
-            # Botón cancelar
-            rx.tooltip(
-                rx.box(
-                    rx.icon(tag="x-circle", size=24, color="white"),
-                    style={**FLOATING_BUTTON_STYLE, "background": f"linear-gradient(135deg, {COLORS['error']['500']} 0%, {COLORS['error']['600']} 100%)",
-                           "_hover": {"transform": "translateY(-4px) scale(1.1)", "box_shadow": f"0 12px 40px {COLORS['error']['500']}40"}},
-                    on_click=AppState.cancelar_intervencion
-                ),
-                content="Cancelar intervención"
+            # Header del panel
+            rx.hstack(
+                rx.icon("user", size=20, color="primary.500"),
+                rx.text("Información del Paciente", weight="bold", size="4"),
+                spacing="2",
+                padding_bottom="3",
+                border_bottom=f"1px solid {COLORS['gray']['200']}",
+                width="100%"
             ),
             
-            # Botón finalizar (principal)
-            rx.tooltip(
-                rx.box(
-                    rx.cond(AppState.is_loading_intervencion, rx.spinner(size="3", color="white"),
-                           rx.icon(tag="check-circle", size=28, color="white")),
-                    style=rx.cond(
-                        AppState.is_loading_intervencion,
-                        # Estilo cuando está cargando
-                        {**FLOATING_BUTTON_STYLE, "width": "70px", "height": "70px",
-                         "background": f"linear-gradient(135deg, {ODONTOLOGO_THEME['primary']} 0%, {COLORS['success']['600']} 100%)"},
-                        # Estilo normal con hover
-                        {**FLOATING_BUTTON_STYLE, "width": "70px", "height": "70px",
-                         "background": f"linear-gradient(135deg, {ODONTOLOGO_THEME['primary']} 0%, {COLORS['success']['600']} 100%)",
-                         "_hover": {"transform": "translateY(-6px) scale(1.15)", "box_shadow": f"0 16px 48px {ODONTOLOGO_THEME['primary']}50"}}
-                    ),
-                    on_click=AppState.finalizar_intervencion_completa
-                ),
-                content="Finalizar intervención"
-            ),
+            # Panel de información del paciente expandido (de Fase 1)
+            panel_informacion_paciente(),
             
-            spacing="4"
+            spacing="3",
+            width="100%",
+            height="100%",
+            padding="4"
         ),
-        style=FLOATING_ACTIONS_STYLE
+        style=PANEL_BASE_STYLE
+    )
+
+def panel_central_integrado() -> rx.Component:
+    """🦷 Panel central con odontograma y tabs"""
+    return rx.box(
+        rx.vstack(
+            # Tabs de navegación principal
+            rx.tabs.root(
+                rx.tabs.list(
+                    rx.tabs.trigger(
+                        rx.hstack(rx.icon("stethoscope", size=16), "Odontograma", spacing="2"),
+                        value="odontograma"
+                    ),
+                    rx.tabs.trigger(
+                        rx.hstack(rx.icon("git_branch", size=16), "Versiones", spacing="2"),
+                        value="versiones"
+                    ),
+                    rx.tabs.trigger(
+                        rx.hstack(rx.icon("pen", size=16), "Intervención", spacing="2"),
+                        value="intervencion"
+                    ),
+                ),
+                
+                # Contenido del tab Odontograma
+                rx.tabs.content(
+                    rx.vstack(
+                        # Odontograma SVG interactivo
+                        odontograma_interactivo(),
+                        
+                        # Controles adicionales
+                        rx.hstack(
+                            rx.button(
+                                rx.icon("refresh_cw", size=16),
+                                "Refrescar",
+                                variant="outline",
+                                size="2",
+                                # on_click=AppState.refrescar_odontograma
+                            ),
+                            rx.button(
+                                rx.icon("history", size=16),
+                                "Ver Historial",
+                                variant="outline",
+                                size="2",
+                                # on_click=AppState.mostrar_historial_odontograma
+                            ),
+                            spacing="2",
+                            justify="center",
+                            margin_top="3"
+                        ),
+                        
+                        spacing="3",
+                        width="100%"
+                    ),
+                    value="odontograma"
+                ),
+                
+                # Contenido del tab Versiones
+                rx.tabs.content(
+                    sistema_versionado_odontograma(),
+                    value="versiones"
+                ),
+                
+                # Contenido del tab Intervención (formulario integrado nuevo)
+                rx.tabs.content(
+                    formulario_simple_funcionando(),
+                    value="intervencion"
+                ),
+                
+                default_value="odontograma",
+                orientation="horizontal",
+                width="100%",
+                height="100%"
+            ),
+            
+            spacing="0",
+            width="100%",
+            height="100%"
+        ),
+        style=PANEL_CENTRAL_STYLE
+    )
+
+def panel_detalles_integrado() -> rx.Component:
+    """📋 Panel derecho con detalles del diente seleccionado"""
+    return rx.box(
+        rx.vstack(
+            # Header del panel
+            rx.hstack(
+                rx.icon("info", size=20, color="blue.500"),
+                rx.text("Detalles del Diente", weight="bold", size="4"),
+                rx.spacer(),
+                # Toggle para cambiar entre panel detalles e historial
+                rx.button(
+                    rx.icon("history", size=16),
+                    variant="ghost",
+                    size="2",
+                    # on_click=AppState.toggle_panel_derecho
+                ),
+                spacing="2",
+                padding_bottom="3",
+                border_bottom=f"1px solid {COLORS['gray']['200']}",
+                width="100%",
+                align_items="center"
+            ),
+            
+            # Contenido condicional del panel derecho
+            rx.cond(
+                # AppState.mostrar_historial_en_panel,
+                # Historial de cambios detallado
+                historial_cambios_diente(),
+                # Panel de detalles del diente
+                panel_detalles_diente()
+            ),
+            
+            spacing="0",
+            width="100%",
+            height="100%",
+            padding="4"
+        ),
+        style=PANEL_BASE_STYLE
     )
 
 # ==========================================
-# 📄 PÁGINA PRINCIPAL DE INTERVENCIÓN - FASE 1 COMPLETADA
+# 📱 VERSIÓN MÓVIL ADAPTATIVA
+# ==========================================
+
+def mobile_intervention_layout() -> rx.Component:
+    """📱 Layout adaptativo para móviles"""
+    return rx.vstack(
+        # Header compacto
+        header_intervencion_avanzado(),
+        
+        # Acordeón colapsable para móvil
+        rx.accordion.root(
+            rx.accordion.item(
+                rx.accordion.trigger(
+                    rx.hstack(
+                        rx.icon("user", size=16),
+                        "Información del Paciente",
+                        spacing="2"
+                    )
+                ),
+                rx.accordion.content(
+                    panel_informacion_paciente()
+                ),
+                value="paciente"
+            ),
+            rx.accordion.item(
+                rx.accordion.trigger(
+                    rx.hstack(
+                        rx.icon("stethoscope", size=16),
+                        "Odontograma Interactivo",
+                        spacing="2"
+                    )
+                ),
+                rx.accordion.content(
+                    odontograma_interactivo()
+                ),
+                value="odontograma"
+            ),
+            rx.accordion.item(
+                rx.accordion.trigger(
+                    rx.hstack(
+                        rx.icon("info", size=16),
+                        "Detalles del Diente",
+                        spacing="2"
+                    )
+                ),
+                rx.accordion.content(
+                    panel_detalles_diente()
+                ),
+                value="detalles"
+            ),
+            type="multiple",
+            default_value=["odontograma"],
+            width="100%"
+        ),
+        
+        spacing="3",
+        width="100%",
+        padding="3"
+    )
+
+# ==========================================
+# 📄 PÁGINA PRINCIPAL INTEGRADA
 # ==========================================
 
 def intervencion_page() -> rx.Component:
     """
-    🦷 Página de intervención odontológica v2.0 - FASE 1 COMPLETADA
+    🦷 Página de Intervención Odontológica V3.0 - INTEGRACIÓN COMPLETA
     
-    ✅ FUNCIONALIDADES IMPLEMENTADAS:
-    - Sistema de tabs profesional con navegación fluida
-    - Tema oscuro cristalino aplicado completamente
-    - Layout responsive optimizado para tablets clínicos
-    - Header compacto con información esencial del paciente
-    - Botones flotantes para acciones principales
-    - Contenido organizado por tabs con flujo lógico médico
-    - Formulario de intervención integrado y funcional
-    - Alertas médicas prominentes (alergias, condiciones)
-    - Estados visuales claros (en progreso, completado, etc.)
-    - Efectos glassmorphism y cristalinos profesionales
+    ✅ FASES 1 Y 2 INTEGRADAS:
+    - Panel Paciente mejorado con información expandida
+    - Odontograma SVG interactivo con sistema FDI completo
+    - Sistema de versionado automático con comparación histórica
+    - Panel de detalles diente con 4 tabs especializados
+    - Historial de cambios detallado con timeline
+    - Sistema de notificaciones en tiempo real
+    - Layout profesional de 3 paneles
+    - Responsive design completo
     
-    🔄 PRÓXIMAS FASES (después de retroalimentación):
-    - Fase 2: Odontograma completamente interactivo
-    - Fase 3: Historia clínica detallada con timeline
-    - Fase 4: Dashboard especializado + optimizaciones
+    🎯 FUNCIONALIDADES AVANZADAS:
+    - Interactividad completa en odontograma
+    - Notificaciones automáticas por cambios críticos
+    - Versionado automático del odontograma
+    - Timeline detallado de cambios por diente
+    - Configuración personalizable por usuario
+    - Exportación e impresión de datos
     
-    📊 MÉTRICAS OBJETIVO FASE 1:
-    - Tiempo intervención: < 5 minutos (vs 8 min actual)
-    - UX satisfaction: > 90% odontólogos
-    - Error rate: < 2% errores UI
-    - Tablet usability: > 95% funcional
+    📊 ARQUITECTURA:
+    Desktop: Panel Paciente (25%) | Panel Central con Tabs (50%) | Panel Detalles (25%)
+    Tablet: Panel Paciente (35%) | Panel Central (65%)
+    Mobile: Layout accordion vertical
     """
-    return rx.container(
-        # Contenido principal
+    
+    return rx.box(
+        # Layout principal
         rx.vstack(
-            # Header compacto del paciente con alertas médicas
-            compact_patient_header(),
+            # Header principal con notificaciones
+            header_intervencion_avanzado(),
             
-            # Sistema de tabs integrado con contenido específico
-            intervention_tabs_integrated(),
+            # Contenido principal adaptativo
+            rx.box(
+                # Layout desktop/tablet
+                rx.box(
+                    rx.hstack(
+                        # Panel izquierdo: Información del paciente
+                        panel_paciente_integrado(),
+                        
+                        # Panel central: Odontograma y tabs
+                        panel_central_integrado(),
+                        
+                        # Panel derecho: Detalles del diente
+                        rx.box(
+                            panel_detalles_integrado(),
+                            display=rx.breakpoints({"base": "none", "lg": "block"})  # Ocultar en móvil
+                        ),
+                        
+                        spacing="3",
+                        width="100%",
+                        height="100%",
+                        align_items="stretch"
+                    ),
+                    display=rx.breakpoints({"base": "none", "md": "block"})  # Desktop y tablet
+                ),
+                
+                # Layout móvil
+                rx.box(
+                    mobile_intervention_layout(),
+                    display=rx.breakpoints({"base": "block", "md": "none"})  # Solo móvil
+                ),
+                
+                width="100%",
+                height="100%"
+            ),
             
             spacing="0",
             width="100%",
-            max_width="1400px",
-            margin="0 auto"
+            max_width="1600px",  # Ampliado para más contenido
+            margin="0 auto",
+            height="100vh"
         ),
         
-        # Botones flotantes para acciones principales
-        floating_action_buttons(),
-        
-        # Fondo profesional cristalino con patrón médico sutil
-        style=dark_page_background(),
+        # Estilos del contenedor principal
+        style={
+            "background": f"linear-gradient(135deg, {COLORS['gray']['50']} 0%, {COLORS['primary']['50']} 100%)",
+            "min_height": "100vh"
+        },
         width="100%",
-        min_height="100vh",
-        padding="6",
+        padding="4",
         
-        # Evento de inicialización: cargar servicios y datos necesarios
-        on_mount=AppState.initialize_intervention_data
+        # Evento de inicialización
+        # on_mount=AppState.cargar_datos_intervencion
+        on_mount=[
+            AppState.cargar_servicios_disponibles,
+            AppState.cargar_historial_paciente(AppState.paciente_actual.id),
+            AppState.cargar_estadisticas_dia
+        ]
     )

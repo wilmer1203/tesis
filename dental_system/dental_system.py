@@ -49,8 +49,9 @@ def main_layout(page_content: rx.Component) -> rx.Component:
         AppState.esta_autenticado,
         
             rx.hstack(
+                rx.cond( AppState.current_page != "intervencion",sidebar()),
                 # Sidebar de navegación
-                sidebar(),
+                
                 
                 # 🔥 AQUÍ ESTÁ EL CAMBIO PRINCIPAL - USAR EL CONTENIDO DINÁMICO
                 rx.box(

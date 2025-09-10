@@ -1132,7 +1132,7 @@ def resumen_lateral_dinamico() -> rx.Component:
             rx.vstack(
                 rx.hstack(
                     rx.box(
-                        rx.icon("check-circle", size=16, color="white"),
+                        rx.icon("check", size=16, color="white"),
                         style={
                             "background": "#10b981",
                             "border_radius": "8px",

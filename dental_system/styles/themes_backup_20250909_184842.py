@@ -20,8 +20,9 @@ import colorsys
 # ==========================================
 
 COLORS = {
-    # Colores primarios (Turquesa dental) - Optimizados
+    # Colores primarios (Turquesa dental) - Expandidos
     "primary": {
+        "25": "#FFFFFF",
         "50": "#E6F9F8",
         "100": "#B3F0ED", 
         "200": "#80E7E2",
@@ -31,21 +32,34 @@ COLORS = {
         "600": "#18A8A7",
         "700": "#159594",
         "800": "#118281",
-        "900": "#0E6F6E"
+        "900": "#0E6F6E",
+        "950": "#0A5555"
     },
     
-    # Colores secundarios (dorado) - Optimizados
+    # Colores secundarios (dorado) - Expandidos
     "secondary": {
+        "25": "#FFFDF5",
+        "50": "#FEF7E0",
+        "100": "#FCEAAD",
+        "200": "#FADD7A",
+        "300": "#F8D047",
+        "400": "#F6C314",
         "500": "#E6B012",  # Color secundario
-        "600": "#D4A212"
+        "600": "#D4A212",
+        "700": "#C29411",
+        "800": "#B08610",
+        "900": "#9E780F",
+        "950": "#7D5F0A"
     },
     
-    # Azules (complementarios) - Optimizados
+    # Azules (complementarios) - Expandidos
     "blue": {
-        "25": "#F7FAFC",
+        "25": "#F7FAFC", 
         "50": "#E6F0F7",
         "100": "#B3D4E8",
         "200": "#80B8D9",
+        "300": "#4D9CCA",
+        "400": "#1A80BB",
         "500": "#186289",  # Azul medio
         "600": "#15587A",
         "700": "#124E6B",
@@ -54,7 +68,7 @@ COLORS = {
         "950": "#002A42"
     },
     
-    # Grises - Sistema optimizado
+    # Grises - Sistema completo
     "gray": {
         "25": "#FCFCFD",
         "50": "#F8FAFC",
@@ -73,7 +87,7 @@ COLORS = {
     # Estados semánticos
     "success": {
         "25": "#F0FDF4",
-        "50": "#DCFCE7",
+        "50": "#DCFCE7", 
         "100": "#BBF7D0",
         "200": "#86EFAC",
         "300": "#4ADE80",
@@ -81,34 +95,50 @@ COLORS = {
         "500": "#16A34A",  # Principal
         "600": "#15803D",
         "700": "#166534",
-        "800": "#14532D"
+        "800": "#14532D",
+        "900": "#14532D"
     },
     
     "error": {
         "25": "#FFFBFA",
         "50": "#FEF2F2",
-        "100": "#FEE2E2",
+        "100": "#FEE2E2", 
         "200": "#FECACA",
         "300": "#FCA5A5",
         "400": "#F87171",
         "500": "#EF4444",  # Principal
         "600": "#DC2626",
-        "700": "#B91C1C"
+        "700": "#B91C1C",
+        "800": "#991B1B",
+        "900": "#7F1D1D"
     },
     
     "warning": {
         "25": "#FFFCF5",
         "50": "#FEF3C7",
         "100": "#FEF3C7",
-        "200": "#FDE68A",
+        "200": "#FDE68A", 
         "300": "#FCD34D",
+        "400": "#FBBF24",
         "500": "#F59E0B",  # Principal
+        "600": "#D97706",
         "700": "#B45309",
-        "800": "#92400E"
+        "800": "#92400E",
+        "900": "#78350F"
     },
     
     "info": {
-        "500": "#3B82F6"  # Principal
+        "25": "#F8FAFC",
+        "50": "#EFF6FF",
+        "100": "#DBEAFE",
+        "200": "#BFDBFE",
+        "300": "#93C5FD", 
+        "400": "#60A5FA",
+        "500": "#3B82F6",  # Principal
+        "600": "#2563EB",
+        "700": "#1D4ED8",
+        "800": "#1E40AF",
+        "900": "#1E3A8A"
     }
 }
 
@@ -154,7 +184,7 @@ DARK_THEME = {
         "primary_hover": COLORS["primary"]["300"],  # Hover primario
         "primary_light": COLORS["primary"]["800"],  # Primario claro
         "shadow": "rgba(0, 0, 0, 0.5)",   # Sombras más pronunciadas
-        "accent": COLORS["secondary"]["500"]        # Color de acento
+        "accent": COLORS["secondary"]["400"]        # Color de acento
     }
 }
 
@@ -522,21 +552,52 @@ COMPONENT_STYLES = {
 }
 
 # ==========================================
-# 🌈 GRADIENTES OPTIMIZADOS (SOLO UTILIZADOS)
+# 🌈 GRADIENTES CRISTALINOS AVANZADOS
 # ==========================================
 
 GRADIENTS = {
-    # Gradientes activamente utilizados en el sistema
+    # Gradientes principales cristalinos
+    "crystal_primary": f"linear-gradient(135deg, {COLORS['primary']['400']}AA 0%, {COLORS['primary']['600']}DD 50%, {COLORS['blue']['500']}AA 100%)",
+    "crystal_secondary": f"linear-gradient(135deg, {COLORS['secondary']['400']}AA 0%, {COLORS['secondary']['600']}DD 50%, {COLORS['primary']['500']}AA 100%)",
+    
+    # Gradientes glass/glassmorphism
+    "glass_primary": f"linear-gradient(135deg, {COLORS['primary']['100']}40 0%, {COLORS['primary']['200']}80 50%, {COLORS['primary']['100']}40 100%)",
+    "glass_secondary": f"linear-gradient(135deg, {COLORS['secondary']['100']}40 0%, {COLORS['secondary']['200']}80 50%, {COLORS['secondary']['100']}40 100%)",
+    "glass_white": "linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0.1) 100%)",
+    
+    # Gradientes con efectos de resplandor
     "neon_primary": f"linear-gradient(135deg, {COLORS['primary']['500']} 0%, {COLORS['blue']['600']} 50%, {COLORS['primary']['600']} 100%)",
-    "text_gradient_primary": f"linear-gradient(135deg, {COLORS['primary']['600']} 0%, {COLORS['blue']['500']} 100%)"
+    "neon_secondary": f"linear-gradient(135deg, {COLORS['secondary']['500']} 0%, {COLORS['secondary']['600']} 50%, {COLORS['secondary']['700']} 100%)",
+    "neon_success": f"linear-gradient(135deg, {COLORS['success']['400']} 0%, {COLORS['success']['600']} 50%, {COLORS['success']['700']} 100%)",
+    
+    # Gradientes de fondo premium
+    "premium_bg": f"linear-gradient(135deg, {COLORS['gray']['50']} 0%, {COLORS['primary']['25']} 25%, {COLORS['secondary']['25']} 75%, {COLORS['gray']['50']} 100%)",
+    "premium_card": f"linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.7) 50%, rgba(255,255,255,0.9) 100%)",
+    
+    # Gradientes animados (para uso con keyframes)
+    "shimmer": f"linear-gradient(90deg, {COLORS['gray']['200']} 0%, {COLORS['gray']['100']} 50%, {COLORS['gray']['200']} 100%)",
+    "rainbow": f"linear-gradient(45deg, {COLORS['primary']['500']}, {COLORS['secondary']['500']}, {COLORS['success']['500']}, {COLORS['info']['500']})",
+    
+    # Gradientes para texto
+    "text_gradient_primary": f"linear-gradient(135deg, {COLORS['primary']['600']} 0%, {COLORS['blue']['500']} 100%)",
+    "text_gradient_premium": f"linear-gradient(135deg, {COLORS['primary']['700']} 0%, {COLORS['blue']['600']} 50%, {COLORS['secondary']['600']} 100%)",
+    
+    # Gradientes para bordes luminosos
+    "border_glow": f"linear-gradient(135deg, {COLORS['primary']['500']}60 0%, {COLORS['secondary']['500']}60 50%, {COLORS['blue']['500']}60 100%)",
+    "border_crystal": f"linear-gradient(135deg, rgba(255,255,255,0.5) 0%, {COLORS['primary']['200']}80 50%, rgba(255,255,255,0.5) 100%)",
+    
+    # Gradientes específicos para tema oscuro
+    "dark_bg": "linear-gradient(135deg, #0a0b0d 0%, #1a1b1e 100%)",
+    "dark_surface": f"linear-gradient(135deg, #1a1b1e 0%, #242529 100%)",
+    "dark_card": f"linear-gradient(135deg, #242529 0%, #2d2f33 100%)",
+    "dark_glass": "linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.05) 100%)"
 }
 
 # ==========================================
-# 🎭 EFECTOS GLASSMORPHISM OPTIMIZADOS (SOLO UTILIZADOS)
+# 🎭 EFECTOS GLASSMORPHISM AVANZADOS
 # ==========================================
 
 GLASS_EFFECTS = {
-    # Efectos activamente utilizados en el sistema
     "light": {
         "background": "rgba(255, 255, 255, 0.25)",
         "backdrop_filter": "blur(20px)",
@@ -554,9 +615,45 @@ GLASS_EFFECTS = {
         "backdrop_filter": "blur(30px)",
         "border": "1px solid rgba(255, 255, 255, 0.3)",
         "box_shadow": "0 16px 48px 0 rgba(31, 38, 135, 0.45)"
+    },
+    "colored_primary": {
+        "background": f"{COLORS['primary']['500']}15",
+        "backdrop_filter": "blur(20px)",
+        "border": f"1px solid {COLORS['primary']['500']}30",
+        "box_shadow": f"0 12px 40px 0 {COLORS['primary']['500']}25"
+    },
+    "colored_secondary": {
+        "background": f"{COLORS['secondary']['500']}15",
+        "backdrop_filter": "blur(20px)",
+        "border": f"1px solid {COLORS['secondary']['500']}30",
+        "box_shadow": f"0 12px 40px 0 {COLORS['secondary']['500']}25"
+    },
+    "crystal": {
+        "background": "rgba(255, 255, 255, 0.08)",
+        "backdrop_filter": "blur(40px) saturate(150%)",
+        "border": "1px solid rgba(255, 255, 255, 0.2)",
+        "box_shadow": f"0 20px 60px 0 {COLORS['primary']['500']}20, inset 0 1px 0 rgba(255, 255, 255, 0.3)"
     }
 }
 
+# ==========================================
+# 🎨 EFECTOS NEUMORPHISM
+# ==========================================
+
+NEUMORPHISM = {
+    "light": {
+        "background": COLORS["gray"]["100"],
+        "box_shadow": f"12px 12px 24px {COLORS['gray']['300']}, -12px -12px 24px {COLORS['gray']['50']}"
+    },
+    "pressed": {
+        "background": COLORS["gray"]["100"],
+        "box_shadow": f"inset 8px 8px 16px {COLORS['gray']['300']}, inset -8px -8px 16px {COLORS['gray']['50']}"
+    },
+    "colored": {
+        "background": COLORS["primary"]["100"],
+        "box_shadow": f"12px 12px 24px {COLORS['primary']['200']}, -12px -12px 24px {COLORS['primary']['50']}"
+    }
+}
 
 
 botton_login = {
@@ -611,7 +708,21 @@ def create_gradient(color1: str, color2: str, direction: str = "135deg") -> str:
     """Crear gradiente CSS personalizado"""
     return f"linear-gradient({direction}, {color1} 0%, {color2} 100%)"
 
-# Función get_responsive_value removida - no se usa en el proyecto actual
+def get_responsive_value(
+    values: Dict[str, str], 
+    breakpoint: str = "base"
+) -> str:
+    """Obtener valor responsive según breakpoint"""
+    if breakpoint in values:
+        return values[breakpoint]
+    
+    # Fallback a valores más pequeños
+    fallback_order = ["base", "sm", "md", "lg", "xl", "2xl"]
+    for bp in fallback_order:
+        if bp in values:
+            return values[bp]
+    
+    return list(values.values())[0] if values else ""
 
 @lru_cache(maxsize=128)
 def darken_color(hex_color: str, factor: float = 0.1) -> str:
@@ -671,7 +782,20 @@ def get_contrast_color(background_color: str) -> str:
     except (ValueError, IndexError):
         return "#000000"
 
-# Función create_theme_object removida - no se usa en el proyecto actual
+def create_theme_object(base_theme: str = "light", role: str = "administrador") -> Dict[str, Any]:
+    """Crear objeto de tema completo combinando tema base y rol"""
+    base = LIGHT_THEME if base_theme == "light" else DARK_THEME
+    role_theme = get_role_theme(role)
+    
+    return {
+        **base,
+        "role": role_theme,
+        "components": COMPONENT_STYLES,
+        "spacing": SPACING,
+        "typography": TYPOGRAPHY,
+        "animations": ANIMATIONS,
+        "breakpoints": BREAKPOINTS
+    }
 
 # ==========================================
 # 🌙 SISTEMA DE ESTILOS TEMA OSCURO REUTILIZABLE
@@ -794,64 +918,11 @@ DENTAL_SPECIFIC = {
 # 🛠️ FUNCIONES UTILITARIAS TEMA OSCURO
 # ==========================================
 
-def create_dark_style(
-    style_key: Optional[str] = None,
-    base_style: Optional[Dict[str, Any]] = None,
-    custom_logic: Optional[callable] = None,
-    **overrides
-) -> Dict[str, Any]:
-    """
-    🎨 Función genérica para crear estilos de tema oscuro reutilizables
-    
-    Args:
-        style_key: Clave en DARK_THEME_STYLES para usar como base
-        base_style: Diccionario de estilo base personalizado
-        custom_logic: Función que recibe (**kwargs) y retorna Dict para lógica específica
-        **overrides: Propiedades CSS que sobrescriben el estilo base
-        
-    Returns:
-        Dict con el estilo CSS final
-        
-    Examples:
-        # Patrón simple (usa DARK_THEME_STYLES)
-        create_dark_style("crystal_card")
-        
-        # Patrón con lógica personalizada
-        create_dark_style(
-            custom_logic=lambda color=None, **kw: {"background": color} if color else {},
-            color="#123456"
-        )
-        
-        # Patrón base personalizado
-        create_dark_style(
-            base_style={"padding": "10px"},
-            margin="5px"
-        )
-    """
-    final_style = {}
-    
-    # 1. Aplicar estilo base desde DARK_THEME_STYLES si se especifica
-    if style_key and style_key in DARK_THEME_STYLES:
-        final_style = DARK_THEME_STYLES[style_key].copy()
-    
-    # 2. Aplicar estilo base personalizado
-    elif base_style:
-        final_style = base_style.copy()
-    
-    # 3. Aplicar lógica personalizada si existe
-    if custom_logic and callable(custom_logic):
-        custom_result = custom_logic(**overrides)
-        if isinstance(custom_result, dict):
-            final_style.update(custom_result)
-    
-    # 4. Aplicar overrides finales
-    final_style.update(overrides)
-    
-    return final_style
-
 def dark_page_background(**overrides) -> Dict[str, Any]:
     """🌙 Fondo de página profesional para tema oscuro"""
-    return create_dark_style("page_background", **overrides)
+    base_style = DARK_THEME_STYLES["page_background"].copy()
+    base_style.update(overrides)
+    return base_style
 
 def dark_crystal_card(color: str = None, hover_lift: str = "6px", **overrides) -> Dict[str, Any]:
     """💎 Card cristal con color personalizable"""
@@ -886,173 +957,86 @@ def dark_crystal_card(color: str = None, hover_lift: str = "6px", **overrides) -
 
 def dark_sidebar_style(**overrides) -> Dict[str, Any]:
     """🎭 Estilo de sidebar profesional con glassmorphism"""
-    return create_dark_style("sidebar", **overrides)
+    base_style = DARK_THEME_STYLES["sidebar"].copy()
+    base_style.update(overrides)
+    return base_style
 
 def dark_table_container(**overrides) -> Dict[str, Any]:
     """📊 Contenedor de tabla con efectos cristal"""
-    return create_dark_style("dark_table", **overrides)
+    base_style = DARK_THEME_STYLES["dark_table"].copy()
+    base_style.update(overrides)
+    return base_style
 
 def dark_header_style(gradient_colors: List[str] = None, **overrides) -> Dict[str, Any]:
     """📋 Header profesional con gradiente personalizable"""
-    def _header_logic(gradient_colors=None, **kwargs):
-        if not gradient_colors:
-            gradient_colors = [DARK_THEME["colors"]["surface"], DARK_THEME["colors"]["surface_secondary"]]
-        
-        return {
-            "background": f"linear-gradient(135deg, {gradient_colors[0]} 0%, {gradient_colors[1]} 100%)",
-            "border_radius": RADIUS["xl"],
-            "box_shadow": "0 4px 12px rgba(0, 0, 0, 0.3)",
-            "border": f"1px solid {DARK_THEME['colors']['border']}",
-            "backdrop_filter": "blur(10px)",
-            "padding": f"{SPACING['3']} {SPACING['6']}",
-            "border_bottom": f"1px solid {DARK_THEME['colors']['border']}"
-        }
+    if not gradient_colors:
+        gradient_colors = [DARK_THEME["colors"]["surface"], DARK_THEME["colors"]["surface_secondary"]]
     
-    return create_dark_style(
-        custom_logic=_header_logic,
-        gradient_colors=gradient_colors,
-        **overrides
-    )
+    base_style = {
+        "background": f"linear-gradient(135deg, {gradient_colors[0]} 0%, {gradient_colors[1]} 100%)",
+        "border_radius": RADIUS["xl"],
+        "box_shadow": "0 4px 12px rgba(0, 0, 0, 0.3)",
+        "border": f"1px solid {DARK_THEME['colors']['border']}",
+        "backdrop_filter": "blur(10px)",
+        "padding": f"{SPACING['3']} {SPACING['6']}",
+        "border_bottom": f"1px solid {DARK_THEME['colors']['border']}"
+    }
+    
+    base_style.update(overrides)
+    return base_style
 
 def dark_search_input(**overrides) -> Dict[str, Any]:
     """🔍 Input de búsqueda con tema oscuro"""
-    return create_dark_style("search_input", **overrides)
+    base_style = DARK_THEME_STYLES["search_input"].copy()
+    base_style.update(overrides)
+    return base_style
 
 def dark_nav_item_style(color: str = None) -> Dict[str, Any]:
     """🧭 Estilo base para items de navegación (sin lógica condicional)"""
-    def _nav_logic(color=None, **kwargs):
-        if not color:
-            color = COLORS["primary"]["500"]
-        
-        return {
-            "background": "transparent",
-            "color": DARK_THEME["colors"]["text_secondary"],
-            "border_radius": RADIUS["lg"],
-            "transition": "all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
-            "position": "relative",
-            "_hover": {
-                "background": "rgba(255, 255, 255, 0.08)",
-                "color": DARK_THEME["colors"]["text_primary"],
-                "transform": "translateX(2px)",
-                "box_shadow": "0 2px 8px rgba(0, 0, 0, 0.2)"
-            }
-        }
+    if not color:
+        color = COLORS["primary"]["500"]
     
-    return create_dark_style(custom_logic=_nav_logic, color=color)
+    return {
+        "background": "transparent",
+        "color": DARK_THEME["colors"]["text_secondary"],
+        "border_radius": RADIUS["lg"],
+        "transition": "all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+        "position": "relative",
+        "_hover": {
+            "background": "rgba(255, 255, 255, 0.08)",
+            "color": DARK_THEME["colors"]["text_primary"],
+            "transform": "translateX(2px)",
+            "box_shadow": "0 2px 8px rgba(0, 0, 0, 0.2)"
+        }
+    }
 
 def dark_nav_item_active_style(color: str = None) -> Dict[str, Any]:
     """🧭 Estilo para items de navegación activos"""
-    def _nav_active_logic(color=None, **kwargs):
-        if not color:
-            color = COLORS["primary"]["500"]
-        
-        return {
-            "background": f"linear-gradient(135deg, {color}40 0%, {color}20 100%)",
-            "border": f"1px solid {color}60",
-            "border_radius": RADIUS["xl"],
-            "color": "white",
-            "box_shadow": f"0 4px 12px {color}30, inset 0 1px 0 rgba(255, 255, 255, 0.1)",
-            "transform": "translateX(4px)",
-            "backdrop_filter": "blur(10px)",
-            "position": "relative",
-            "_before": {
-                "content": "''",
-                "position": "absolute",
-                "left": "0",
-                "top": "50%",
-                "transform": "translateY(-50%)",
-                "width": "4px",
-                "height": "60%",
-                "background": f"linear-gradient(to bottom, {color} 0%, transparent 100%)",
-                "border_radius": "0 4px 4px 0",
-                "box_shadow": f"0 0 8px {color}80"
-            }
+    if not color:
+        color = COLORS["primary"]["500"]
+    
+    return {
+        "background": f"linear-gradient(135deg, {color}40 0%, {color}20 100%)",
+        "border": f"1px solid {color}60",
+        "border_radius": RADIUS["xl"],
+        "color": "white",
+        "box_shadow": f"0 4px 12px {color}30, inset 0 1px 0 rgba(255, 255, 255, 0.1)",
+        "transform": "translateX(4px)",
+        "backdrop_filter": "blur(10px)",
+        "position": "relative",
+        "_before": {
+            "content": "''",
+            "position": "absolute",
+            "left": "0",
+            "top": "50%",
+            "transform": "translateY(-50%)",
+            "width": "4px",
+            "height": "60%",
+            "background": f"linear-gradient(to bottom, {color} 0%, transparent 100%)",
+            "border_radius": "0 4px 4px 0",
+            "box_shadow": f"0 0 8px {color}80"
         }
-    
-    return create_dark_style(custom_logic=_nav_active_logic, color=color)
-
-# ==========================================
-# 🌟 FUNCIONES DE CONVENIENCIA ADICIONALES
-# ==========================================
-
-def create_button_style(variant: str = "primary", size: str = "md", **overrides) -> Dict[str, Any]:
-    """🔘 Crear estilo de botón usando la función genérica"""
-    def _button_logic(variant="primary", size="md", **kwargs):
-        base = COMPONENT_STYLES["button"]["base"].copy()
-        base.update(COMPONENT_STYLES["button"]["sizes"].get(size, {}))
-        base.update(COMPONENT_STYLES["button"]["variants"].get(variant, {}))
-        return base
-    
-    return create_dark_style(
-        custom_logic=_button_logic,
-        variant=variant,
-        size=size,
-        **overrides
-    )
-
-def create_input_style(focus_color: str = None, **overrides) -> Dict[str, Any]:
-    """📝 Crear estilo de input usando la función genérica"""
-    def _input_logic(focus_color=None, **kwargs):
-        if not focus_color:
-            focus_color = COLORS["primary"]["500"]
-        
-        base = COMPONENT_STYLES["input"]["base"].copy()
-        base["_focus"]["border_color"] = focus_color
-        return base
-    
-    return create_dark_style(
-        custom_logic=_input_logic,
-        focus_color=focus_color,
-        **overrides
-    )
-
-def create_card_style(variant: str = "base", shadow_level: str = "md", **overrides) -> Dict[str, Any]:
-    """💳 Crear estilo de card usando la función genérica"""
-    def _card_logic(variant="base", shadow_level="md", **kwargs):
-        base = COMPONENT_STYLES["card"]["base"].copy()
-        base.update(COMPONENT_STYLES["card"]["variants"].get(variant, {}))
-        base["box_shadow"] = SHADOWS.get(shadow_level, SHADOWS["md"])
-        return base
-    
-    return create_dark_style(
-        custom_logic=_card_logic,
-        variant=variant,
-        shadow_level=shadow_level,
-        **overrides
-    )
-
-def create_gradient_background(color1: str, color2: str, direction: str = "135deg", **overrides) -> Dict[str, Any]:
-    """🌈 Crear fondo con gradiente usando la función genérica"""
-    gradient_style = {
-        "background": f"linear-gradient({direction}, {color1} 0%, {color2} 100%)"
     }
-    
-    return create_dark_style(
-        base_style=gradient_style,
-        **overrides
-    )
-
-def create_glass_effect(intensity: str = "medium", tint_color: str = None, **overrides) -> Dict[str, Any]:
-    """🔮 Crear efecto glassmorphism usando la función genérica"""
-    def _glass_logic(intensity="medium", tint_color=None, **kwargs):
-        if tint_color:
-            # Efecto glass con color personalizado
-            return {
-                "background": f"{tint_color}15",
-                "backdrop_filter": "blur(20px)",
-                "border": f"1px solid {tint_color}30",
-                "box_shadow": f"0 12px 40px 0 {tint_color}25"
-            }
-        else:
-            # Usar efecto predefinido
-            return GLASS_EFFECTS.get(intensity, GLASS_EFFECTS["medium"])
-    
-    return create_dark_style(
-        custom_logic=_glass_logic,
-        intensity=intensity,
-        tint_color=tint_color,
-        **overrides
-    )
 
 # ==========================================
 # 📤 EXPORTS
@@ -1078,20 +1062,22 @@ __all__ = [
     "DENTAL_SPECIFIC",
     "DARK_THEME_STYLES",
     
-    # 🌟 Elementos cristalinos utilizados
+    # 🌟 Nuevos elementos cristalinos
     "GRADIENTS",
     "GLASS_EFFECTS",
+    "NEUMORPHISM",
     
-    # Funciones de utilidad activamente usadas
+    # Funciones de utilidad
     "get_color",
     "get_role_theme",
     "create_gradient",
+    "get_responsive_value",
     "darken_color",
     "lighten_color", 
     "get_contrast_color",
+    "create_theme_object",
     
-    # 🌙 Funciones tema oscuro activamente usadas
-    "create_dark_style",      # 🌟 NUEVA FUNCIÓN GENÉRICA
+    # 🌙 Funciones tema oscuro
     "dark_page_background",
     "dark_crystal_card", 
     "dark_sidebar_style",
@@ -1099,16 +1085,5 @@ __all__ = [
     "dark_header_style",
     "dark_search_input",
     "dark_nav_item_style",
-    "dark_nav_item_active_style",
-    
-    # 🌟 Funciones de conveniencia nuevas
-    "create_button_style",
-    "create_input_style",
-    "create_card_style",
-    "create_gradient_background",
-    "create_glass_effect",
-    
-    # Estilos especializados
-    "botton_login",
-    "input_login"
+    "dark_nav_item_active_style"
 ]

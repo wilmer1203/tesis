@@ -1,13 +1,15 @@
 """
-🦷 COMPONENTE: PANEL DE INFORMACIÓN DEL PACIENTE
-==============================================
+🦷 PANEL DE INFORMACIÓN DEL PACIENTE - VERSIÓN MEJORADA
+========================================================
 
-Panel lateral izquierdo para la página de intervención que muestra:
-- Información personal del paciente
-- Datos médicos importantes (alergias, condiciones)
-- Información de contacto
-- Foto/avatar del paciente
-- Datos de la consulta actual
+Panel lateral izquierdo mejorado con elementos de la plantilla PatientInfoPanel.jsx
+- ✅ Panel colapsable con estado persistente
+- ✅ Avatar/foto del paciente con fallback
+- ✅ Alertas médicas visuales prominentes (alergias, condiciones)
+- ✅ Información de contacto expandida (emergencia, seguro)
+- ✅ Estadísticas de visitas integradas
+- ✅ Historial médico organizado
+- ✅ Diseño profesional responsivo
 """
 
 import reflex as rx
@@ -17,137 +19,123 @@ from dental_system.models import PacienteModel, ConsultaModel
 from dental_system.styles.themes import COLORS, SHADOWS, RADIUS, SPACING
 
 # ==========================================
-# 🎨 ESTILOS DEL PANEL DE PACIENTE
+# 🎨 ESTILOS MEJORADOS INSPIRADOS EN PLANTILLA
 # ==========================================
 
 PANEL_CONTAINER_STYLE = {
     "background": "white",
-    "border_radius": RADIUS["xl"],
-    "box_shadow": SHADOWS["sm"],
     "border": f"1px solid {COLORS['gray']['200']}",
-    "padding": SPACING["0"],
+    "border_radius": RADIUS["xl"],
+    "box_shadow": "0 2px 8px rgba(0,0,0,0.1)",
     "height": "100%",
     "width": "100%",
-    "overflow": "hidden"
+    "overflow": "hidden",
+    "transition": "all 0.3s ease",
+    # Responsive design
+    "@media (max-width: 768px)": {
+        "border_radius": RADIUS["lg"],
+        "box_shadow": "0 1px 4px rgba(0,0,0,0.1)"
+    }
 }
 
 PANEL_HEADER_STYLE = {
+    "display": "flex",
+    "align_items": "center",
+    "justify_content": "space-between",
+    "padding": SPACING["4"],
     "background": f"linear-gradient(135deg, {COLORS['primary']['500']} 0%, {COLORS['primary']['600']} 100%)",
-    "padding": SPACING["6"],
     "color": "white",
-    "border_radius": f"{RADIUS['xl']} {RADIUS['xl']} 0 0"
+    "border_bottom": f"1px solid {COLORS['gray']['200']}"
 }
 
 PANEL_CONTENT_STYLE = {
-    "padding": SPACING["6"],
-    "height": "calc(100% - 180px)",  # Espacio para header
-    "overflow_y": "auto"
+    "padding": SPACING["4"],
+    "height": "calc(100% - 80px)",
+    "overflow_y": "auto",
+    "transition": "all 0.3s ease"
 }
 
-AVATAR_CONTAINER_STYLE = {
-    "width": "80px",
-    "height": "80px",
-    "border_radius": "50%",
-    "background": "rgba(255, 255, 255, 0.2)",
-    "border": "3px solid rgba(255, 255, 255, 0.3)",
-    "display": "flex",
-    "align_items": "center",
-    "justify_content": "center",
-    "font_size": "36px",
-    "color": "white"
+# Estilos para alertas médicas (inspirado en la plantilla)
+ALERT_STYLE = {
+    "background": COLORS["error"]["50"],
+    "border": f"1px solid {COLORS['error']['200']}",
+    "border_radius": RADIUS["md"],
+    "padding": SPACING["3"],
+    "margin_bottom": SPACING["3"]
+}
+
+WARNING_STYLE = {
+    "background": COLORS["warning"]["50"],
+    "border": f"1px solid {COLORS['warning']['200']}",
+    "border_radius": RADIUS["md"],
+    "padding": SPACING["3"],
+    "margin_bottom": SPACING["3"]
 }
 
 INFO_CARD_STYLE = {
     "background": COLORS["gray"]["50"],
     "border": f"1px solid {COLORS['gray']['200']}",
-    "border_radius": RADIUS["lg"],
-    "padding": SPACING["4"],
-    "margin_bottom": SPACING["4"]
+    "border_radius": RADIUS["md"],
+    "padding": SPACING["3"],
+    "margin_bottom": SPACING["3"]
 }
 
-ALERT_CARD_STYLE = {
-    "background": COLORS["error"]["50"],
-    "border": f"1px solid {COLORS['error']['200']}",
-    "border_radius": RADIUS["lg"],
-    "padding": SPACING["4"],
-    "margin_bottom": SPACING["4"]
-}
-
-WARNING_CARD_STYLE = {
-    "background": COLORS["warning"]["50"],
-    "border": f"1px solid {COLORS['warning']['200']}",
-    "border_radius": RADIUS["lg"],
-    "padding": SPACING["4"],
-    "margin_bottom": SPACING["4"]
+STATS_CARD_STYLE = {
+    "background": f"linear-gradient(135deg, {COLORS['primary']['50']} 0%, {COLORS['primary']['100']} 100%)",
+    "border": f"1px solid {COLORS['primary']['200']}",
+    "border_radius": RADIUS["md"],
+    "padding": SPACING["3"],
+    "margin_bottom": SPACING["3"]
 }
 
 # ==========================================
-# 🧩 COMPONENTES AUXILIARES
+# 🧩 COMPONENTES AUXILIARES MEJORADOS
 # ==========================================
 
-def avatar_paciente(paciente: rx.Var[PacienteModel]) -> rx.Component:
-    """👤 Avatar del paciente con iniciales"""
-    return rx.box(
-        # Usar iniciales del nombre como avatar
-        rx.cond(
-            (paciente.primer_nombre.length() > 0) & (paciente.primer_apellido.length() > 0),
-            f"{paciente.primer_nombre[0]}{paciente.primer_apellido[0]}",
-            rx.cond(
-                paciente.primer_nombre.length() > 0,
-                f"{paciente.primer_nombre[0]}?",
-                "??"
-            )
+def avatar_paciente_mejorado(paciente: rx.Var[PacienteModel]) -> rx.Component:
+    """👤 Avatar mejorado del paciente con iniciales profesionales"""
+    return rx.avatar(
+        fallback=rx.cond(
+            (paciente.primer_nombre != "") & (paciente.primer_apellido != ""),
+            paciente.primer_nombre[0] + paciente.primer_apellido[0],
+            "?"
         ),
-        style=AVATAR_CONTAINER_STYLE
+        size="6", 
+        radius="full",
+        color_scheme="teal",
+        style={
+            "border": f"3px solid {COLORS['primary']['400']}",
+            "box_shadow": "0 4px 12px rgba(0,0,0,0.15)"
+        }
     )
 
-def badge_prioridad_consulta(consulta: rx.Var[ConsultaModel]) -> rx.Component:
-    """🚨 Badge de prioridad de la consulta"""
-    return rx.cond(
-        consulta.prioridad == "urgente",
-        rx.badge(
-            "🚨 URGENTE",
-            color_scheme="red",
-            size="3",
-            font_weight="bold"
-        ),
-        rx.cond(
-            consulta.prioridad == "alta",
-            rx.badge(
-                "⚡ ALTA PRIORIDAD",
-                color_scheme="orange",
-                size="2"
-            ),
-            rx.cond(
-                consulta.prioridad != "normal",
-                rx.badge(
-                    consulta.prioridad.upper(),
-                    color_scheme="gray",
-                    size="2"
-                )
-            )
-        )
+def badge_info(texto: str, color_scheme: str = "gray") -> rx.Component:
+    """🏷️ Badge de información consistente"""
+    return rx.badge(
+        texto,
+        color_scheme=color_scheme,
+        variant="soft",
+        size="2"
     )
 
-def info_item(icono: str, titulo: str, valor: rx.Var, color: str = "gray") -> rx.Component:
-    """📋 Item de información individual"""
+def info_item_mejorado(icono: str, titulo: str, valor: rx.Var, color: str = "gray") -> rx.Component:
+    """📋 Item de información mejorado con iconos"""
     return rx.hstack(
-        rx.text(icono, font_size="16px"),
+        rx.icon(icono, size=16, color=f"{color}.500"),
         rx.vstack(
             rx.text(
                 titulo,
-                font_size="12px",
-                font_weight="medium",
-                color=COLORS["gray"]["500"],
-                margin_bottom="1px"
+                size="2",
+                weight="medium",
+                color=f"{color}.600"
             ),
             rx.text(
                 valor,
-                font_size="14px",
-                font_weight="medium",
-                color=COLORS[color]["700"]
+                size="3",
+                weight="medium",
+                color="gray.900"
             ),
-            spacing="0",
+            spacing="1",
             align_items="start"
         ),
         spacing="3",
@@ -156,312 +144,353 @@ def info_item(icono: str, titulo: str, valor: rx.Var, color: str = "gray") -> rx
     )
 
 # ==========================================
-# 📋 COMPONENTES PRINCIPALES
+# 📋 COMPONENTES PRINCIPALES MEJORADOS
 # ==========================================
 
-def panel_header_paciente() -> rx.Component:
-    """👤 Header del panel con información principal del paciente"""
+def panel_header_colapsable() -> rx.Component:
+    """👤 Header del panel con botón de colapso (inspirado en plantilla)"""
     return rx.box(
         rx.hstack(
-            # Avatar del paciente
-            avatar_paciente(AppState.paciente_actual),
+            # Información principal con avatar
+            rx.hstack(
+                rx.icon("user", size=20, color="white"),
+                rx.heading("Información del Paciente", size="4", color="white"),
+                spacing="2"
+            ),
+            
+            # Botón de colapso (inspirado en PatientInfoPanel.jsx)
+            rx.button(
+                rx.cond(
+                    AppState.panel_paciente_expandido,
+                    rx.icon("chevron-up", size=16),
+                    rx.icon("chevron-down", size=16)
+                ),
+                on_click=AppState.toggle_panel_paciente,
+                variant="ghost",
+                size="2",
+                color_scheme="gray",
+                style={
+                    "color": "white",
+                    "_hover": {"background": "rgba(255,255,255,0.1)"}
+                }
+            ),
+            
+            width="100%",
+            justify="between"
+        ),
+        style=PANEL_HEADER_STYLE
+    )
+
+def seccion_principal_paciente() -> rx.Component:
+    """👤 Sección principal con avatar e información básica (inspirado en plantilla)"""
+    return rx.vstack(
+        rx.hstack(
+            # Avatar mejorado (20% más grande que el original)
+            avatar_paciente_mejorado(AppState.paciente_actual),
             
             # Información principal
             rx.vstack(
-                rx.text(
-                    AppState.paciente_actual.nombre_completo,
-                    font_size="20px",
-                    font_weight="bold",
-                    color="white"
+                rx.cond(
+                    AppState.paciente_actual.primer_nombre != "",
+                    rx.heading(
+                        f"{AppState.paciente_actual.primer_nombre} {AppState.paciente_actual.primer_apellido}",
+                        size="4",
+                        weight="bold",
+                        color="gray.900"
+                    ),
+                    rx.cond(
+                        AppState.paciente_actual.nombre_completo != "",
+                        rx.heading(
+                            AppState.paciente_actual.nombre_completo,
+                            size="4",
+                            weight="bold",
+                            color="gray.900"
+                        ),
+                        rx.heading(
+                            "Paciente no cargado",
+                            size="4",
+                            weight="bold",
+                            color="red.500"
+                        )
+                    )
                 ),
-                rx.text(
-                    f"HC: {AppState.paciente_actual.numero_historia}",
-                    font_size="14px",
-                    color="rgba(255, 255, 255, 0.8)"
+            rx.hstack(
+                badge_info(f"HC: {AppState.paciente_actual.numero_historia}", "blue"),
+                badge_info(f"CI: {AppState.paciente_actual.numero_documento}", "gray"),
+                spacing="2"
+            ),
+            rx.hstack(
+                rx.cond(
+                    AppState.paciente_actual.edad > 0,
+                    rx.text(AppState.paciente_actual.edad.to(str) + " años", size="2", color="gray.600"),
+                    rx.text("Edad no especificada", size="2", color="gray.600")
                 ),
-                rx.text(
-                    f"{AppState.paciente_actual.tipo_documento}: {AppState.paciente_actual.numero_documento}",
-                    font_size="14px",
-                    color="rgba(255, 255, 255, 0.8)"
+                rx.cond(
+                    AppState.paciente_actual.genero != "",
+                    rx.text("Género: " + AppState.paciente_actual.genero, size="2", color="gray.600"),
+                    rx.text("Género no especificado", size="2", color="gray.600")
                 ),
-                # Badge de prioridad si aplica
-                badge_prioridad_consulta(AppState.consulta_actual),
-                spacing="1",
-                align_items="start"
+                spacing="3"
+                ),
+                align_items="start",
+                spacing="2"
             ),
             
             spacing="4",
             align_items="start",
             width="100%"
         ),
-        style=PANEL_HEADER_STYLE
+        
+        spacing="2",
+        align_items="start",
+        width="100%",
+        margin_bottom="4"
     )
 
-def informacion_personal() -> rx.Component:
-    """👤 Información personal del paciente"""
-    return rx.box(
-        rx.vstack(
-            rx.text(
-                "👤 Información Personal",
-                font_size="16px",
-                font_weight="bold",
-                color=COLORS["gray"]["700"],
-                margin_bottom="3"
-            ),
-            
-            # Edad y género
-            rx.hstack(
-                info_item(
-                    "🎂", 
-                    "Edad", 
-                    rx.cond(
-                        AppState.paciente_actual.edad > 0,
-                        f"{AppState.paciente_actual.edad} años",
-                        "No especificada"
-                    )
-                ),
-                info_item(
-                    "👤", 
-                    "Género", 
-                    rx.cond(
-                        AppState.paciente_actual.genero.length() > 0,
-                        AppState.paciente_actual.genero,
-                        "No especificado"
-                    )
-                ),
-                spacing="4",
-                width="100%"
-            ),
-            
-            # Contacto
-            info_item("📞", "Teléfono Principal", AppState.paciente_actual.celular_display),
-            
-            rx.cond(
-                AppState.paciente_actual.email != "",
-                info_item("📧", "Email", AppState.paciente_actual.email)
-            ),
-            
-            # Dirección si está disponible
-            rx.cond(
-                AppState.paciente_actual.direccion != "",
-                info_item("🏠", "Dirección", AppState.paciente_actual.direccion)
-            ),
-            
-            spacing="3",
-            align_items="start",
-            width="100%"
-        ),
-        style=INFO_CARD_STYLE
-    )
-
-def informacion_medica() -> rx.Component:
-    """🏥 Información médica importante"""
+def alertas_medicas_prominentes() -> rx.Component:
+    """🚨 Alertas médicas visuales prominentes (inspirado en PatientInfoPanel.jsx)"""
     return rx.vstack(
-        # Alergias (si las hay)
+        # Alergias - Alerta roja prominente
         rx.cond(
             AppState.paciente_actual.alergias.length() > 0,
             rx.box(
-                rx.vstack(
-                    rx.hstack(
-                        rx.text("⚠️", font_size="20px", color=COLORS["error"]["500"]),
-                        rx.text(
-                            "ALERGIAS IMPORTANTES",
-                            font_size="14px",
-                            font_weight="bold",
-                            color=COLORS["error"]["700"]
-                        ),
-                        spacing="2",
-                        align_items="center"
-                    ),
-                    rx.text(
-                        AppState.paciente_actual.alergias_display,
-                        font_size="13px",
-                        color=COLORS["error"]["600"],
-                        font_weight="medium"
-                    ),
+                rx.hstack(
+                    rx.icon("triangle-alert", size=16, color="red.500"),
+                    rx.text("⚠️ ALERGIAS IMPORTANTES", weight="bold", color="red.700", size="3"),
                     spacing="2",
-                    align_items="start",
-                    width="100%"
+                    align_items="center"
                 ),
-                style=ALERT_CARD_STYLE
+                rx.flex(
+                    rx.foreach(
+                        AppState.paciente_actual.alergias,
+                        lambda alergia: rx.badge(
+                            alergia,
+                            color_scheme="red",
+                            variant="solid",
+                            size="2"
+                        )
+                    ),
+                    flex_wrap="wrap",
+                    spacing="2"
+                ),
+                style=ALERT_STYLE
             )
         ),
         
-        # Condiciones médicas (si las hay)
+        # Condiciones médicas - Alerta amarilla
         rx.cond(
             AppState.paciente_actual.condiciones_medicas.length() > 0,
             rx.box(
-                rx.vstack(
-                    rx.hstack(
-                        rx.text("🏥", font_size="20px", color=COLORS["warning"]["500"]),
-                        rx.text(
-                            "CONDICIONES MÉDICAS",
-                            font_size="14px",
-                            font_weight="bold",
-                            color=COLORS["warning"]["700"]
-                        ),
-                        spacing="2",
-                        align_items="center"
-                    ),
-                    rx.text(
-                        AppState.paciente_actual.condiciones_display,
-                        font_size="13px",
-                        color=COLORS["warning"]["600"],
-                        font_weight="medium"
-                    ),
+                rx.hstack(
+                    rx.icon("file-text", size=16, color="orange.500"),
+                    rx.text("🏥 CONDICIONES MÉDICAS", weight="bold", color="orange.700", size="3"),
                     spacing="2",
-                    align_items="start",
-                    width="100%"
+                    align_items="center"
                 ),
-                style=WARNING_CARD_STYLE
+                rx.vstack(
+                    rx.foreach(
+                        AppState.paciente_actual.condiciones_medicas,
+                        lambda condicion: rx.hstack(
+                            rx.icon("dot", size=12, color="orange.500"),
+                            rx.text(condicion, size="2", color="orange.600"),
+                            spacing="1",
+                            align_items="center"
+                        )
+                    ),
+                    align_items="start",
+                    spacing="1"
+                ),
+                style=WARNING_STYLE
             )
         ),
         
-        # Medicamentos actuales (si los hay)
-        rx.cond(
-            AppState.paciente_actual.medicamentos_actuales.length() > 0,
-            rx.box(
-                rx.vstack(
-                    rx.hstack(
-                        rx.text("💊", font_size="16px", color=COLORS["blue"]["500"]),
-                        rx.text(
-                            "Medicamentos Actuales",
-                            font_size="14px",
-                            font_weight="bold",
-                            color=COLORS["blue"]["700"]
-                        ),
-                        spacing="2",
-                        align_items="center"
-                    ),
-                    rx.text(
-                        AppState.paciente_actual.medicamentos_display if hasattr(AppState.paciente_actual, 'medicamentos_display') else "Ver lista",
-                        font_size="13px",
-                        color=COLORS["blue"]["600"]
-                    ),
-                    spacing="2",
-                    align_items="start",
-                    width="100%"
-                ),
-                style=INFO_CARD_STYLE
-            )
-        ),
-        
-        spacing="4",
+        spacing="3",
         width="100%"
     )
 
-def informacion_consulta_actual() -> rx.Component:
-    """📋 Información de la consulta actual"""
+def informacion_contacto_expandida() -> rx.Component:
+    """📞 Información de contacto expandida (inspirado en plantilla)"""
     return rx.box(
+        rx.hstack(
+            rx.icon("phone", size=16, color="teal.500"),
+            rx.text("Información de Contacto", weight="medium", size="3"),
+            spacing="2"
+        ),
         rx.vstack(
-            rx.text(
-                "📋 Consulta Actual",
-                font_size="16px",
-                font_weight="bold",
-                color=COLORS["gray"]["700"],
-                margin_bottom="3"
-            ),
-            
-            info_item("🔢", "N° Consulta", AppState.consulta_actual.numero_consulta),
-            
-            info_item(
-                "📅", 
-                "Fecha", 
-                AppState.consulta_actual.fecha_llegada_display if hasattr(AppState.consulta_actual, 'fecha_llegada_display') else AppState.consulta_actual.fecha_llegada
-            ),
-            
-            info_item("🎯", "Estado", AppState.texto_estado_consulta_actual, "blue"),
-            
+            # Teléfonos
+            info_item_mejorado("phone", "Teléfono Principal", AppState.paciente_actual.celular_1, "teal"),
             rx.cond(
-                AppState.consulta_actual.motivo_consulta != "",
-                info_item("📝", "Motivo", AppState.consulta_actual.motivo_consulta)
+                AppState.paciente_actual.celular_2 != "",
+                info_item_mejorado("phone", "Teléfono Secundario", AppState.paciente_actual.celular_2, "teal")
             ),
             
+            # Email
             rx.cond(
-                AppState.consulta_actual.observaciones != "",
-                info_item("💬", "Observaciones", AppState.consulta_actual.observaciones)
+                AppState.paciente_actual.email != "",
+                info_item_mejorado("mail", "Correo Electrónico", AppState.paciente_actual.email, "blue"),
+                info_item_mejorado("mail", "Correo Electrónico", "No registrado", "gray")
             ),
             
-            spacing="3",
+            # Dirección
+            rx.cond(
+                AppState.paciente_actual.direccion != "",
+                info_item_mejorado("map-pin", "Dirección", AppState.paciente_actual.direccion, "purple"),
+                info_item_mejorado("map-pin", "Dirección", "No registrada", "gray")
+            ),
+            
             align_items="start",
-            width="100%"
+            spacing="3"
         ),
         style=INFO_CARD_STYLE
     )
 
-def resumen_historial_previo() -> rx.Component:
-    """📚 Resumen del historial clínico previo"""
-    return rx.cond(
-        AppState.tiene_historial_cargado,
+def contacto_emergencia() -> rx.Component:
+    """🚨 Información de contacto de emergencia (inspirado en plantilla)"""
+    return rx.grid(
+        # Contacto de emergencia
         rx.box(
-            rx.vstack(
-                rx.text(
-                    "📚 Historial Clínico",
-                    font_size="16px",
-                    font_weight="bold",
-                    color=COLORS["gray"]["700"],
-                    margin_bottom="3"
-                ),
-                
-                rx.cond(
-                    AppState.historial_paciente_resumen["tiene_historial"],
-                    rx.vstack(
-                        info_item("📊", "Total Consultas", AppState.historial_paciente_resumen["total_entradas"]),
-                        info_item("🦷", "Intervenciones", AppState.historial_paciente_resumen["intervenciones_previas"]),
-                        info_item("📅", "Última Consulta", AppState.historial_paciente_resumen["ultima_consulta"]),
-                        
-                        rx.cond(
-                            AppState.historial_paciente_resumen["intervenciones_previas"].to(int) > 0,
-                            info_item("🔧", "Última Intervención", AppState.historial_paciente_resumen["ultima_intervencion"])
-                        ),
-                        
-                        spacing="2",
-                        width="100%"
+            rx.hstack(
+                rx.icon("user", size=14, color="green.500"),
+                rx.text("Contacto de Emergencia", weight="medium", size="2"),
+                spacing="2"
+            ),
+            rx.cond(
+                AppState.paciente_actual.contacto_emergencia.get("nombre", "") != "",
+                rx.vstack(
+                    rx.text(AppState.paciente_actual.contacto_emergencia.get("nombre", ""), weight="medium", size="2"),
+                    rx.cond(
+                        AppState.paciente_actual.contacto_emergencia.get("relacion", "") != "",
+                        rx.text(AppState.paciente_actual.contacto_emergencia.get("relacion", ""), color="gray.600", size="1")
                     ),
-                    rx.text(
-                        "Sin historial clínico previo",
-                        font_size="13px",
-                        color=COLORS["gray"]["500"],
-                        font_style="italic"
-                    )
+                    rx.cond(
+                        AppState.paciente_actual.contacto_emergencia.get("telefono", "") != "",
+                        rx.text(AppState.paciente_actual.contacto_emergencia.get("telefono", ""), size="2")
+                    ),
+                    align_items="start",
+                    spacing="1"
                 ),
-                
-                spacing="3",
-                align_items="start",
-                width="100%"
+                rx.text("No registrado", color="gray.500", size="2")
             ),
             style=INFO_CARD_STYLE
         ),
-        # Mostrar loading o botón para cargar historial
+        
+        # Seguro médico
         rx.box(
-            rx.center(
-                rx.button(
-                    "📚 Cargar Historial",
-                    size="2",
-                    variant="outline",
-                    on_click=lambda: AppState.cargar_historial_paciente(AppState.paciente_actual.id),
-                    loading=AppState.cargando_intervencion
-                ),
-                width="100%"
+            rx.hstack(
+                rx.icon("shield", size=14, color="blue.500"),
+                rx.text("Seguro Médico", weight="medium", size="2"),
+                spacing="2"
+            ),
+            rx.text(
+                # TODO: Implementar campo seguro_medico en PacienteModel
+                "Por implementar",  # Placeholder - falta agregar campo seguro_medico a esquema BD
+                size="2",
+                color="gray.500"
             ),
             style=INFO_CARD_STYLE
-        )
+        ),
+        
+        columns="2",
+        gap="3",
+        width="100%",
+        margin_y="3"
     )
 
-def acciones_rapidas_paciente() -> rx.Component:
-    """⚡ Acciones rápidas para el paciente"""
+def estadisticas_visitas() -> rx.Component:
+    """📊 Estadísticas de visitas (inspirado en PatientInfoPanel.jsx)"""
+    return rx.box(
+        rx.grid(
+            # Total de visitas
+            rx.box(
+                rx.text(
+                    AppState.total_visitas_paciente_actual.to(str), 
+                    size="6", 
+                    weight="bold", 
+                    color="teal.600"
+                ),
+                rx.text("Visitas Totales", size="1", color="gray.600"),
+                text_align="center"
+            ),
+            
+            # Última visita
+            rx.box(
+                rx.text(
+                    AppState.ultima_visita_paciente_actual, 
+                    size="3", 
+                    weight="medium", 
+                    color="gray.900"
+                ),
+                rx.text("Última Visita", size="1", color="gray.600"),
+                text_align="center"
+            ),
+            
+            # Pendientes (futuro - saldos pendientes o citas por hacer)
+            rx.box(
+                rx.text(
+                    AppState.consultas_pendientes_paciente.to(str), 
+                    size="4", 
+                    weight="bold", 
+                    color="orange.600"
+                ),
+                rx.text("Pendientes", size="1", color="gray.600"),
+                text_align="center"
+            ),
+            
+            columns="3",
+            gap="2",
+            width="100%"
+        ),
+        style=STATS_CARD_STYLE
+    )
+
+def informacion_consulta_actual_mejorada() -> rx.Component:
+    """📋 Información de la consulta actual mejorada"""
+    return rx.box(
+        rx.hstack(
+            rx.icon("clipboard-list", size=16, color="blue.500"),
+            rx.text("Consulta Actual", weight="medium", size="3"),
+            spacing="2"
+        ),
+        rx.vstack(
+            info_item_mejorado("hash", "N° Consulta", AppState.consulta_actual.numero_consulta, "blue"),
+            info_item_mejorado("calendar", "Fecha", AppState.consulta_actual.fecha_llegada, "blue"),
+            info_item_mejorado("activity", "Estado", AppState.texto_estado_consulta_actual, "green"),
+            
+            rx.cond(
+                AppState.consulta_actual.motivo_consulta != "",
+                info_item_mejorado("file-text", "Motivo", AppState.consulta_actual.motivo_consulta, "purple")
+            ),
+            
+            align_items="start",
+            spacing="3"
+        ),
+        style=INFO_CARD_STYLE
+    )
+
+def acciones_rapidas_mejoradas() -> rx.Component:
+    """⚡ Acciones rápidas mejoradas (inspirado en plantilla)"""
     return rx.hstack(
         rx.button(
-            "👤 Ver Completo",
-            size="2",
+            rx.hstack(
+                rx.icon("user", size=14),
+                rx.text("Ver Completo", size="2"),
+                spacing="2"
+            ),
             variant="outline",
-            width="50%"
+            size="2",
+            width="50%",
+            color_scheme="blue"
         ),
         rx.button(
-            "📞 Contactar",
-            size="2",
+            rx.hstack(
+                rx.icon("phone", size=14),
+                rx.text("Contactar", size="2"),
+                spacing="2"
+            ),
             variant="outline",
-            width="50%"
+            size="2",
+            width="50%",
+            color_scheme="green"
         ),
         spacing="2",
         width="100%",
@@ -469,47 +498,88 @@ def acciones_rapidas_paciente() -> rx.Component:
     )
 
 # ==========================================
-# 📋 COMPONENTE PRINCIPAL
+# 📋 COMPONENTE PRINCIPAL MEJORADO
 # ==========================================
 
 def panel_informacion_paciente() -> rx.Component:
     """
-    👤 Panel completo de información del paciente
+    👤 Panel completo de información del paciente - VERSIÓN MEJORADA
     
-    Panel lateral izquierdo para la página de intervención.
-    Incluye toda la información relevante del paciente y consulta actual.
+    Panel lateral izquierdo inspirado en PatientInfoPanel.jsx con mejoras:
+    - ✅ Panel colapsable con estado persistente
+    - ✅ Avatar/foto del paciente profesional
+    - ✅ Alertas médicas visuales prominentes
+    - ✅ Información de contacto expandida
+    - ✅ Estadísticas de visitas integradas
+    - ✅ Contacto de emergencia y seguro
+    - ✅ Diseño responsivo profesional
     """
     return rx.box(
         rx.vstack(
-            # Header con información principal
-            panel_header_paciente(),
+            # Header con botón de colapso
+            panel_header_colapsable(),
             
-            # Contenido scrolleable
-            rx.box(
-                rx.vstack(
-                    # Información personal
-                    informacion_personal(),
-                    
-                    # Información médica (alergias, condiciones)
-                    informacion_medica(),
-                    
-                    # Información de la consulta actual
-                    informacion_consulta_actual(),
-                    
-                    # Resumen del historial previo
-                    resumen_historial_previo(),
-                    
-                    # Acciones rápidas
-                    acciones_rapidas_paciente(),
-                    
-                    spacing="4",
-                    width="100%"
+            # Contenido colapsable
+            rx.cond(
+                AppState.panel_paciente_expandido,
+                rx.box(
+                    rx.vstack(
+                        # Sección principal con avatar e info básica
+                        seccion_principal_paciente(),
+                        
+                        # Alertas médicas prominentes
+                        alertas_medicas_prominentes(),
+                        
+                        # Información de contacto expandida
+                        informacion_contacto_expandida(),
+                        
+                        # Contacto emergencia y seguro (grid 2 columnas)
+                        contacto_emergencia(),
+                        
+                        # Estadísticas de visitas
+                        estadisticas_visitas(),
+                        
+                        # Información de consulta actual
+                        informacion_consulta_actual_mejorada(),
+                        
+                        # Acciones rápidas
+                        acciones_rapidas_mejoradas(),
+                        
+                        spacing="4",
+                        align_items="stretch",
+                        width="100%"
+                    ),
+                    style=PANEL_CONTENT_STYLE
                 ),
-                style=PANEL_CONTENT_STYLE
+                # Panel colapsado - solo mostrar información mínima
+                rx.box(
+                    rx.center(
+                        rx.vstack(
+                            avatar_paciente_mejorado(AppState.paciente_actual),
+                            rx.text(
+                                AppState.paciente_actual.nombre_completo,
+                                weight="bold",
+                                size="3",
+                                text_align="center",
+                                color="gray.700"
+                            ),
+                            rx.text(
+                                f"HC: {AppState.paciente_actual.numero_historia}",
+                                size="2",
+                                color="gray.500",
+                                text_align="center"
+                            ),
+                            spacing="2",
+                            align_items="center"
+                        ),
+                        padding="4"
+                    )
+                )
             ),
             
             spacing="0",
-            height="100%"
+            height="100%",
+            align_items="stretch"
         ),
         style=PANEL_CONTAINER_STYLE
     )

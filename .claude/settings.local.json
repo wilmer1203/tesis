@@ -102,7 +102,11 @@
       "WebFetch(domain:reflex.dev)",
       "Read(/C:\\Users\\wilme\\Documents\\tesis-main\\dental_system\\pages/**)",
       "Read(/C:\\Users\\wilme\\Documents\\tesis-main\\dental_system\\styles/**)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(del:*)",
+      "WebSearch",
+      "WebFetch(domain:lucide.dev)",
+      "WebFetch(domain:github.com)"
     ],
     "deny": [],
     "additionalDirectories": [

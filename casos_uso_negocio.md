@@ -540,6 +540,154 @@ Los casos de uso cubren todos los procesos operativos de la clínica dental:
 - Historial consultado exitosamente
 - Comparación visual generada
 
+#### CU-012.1: Usar Odontograma Nativo Interactivo
+**Actor Principal:** Odontólogo  
+**Precondiciones:** 
+- Usuario autenticado como Odontólogo
+- Paciente en atención
+- Página de intervención abierta
+
+**Objetivo:** Seleccionar dientes usando odontograma nativo sin JavaScript  
+
+**Flujo Principal:** ✅ IMPLEMENTADO
+1. Odontólogo accede al tab "Odontograma" en panel central
+2. Sistema muestra odontograma nativo con 32 dientes FDI
+3. Sistema organiza dientes en 4 cuadrantes:
+   - Superior Derecho: 18-11 (Cuadrante 1)
+   - Superior Izquierdo: 21-28 (Cuadrante 2)
+   - Inferior Izquierdo: 31-38 (Cuadrante 3)
+   - Inferior Derecho: 48-41 (Cuadrante 4)
+4. Odontólogo hace clic en dientes específicos
+5. Sistema cambia color visual del diente seleccionado
+6. Sistema actualiza contador de dientes seleccionados
+7. Sistema muestra panel lateral con leyenda de condiciones
+8. Sistema actualiza resumen de dientes seleccionados en tiempo real
+9. Odontólogo puede usar botón "Limpiar" para resetear selección
+
+**Flujos Alternativos:**
+- **A1:** Odontólogo deselecciona diente - Sistema remueve de selección
+- **A2:** Selección múltiple - Sistema acumula dientes seleccionados
+- **A3:** Responsive en tablet - Sistema ajusta tamaño botones
+
+**Postcondiciones:**
+- Dientes seleccionados guardados en AppState
+- Interfaz visual actualizada
+- Contador actualizado en toolbar
+
+#### CU-012.2: Usar Panel de Detalles de Diente
+**Actor Principal:** Odontólogo  
+**Precondiciones:** 
+- Usuario autenticado como Odontólogo
+- Diente específico seleccionado en odontograma
+- Panel derecho de detalles activo
+
+**Objetivo:** Revisar y gestionar información específica de un diente  
+
+**Flujo Principal:** ✅ IMPLEMENTADO
+1. Odontólogo selecciona diente específico en odontograma
+2. Sistema muestra panel de detalles con 4 tabs especializados:
+   - **Tab Estado:** Condición actual y cambios recientes
+   - **Tab Historial:** Timeline completo de modificaciones
+   - **Tab Procedimientos:** Servicios realizados en el diente
+   - **Tab Notas:** Observaciones clínicas específicas
+3. Odontólogo navega entre tabs según necesidad
+4. Sistema muestra información contextual por tab
+5. **En Tab Estado:**
+   - Muestra condición actual visual
+   - Lista cambios recientes con fechas
+   - Indica estado de riesgo si aplica
+6. **En Tab Historial:**
+   - Timeline visual con intervenciones pasadas
+   - Odontólogos responsables de cada cambio
+   - Comparación de estados antes/después
+7. **En Tab Procedimientos:**
+   - Lista servicios realizados en el diente
+   - Fechas y odontólogos responsables
+   - Costos asociados por procedimiento
+8. **En Tab Notas:**
+   - Campo de texto para observaciones
+   - Historial de notas anteriores
+   - Marcadores de importancia
+
+**Flujos Alternativos:**
+- **A1:** Sin historial - Sistema muestra mensaje informativo
+- **A2:** Toggle panel derecho - Sistema puede cambiar a historial general
+
+**Postcondiciones:**
+- Información específica de diente consultada
+- Contexto clínico completo disponible
+
+#### CU-012.3: Sistema de Versionado Automático
+**Actor Principal:** Sistema (automático), Odontólogo (consulta)  
+**Precondiciones:** 
+- Cambios significativos detectados en odontograma
+- Intervención activa en progreso
+
+**Objetivo:** Crear automáticamente nueva versión del odontograma  
+
+**Flujo Principal:** ✅ IMPLEMENTADO
+1. Sistema detecta cambios significativos en odontograma
+2. Sistema evalúa criterios de nueva versión:
+   - Cambio de condición de sano a patológico
+   - Nuevas restauraciones o tratamientos
+   - Extracciones o implantes
+3. **Si aplica nueva versión:**
+   3.1. Sistema crea nueva versión automáticamente
+   3.2. Sistema vincula versión con intervención actual
+   3.3. Sistema asigna odontólogo responsable
+   3.4. Sistema establece versión anterior como referencia
+4. Odontólogo puede consultar sistema de versionado en tab "Versiones"
+5. Sistema muestra timeline de versiones:
+   - Lista cronológica de todas las versiones
+   - Fechas de creación
+   - Odontólogos responsables
+   - Motivos de nueva versión
+6. Odontólogo puede comparar versiones lado a lado
+7. Sistema genera estadísticas de evolución dental
+
+**Flujos Alternativos:**
+- **A1:** Cambios menores - Sistema no crea nueva versión
+- **A2:** Versión corrupta - Sistema crea nueva desde cero
+
+**Postcondiciones:**
+- Nueva versión creada automáticamente
+- Trazabilidad histórica mantenida
+- Vinculación con intervención establecida
+
+#### CU-012.4: Sistema de Notificaciones en Tiempo Real
+**Actor Principal:** Sistema (automático)  
+**Precondiciones:** 
+- Cambios críticos detectados en intervención
+- Sistema de notificaciones activo
+
+**Objetivo:** Notificar automáticamente cambios críticos durante intervenciones  
+
+**Flujo Principal:** ✅ IMPLEMENTADO
+1. Sistema monitorea cambios en tiempo real durante intervención
+2. Sistema evalúa severidad de cambios:
+   - **Info:** Cambios rutinarios (restauraciones simples)
+   - **Advertencia:** Cambios moderados (endodoncias)
+   - **Crítico:** Cambios severos (extracciones, implantes)
+3. Sistema genera notificación automática según criterios
+4. Sistema muestra badge con conteo en header de intervención
+5. Odontólogo puede hacer clic en ícono de notificaciones
+6. Sistema despliega panel con historial de notificaciones:
+   - Clasificación por color según severidad
+   - Timestamps de cada notificación
+   - Descripción del cambio detectado
+   - Acción sugerida si aplica
+7. Sistema permite configurar tipos de notificaciones
+8. Sistema mantiene historial de notificaciones por sesión
+
+**Flujos Alternativos:**
+- **A1:** Notificaciones deshabilitadas - Sistema no genera alertas
+- **A2:** Configuración personalizada - Sistema respeta preferencias
+
+**Postcondiciones:**
+- Notificaciones críticas alertadas en tiempo real
+- Historial de cambios mantenido
+- Configuración personalizable aplicada
+
 ### 3.6 MÓDULO DE GESTIÓN DE PAGOS
 
 #### CU-013: Procesar Pago Simple

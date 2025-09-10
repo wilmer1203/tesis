@@ -220,7 +220,7 @@ def success_alert(message: str) -> rx.Component:
         message != "",
         rx.box(
             rx.hstack(
-                rx.icon("check-circle", size=20, color=COLORS["success"]),
+                rx.icon("check", size=20, color=COLORS["success"]),
                 rx.text(message, color="#1B5E20", size="3"),
                 spacing="2",
                 align="center"
@@ -240,7 +240,7 @@ def error_alert(message: str) -> rx.Component:
         message != "",
         rx.box(
             rx.hstack(
-                rx.icon("alert-circle", size=20, color=COLORS["error"]),
+                rx.icon("triangle-alert", size=20, color=COLORS["error"]),
                 rx.text(message, color="#C62828", size="3"),
                 spacing="2",
                 align="center"
@@ -577,7 +577,7 @@ def _modern_logout_button() -> rx.Component:
         _hover={
             "background": f"linear-gradient(135deg, {COLORS['error']['500']}20 0%, {COLORS['error']['600']}10 100%)",
             "border_color": f"{COLORS['error']['400']}60",
-            "color": COLORS["error"]["300"],
+            "color": COLORS["error"]["400"],
             "transform": "translateY(-2px)",
             "box_shadow": f"0 4px 12px {COLORS['error']['500']}30"
         },

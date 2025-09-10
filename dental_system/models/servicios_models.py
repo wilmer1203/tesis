@@ -20,6 +20,10 @@ class ServicioModel(rx.Base):
     precio_base: float = 0.0
     precio_minimo: Optional[float] = None
     precio_maximo: Optional[float] = None
+    
+    # Campos adicionales para dual currency (BS/USD)
+    precio_bs: float = 0.0      # Precio en Bolívares
+    precio_usd: float = 0.0     # Precio en Dólares
     requiere_cita_previa: bool = True
     requiere_autorizacion: bool = False
     material_incluido: Optional[List[str]] = None
@@ -43,9 +47,13 @@ class ServicioModel(rx.Base):
             categoria=str(data.get("categoria", "")),
             subcategoria=str(data.get("subcategoria", "") if data.get("subcategoria") else ""),
             duracion_estimada=str(data.get("duracion_estimada", "30 minutes")),
-            precio_base=float(data.get("precio_base", 0)),
+            precio_base=float(data.get("precio_base_bs", data.get("precio_base", 0))),
             precio_minimo=float(data.get("precio_minimo", 0)) if data.get("precio_minimo") else None,
             precio_maximo=float(data.get("precio_maximo", 0)) if data.get("precio_maximo") else None,
+            
+            # Precios dual currency - mapear desde la BD
+            precio_bs=float(data.get("precio_base_bs", data.get("precio_bs", 0))),
+            precio_usd=float(data.get("precio_base_usd", data.get("precio_usd", 0))),
             requiere_cita_previa=bool(data.get("requiere_cita_previa", True)),
             requiere_autorizacion=bool(data.get("requiere_autorizacion", False)),
             material_incluido=data.get("material_incluido", []),
@@ -72,6 +80,18 @@ class ServicioModel(rx.Base):
             return f"Hasta ${self.precio_maximo:,.2f}"
         else:
             return self.precio_base_display
+    
+    @property
+    def precios_dual_display(self) -> str:
+        """Precios BS/USD formateados para mostrar"""
+        if self.precio_usd > 0 and self.precio_bs > 0:
+            return f"${self.precio_usd:.0f} / {self.precio_bs:,.0f} Bs"
+        elif self.precio_usd > 0:
+            return f"${self.precio_usd:.0f}"
+        elif self.precio_bs > 0:
+            return f"{self.precio_bs:,.0f} Bs"
+        else:
+            return "Precio no definido"
     
     @property
     def categoria_display(self) -> str:

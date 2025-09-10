@@ -94,7 +94,7 @@ def form_step_indicator(current_step: int, total_steps: int, step_titles: List[s
                                 "height": "2px",
                                 "background": rx.cond(
                                     current_step > i,
-                                    COLORS["success"]["300"],
+                                    COLORS["success"]["400"],
                                     COLORS["gray"]["200"]
                                 ),
                                 "margin": f"0 {SPACING['3']}",
@@ -281,7 +281,7 @@ def enhanced_form_field(
         rx.cond(
             validation_error != "",
             rx.hstack(
-                rx.icon("triangle_alert", size=14, color=COLORS["error"]["500"]),
+                rx.icon("triangle-alert", size=14, color=COLORS["error"]["500"]),
                 rx.text(
                     validation_error,
                     style={
@@ -747,7 +747,7 @@ def _patient_form_step_2() -> rx.Component:
         form_section_header(
             "Contacto de Emergencia",
             "Persona a contactar en caso de emergencia",
-            "alert-triangle",
+            "triangle-alert",
             COLORS["error"]["500"]
         ),
         
@@ -821,7 +821,7 @@ def _patient_form_step_3() -> rx.Component:
             on_change=AppState.actualizar_campo_paciente,
             field_type="textarea",
             placeholder="Penicilina, láter, anestésicos, otros...",
-            icon="alert-circle",
+            icon="circle_alert",
             help_text="Especifique cualquier alergia conocida",
             max_length=1000
         ),
@@ -1676,7 +1676,7 @@ def form_progress_bar(current_step: int, total_steps: int) -> rx.Component:
 # 🎯 COMPONENTES DE FEEDBACK VISUAL
 # ==========================================
 
-def success_feedback(message: str, icon: str = "check-circle") -> rx.Component:
+def success_feedback(message: str, icon: str = "check") -> rx.Component:
     """✅ Feedback de éxito animado"""
     return rx.box(
         rx.hstack(
@@ -1684,7 +1684,7 @@ def success_feedback(message: str, icon: str = "check-circle") -> rx.Component:
             rx.text(
                 message,
                 style={
-                    "color": COLORS["success"]["700"],
+                    "color": COLORS["success"]["600"],
                     "font_weight": "600",
                     "font_size": "0.875rem"
                 }

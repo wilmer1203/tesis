@@ -228,6 +228,75 @@ def tooth_surface(
     )
 
 # ==========================================
+# ⚡ SUPERFICIE OPTIMIZADA - SIN RX.COND ANIDADOS
+# ==========================================
+
+def tooth_surface_optimized(tooth_number: int, surface_name: str) -> rx.Component:
+    """
+    ⚡ Superficie individual optimizada - Elimina rx.cond anidados complejos
+    
+    Args:
+        tooth_number: Número FDI del diente
+        surface_name: Nombre de la superficie
+    """
+    
+    # Obtener posición anatómica
+    surface_style = SURFACE_POSITIONS.get(surface_name, {})
+    
+    return rx.tooltip(
+        rx.box(
+            style={
+                **surface_style,
+                "background": rx.color_mode_cond(
+                    # Usar la computed var optimizada para obtener el color
+                    rx.match(
+                        AppState.get_surface_condition_optimized(tooth_number, surface_name),
+                        *[(cond, color) for cond, color in CONDITION_COLORS.items()],
+                        CONDITION_COLORS["sano"]  # Valor por defecto
+                    )
+                ),
+                "border": rx.cond(
+                    AppState.diente_seleccionado == tooth_number,
+                    f"2px solid {COLORS['primary']['500']}",
+                    rx.cond(
+                        AppState.tooth_has_changes_optimized.get(str(tooth_number), False),
+                        f"2px solid {COLORS['warning']['500']}",
+                        f"1px solid {DARK_THEME['colors']['border']}"
+                    )
+                ),
+                "cursor": "pointer",
+                "transition": "all 0.2s ease",
+                "opacity": rx.cond(
+                    (AppState.diente_seleccionado == tooth_number) | 
+                    AppState.tooth_has_changes_optimized.get(str(tooth_number), False),
+                    "1.0",
+                    "0.8"
+                ),
+                "z_index": rx.cond(
+                    AppState.diente_seleccionado == tooth_number,
+                    "3",
+                    "2"
+                ),
+                "box_shadow": rx.cond(
+                    AppState.tooth_has_changes_optimized.get(str(tooth_number), False),
+                    f"0 0 8px {COLORS['warning']['500']}40",
+                    "none"
+                )
+            },
+            # Event handler optimizado - usar el método optimizado del estado
+            on_click=AppState.select_tooth_optimized(tooth_number),
+            
+            # Hover effects mejorados
+            _hover={
+                "opacity": "1.0",
+                "transform": "scale(1.1)",
+                "z_index": "4"
+            }
+        ),
+        content=f"{surface_name.title()}: {AppState.get_surface_condition_optimized(tooth_number, surface_name)}"
+    )
+
+# ==========================================
 # 🦷 COMPONENTE: DIENTE COMPLETO INTERACTIVO
 # ==========================================
 
@@ -284,52 +353,11 @@ def interactive_tooth(
             }
         ),
         
-        # 5 superficies del diente
-        tooth_surface(
-            tooth_number, 
-            "oclusal", 
-            rx.cond(pending_changes, 
-                   rx.cond(rx.cond(pending_changes, pending_changes.get("oclusal"), None), rx.cond(pending_changes, pending_changes.get("oclusal"), None), conditions.get("oclusal", "sano")),
-                   conditions.get("oclusal", "sano")),
-            is_selected & (AppState.superficie_seleccionada == "oclusal"),
-            rx.cond(pending_changes, rx.cond(rx.cond(pending_changes, pending_changes.get("oclusal"), None), True, False), False)
-        ),
-        tooth_surface(
-            tooth_number,
-            "mesial",
-            rx.cond(pending_changes, 
-                   rx.cond(rx.cond(pending_changes, pending_changes.get("mesial"), None), rx.cond(pending_changes, pending_changes.get("mesial"), None), conditions.get("mesial", "sano")),
-                   conditions.get("mesial", "sano")),
-            is_selected & (AppState.superficie_seleccionada == "mesial"),
-            rx.cond(pending_changes, rx.cond(rx.cond(pending_changes, pending_changes.get("mesial"), None), True, False), False)
-        ),
-        tooth_surface(
-            tooth_number,
-            "distal", 
-            rx.cond(pending_changes, 
-                   rx.cond(rx.cond(pending_changes, pending_changes.get("distal"), None), rx.cond(pending_changes, pending_changes.get("distal"), None), conditions.get("distal", "sano")),
-                   conditions.get("distal", "sano")),
-            is_selected & (AppState.superficie_seleccionada == "distal"),
-            rx.cond(pending_changes, rx.cond(rx.cond(pending_changes, pending_changes.get("distal"), None), True, False), False)
-        ),
-        tooth_surface(
-            tooth_number,
-            "vestibular",
-            rx.cond(pending_changes, 
-                   rx.cond(rx.cond(pending_changes, pending_changes.get("vestibular"), None), rx.cond(pending_changes, pending_changes.get("vestibular"), None), conditions.get("vestibular", "sano")),
-                   conditions.get("vestibular", "sano")),
-            is_selected & (AppState.superficie_seleccionada == "vestibular"), 
-            rx.cond(pending_changes, rx.cond(rx.cond(pending_changes, pending_changes.get("vestibular"), None), True, False), False)
-        ),
-        tooth_surface(
-            tooth_number,
-            "lingual",
-            rx.cond(pending_changes, 
-                   rx.cond(rx.cond(pending_changes, pending_changes.get("lingual"), None), rx.cond(pending_changes, pending_changes.get("lingual"), None), conditions.get("lingual", "sano")),
-                   conditions.get("lingual", "sano")),
-            is_selected & (AppState.superficie_seleccionada == "lingual"),
-            rx.cond(pending_changes, rx.cond(rx.cond(pending_changes, pending_changes.get("lingual"), None), True, False), False)
-        ),
+        # 5 superficies del diente - VERSIÓN OPTIMIZADA
+        *[
+            tooth_surface_optimized(tooth_number, surface)
+            for surface in ["oclusal", "mesial", "distal", "vestibular", "lingual"]
+        ],
         
         # Indicador de modificaciones (pequeño punto naranja)
         rx.cond(
@@ -351,7 +379,7 @@ def interactive_tooth(
         ),
         
         style=container_style,
-        on_click=lambda: AppState.seleccionar_diente(tooth_number)
+        on_click=lambda: AppState.abrir_popover_diente(tooth_number, 200, 200)  # Posición fija por ahora
     )
 
 # ==========================================

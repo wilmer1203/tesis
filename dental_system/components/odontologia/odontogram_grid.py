@@ -142,9 +142,9 @@ def odontogram_interactive_grid() -> rx.Component:
             # Superior derecho (18-11)
             odontogram_quadrant(
                 "superior_derecho",
-                {},  # Placeholder - AppState.condiciones_odontograma
+                AppState.condiciones_odontograma,
                 AppState.diente_seleccionado,
-                AppState.cambios_pendientes_odontograma  # Placeholder - AppState.cambios_pendientes_odontograma
+                AppState.cambios_pendientes_odontograma
             ),
             
             # Separador central (línea media)
@@ -160,9 +160,9 @@ def odontogram_interactive_grid() -> rx.Component:
             # Superior izquierdo (21-28)
             odontogram_quadrant(
                 "superior_izquierdo", 
-                {},  # Placeholder - AppState.condiciones_odontograma
+                AppState.condiciones_odontograma,
                 AppState.diente_seleccionado,
-                AppState.cambios_pendientes_odontograma  # Placeholder - AppState.cambios_pendientes_odontograma
+                AppState.cambios_pendientes_odontograma
             ),
             
             spacing="2",
@@ -234,6 +234,128 @@ def odontogram_interactive_grid() -> rx.Component:
 # 🛠️ TOOLBAR DE HERRAMIENTAS
 # ==========================================
 
+def odontogram_toolbar_professional() -> rx.Component:
+    """🛠️ Barra de herramientas profesional optimizada para odontólogos"""
+    
+    return rx.vstack(
+        # Fila 1: Estado del paciente y navegación rápida
+        rx.hstack(
+            # Estado del paciente
+            rx.hstack(
+                rx.icon(tag="user", size=16, color=COLORS["info"]["500"]),
+                rx.text(
+                    AppState.paciente_actual.nombre_completo,
+                    size="3", weight="bold", color=DARK_THEME["colors"]["text_primary"]
+                ),
+                rx.badge(
+                    f"HC: {AppState.paciente_actual.numero_historia}",
+                    color_scheme="blue", variant="soft", size="1"
+                ),
+                spacing="2", align_items="center"
+            ),
+            
+            rx.spacer(),
+            
+            # Navegación rápida por cuadrantes
+            rx.hstack(
+                rx.text("Cuadrantes:", size="2", color=DARK_THEME["colors"]["text_secondary"]),
+                rx.button(
+                    "Q1", size="1", variant="soft", color_scheme="blue",
+                    on_click=AppState.select_quadrant_optimized(1)
+                ),
+                rx.button(
+                    "Q2", size="1", variant="soft", color_scheme="green", 
+                    on_click=AppState.select_quadrant_optimized(2)
+                ),
+                rx.button(
+                    "Q3", size="1", variant="soft", color_scheme="orange",
+                    on_click=AppState.select_quadrant_optimized(3)
+                ),
+                rx.button(
+                    "Q4", size="1", variant="soft", color_scheme="red",
+                    on_click=AppState.select_quadrant_optimized(4)
+                ),
+                spacing="1", align_items="center"
+            ),
+            
+            spacing="4", width="100%", align_items="center"
+        ),
+        
+        # Fila 2: Herramientas principales
+        rx.hstack(
+            # Indicadores de estado
+            rx.hstack(
+                rx.icon(tag="activity", size=16, color=COLORS["success"]["500"]),
+                rx.text("Modo Edición", size="2", weight="medium", color=DARK_THEME["colors"]["text_primary"]),
+                rx.cond(
+                    AppState.diente_seleccionado,
+                    rx.badge(
+                        f"Diente {AppState.diente_seleccionado}",
+                        color_scheme="cyan", variant="soft"
+                    )
+                ),
+                spacing="2", align_items="center"
+            ),
+            
+            rx.spacer(),
+            
+            # Estadísticas rápidas
+            rx.hstack(
+                rx.foreach(
+                    AppState.odontogram_stats_summary,
+                    lambda stat: rx.cond(
+                        stat[1] > 0,
+                        rx.badge(
+                            f"{stat[0]}: {stat[1]}",
+                            color_scheme=rx.match(
+                                stat[0],
+                                ("Sanos", "green"),
+                                ("Caries", "red"),
+                                ("Obturaciones", "blue"),
+                                ("Otros", "orange"),
+                                "gray"
+                            ),
+                            variant="soft", size="1"
+                        )
+                    )
+                ),
+                spacing="1"
+            ),
+            
+            rx.spacer(),
+            
+            # Acciones principales
+            rx.hstack(
+                rx.button(
+                    rx.icon(tag="save", size=14),
+                    "Guardar",
+                    size="2", variant="soft", color_scheme="green",
+                    disabled=AppState.cambios_pendientes_odontograma.length() == 0,
+                    on_click=AppState.save_odontogram_changes_optimized
+                ),
+                rx.button(
+                    rx.icon(tag="undo", size=14),
+                    "Deshacer", 
+                    size="2", variant="soft", color_scheme="gray",
+                    disabled=AppState.cambios_pendientes_odontograma.length() == 0
+                ),
+                spacing="2"
+            ),
+            
+            spacing="4", width="100%", align_items="center"
+        ),
+        
+        spacing="2", width="100%",
+        padding="3",
+        style={
+            "background": "rgba(255, 255, 255, 0.06)",
+            "backdrop_filter": "blur(20px)",
+            "border_radius": RADIUS["lg"],
+            "border": f"1px solid {DARK_THEME['colors']['primary']}"
+        }
+    )
+
+# Función de compatibilidad con el toolbar anterior
 def odontogram_toolbar() -> rx.Component:
     """🛠️ Barra de herramientas para el odontograma interactivo"""
     
@@ -284,7 +406,7 @@ def odontogram_toolbar() -> rx.Component:
                     size="2",
                     variant="ghost", 
                     color_scheme="orange",
-                    on_click=rx.noop  # Placeholder - AppState.reset_odontogram_changes
+                    on_click=AppState.resetear_seleccion_odontograma
                 ),
                 content="Resetear todos los cambios"
             ),
@@ -300,8 +422,8 @@ def odontogram_toolbar() -> rx.Component:
                     "Guardar Cambios",
                     size="2",
                     color_scheme="green",
-                    on_click=rx.noop,  # Placeholder - AppState.save_odontogram_changes
-                    disabled=True  # Placeholder - rx.cond(AppState.odontogram_modified, False, True)
+                    on_click=AppState.guardar_odontograma,
+                    disabled=AppState.cambios_pendientes_odontograma.length() == 0
                 ),
                 content="Guardar cambios en base de datos"
             ),

@@ -1,8 +1,16 @@
 -- =====================================================
 -- SISTEMA ODONTOLÓGICO CLÍNICA DENTAL - ESQUEMA FINAL CORREGIDO
--- Versión: 4.1 - CORREGIDAS INCONSISTENCIAS
--- Fecha: Agosto 2025
+-- Versión: 4.2 - MÓDULO ODONTOLÓGICO AVANZADO IMPLEMENTADO ✅
+-- Fecha: Septiembre 2025
 -- Metodología: RUP (Rational Unified Process)
+--
+-- 🦷 MÓDULO ODONTOLÓGICO AVANZADO INCLUIDO:
+-- ✅ Odontograma nativo interactivo (sin JavaScript)  
+-- ✅ Sistema de versionado automático con triggers
+-- ✅ Panel de detalles por diente con 4 tabs especializados
+-- ✅ Historial de cambios detallado por diente
+-- ✅ Sistema de notificaciones en tiempo real
+-- ✅ Formulario de intervención V4.0 con componentes nativos
 -- 
 -- FLUJO ESPECÍFICO DE LA CLÍNICA:
 -- 1. Paciente llega sin cita (solo consultas por orden de llegada)
@@ -584,7 +592,45 @@ CREATE TABLE configuracion_sistema (
 );
 
 -- =====================================================
--- TABLA 17: COLA DE ATENCIÓN POR ODONTÓLOGO
+-- TABLA 17: SISTEMA DE NOTIFICACIONES EN TIEMPO REAL
+-- =====================================================
+CREATE TABLE notificaciones_sistema (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    usuario_id UUID REFERENCES usuarios(id) NOT NULL,
+    consulta_id UUID REFERENCES consultas(id),
+    intervencion_id UUID REFERENCES intervenciones(id),
+    odontograma_id UUID REFERENCES odontograma(id),
+    
+    -- Tipo y contenido de la notificación
+    tipo_notificacion VARCHAR(30) NOT NULL CHECK (tipo_notificacion IN (
+        'odontograma_cambio_critico',
+        'nueva_version_odontograma', 
+        'intervencion_completada',
+        'error_sistema',
+        'advertencia_general',
+        'info_general'
+    )),
+    severidad VARCHAR(20) DEFAULT 'info' CHECK (severidad IN ('info', 'advertencia', 'critico')),
+    titulo VARCHAR(200) NOT NULL,
+    mensaje TEXT NOT NULL,
+    accion_sugerida TEXT,
+    
+    -- Estado de la notificación
+    leida BOOLEAN DEFAULT FALSE,
+    fecha_creacion TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    fecha_lectura TIMESTAMP WITH TIME ZONE,
+    fecha_expiracion TIMESTAMP WITH TIME ZONE DEFAULT (CURRENT_TIMESTAMP + INTERVAL '7 days'),
+    
+    -- Metadatos específicos del módulo odontológico
+    diente_afectado INTEGER,
+    cambios_detectados JSONB DEFAULT '{}',
+    configuracion_usuario JSONB DEFAULT '{}',
+    
+    activa BOOLEAN DEFAULT TRUE
+);
+
+-- =====================================================
+-- TABLA 18: COLA DE ATENCIÓN POR ODONTÓLOGO
 -- =====================================================
 CREATE TABLE cola_atencion (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -657,6 +703,12 @@ CREATE INDEX idx_condiciones_diente ON condiciones_diente(diente_id);
 -- Cola de atención
 CREATE INDEX idx_cola_odontologo_posicion ON cola_atencion(odontologo_id, posicion_cola, estado_cola);
 CREATE INDEX idx_cola_consulta ON cola_atencion(consulta_id);
+
+-- Notificaciones del sistema
+CREATE INDEX idx_notificaciones_usuario ON notificaciones_sistema(usuario_id, fecha_creacion);
+CREATE INDEX idx_notificaciones_no_leidas ON notificaciones_sistema(usuario_id, leida, activa);
+CREATE INDEX idx_notificaciones_tipo ON notificaciones_sistema(tipo_notificacion, severidad);
+CREATE INDEX idx_notificaciones_odontograma ON notificaciones_sistema(odontograma_id, diente_afectado);
 
 -- =====================================================
 -- FUNCIONES Y TRIGGERS AUTOMÁTICOS

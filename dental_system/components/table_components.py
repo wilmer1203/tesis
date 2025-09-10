@@ -125,7 +125,7 @@ def status_badge(is_active: bool, active_text: str = "Activo", inactive_text: st
     return rx.badge(
         rx.hstack(
             rx.icon(
-                rx.cond(is_active, "check-circle", "x-circle"),
+                rx.cond(is_active, "check", "x"),
                 size=14
             ),
             rx.text(rx.cond(is_active, active_text, inactive_text)),
@@ -383,7 +383,7 @@ def patient_row(patient: rx.Var[PacienteModel]) -> rx.Component:
         rx.table.cell(
             rx.hstack(
                 action_button(
-                    icon="edit-2",
+                    icon="pencil",
                     tooltip="Editar",
                     color=COLORS["blue"]["600"],
                     action=lambda: AppState.seleccionar_y_abrir_modal_paciente(patient.id)
@@ -554,7 +554,7 @@ def service_row(service: rx.Var[Dict]) -> rx.Component:
         rx.table.cell(
             rx.hstack(
                 action_button(
-                    icon="edit-2",
+                    icon="pencil",
                     tooltip="Editar",
                     color=COLORS["blue"]["600"],
                     action=lambda: AppState.abrir_modal_servicio(service['id'])
@@ -569,7 +569,7 @@ def service_row(service: rx.Var[Dict]) -> rx.Component:
                         action=lambda: AppState.confirmar_eliminar_servicio(service['id'])
                     ),
                     action_button(
-                        icon="check-circle",
+                        icon="check",
                         tooltip="Reactivar",
                         color=COLORS["success"]["600"],
                         action=lambda: AppState.confirmar_reactivar_servicio(service['id'])
@@ -1046,7 +1046,7 @@ def consulta_actions(consulta: rx.Var[ConsultaModel]) -> rx.Component:
     """Acciones para consultas"""
     return rx.hstack(
         action_button(
-            icon="edit",
+            icon="pencil",
             tooltip="Editar",
             color=COLORS["blue"]["600"],
             action=lambda: AppState.abrir_modal_consulta(consulta.id)
@@ -1290,7 +1290,7 @@ def personal_row(personal: rx.Var[PersonalModel]) -> rx.Component:
         rx.table.cell(
             rx.hstack(
                 action_button(
-                    icon="edit-2",
+                    icon="pencil",
                     tooltip="Editar",
                     color=COLORS["blue"]["600"],
                     action=lambda: AppState.seleccionar_y_abrir_modal_personal(personal.id)

@@ -5,7 +5,7 @@ import reflex as rx
 from dental_system.state.app_state import AppState
 from dental_system.components.common import page_header, primary_button, secondary_button
 from dental_system.components.odontologia.panel_paciente import panel_informacion_paciente
-from dental_system.components.odontologia.panel_historial import panel_historial_notas
+# from dental_system.components.odontologia.panel_historial import panel_historial_notas  # Ya no se usa en layout fijo
 from dental_system.components.odontologia.intervention_tabs_v2 import intervention_tabs_integrated
 from dental_system.styles.themes import COLORS, RADIUS, SPACING, SHADOWS
 
@@ -13,10 +13,10 @@ from dental_system.styles.themes import COLORS, RADIUS, SPACING, SHADOWS
 # 🎨 ESTILOS PARA LA NUEVA ARQUITECTURA
 # ==========================================
 
-# Layout principal de 3 paneles
+# Layout principal de 2 paneles optimizado
 MAIN_LAYOUT_STYLE = {
-    "display": "grid",
-    "grid_template_columns": "30% 50% 20%",  # Panel paciente | Panel central | Panel historial
+    # "display": "grid", 
+    "grid_template_columns": "20% 80%",  # Panel paciente | Panel central (más espacio)
     "gap": SPACING["4"],
     "height": "calc(100vh - 140px)",  # Altura total menos header
     "width": "100%",
@@ -58,14 +58,14 @@ ACTION_BUTTONS_STYLE = {
     "gap": SPACING["2"]
 }
 
-# Responsive para tablets
+# Responsive para tablets optimizado
 TABLET_RESPONSIVE = {
     "@media (max-width: 1024px)": {
-        "grid_template_columns": "35% 45% 20%"  # Más espacio para paciente en tablet
+        "grid_template_columns": "40% 60%"  # Ajuste para tablets
     },
     "@media (max-width: 768px)": {
         "grid_template_columns": "100%",  # Stack vertical en móvil
-        "grid_template_rows": "auto auto auto",
+        "grid_template_rows": "auto auto",  # Solo 2 paneles
         "height": "auto"
     }
 }
@@ -247,13 +247,13 @@ def validation_alert() -> rx.Component:
 
 def intervencion_page_v2() -> rx.Component:
     """
-    🦷 Página de intervención odontológica - ARQUITECTURA DE 3 PANELES
+    🦷 Página de intervención odontológica - ARQUITECTURA DE 2 PANELES
     
     ✅ NUEVA ARQUITECTURA IMPLEMENTADA:
-    - Layout de 3 paneles: Paciente (30%) | Central (50%) | Historial (20%)
+    - Layout de 2 paneles optimizado: Paciente (35%) | Central (65%)
     - Panel izquierdo: Información completa del paciente + datos médicos
     - Panel central: Odontograma interactivo + Formulario de intervención
-    - Panel derecho: Timeline de historial + Notas clínicas
+    - Historial: Accesible via popover/botón flotante
     - Navigation header con breadcrumbs y acciones
     - Responsive design adaptable a tablets/desktop
     - Componentes reutilizables y tipados
@@ -266,6 +266,12 @@ def intervencion_page_v2() -> rx.Component:
     - Historial accesible sin interrumpir flujo
     - Validaciones en tiempo real
     - Estados visuales claros
+    
+    ✅ FIXES APLICADOS (2025-09-06):
+    - Resuelto problema de carga de datos del paciente
+    - Implementado fallback sincrónico via servicio de pacientes
+    - Corregidos errores de permisos para odontólogos
+    - Sistema de navegación completamente funcional
     
     📊 MÉTRICAS OBJETIVO:
     - Tiempo de intervención: < 4 minutos
@@ -290,31 +296,23 @@ def intervencion_page_v2() -> rx.Component:
         # Alerta de validación si es necesaria
         validation_alert(),
         
-        # Layout principal de 3 paneles
+        # Layout principal de 2 paneles optimizado
         rx.box(
             rx.hstack(
                 # ==========================================
-                # PANEL IZQUIERDO: INFORMACIÓN DEL PACIENTE (30%)
+                # PANEL IZQUIERDO: INFORMACIÓN DEL PACIENTE (25% - COMO REFERENCIA)
                 # ==========================================
                 rx.box(
                     panel_informacion_paciente(),
-                    style={**PANEL_BASE_STYLE, "width": "30%"}
+                    style={**PANEL_BASE_STYLE, "width": "20%"}
                 ),
                 
                 # ==========================================
-                # PANEL CENTRAL: ODONTOGRAMA + FORMULARIO (50%)
+                # PANEL CENTRAL: ODONTOGRAMA + FORMULARIO (75% - COMO REFERENCIA)
                 # ==========================================
                 rx.box(
                     panel_central_intervencion(),
-                    style={**PANEL_BASE_STYLE, "width": "50%"}
-                ),
-                
-                # ==========================================
-                # PANEL DERECHO: HISTORIAL + NOTAS (20%)
-                # ==========================================
-                rx.box(
-                    panel_historial_notas(),
-                    style={**PANEL_BASE_STYLE, "width": "20%"}
+                    style={**PANEL_BASE_STYLE, "width": "80%"}
                 ),
                 
                 spacing="4",
@@ -361,6 +359,7 @@ def intervencion_page_v2() -> rx.Component:
         min_height="100vh",
         background=COLORS["gray"]["25"],
         padding=SPACING["6"],
+        position= "relative",
         
         # Eventos de inicialización
         on_mount=[

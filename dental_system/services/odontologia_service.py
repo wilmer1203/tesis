@@ -61,6 +61,7 @@ class OdontologiaService(BaseService):
         self.consultas_table = consultas_table
         self.interventions_table = interventions_table
         self.pacientes_table = pacientes_table
+        self.services_table = servicios_table  # ✅ Agregar tabla de servicios faltante
         # ✅ Usar instancia importada en lugar de crear nueva
         self.odontograms_table = odontograms_table
     
@@ -791,6 +792,324 @@ class OdontologiaService(BaseService):
         except Exception as e:
             logger.error(f"❌ Error obteniendo historial de diente: {str(e)}")
             return []
+
+    async def get_historial_paciente_completo(self, paciente_id: str) -> List[Dict[str, Any]]:
+        """
+        📜 Obtener historial clínico completo del paciente
+        
+        Args:
+            paciente_id: ID del paciente
+            
+        Returns:
+            Lista de entradas del historial médico completo
+        """
+        try:
+            logger.info(f"Obteniendo historial completo para paciente: {paciente_id}")
+            
+            # Verificar permisos
+            if not self.check_permission("consultas", "leer"):
+                raise PermissionError("Sin permisos para leer historial de pacientes")
+            
+            # Obtener historial médico desde la tabla historial_medico
+            try:
+                historial_response = self.client.table("historial_medico") \
+                    .select("*") \
+                    .eq("paciente_id", paciente_id) \
+                    .order("fecha_registro", desc=True) \
+                    .execute()
+                
+                historial_medico = historial_response.data if historial_response.data else []
+            except Exception as e:
+                logger.warning(f"Error obteniendo historial médico: {e}")
+                historial_medico = []
+            
+            # Obtener intervenciones relacionadas
+            try:
+                intervenciones_response = self.client.table("intervenciones") \
+                    .select("*, consultas(fecha_programada, motivo_consulta)") \
+                    .eq("paciente_id", paciente_id) \
+                    .order("fecha_inicio", desc=True) \
+                    .execute()
+                
+                intervenciones = intervenciones_response.data if intervenciones_response.data else []
+            except Exception as e:
+                logger.warning(f"Error obteniendo intervenciones: {e}")
+                intervenciones = []
+            
+            # Combinar historial médico e intervenciones
+            historial_completo = []
+            
+            # Agregar entradas del historial médico
+            for entrada in historial_medico:
+                historial_completo.append({
+                    "id": entrada.get("id"),
+                    "tipo": "historial_medico",
+                    "fecha": entrada.get("fecha_registro"),
+                    "titulo": entrada.get("tipo_entrada", "Entrada médica"),
+                    "descripcion": entrada.get("descripcion", ""),
+                    "datos_adicionales": entrada.get("datos_adicionales", {}),
+                    "registrado_por": entrada.get("registrado_por", "")
+                })
+            
+            # Agregar intervenciones como entradas de historial
+            for intervencion in intervenciones:
+                consulta_info = intervencion.get("consultas", {})
+                historial_completo.append({
+                    "id": intervencion.get("id"),
+                    "tipo": "intervencion",
+                    "fecha": intervencion.get("fecha_inicio"),
+                    "titulo": f"Intervención - {consulta_info.get('motivo_consulta', 'Sin especificar')}",
+                    "descripcion": intervencion.get("procedimiento_realizado", ""),
+                    "datos_adicionales": {
+                        "precio_final": intervencion.get("precio_final"),
+                        "dientes_afectados": intervencion.get("dientes_afectados", []),
+                        "materiales": intervencion.get("materiales_utilizados", []),
+                        "estado": intervencion.get("estado")
+                    },
+                    "registrado_por": intervencion.get("odontologo_id", "")
+                })
+            
+            # Ordenar todo el historial por fecha (más reciente primero)
+            historial_completo.sort(
+                key=lambda x: x.get("fecha") or "", 
+                reverse=True
+            )
+            
+            logger.info(f"✅ Historial completo obtenido: {len(historial_completo)} entradas")
+            return historial_completo
+            
+        except PermissionError:
+            logger.warning("Usuario sin permisos para leer historial completo")
+            raise
+        except Exception as e:
+            logger.error(f"❌ Error obteniendo historial completo: {str(e)}")
+            return []
+
+    async def crear_intervencion_con_servicios(self, datos_intervencion: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        💾 Crear intervención con múltiples servicios (nueva implementación para shopping cart)
+        
+        Args:
+            datos_intervencion: {
+                "consulta_id": str,
+                "odontologo_id": str,  # ID del usuario (se convertirá a personal_id)
+                "servicios": [
+                    {
+                        "servicio_id": str,
+                        "cantidad": int,
+                        "precio_unitario_bs": float,
+                        "precio_unitario_usd": float,
+                        "dientes_texto": str,
+                        "observaciones": str
+                    }
+                ],
+                "observaciones_generales": str
+            }
+            
+        Returns:
+            Dict con información de la intervención creada
+        """
+        try:
+            logger.info(f"🚀 Iniciando creación de intervención con servicios")
+            
+            # Verificar permisos
+            self.require_permission("intervenciones", "crear")
+            
+            # Validaciones básicas
+            consulta_id = datos_intervencion.get("consulta_id")
+            if not consulta_id:
+                raise ValueError("consulta_id es requerido")
+            
+            servicios = datos_intervencion.get("servicios", [])
+            if not servicios:
+                raise ValueError("Al menos un servicio es requerido")
+            
+            odontologo_user_id = datos_intervencion.get("odontologo_id")
+            if not odontologo_user_id:
+                raise ValueError("odontologo_id es requerido")
+            
+            # CONVERSIÓN CRÍTICA: usuario_id → personal_id
+            personal_id = self._get_personal_id_from_user_id(odontologo_user_id)
+            logger.info(f"🔄 Conversión: usuario {odontologo_user_id} → personal {personal_id}")
+            
+            # Calcular totales desde los servicios
+            total_bs = sum(
+                float(servicio.get("precio_unitario_bs", 0)) * int(servicio.get("cantidad", 1)) 
+                for servicio in servicios
+            )
+            total_usd = sum(
+                float(servicio.get("precio_unitario_usd", 0)) * int(servicio.get("cantidad", 1)) 
+                for servicio in servicios
+            )
+            
+            logger.info(f"💰 Totales calculados: BS {total_bs:,.2f}, USD ${total_usd:,.2f}")
+            
+            # Crear la intervención principal
+            intervencion_data = {
+                "consulta_id": consulta_id,
+                "odontologo_id": personal_id,  # Usar personal_id convertido
+                "procedimiento_realizado": datos_intervencion.get("observaciones_generales", f"Intervención con {len(servicios)} servicios"),
+                "total_bs": float(total_bs),  # Convertir a float para BD
+                "total_usd": float(total_usd), # Convertir a float para BD
+                "hora_inicio": datetime.now().isoformat(),  # Convertir a string ISO
+                "hora_fin": datetime.now().isoformat(),    # Convertir a string ISO
+                "estado": "completada",
+                "requiere_control": datos_intervencion.get("requiere_control", False)
+            }
+            
+            # Recopilar dientes afectados de todos los servicios
+            dientes_todos = []
+            for servicio in servicios:
+                dientes_texto = servicio.get("dientes_texto", "")
+                if dientes_texto.strip():
+                    # Parse dientes: "11, 12, 21" → [11, 12, 21]
+                    try:
+                        dientes_servicio = [
+                            int(d.strip()) for d in dientes_texto.split(",") 
+                            if d.strip().isdigit()
+                        ]
+                        dientes_todos.extend(dientes_servicio)
+                    except:
+                        logger.warning(f"Error parseando dientes: {dientes_texto}")
+            
+            # Remover duplicados y ordenar
+            dientes_unicos = sorted(list(set(dientes_todos)))
+            intervencion_data["dientes_afectados"] = dientes_unicos
+            
+            logger.info(f"🦷 Dientes afectados: {dientes_unicos}")
+            
+            # Crear la intervención usando el método directo de BaseTable ya que create_intervention 
+            # no está sincronizado con la estructura de BD actual
+            nueva_intervencion = self.interventions_table.create(intervencion_data)
+            
+            if not nueva_intervencion or not nueva_intervencion.get("id"):
+                raise ValueError("Error creando intervención principal")
+                
+            intervencion_id = nueva_intervencion["id"]
+            logger.info(f"✅ Intervención principal creada: {intervencion_id}")
+            
+            # ✅ Crear registros en intervenciones_servicios para cada servicio del shopping cart
+            servicios_creados = 0
+            for servicio in servicios:
+                try:
+                    # Datos del servicio individual
+                    cantidad = int(servicio.get("cantidad", 1))
+                    precio_unitario_bs = float(servicio.get("precio_unitario_bs", 0))
+                    precio_unitario_usd = float(servicio.get("precio_unitario_usd", 0))
+                    precio_total_bs = cantidad * precio_unitario_bs
+                    precio_total_usd = cantidad * precio_unitario_usd
+                    
+                    # Parsear dientes específicos para este servicio
+                    dientes_texto = servicio.get("dientes_texto", "")
+                    dientes_especificos = []
+                    if dientes_texto.strip():
+                        try:
+                            dientes_especificos = [
+                                int(d.strip()) for d in dientes_texto.split(",") 
+                                if d.strip().isdigit()
+                            ]
+                        except:
+                            logger.warning(f"Error parseando dientes del servicio: {dientes_texto}")
+                    
+                    # Crear registro en intervenciones_servicios
+                    servicio_data = {
+                        "intervencion_id": intervencion_id,
+                        "servicio_id": servicio.get("servicio_id"),
+                        "cantidad": cantidad,
+                        "precio_unitario_bs": precio_unitario_bs,
+                        "precio_unitario_usd": precio_unitario_usd,
+                        "precio_total_bs": precio_total_bs,
+                        "precio_total_usd": precio_total_usd,
+                        "dientes_especificos": dientes_especificos,
+                        "observaciones_servicio": servicio.get("observaciones", "")
+                    }
+                    
+                    # Insertar usando cliente directo de Supabase
+                    response = self.client.table("intervenciones_servicios").insert(servicio_data).execute()
+                    
+                    if response.data:
+                        servicios_creados += 1
+                        logger.info(f"✅ Servicio creado en BD: {servicio.get('servicio_id')} x{cantidad}")
+                    else:
+                        logger.error(f"❌ Error creando servicio: {servicio.get('servicio_id')}")
+                        
+                except Exception as e:
+                    logger.error(f"❌ Error procesando servicio individual: {e}")
+                    continue
+            
+            logger.info(f"📋 Servicios creados en intervenciones_servicios: {servicios_creados}/{len(servicios)}")
+            
+            # Verificar que se crearon todos los servicios
+            if servicios_creados != len(servicios):
+                logger.warning(f"⚠️ Solo se crearon {servicios_creados} de {len(servicios)} servicios")
+            
+            # Generar descripción detallada de servicios
+            descripcion_servicios = []
+            for i, servicio in enumerate(servicios, 1):
+                # Obtener nombre del servicio
+                servicio_info = self.services_table.get_by_id(servicio.get("servicio_id"))
+                nombre_servicio = servicio_info.get("nombre", "Servicio desconocido") if servicio_info else "Servicio desconocido"
+                
+                descripcion = f"{i}. {nombre_servicio}"
+                if servicio.get("cantidad", 1) > 1:
+                    descripcion += f" (x{servicio.get('cantidad')})"
+                if servicio.get("dientes_texto"):
+                    descripcion += f" - Dientes: {servicio.get('dientes_texto')}"
+                
+                precios = []
+                if servicio.get("precio_unitario_bs", 0) > 0:
+                    precios.append(f"{servicio.get('precio_unitario_bs'):,.0f} Bs")
+                if servicio.get("precio_unitario_usd", 0) > 0:
+                    precios.append(f"${servicio.get('precio_unitario_usd'):,.0f}")
+                
+                if precios:
+                    descripcion += f" - {' / '.join(precios)}"
+                
+                if servicio.get("observaciones"):
+                    descripcion += f" - {servicio.get('observaciones')}"
+                
+                descripcion_servicios.append(descripcion)
+            
+            # Actualizar procedimiento_realizado con detalles
+            procedimiento_detallado = (
+                f"{datos_intervencion.get('observaciones_generales', 'Intervención múltiple')}\n\n"
+                f"Servicios realizados:\n" + "\n".join(descripcion_servicios)
+            )
+            
+            # Actualizar la intervención con la descripción completa
+            self.interventions_table.update(intervencion_id, {
+                "procedimiento_realizado": procedimiento_detallado
+            })
+            
+            # Actualizar estado de la consulta a completada
+            self.consultas_table.update_status(consulta_id, "completada")
+            logger.info(f"✅ Consulta {consulta_id} marcada como completada")
+            
+            # Invalidar caché
+            try:
+                invalidate_after_intervention_operation()
+            except Exception as cache_error:
+                logger.warning(f"Error invalidando cache: {cache_error}")
+            
+            logger.info(f"🎉 Intervención con servicios completada exitosamente: {intervencion_id}")
+            
+            return {
+                "success": True,
+                "intervencion_id": intervencion_id,
+                "total_bs": total_bs,
+                "total_usd": total_usd,
+                "servicios_count": len(servicios),
+                "servicios_creados": servicios_creados,
+                "dientes_afectados": dientes_unicos,
+                "message": f"Intervención creada con {servicios_creados}/{len(servicios)} servicios guardados"
+            }
+            
+        except PermissionError:
+            logger.error("❌ Sin permisos para crear intervención")
+            raise
+        except Exception as e:
+            logger.error(f"❌ Error creando intervención con servicios: {str(e)}")
+            raise ValueError(f"Error inesperado: {str(e)}")
 
 # Instancia única para importar
 odontologia_service = OdontologiaService()
