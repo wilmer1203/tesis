@@ -657,12 +657,12 @@ class EstadoPersonal(rx.State, mixin=True):
         """
         self.errores_validacion_empleado = {}
         
-        # ✅ CAMPOS REQUERIDOS CON MODELO TIPADO
+        # ✅ CAMPOS REQUERIDOS - SINCRONIZADO CON PERSONAL_SERVICE.PY
         campos_requeridos = [
-            "primer_nombre", "primer_apellido", "numero_documento", "celular", "email"
+            "primer_nombre", "primer_apellido", "numero_documento", "email", "celular", "tipo_personal"
         ]
-        
-        # ✅ AGREGAR CONTRASEÑA PARA USUARIOS NUEVOS
+
+        # ✅ AGREGAR CONTRASEÑA PARA USUARIOS NUEVOS (igual que servicio)
         if not self.empleado_seleccionado:  # Solo para nuevos usuarios
             campos_requeridos.append("usuario_password")
         

@@ -4,44 +4,117 @@
 import reflex as rx
 from typing import Dict, Optional, Any
 from dental_system.state.app_state import AppState
-from dental_system.styles.themes import COLORS, DARK_THEME, RADIUS, SPACING, SHADOWS
+from dental_system.models.odontologia_models import DienteModel, CondicionDienteModel
+from dental_system.services.odontograma_service import odontograma_service
+from dental_system.styles.themes import COLORS, DARK_THEME, RADIUS, SPACING, SHADOWS, ANIMATIONS
 
 # ==========================================
 # 🎨 CONFIGURACIÓN DE COLORES Y CONDICIONES
 # ==========================================
 
-# Sistema de colores médicamente apropiado para condiciones dentales
+# Sistema de colores médico profesional basado en convenciones internacionales
+MEDICAL_CONDITION_PALETTE = {
+    # Estados básicos - Paleta médica profesional
+    "sano": {
+        "bg": "#dcfce7",        # Verde más visible para testing
+        "border": "#16a34a",    # Verde médico estándar
+        "text": "#14532d",
+        "shadow": "0 2px 8px rgba(22, 163, 74, 0.15)",
+        "hover_bg": "#bbf7d0",  # Verde aún más brillante en hover
+        "hover_shadow": "0 8px 25px rgba(22, 163, 74, 0.3)"
+    },
+    
+    # Patología - Rojo médico con urgencia visual
+    "caries": {
+        "bg": "#fef2f2",        # Rojo muy suave
+        "border": "#dc2626",    # Rojo médico de alerta
+        "text": "#7f1d1d",
+        "shadow": "0 2px 8px rgba(220, 38, 38, 0.2)",
+        "hover_bg": "#fee2e2",
+        "hover_shadow": "0 8px 25px rgba(220, 38, 38, 0.4)",
+        "pulse": True           # Animación para casos urgentes
+    },
+    
+    # Restauraciones - Azul médico confiable
+    "obturado": {
+        "bg": "#eff6ff",        # Azul muy suave
+        "border": "#2563eb",    # Azul médico profesional
+        "text": "#1e3a8a",
+        "shadow": "0 2px 8px rgba(37, 99, 235, 0.15)",
+        "hover_bg": "#dbeafe",
+        "hover_shadow": "0 8px 25px rgba(37, 99, 235, 0.3)"
+    },
+    
+    # Prótesis - Dorado elegante médico
+    "corona": {
+        "bg": "#fffbeb",        # Amarillo muy suave
+        "border": "#d97706",    # Dorado médico
+        "text": "#92400e",
+        "shadow": "0 2px 8px rgba(217, 119, 6, 0.15)",
+        "hover_bg": "#fef3c7",
+        "hover_shadow": "0 8px 25px rgba(217, 119, 6, 0.3)",
+        "metallic": True        # Efecto metálico sutil
+    },
+    
+    # Implantes - Verde esmeralda médico
+    "implante": {
+        "bg": "#f0fdfa",
+        "border": "#059669",
+        "text": "#064e3b",
+        "shadow": "0 2px 8px rgba(5, 150, 105, 0.15)",
+        "hover_bg": "#ccfbf1",
+        "hover_shadow": "0 8px 25px rgba(5, 150, 105, 0.3)"
+    },
+    
+    # Endodoncia - Dorado especializado
+    "endodoncia": {
+        "bg": "#fffbeb",
+        "border": "#f59e0b",
+        "text": "#92400e",
+        "shadow": "0 2px 8px rgba(245, 158, 11, 0.15)",
+        "hover_bg": "#fef3c7",
+        "hover_shadow": "0 8px 25px rgba(245, 158, 11, 0.3)"
+    },
+    
+    # Ausente - Gris médico neutral
+    "ausente": {
+        "bg": "#f9fafb",
+        "border": "#6b7280",
+        "text": "#374151",
+        "shadow": "0 2px 8px rgba(107, 114, 128, 0.15)",
+        "hover_bg": "#f3f4f6",
+        "hover_shadow": "0 8px 25px rgba(107, 114, 128, 0.2)",
+        "opacity": 0.6         # Indicador visual de ausencia
+    },
+    
+    # Fractura - Rojo intenso de urgencia
+    "fractura": {
+        "bg": "#fef2f2",
+        "border": "#ef4444",
+        "text": "#7f1d1d",
+        "shadow": "0 2px 8px rgba(239, 68, 68, 0.2)",
+        "hover_bg": "#fee2e2",
+        "hover_shadow": "0 8px 25px rgba(239, 68, 68, 0.4)",
+        "pulse": True,
+        "urgent": True
+    },
+    
+    # En tratamiento - Naranja profesional
+    "en_tratamiento": {
+        "bg": "#fff7ed",
+        "border": "#ea580c",
+        "text": "#9a3412",
+        "shadow": "0 2px 8px rgba(234, 88, 12, 0.15)",
+        "hover_bg": "#fed7aa",
+        "hover_shadow": "0 8px 25px rgba(234, 88, 12, 0.3)",
+        "animated": True        # Indicador de proceso activo
+    }
+}
+
+# Mantener compatibilidad con código existente
 CONDITION_COLORS = {
-    # Condiciones básicas
-    "sano": "#90EE90",              # Verde claro - diente sano
-    "caries": "#FF4500",            # Rojo-naranja - caries activa
-    "obturado": "#C0C0C0",          # Plata - obturación
-    
-    # Protésicas
-    "corona": "#4169E1",            # Azul real - corona
-    "puente": "#800080",            # Púrpura - puente
-    "implante": "#32CD32",          # Verde lima - implante
-    
-    # Estados especiales
-    "ausente": "#2F2F2F",           # Gris oscuro - diente ausente
-    "fractura": "#FF6347",          # Tomate - fractura
-    "endodoncia": "#FFD700",        # Oro - tratamiento endodóntico
-    "extraccion": "#8B0000",        # Rojo oscuro - para extracción
-    
-    # Materiales específicos
-    "protesis": "#DA70D6",          # Orquídea - prótesis
-    "sellantes": "#87CEEB",         # Azul cielo - sellantes
-    "composite": "#F0E68C",         # Caqui - composite
-    "amalgama": "#696969",          # Gris dim - amalgama
-    "ceramica": "#FFF8DC",          # Cornsilk - cerámica
-    "metal": "#708090",             # Gris pizarra - metal
-    "resina": "#F5DEB3",            # Trigo - resina
-    
-    # Estados de tratamiento
-    "temporal": "#DDA0DD",          # Ciruela - tratamiento temporal
-    "planificado": "#FFE4B5",       # Mocasín - tratamiento planificado
-    "en_tratamiento": "#FFA500",    # Naranja - en tratamiento
-    "completado": "#98FB98"         # Verde pálido - tratamiento completado
+    condition: palette["border"] 
+    for condition, palette in MEDICAL_CONDITION_PALETTE.items()
 }
 
 # Nombres legibles para mostrar en UI
@@ -208,8 +281,8 @@ def tooth_surface(
             is_modified,
             {
                 **base_style,
-                "border": f"2px solid {COLORS['warning']['400']}",
-                "box_shadow": f"0 0 8px {COLORS['warning']['400']}60",
+                "border": f"2px solid {COLORS['warning']['300']}",
+                "box_shadow": f"0 0 8px {COLORS['warning']['300']}60",
                 "animation": "pulse 2s infinite"
             },
             {
@@ -250,7 +323,7 @@ def tooth_surface_optimized(tooth_number: int, surface_name: str) -> rx.Componen
                 "background": rx.color_mode_cond(
                     # Usar la computed var optimizada para obtener el color
                     rx.match(
-                        AppState.get_surface_condition_optimized(tooth_number, surface_name),
+                        AppState.dientes_estados[tooth_number].get(surface_name, "sano"),
                         *[(cond, color) for cond, color in CONDITION_COLORS.items()],
                         CONDITION_COLORS["sano"]  # Valor por defecto
                     )
@@ -259,7 +332,7 @@ def tooth_surface_optimized(tooth_number: int, surface_name: str) -> rx.Componen
                     AppState.diente_seleccionado == tooth_number,
                     f"2px solid {COLORS['primary']['500']}",
                     rx.cond(
-                        AppState.tooth_has_changes_optimized.get(str(tooth_number), False),
+                        AppState.diente_tiene_cambios(tooth_number),
                         f"2px solid {COLORS['warning']['500']}",
                         f"1px solid {DARK_THEME['colors']['border']}"
                     )
@@ -268,7 +341,7 @@ def tooth_surface_optimized(tooth_number: int, surface_name: str) -> rx.Componen
                 "transition": "all 0.2s ease",
                 "opacity": rx.cond(
                     (AppState.diente_seleccionado == tooth_number) | 
-                    AppState.tooth_has_changes_optimized.get(str(tooth_number), False),
+                    AppState.diente_tiene_cambios(tooth_number),
                     "1.0",
                     "0.8"
                 ),
@@ -278,13 +351,13 @@ def tooth_surface_optimized(tooth_number: int, surface_name: str) -> rx.Componen
                     "2"
                 ),
                 "box_shadow": rx.cond(
-                    AppState.tooth_has_changes_optimized.get(str(tooth_number), False),
+                    AppState.diente_tiene_cambios(tooth_number),
                     f"0 0 8px {COLORS['warning']['500']}40",
                     "none"
                 )
             },
             # Event handler optimizado - usar el método optimizado del estado
-            on_click=AppState.select_tooth_optimized(tooth_number),
+            on_click=AppState.seleccionar_diente(tooth_number),
             
             # Hover effects mejorados
             _hover={
@@ -293,7 +366,7 @@ def tooth_surface_optimized(tooth_number: int, surface_name: str) -> rx.Componen
                 "z_index": "4"
             }
         ),
-        content=f"{surface_name.title()}: {AppState.get_surface_condition_optimized(tooth_number, surface_name)}"
+        content=f"{surface_name.title()}: {AppState.dientes_estados[tooth_number].get(surface_name, 'sano')}"
     )
 
 # ==========================================
@@ -381,6 +454,204 @@ def interactive_tooth(
         style=container_style,
         on_click=lambda: AppState.abrir_popover_diente(tooth_number, 200, 200)  # Posición fija por ahora
     )
+
+# ==========================================
+# 🦷 DIENTE MEJORADO CON MICRO-INTERACCIONES
+# ==========================================
+
+def enhanced_tooth_component(
+    tooth_number: int, 
+    estado: str = "sano",
+    conditions: Optional[Dict[str, str]] = None,
+    is_selected: bool = False
+) -> rx.Component:
+    """🦷 Diente con micro-interacciones médicas profesionales mejoradas"""
+    
+    # Obtener configuración de color médico
+    condition_config = MEDICAL_CONDITION_PALETTE.get(estado, MEDICAL_CONDITION_PALETTE["sano"])
+    
+    # Obtener dimensiones del diente según su tipo
+    tooth_dimensions = get_tooth_dimensions(tooth_number)
+    
+    # Configurar animaciones específicas
+    animation_css = ""
+    if condition_config.get("pulse"):
+        animation_css = "pulse-urgent 2s cubic-bezier(0.4, 0, 0.6, 1) infinite"
+    elif condition_config.get("animated"):
+        animation_css = "medical-attention 3s ease-in-out infinite"
+    elif is_selected:
+        animation_css = "tooth-selected 1.5s ease-in-out infinite"
+    
+    return rx.tooltip(
+        rx.box(
+            # Número del diente con tipografía médica mejorada
+            rx.text(
+                str(tooth_number),
+                style={
+                    "font_size": "11px",
+                    "font_weight": "700",
+                    "color": condition_config["text"],
+                    "font_family": "Inter, -apple-system, BlinkMacSystemFont, sans-serif",
+                    "text_align": "center",
+                    "line_height": "1",
+                    "user_select": "none",
+                    "pointer_events": "none"
+                }
+            ),
+            
+            # Indicador visual de estado con glassmorphism
+            rx.cond(
+                estado != "sano",
+                rx.box(
+                    style={
+                        "width": "8px",
+                        "height": "8px", 
+                        "border_radius": "50%",
+                        "background": f"linear-gradient(135deg, {condition_config['border']}, {condition_config['hover_bg']})",
+                        "position": "absolute",
+                        "top": "2px",
+                        "right": "2px",
+                        "box_shadow": f"0 2px 6px {condition_config['border']}40",
+                        "border": "1px solid rgba(255,255,255,0.2)",
+                        "backdrop_filter": "blur(4px)"
+                    }
+                )
+            ),
+            
+            # Badge de urgencia para casos críticos
+            rx.cond(
+                condition_config.get("urgent", False),
+                rx.box(
+                    "!",
+                    style={
+                        "position": "absolute",
+                        "top": "-2px",
+                        "left": "-2px",
+                        "width": "12px",
+                        "height": "12px",
+                        "border_radius": "50%",
+                        "background": "linear-gradient(135deg, #ef4444, #dc2626)",
+                        "color": "white",
+                        "font_size": "8px",
+                        "font_weight": "bold",
+                        "display": "flex",
+                        "align_items": "center",
+                        "justify_content": "center",
+                        "animation": "pulse-urgent 1.5s infinite",
+                        "z_index": "10"
+                    }
+                )
+            ),
+            
+            style={
+                # Dimensiones dinámicas
+                **tooth_dimensions,
+                
+                # Estilos médicos profesionales
+                "background": f"linear-gradient(135deg, {condition_config['bg']}, {condition_config['hover_bg']}08)",
+                "border": f"2px solid {condition_config['border']}",
+                "border_radius": "14px",
+                "position": "relative",
+                "cursor": "pointer",
+                "user_select": "none",
+                
+                # Sistema de sombras médicas
+                "box_shadow": condition_config["shadow"],
+                
+                # Transiciones suaves premium
+                "transition": "all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+                
+                # Animaciones contextuales
+                **({"animation": animation_css} if animation_css else {}),
+                
+                # Opacidad para dientes ausentes
+                "opacity": condition_config.get("opacity", 1),
+                
+                # Estados interactivos médicos avanzados
+                "_hover": {
+                    "transform": "translateY(-3px) scale(1.08)",
+                    "box_shadow": condition_config["hover_shadow"],
+                    "border_color": condition_config["border"],
+                    "background": f"linear-gradient(135deg, {condition_config['hover_bg']}, {condition_config['border']}15)",
+                    "z_index": "20"
+                },
+                
+                "_active": {
+                    "transform": "translateY(-1px) scale(1.02)",
+                    "transition": "all 0.15s ease",
+                    "box_shadow": f"0 4px 12px {condition_config['border']}50"
+                },
+                
+                # Estado seleccionado
+                **({"border_color": COLORS["primary"]["400"],
+                    "box_shadow": f"0 0 0 2px {COLORS['primary']['400']}40, {condition_config['shadow']}",
+                    "background": f"linear-gradient(135deg, {condition_config['bg']}, {COLORS['primary']['100']})"
+                } if is_selected else {}),
+                
+                # Efectos especiales
+                **({"backdrop_filter": "blur(8px)"} if condition_config.get("metallic") else {})
+            },
+            
+            # Eventos interactivos mejorados
+            on_click=lambda: [
+                AppState.seleccionar_diente_con_feedback(tooth_number),
+                AppState.abrir_popover_diente(tooth_number, 200, 200)
+            ],
+            on_mouse_enter=lambda: AppState.highlight_tooth(tooth_number, True),
+            on_mouse_leave=lambda: AppState.highlight_tooth(tooth_number, False)
+        ),
+        
+        # Tooltip médico informativo
+        content=rx.vstack(
+            rx.hstack(
+                rx.text(f"🦷 Diente {tooth_number}", weight="bold", size="3"),
+                rx.badge(
+                    get_condition_name(estado),
+                    style={
+                        "background": condition_config["border"],
+                        "color": "white"
+                    }
+                ),
+                spacing="2"
+            ),
+            rx.text(
+                get_tooth_type_name(tooth_number), 
+                size="2", 
+                color=DARK_THEME["colors"]["text_secondary"]
+            ),
+            rx.text(
+                "Click para detalles médicos", 
+                size="1", 
+                color=DARK_THEME["colors"]["text_muted"]
+            ),
+            spacing="1",
+            align_items="start"
+        ),
+        
+        # Configuración del tooltip
+        side="top",
+        delay_duration=500
+    )
+
+def get_tooth_dimensions(tooth_number: int) -> Dict[str, str]:
+    """🦷 Obtener dimensiones específicas según el tipo de diente"""
+    if tooth_number in [11, 12, 13, 21, 22, 23, 31, 32, 33, 41, 42, 43]:  # Anteriores
+        return {"width": "24px", "height": "32px"}
+    elif tooth_number in [14, 15, 24, 25, 34, 35, 44, 45]:  # Premolares
+        return {"width": "26px", "height": "28px"}
+    else:  # Molares
+        return {"width": "30px", "height": "26px"}
+
+def get_tooth_type_name(tooth_number: int) -> str:
+    """🦷 Obtener nombre del tipo de diente"""
+    if tooth_number in [11, 12, 21, 22, 31, 32, 41, 42]:
+        return "Incisivo"
+    elif tooth_number in [13, 23, 33, 43]:
+        return "Canino"
+    elif tooth_number in [14, 15, 24, 25, 34, 35, 44, 45]:
+        return "Premolar"
+    else:
+        return "Molar"
 
 # ==========================================
 # 🎨 UTILIDADES DE ESTILO Y COLORES
@@ -512,3 +783,274 @@ def get_tooth_quadrant(tooth_number: int) -> int:
         return 0
     
     return tooth_number // 10
+
+
+# ==========================================
+# 🦷 COMPONENTE AVANZADO CON CATÁLOGO FDI
+# ==========================================
+
+def advanced_fdi_tooth_component(
+    diente_fdi: DienteModel,
+    condicion: Optional[CondicionDienteModel] = None,
+    is_selected: bool = False,
+    is_urgent: bool = False
+) -> rx.Component:
+    """
+    🦷 Componente avanzado usando catálogo FDI real
+    
+    Características:
+    - Usa datos reales del catálogo FDI
+    - Colores médicos profesionales desde BD
+    - Dimensiones anatómicas correctas
+    - Tooltips con información médica
+    - Animaciones contextuales para urgencias
+    """
+    
+    # Obtener información de la condición
+    if condicion:
+        condition_name = condicion.nombre_condicion or "sano"
+        condition_color = condicion.color_condicion or "#16a34a"
+        is_urgent = condicion.es_urgente
+        categoria = condicion.categoria or "normal"
+    else:
+        condition_name = "sano"
+        condition_color = "#16a34a"
+        is_urgent = False
+        categoria = "normal"
+    
+    # Obtener dimensiones anatómicas reales
+    tooth_dimensions = {
+        "width": "30px",
+        "height": "28px"
+    }
+    
+    # Coordenadas SVG del catálogo
+    svg_pos = diente_fdi.posicion_svg
+    
+    # Configurar animación según urgencia y condición
+    animation_style = {}
+    if is_urgent:
+        animation_style = {"animation": "pulse-urgent 2s infinite"}
+    elif is_selected:
+        animation_style = {"animation": "tooth-selected 1.5s ease-in-out infinite"}
+    
+    return rx.tooltip(
+        rx.box(
+            # Número FDI del diente
+            rx.text(
+                str(diente_fdi.numero_fdi),
+                style={
+                    "font_size": "11px",
+                    "font_weight": "700",
+                    "color": "#1f2937",
+                    "font_family": "Inter, system-ui, sans-serif",
+                    "text_align": "center",
+                    "line_height": "1",
+                    "user_select": "none"
+                }
+            ),
+            
+            # Indicador de condición (punto de color)
+            rx.cond(
+                condition_name != "sano",
+                rx.box(
+                    style={
+                        "position": "absolute",
+                        "top": "2px",
+                        "right": "2px",
+                        "width": "8px",
+                        "height": "8px",
+                        "border_radius": "50%",
+                        "background": condition_color,
+                        "box_shadow": f"0 2px 6px {condition_color}40",
+                        "border": "1px solid rgba(255,255,255,0.3)"
+                    }
+                )
+            ),
+            
+            # Badge de urgencia
+            rx.cond(
+                is_urgent,
+                rx.box(
+                    "!",
+                    style={
+                        "position": "absolute",
+                        "top": "-2px",
+                        "left": "-2px",
+                        "width": "12px",
+                        "height": "12px",
+                        "border_radius": "50%",
+                        "background": "linear-gradient(135deg, #ef4444, #dc2626)",
+                        "color": "white",
+                        "font_size": "8px",
+                        "font_weight": "bold",
+                        "display": "flex",
+                        "align_items": "center",
+                        "justify_content": "center",
+                        "z_index": "10"
+                    }
+                )
+            ),
+            
+            style={
+                # Dimensiones anatómicas
+                **tooth_dimensions,
+                
+                # Posición según catálogo FDI
+                "position": "relative",
+                
+                # Estilo médico profesional
+                "background": f"linear-gradient(135deg, {condition_color}15, {condition_color}08)",
+                "border": f"2px solid {condition_color}",
+                "border_radius": "12px",
+                "cursor": "pointer",
+                "user_select": "none",
+                
+                # Sombras médicas
+                "box_shadow": f"0 2px 8px {condition_color}20",
+                
+                # Transiciones suaves
+                "transition": "all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+                
+                # Animaciones contextuales
+                **animation_style,
+                
+                # Estados interactivos
+                "_hover": {
+                    "transform": "translateY(-2px) scale(1.05)",
+                    "box_shadow": f"0 6px 20px {condition_color}30",
+                    "background": f"linear-gradient(135deg, {condition_color}25, {condition_color}15)",
+                    "z_index": "20"
+                },
+                
+                "_active": {
+                    "transform": "translateY(-1px) scale(1.02)",
+                    "transition": "all 0.15s ease"
+                },
+                
+                # Estado seleccionado
+                **({"border_color": COLORS["primary"]["400"],
+                    "box_shadow": f"0 0 0 2px {COLORS['primary']['400']}40, 0 4px 12px {condition_color}30"
+                } if is_selected else {})
+            },
+            
+            # Eventos de interacción
+            on_click=lambda: [
+                AppState.seleccionar_diente_fdi(diente_fdi.numero_fdi),
+                AppState.cargar_detalles_diente_fdi(diente_fdi.numero_fdi)
+            ]
+        ),
+        
+        # Tooltip informativo médico
+        content=rx.vstack(
+            # Header del tooltip
+            rx.hstack(
+                rx.text(f"🦷 {diente_fdi.nombre_completo}", weight="bold", size="3"),
+                rx.badge(
+                    condition_name.title(),
+                    style={
+                        "background": condition_color,
+                        "color": "white"
+                    }
+                ),
+                spacing="2"
+            ),
+            
+            # Información anatómica
+            rx.text(
+                f"Tipo: {diente_fdi.tipo_diente.title()}", 
+                size="2", 
+                color=DARK_THEME["colors"]["text_secondary"]
+            ),
+            rx.text(
+                f"Cuadrante: {diente_fdi.cuadrante}", 
+                size="2", 
+                color=DARK_THEME["colors"]["text_secondary"]
+            ),
+            
+            # Superficies disponibles
+            rx.cond(
+                len(diente_fdi.superficies_disponibles) > 0,
+                rx.text(
+                    f"Superficies: {', '.join(diente_fdi.superficies_disponibles)}", 
+                    size="1", 
+                    color=DARK_THEME["colors"]["text_muted"]
+                )
+            ),
+            
+            # Indicador de urgencia
+            rx.cond(
+                is_urgent,
+                rx.hstack(
+                    rx.text("🚨", size="2"),
+                    rx.text("Requiere atención urgente", size="2", color="#ef4444", weight="bold"),
+                    spacing="1"
+                )
+            ),
+            
+            # Call to action
+            rx.text(
+                "Click para ver detalles médicos", 
+                size="1", 
+                color=DARK_THEME["colors"]["text_muted"]
+            ),
+            
+            spacing="1",
+            align_items="start"
+        ),
+        
+        side="top",
+        delay_duration=300
+    )
+
+
+# ==========================================
+# 🔄 FUNCIONES DE INTEGRACIÓN CON SERVICIO
+# ==========================================
+
+async def cargar_diente_fdi_con_condicion(numero_fdi: int, numero_historia: str) -> rx.Component:
+    """🔄 Cargar diente FDI con su condición actual desde BD"""
+    
+    try:
+        # Cargar información del diente desde catálogo FDI
+        diente = await odontograma_service.obtener_diente_por_fdi(numero_fdi)
+        if not diente:
+            # Fallback: crear diente básico
+            diente = DienteModel(
+                numero_fdi=numero_fdi,
+                nombre_diente=f"Diente {numero_fdi}",
+                tipo_diente=get_tooth_type(numero_fdi)
+            )
+        
+        # Obtener odontograma actual del paciente
+        odontograma = await odontograma_service.obtener_odontograma_actual(numero_historia)
+        condicion = None
+        
+        if odontograma and odontograma.dientes_estados:
+            estado_diente = odontograma.dientes_estados.get(numero_fdi, {})
+            if estado_diente:
+                # Crear modelo de condición desde estado
+                condicion = CondicionDienteModel(
+                    numero_fdi=numero_fdi,
+                    codigo_condicion=estado_diente.get("codigo", "SAO"),
+                    nombre_condicion=estado_diente.get("condicion", "sano"),
+                    color_hex=estado_diente.get("color", "#16a34a"),
+                    superficie_afectada=estado_diente.get("superficie", "completa"),
+                    categoria=estado_diente.get("categoria", "normal"),
+                    es_urgente=estado_diente.get("es_urgente", False)
+                )
+        
+        # Renderizar componente avanzado
+        return advanced_fdi_tooth_component(
+            diente_fdi=diente,
+            condicion=condicion,
+            is_selected=False  # AppState.diente_seleccionado == numero_fdi
+        )
+        
+    except Exception as e:
+        print(f"❌ Error cargando diente FDI {numero_fdi}: {e}")
+        # Fallback: componente básico
+        return enhanced_tooth_component(
+            tooth_number=numero_fdi,
+            estado="sano"
+        )

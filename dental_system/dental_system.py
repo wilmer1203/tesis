@@ -4,15 +4,16 @@
 import reflex as rx
 from dental_system.state.app_state import AppState
 from dental_system.styles.themes import COLORS, SHADOWS
-from dental_system.pages.dashboard import dashboard_page
+# from dental_system.pages.dashboard import dashboard_page
 from dental_system.pages.pacientes_page import pacientes_page
 from dental_system.pages.personal_page import personal_page
 from dental_system.pages.consultas_page_v41 import consultas_page_v41
 # from dental_system.pages.servicios_page import servicios_page  # TODO: Fix estado_servicios integration
-# from dental_system.pages.pagos_page import pagos_page  # TODO: Implement pagos module
+from dental_system.pages.intervencion_advanced_page import intervencion_advanced_page
 from dental_system.pages.odontologia_page import odontologia_page
 from dental_system.pages.intervencion_page_v2 import intervencion_page_v2
 from dental_system.pages.login import login_page
+from dental_system.pages.test_selector import test_selector_page
 from dental_system.components.common import sidebar
 from dental_system.utils.route_guard import (
     boss_only_component,
@@ -83,9 +84,9 @@ def main_content() -> rx.Component:
     """
     return rx.match(
         AppState.current_page,
-        ("dashboard", dashboard_page()),
+        # ("dashboard", dashboard_page()),
         ("pacientes", pacientes_page()),
-        ("consultas", consultas_page_v41()),
+        ("consultas", consultas_page_v41()),  # 🔄 VERSIÓN ORIGINAL (FUNCIONA)
         ("personal", personal_page()),
         # ("servicios", servicios_page()),  # TODO: Completar integración estado servicios
         # ("pagos", pagos_page()),  # TODO: Implementar módulo pagos
@@ -93,7 +94,7 @@ def main_content() -> rx.Component:
         ("intervencion", intervencion_page_v2()),
         ("reportes", reportes_placeholder()),
         # Página por defecto
-        dashboard_page(),
+        rx.center("Dashboard temporalmente deshabilitado"),
     ) # type: ignore
 
 # ==========================================
@@ -242,12 +243,14 @@ def create_app() -> rx.App:
     )
     
     # 🎯 RUTAS ESPECÍFICAS POR ROL - COMO QUERÍAS
-    app.add_page(index_page, route="/")           # Redirige según rol
+    # app.add_page(index_page, route="/")           # Redirige según rol
     app.add_page(login_page, route="/login")      # Login público
     app.add_page(boss_page, route="/boss")        # Gerente
     app.add_page(admin_page, route="/admin")      # Administrador  
     app.add_page(dentist_page, route="/dentist")  # Odontólogo
-    # Agregar ruta temporal
+    
+    # Agregar páginas de prueba del odontograma avanzado
+    app.add_page(intervencion_advanced_page, route="/intervencion-avanzada")  # Página avanzada completa
     
     return app
 

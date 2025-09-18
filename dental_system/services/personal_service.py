@@ -101,12 +101,35 @@ class PersonalService(BaseService):
             if missing_fields:
                 error_msg = self.format_error_message("Datos incompletos", missing_fields)
                 raise ValueError(error_msg)
-            
+
+            # ✅ VALIDACIONES ESPECÍFICAS - SINCRONIZADO CON ESTADO_PERSONAL.PY
+
+            # Número de documento válido
+            numero_documento = form_data.get("numero_documento", "").strip()
+            if numero_documento and len(numero_documento) < 7:
+                raise ValueError("El número de documento debe tener al menos 7 dígitos")
+
+            # Email válido
+            email = form_data.get("email", "").strip()
+            if email and "@" not in email:
+                raise ValueError("Email inválido")
+
+            # Celular válido
+            celular = form_data.get("celular", "").strip()
+            if celular and len(celular) < 10:
+                raise ValueError("Celular debe tener al menos 10 dígitos")
+
+            # Contraseña válida (solo para usuarios nuevos)
+            if not form_data.get("id"):  # Solo para nuevos usuarios
+                password = form_data.get("password", "").strip()
+                if password and len(password) < 6:
+                    raise ValueError("La contraseña debe tener al menos 6 caracteres")
+
             # Verificar que no exista el documento
             existing_personal = self.personal_table.get_by_documento(form_data["numero_documento"])
             if existing_personal:
                 raise ValueError("Ya existe personal con este número de documento")
-            
+
             # Verificar que no exista el email
             existing_user = self.users_table.get_by_email(form_data["email"])
             if existing_user:
@@ -241,12 +264,29 @@ class PersonalService(BaseService):
             if missing_fields:
                 error_msg = self.format_error_message("Datos incompletos", missing_fields)
                 raise ValueError(error_msg)
-            
+
+            # ✅ VALIDACIONES ESPECÍFICAS - SINCRONIZADO CON ESTADO_PERSONAL.PY
+
+            # Número de documento válido
+            numero_documento = form_data.get("numero_documento", "").strip()
+            if numero_documento and len(numero_documento) < 7:
+                raise ValueError("El número de documento debe tener al menos 7 dígitos")
+
+            # Email válido
+            email = form_data.get("email", "").strip()
+            if email and "@" not in email:
+                raise ValueError("Email inválido")
+
+            # Celular válido
+            celular = form_data.get("celular", "").strip()
+            if celular and len(celular) < 10:
+                raise ValueError("Celular debe tener al menos 10 dígitos")
+
             # Obtener personal actual
             current_personal = self.personal_table.get_by_id(personal_id)
             if not current_personal:
                 raise ValueError("Personal no encontrado")
-            
+
             # Verificar documento único (excluyendo el actual)
             existing_personal = self.personal_table.get_by_documento(form_data["numero_documento"])
             if existing_personal and existing_personal.get("id") != personal_id:
@@ -509,6 +549,46 @@ class PersonalService(BaseService):
         except Exception as e:
             self.handle_error("Error obteniendo estadísticas de personal", e)
             raise ValueError(f"Error inesperado: {str(e)}")
+
+    # ==========================================
+    # 🔗 MÉTODOS AUXILIARES PARA OTROS SERVICIOS
+    # ==========================================
+
+    async def obtener_personal_id_por_usuario(self, user_id: str) -> Optional[str]:
+        """
+        🔍 Obtener el ID de personal correspondiente a un usuario
+        """
+        try:
+            # Usar el método existente de personal_table
+            personal_data = self.personal_table.get_by_usuario_id(user_id)
+
+            if personal_data:
+                return personal_data.get('id')
+            return None
+
+        except Exception as e:
+            logger.warning(f"⚠️ No se encontró personal para usuario {user_id}: {e}")
+            return None
+
+    async def obtener_primer_personal_disponible(self) -> Optional[str]:
+        """
+        👨‍⚕️ Obtener el primer personal disponible
+        """
+        try:
+            # Usar el método existente de personal_table
+            personal_data = self.personal_table.get_filtered_personal(
+                estado_laboral="activo",
+                solo_activos=True
+            )
+
+            if personal_data and len(personal_data) > 0:
+                return personal_data[0].get('id')
+            return None
+
+        except Exception as e:
+            logger.warning(f"⚠️ No se encontró personal disponible: {e}")
+            return None
+
 
 
 # Instancia única para importar

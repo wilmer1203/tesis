@@ -4,7 +4,7 @@
 import reflex as rx
 from typing import Dict, Optional, List, Any
 from dental_system.state.app_state import AppState
-from dental_system.components.odontologia.interactive_tooth import interactive_tooth
+from dental_system.components.odontologia.interactive_tooth import interactive_tooth, enhanced_tooth_component
 from dental_system.styles.themes import COLORS, DARK_THEME, RADIUS, SPACING, SHADOWS
 
 # ==========================================
@@ -95,11 +95,10 @@ def odontogram_quadrant(
         # Grid de 8 dientes del cuadrante
         rx.hstack(
             *[
-                interactive_tooth(
+                enhanced_tooth_component(
                     tooth_number=tooth_num,
-                    conditions=teeth_conditions.get(tooth_num),
-                    is_selected=(selected_tooth == tooth_num),
-                    pending_changes=pending_changes.get(tooth_num)
+                    estado="sano" if not teeth_conditions.get(tooth_num) else list(teeth_conditions.get(tooth_num, {}).values())[0] if teeth_conditions.get(tooth_num) else "sano",
+                    is_selected=(selected_tooth == tooth_num)
                 )
                 for tooth_num in teeth_list
             ],

@@ -25,56 +25,63 @@ from dental_system.styles.themes import COLORS, SHADOWS, RADIUS, SPACING
 
 CONSULTA_CARD_BASE_STYLE = {
     "background": "white",
-    "border_radius": RADIUS["lg"],
-    "box_shadow": SHADOWS["sm"],
+    "border_radius": RADIUS["xl"],
+    "box_shadow": "0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08)",
     "border": "1px solid",
-    "padding": SPACING["4"],
-    "margin_bottom": SPACING["3"],
+    "padding": SPACING["6"],
+    "margin_bottom": SPACING["4"],
     "width": "100%",
     "transition": "all 0.3s ease",
     "_hover": {
-        "box_shadow": SHADOWS["lg"],
-        "transform": "translateY(-1px)"
+        "box_shadow": "0 8px 25px rgba(0, 0, 0, 0.15), 0 3px 10px rgba(0, 0, 0, 0.1)",
+        "transform": "translateY(-2px)"
     }
 }
 
 CONSULTA_ASIGNADA_STYLE = {
     **CONSULTA_CARD_BASE_STYLE,
     "border_color": COLORS["primary"]["200"],
+    "background": "white",
     "_hover": {
         **CONSULTA_CARD_BASE_STYLE["_hover"],
-        "border_color": COLORS["primary"]["300"]
+        "border_color": COLORS["primary"]["400"],
+        "background": COLORS["primary"]["200"]
     }
 }
 
 CONSULTA_DISPONIBLE_STYLE = {
     **CONSULTA_CARD_BASE_STYLE,
     "border_color": COLORS["success"]["200"],
-    "background": COLORS["success"]["25"],
+    "background": "white",
     "_hover": {
         **CONSULTA_CARD_BASE_STYLE["_hover"],
-        "border_color": COLORS["success"]["300"]
+        "border_color": COLORS["success"]["400"],
+        "background": COLORS["success"]["25"]
     }
 }
 
 CONSULTA_EN_PROGRESO_STYLE = {
     **CONSULTA_CARD_BASE_STYLE,
     "border_color": COLORS["warning"]["200"],
-    "background": COLORS["warning"]["25"],
+    "background": "white",
     "_hover": {
         **CONSULTA_CARD_BASE_STYLE["_hover"],
-        "border_color": COLORS["warning"]["300"]
+        "border_color": COLORS["warning"]["500"],
+        "background": COLORS["warning"]["25"]
     }
 }
 
 CONSULTA_URGENTE_STYLE = {
     **CONSULTA_CARD_BASE_STYLE,
-    "border_color": COLORS["error"]["200"],
-    "background": COLORS["error"]["25"],
+    "border_color": COLORS["error"]["400"],
+    "background": "white",
     "border_width": "2px",
+    "box_shadow": "0 4px 6px rgba(239, 68, 68, 0.1), 0 1px 3px rgba(239, 68, 68, 0.08)",
     "_hover": {
         **CONSULTA_CARD_BASE_STYLE["_hover"],
-        "border_color": COLORS["error"]["300"]
+        "border_color": COLORS["error"]["500"],
+        "background": COLORS["error"]["25"],
+        "box_shadow": "0 8px 25px rgba(239, 68, 68, 0.2), 0 3px 10px rgba(239, 68, 68, 0.1)"
     }
 }
 
@@ -120,9 +127,9 @@ BADGE_URGENTE_STYLE = {
 # ==========================================
 
 def badge_estado_consulta(estado: rx.Var, prioridad: rx.Var = None) -> rx.Component:
-    """🏷️ Badge que muestra el estado de la consulta con colores - REACTIVO"""
+    """🏷️ Badge que muestra el estado de la consulta con colores - Estados BD v4.1"""
     
-    # Usar rx.cond en lugar de if
+    # Estados reales de BD con colores actualizados
     return rx.cond(
         prioridad == "urgente",
         rx.box("🚨 URGENTE", style=BADGE_URGENTE_STYLE),
@@ -130,21 +137,26 @@ def badge_estado_consulta(estado: rx.Var, prioridad: rx.Var = None) -> rx.Compon
             estado == "en_espera",
             rx.box("⏳ En Espera", style=BADGE_ASIGNADO_STYLE),
             rx.cond(
-                estado == "programada", 
-                rx.box("⏳ En Espera", style=BADGE_ASIGNADO_STYLE),
+                estado == "en_atencion",
+                rx.box("👨‍⚕️ En Atención", style=BADGE_EN_PROGRESO_STYLE),
                 rx.cond(
-                    estado == "en_progreso",
-                    rx.box("🔄 En Atención", style=BADGE_EN_PROGRESO_STYLE),
+                    estado == "entre_odontologos",
+                    rx.box("🔄 Entre Odontólogos", style=BADGE_DISPONIBLE_STYLE),
                     rx.cond(
-                        estado == "en_atencion",
-                        rx.box("🔄 En Atención", style=BADGE_EN_PROGRESO_STYLE),
+                        estado == "completada",
+                        rx.box("✅ Completada", style=BADGE_DISPONIBLE_STYLE),
                         rx.cond(
-                            estado == "completada",
-                            rx.box("✅ Completada", style=BADGE_DISPONIBLE_STYLE),
+                            estado == "cancelada",
+                            rx.box("❌ Cancelada", style={**BADGE_URGENTE_STYLE, "background": COLORS["gray"]["100"], "color": COLORS["gray"]["700"]}),
+                            # Compatibility con estados antiguos
                             rx.cond(
-                                estado == "entre_odontologos",
-                                rx.box("🔄 Disponible", style=BADGE_DISPONIBLE_STYLE),
-                                rx.box("❓ Desconocido", style=BADGE_ASIGNADO_STYLE)
+                                estado == "programada", 
+                                rx.box("⏳ En Espera", style=BADGE_ASIGNADO_STYLE),
+                                rx.cond(
+                                    estado == "en_progreso",
+                                    rx.box("👨‍⚕️ En Atención", style=BADGE_EN_PROGRESO_STYLE),
+                                    rx.box("❓ Desconocido", style=BADGE_ASIGNADO_STYLE)
+                                )
                             )
                         )
                     )
@@ -153,16 +165,44 @@ def badge_estado_consulta(estado: rx.Var, prioridad: rx.Var = None) -> rx.Compon
         )
     )
 
-# FUNCIÓN DESHABILITADA: Ya no se usa porque ConsultaModel no tiene info médica detallada
-# def info_medica_paciente(paciente: rx.Var[PacienteModel]) -> rx.Component:
-#     """🏥 Información médica importante del paciente (alergias, condiciones)"""
-#     # Esta función se puede restaurar cuando se implemente info médica en ConsultaModel
-#     return rx.box()
+def info_medica_urgente(consulta: rx.Var[ConsultaModel]) -> rx.Component:
+    """🏥 Alertas médicas urgentes visibles en las cards"""
+    return rx.vstack(
+        # Alerta de prioridad urgente
+        rx.cond(
+            consulta.es_urgente,
+            rx.box(
+                rx.hstack(
+                    rx.icon("triangle_alert", size=14, color=COLORS["error"]["500"]),
+                    rx.text(
+                        "ATENCIÓN URGENTE",
+                        font_size="11px",
+                        color=COLORS["error"]["700"],
+                        font_weight="bold"
+                    ),
+                    spacing="1"
+                ),
+                style={
+                    "background": COLORS["error"]["50"],
+                    "border": f"1px solid {COLORS['error']['200']}",
+                    "border_radius": RADIUS["md"],
+                    "padding": "4px 8px",
+                    "margin_bottom": "2px"
+                }
+            )
+        ),
+        
+        # Nota: La información médica detallada estará disponible en el historial del paciente
+        # que se puede acceder con el botón "Ver Historial"
+        
+        spacing="1",
+        width="100%"
+    )
 
 def info_consulta_adicional(consulta: rx.Var[ConsultaModel]) -> rx.Component:
-    """📋 Información adicional de la consulta"""
+    """📋 Información adicional de la consulta con detalles médicos mejorados"""
     return rx.vstack(
-        # Número de consulta y fecha
+        # Fila 1: Número de consulta y hora de llegada
         rx.hstack(
             rx.text(
                 f"#{consulta.numero_consulta}",
@@ -172,25 +212,64 @@ def info_consulta_adicional(consulta: rx.Var[ConsultaModel]) -> rx.Component:
             ),
             rx.spacer(),
             rx.text(
-                consulta.fecha_display,  # ConsultaModel siempre tiene fecha_display
+                f"🕐 {consulta.hora_display}",  # Hora de llegada
+                font_size="12px",
+                color=COLORS["blue"]["500"],
+                font_weight="medium"
+            ),
+            width="100%"
+        ),
+        
+        # Fila 2: Posición en cola y tiempo estimado
+        rx.hstack(
+            rx.text(
+                f"🔢 {consulta.posicion_cola_display}",  # Posición en cola
+                font_size="12px",
+                color=COLORS["primary"]["500"],
+                font_weight="medium"
+            ),
+            rx.spacer(),
+            rx.text(
+                f"⏱️ {consulta.tiempo_espera_estimado}",  # Tiempo estimado
+                font_size="12px",
+                color=COLORS["warning"]["500"],
+                font_weight="medium"
+            ),
+            width="100%"
+        ),
+        
+        # Fila 3: Tipo de consulta y duración estimada
+        rx.hstack(
+            rx.text(
+                f"🦷 {consulta.tipo_consulta.title()}",
+                font_size="12px",
+                color=COLORS["primary"]["400"],
+                font_weight="medium"
+            ),
+            rx.spacer(),
+            rx.text(
+                f"📅 {consulta.duracion_estimada_display}",
                 font_size="12px",
                 color=COLORS["gray"]["500"]
             ),
             width="100%"
         ),
         
-        # Motivo de consulta si existe
+        # Motivo de consulta si existe (con truncado)
         rx.cond(
             consulta.motivo_consulta != "",
             rx.text(
-                f"Motivo: {consulta.motivo_consulta}",
-                font_size="13px",
+                f"📝 {consulta.motivo_consulta}",
+                font_size="12px",
                 color=COLORS["gray"]["600"],
-                font_style="italic"
+                white_space="nowrap",
+                overflow="hidden",
+                text_overflow="ellipsis",
+                max_width="100%"
             )
         ),
         
-        spacing="1",
+        spacing="2",
         width="100%",
         align_items="start"
     )
@@ -215,45 +294,80 @@ def consulta_asignada_card(consulta: rx.Var[ConsultaModel]) -> rx.Component:
     
     return rx.box(
         rx.vstack(
-            # Header con nombre y estado
-            rx.hstack(
-                rx.vstack(
-                    rx.text(
-                        consulta.paciente_nombre,
-                        font_size="16px",
-                        font_weight="bold",
-                        color=COLORS["gray"]["800"]
+            # Header con degradado y posición
+            rx.box(
+                rx.hstack(
+                    # Posición en cola (lado izquierdo)
+                    rx.box(
+                        rx.text(
+                            consulta.posicion_cola_display,
+                            font_size="20px",
+                            font_weight="800",
+                            color="white",
+                            style={"text_shadow": "0 0 10px rgba(255, 255, 255, 0.5)"}
+                        ),
+                        style={
+                            "background": f"linear-gradient(135deg, {COLORS['primary']['500']} 0%, {COLORS['primary']['400']} 100%)",
+                            "border_radius": RADIUS["full"],
+                            "width": "48px",
+                            "height": "48px",
+                            "display": "flex",
+                            "align_items": "center",
+                            "justify_content": "center",
+                            "box_shadow": "0 4px 12px rgba(0, 188, 212, 0.3)"
+                        }
                     ),
-                    rx.text(
-                        f"Consulta #{consulta.numero_consulta} | {consulta.paciente_documento}",
-                        font_size="13px",
-                        color=COLORS["gray"]["600"]
+                    
+                    # Información del paciente (centro)
+                    rx.vstack(
+                        rx.text(
+                            consulta.paciente_nombre,
+                            font_size="18px",
+                            font_weight="700",
+                            color=COLORS["gray"]["900"]
+                        ),
+                        rx.text(
+                            f"Consulta #{consulta.numero_consulta} | {consulta.paciente_documento}",
+                            font_size="14px",
+                            color=COLORS["gray"]["600"],
+                            font_weight="500"
+                        ),
+                        spacing="1",
+                        align_items="start",
+                        flex="1"
                     ),
-                    spacing="1",
-                    align_items="start"
+                    
+                    # Badge de estado (lado derecho)
+                    badge_estado_consulta(
+                        consulta.estado, 
+                        consulta.prioridad
+                    ),
+                    
+                    spacing="4",
+                    align_items="center",
+                    width="100%"
                 ),
-                
-                rx.spacer(),
-                
-                # Badge de estado
-                badge_estado_consulta(
-                    consulta.estado, 
-                    consulta.prioridad  # ConsultaModel siempre tiene prioridad
-                ),
-                
-                spacing="3",
-                align_items="start",
-                width="100%"
+                style={
+                    "background": f"linear-gradient(135deg, {COLORS['gray']['25']} 0%, {COLORS['gray']['50']} 100%)",
+                    "border_radius": f"{RADIUS['xl']} {RADIUS['xl']} 0 0",
+                    "padding": SPACING["4"],
+                    "margin": f"-{SPACING['6']} -{SPACING['6']} {SPACING['4']} -{SPACING['6']}",
+                    "border_bottom": f"1px solid {COLORS['gray']['200']}"
+                }
             ),
             
             # Información del paciente (usar la propiedad display existente)
             rx.text(
                 f"👤 {consulta.paciente_info_display}",
-                font_size="13px",
-                color=COLORS["gray"]["600"]
+                font_size="14px",
+                color=COLORS["gray"]["700"],
+                font_weight="500"
             ),
             
-            # Información adicional de consulta
+            # Alertas médicas urgentes
+            info_medica_urgente(consulta),
+            
+            # Información adicional de consulta mejorada
             info_consulta_adicional(consulta),
             
             # Botones de acción
@@ -281,14 +395,14 @@ def consulta_asignada_card(consulta: rx.Var[ConsultaModel]) -> rx.Component:
                         consulta.estado == "en_espera",
                         primary_button(
                             text="🟢 Iniciar Atención",
-                            icon="play-circle",
+                            icon="play",
                             on_click=lambda: AppState.navegar_a_odontologia_consulta(consulta.id)
                         ),
                         rx.cond(
                             consulta.estado == "programada", 
                             primary_button(
                                 text="🟡 Iniciar Consulta",
-                                icon="play-circle", 
+                                icon="play", 
                                 on_click=lambda c=consulta: AppState.navegar_a_odontologia_consulta(c.id)
                             ),
                             rx.cond(
@@ -316,7 +430,7 @@ def consulta_asignada_card(consulta: rx.Var[ConsultaModel]) -> rx.Component:
                 width="100%"
             ),
             
-            spacing="4",
+            spacing="0",
             width="100%"
         ),
         style=card_style
@@ -331,14 +445,15 @@ def consulta_disponible_card(paciente: rx.Var[PacienteModel], consulta_id: str) 
                 rx.vstack(
                     rx.text(
                         paciente.nombre_completo,
-                        font_size="16px",
-                        font_weight="bold",
-                        color=COLORS["gray"]["800"]
+                        font_size="18px",
+                        font_weight="700",
+                        color=COLORS["gray"]["900"]
                     ),
                     rx.text(
                         f"HC: {paciente.numero_historia} | {paciente.numero_documento}",
-                        font_size="13px",
-                        color=COLORS["gray"]["600"]
+                        font_size="14px",
+                        color=COLORS["gray"]["600"],
+                        font_weight="500"
                     ),
                     spacing="1",
                     align_items="start"
@@ -353,14 +468,48 @@ def consulta_disponible_card(paciente: rx.Var[PacienteModel], consulta_id: str) 
                 width="100%"
             ),
             
-            # Información médica importante (simplificada por ahora)
-            rx.box(),  # Placeholder - se puede restaurar cuando se implemente info médica completa
+            # Información del paciente disponible
+            rx.text(
+                f"👤 {paciente.contacto_display}",
+                font_size="13px",
+                color=COLORS["gray"]["600"]
+            ),
+            
+            # Información médica disponible
+            rx.vstack(
+                # Edad del paciente
+                rx.text(
+                    f"🎂 {paciente.edad_display}",
+                    font_size="12px",
+                    color=COLORS["blue"]["500"],
+                    font_weight="medium"
+                ),
+                
+                # Alergias si tiene
+                rx.cond(
+                    paciente.alergias_display != "Sin alergias conocidas",
+                    rx.text(
+                        f"⚠️ Alergias: {paciente.alergias_display}",
+                        font_size="12px",
+                        color=COLORS["warning"]["500"],
+                        font_weight="medium",
+                        white_space="nowrap",
+                        overflow="hidden",
+                        text_overflow="ellipsis",
+                        max_width="100%"
+                    )
+                ),
+                
+                spacing="1",
+                width="100%",
+                align_items="start"
+            ),
             
             # Info adicional para disponibles
             rx.text(
-                "Paciente ya atendido por otro odontólogo. Puede requerir intervención adicional.",
-                font_size="13px",
-                color=COLORS["gray"]["600"],
+                "Paciente derivado - puede requerir intervención adicional",
+                font_size="12px",
+                color=COLORS["success"]["500"],
                 font_style="italic"
             ),
             
@@ -376,7 +525,7 @@ def consulta_disponible_card(paciente: rx.Var[PacienteModel], consulta_id: str) 
                 
                 primary_button(
                     text="Tomar Paciente",
-                    icon="plus-circle",
+                    icon="plus",
                     on_click=lambda p=paciente, cid=consulta_id: AppState.navegar_a_odontologia_consulta(cid)
                 ),
                 

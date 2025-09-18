@@ -17,13 +17,14 @@ VERSIÓN: 2.5 - AppState Optimizado (RECOMENDADO)
 
 # ✅ SOLUCIÓN CORRECTA: AppState monolítico bien organizado
 from .app_state import AppState
-
+from .estado_auth import EstadoAuth
 # ==========================================
 # 📤 EXPORTS PRINCIPALES  
 # ==========================================
 
 __all__ = [
     "AppState",
+    "EstadoAuth"
 ]
 
 # ==========================================

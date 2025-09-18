@@ -60,7 +60,7 @@ INTERVENCION_ITEM_STYLE = {
     "border_radius": RADIUS["lg"],
     "padding": SPACING["4"],
     "margin_bottom": SPACING["3"],
-    "border_left": f"4px solid {COLORS['blue']['400']}"
+    "border_left": f"4px solid {COLORS['blue']['500']}"
 }
 
 NOTA_RAPIDA_STYLE = {

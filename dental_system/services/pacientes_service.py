@@ -169,6 +169,19 @@ class PacientesService(BaseService):
                     logger.warning(f"Error invalidando cache tras crear paciente: {cache_error}")
                 
                 logger.info(f"✅ Paciente creado: {paciente_model.nombre_completo}")
+
+                # 🦷 INICIALIZAR ECOSISTEMA COMPLETO DEL PACIENTE
+                try:
+                    await self._inicializar_ecosistema_paciente_completo(
+                        paciente_model.numero_historia,
+                        paciente_model.id,
+                        user_id
+                    )
+                    logger.info(f"✅ Ecosistema del paciente {paciente_model.nombre_completo} inicializado correctamente")
+                except Exception as eco_error:
+                    logger.warning(f"⚠️ Error inicializando ecosistema del paciente {paciente_model.nombre_completo}: {eco_error}")
+                    # No fallar la creación del paciente por este error, pero registrarlo
+
                 return paciente_model
             else:
                 raise ValueError("Error creando paciente en la base de datos")
@@ -433,6 +446,191 @@ class PacientesService(BaseService):
                 "hombres": 0,
                 "mujeres": 0
             }
+
+    # ==========================================
+    # 🦷 MÉTODOS DE INICIALIZACIÓN DE ECOSISTEMA
+    # ==========================================
+
+    async def _inicializar_ecosistema_paciente_completo(self, numero_historia: str, paciente_id: str, user_id: str) -> bool:
+        """
+        🆕 Inicializar ecosistema completo del paciente nuevo
+
+        Args:
+            numero_historia: HC del paciente (ej: HC000001)
+            paciente_id: UUID del paciente
+            user_id: Usuario que crea el paciente
+
+        Returns:
+            True si se inicializó correctamente
+        """
+        try:
+            logger.info(f"🦷 Inicializando ecosistema completo para paciente {numero_historia}")
+
+            # 1. Crear odontograma inicial con 32 dientes como "sanos"
+            odontograma_creado = await self._crear_odontograma_inicial_completo(numero_historia, paciente_id, user_id)
+
+            # 2. Crear historial médico inicial
+            historial_creado = await self._crear_historial_medico_inicial(paciente_id, user_id)
+
+            # 3. Registrar auditoría de inicialización
+            await self._registrar_auditoria_inicializacion(paciente_id, numero_historia, user_id)
+
+            if odontograma_creado and historial_creado:
+                logger.info(f"✅ Ecosistema completo inicializado para {numero_historia}")
+                return True
+            else:
+                logger.warning(f"⚠️ Ecosistema parcialmente inicializado para {numero_historia}")
+                return False
+
+        except Exception as e:
+            logger.error(f"❌ Error inicializando ecosistema para {numero_historia}: {e}")
+            return False
+
+
+    async def _crear_odontograma_inicial_completo(self, numero_historia: str, paciente_id: str, user_id: str) -> bool:
+        """
+        🦷 Crear odontograma inicial con 32 dientes como "sanos"
+
+        Args:
+            numero_historia: HC del paciente
+            paciente_id: UUID del paciente
+            user_id: Usuario que crea
+
+        Returns:
+            True si se creó correctamente
+        """
+        try:
+            # Importar aquí para evitar circular imports
+            from .odontograma_service import odontograma_service
+            from .personal_service import personal_service
+
+            # Obtener personal_id usando la función existente
+            personal_id = await personal_service.obtener_personal_id_por_usuario(user_id)
+
+            if not personal_id:
+                logger.error(f"❌ No se encontró personal asociado al usuario {user_id}")
+                return False
+
+            # Crear odontograma inicial completo
+            odontograma = await odontograma_service.crear_odontograma_inicial_completo(
+                numero_historia,
+                paciente_id,
+                user_id,      # Para registrado_por (FK usuarios)
+                personal_id   # Para odontologo_id (FK personal)
+            )
+
+            if odontograma:
+                logger.info(f"✅ Odontograma inicial creado para {numero_historia} (ID: {odontograma.id})")
+                return True
+            else:
+                logger.error(f"❌ No se pudo crear odontograma inicial para {numero_historia}")
+                return False
+
+        except Exception as e:
+            logger.error(f"❌ Error creando odontograma inicial para {numero_historia}: {e}")
+            return False
+
+    async def _crear_historial_medico_inicial(self, paciente_id: str, user_id: str) -> bool:
+        """
+        📋 Crear entrada inicial en historial médico
+
+        Args:
+            paciente_id: UUID del paciente
+            user_id: Usuario que crea
+
+        Returns:
+            True si se creó correctamente
+        """
+        try:
+            from dental_system.supabase.client import get_client
+            from .personal_service import personal_service
+
+            supabase = get_client()
+
+            # Obtener personal_id usando la función existente
+            personal_id = await personal_service.obtener_personal_id_por_usuario(user_id)
+
+            if not personal_id:
+                logger.error(f"❌ No se encontró personal asociado al usuario {user_id}")
+                return False
+
+            # Crear entrada inicial en historial médico
+            historial_inicial = {
+                "paciente_id": paciente_id,
+                "consulta_id": None,  # No hay consulta aún
+                "intervencion_id": None,  # No hay intervención aún
+                "odontologo_id": personal_id,
+                "tipo_registro": "nota",
+                "sintomas_principales": "Paciente nuevo registrado en el sistema",
+                "examen_clinico": "Pendiente de evaluación inicial",
+                "diagnostico_principal": "Sin diagnóstico - Paciente nuevo",
+                "plan_tratamiento": "Evaluación inicial pendiente",
+                "pronostico": "A determinar en primera consulta",
+                "medicamentos_recetados": [],
+                "recomendaciones": "Agendar consulta de evaluación inicial",
+                "observaciones": "Historial médico inicial creado automáticamente",
+                "confidencial": False,
+                "fecha_registro": datetime.now().isoformat()
+            }
+
+            response = supabase.table("historial_medico").insert(historial_inicial).execute()
+
+            if response.data:
+                logger.info(f"✅ Historial médico inicial creado para paciente {paciente_id}")
+                return True
+            else:
+                logger.error(f"❌ No se pudo crear historial médico inicial para paciente {paciente_id}")
+                return False
+
+        except Exception as e:
+            logger.error(f"❌ Error creando historial médico inicial para paciente {paciente_id}: {e}")
+            return False
+
+    async def _registrar_auditoria_inicializacion(self, paciente_id: str, numero_historia: str, user_id: str) -> bool:
+        """
+        📝 Registrar auditoría de inicialización del ecosistema
+
+        Args:
+            paciente_id: UUID del paciente
+            numero_historia: HC del paciente
+            user_id: Usuario que crea
+
+        Returns:
+            True si se registró correctamente
+        """
+        try:
+            from dental_system.supabase.client import get_client
+
+            supabase = get_client()
+
+            # Registrar en auditoría la inicialización completa
+            auditoria_entry = {
+                "tabla_afectada": "pacientes",
+                "registro_id": paciente_id,
+                "accion": "INSERT",
+                "usuario_id": user_id,
+                "datos_nuevos": {
+                    "numero_historia": numero_historia,
+                    "accion": "Inicialización completa de ecosistema",
+                    "componentes": ["paciente", "odontograma", "historial_medico"]
+                },
+                "modulo": "pacientes",
+                "ip_address": "127.0.0.1",  # Placeholder - en producción obtener IP real
+                "motivo": f"Ecosistema completo inicializado para paciente {numero_historia}"
+            }
+
+            response = supabase.table("auditoria").insert(auditoria_entry).execute()
+
+            if response.data:
+                logger.info(f"✅ Auditoría de inicialización registrada para {numero_historia}")
+                return True
+            else:
+                logger.warning(f"⚠️ No se pudo registrar auditoría para {numero_historia}")
+                return False
+
+        except Exception as e:
+            logger.warning(f"⚠️ Error registrando auditoría para {numero_historia}: {e}")
+            return False
 
 
 # Instancia única para importar

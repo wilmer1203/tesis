@@ -18,7 +18,7 @@ supabase = supabase_client.get_client()
 
 async def poblar_consultas_hoy():
     """📅 Crear 10 consultas para hoy con datos existentes"""
-    print("📅 Creando consultas para hoy...")
+    print("Creando consultas para hoy...")
     
     try:
         # Obtener odontólogos existentes

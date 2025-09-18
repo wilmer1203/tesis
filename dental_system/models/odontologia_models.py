@@ -9,19 +9,27 @@ from datetime import datetime
 
 
 class OdontogramaModel(rx.Base):
-    """Modelo para odontogramas de pacientes"""
+    """🦷 Modelo avanzado para odontogramas con versionado automático"""
     id: Optional[str] = ""
-    paciente_id: str = ""
+    numero_historia: str = ""  # ← NUEVO: Link directo a paciente por HC
+    version: int = 1           # ← MEJORADO: Versionado automático
+    id_version_anterior: Optional[str] = ""  # ← NUEVO: Historial de versiones
+    id_intervencion_origen: Optional[str] = ""  # ← NUEVO: Trazabilidad
+    es_version_actual: bool = True             # ← NUEVO: Control de versión activa
+    motivo_nueva_version: Optional[str] = ""  # ← NUEVO: Razón del cambio
+    
+    # Campos existentes mejorados
     fecha_creacion: str = ""
     fecha_actualizacion: str = ""
     odontologo_id: str = ""
     tipo_odontograma: str = "adulto"  # adulto, pediatrico, mixto
-    version: int = 1
-    activo: bool = True
     notas_generales: Optional[str] = ""
     observaciones_clinicas: Optional[str] = ""
     template_usado: str = "universal"
     configuracion: Dict[str, Any] = {}
+    
+    # Estados de dientes usando catálogo FDI
+    dientes_estados: Dict[int, Dict[str, str]] = {}  # {numero_fdi: {condicion: estado}}
     
     # Información relacionada
     paciente_nombre: str = ""
@@ -29,23 +37,27 @@ class OdontogramaModel(rx.Base):
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "OdontogramaModel":
-        """Crear instancia desde diccionario de Supabase"""
+        """🔄 Crear instancia desde diccionario con esquema avanzado"""
         if not data or not isinstance(data, dict):
             return cls()
         
         return cls(
             id=str(data.get("id", "")),
-            paciente_id=str(data.get("paciente_id", "")),
+            numero_historia=str(data.get("numero_historia", "")),
+            version=int(data.get("version", 1)),
+            id_version_anterior=str(data.get("id_version_anterior", "") if data.get("id_version_anterior") else ""),
+            id_intervencion_origen=str(data.get("id_intervencion_origen", "") if data.get("id_intervencion_origen") else ""),
+            es_version_actual=bool(data.get("es_version_actual", True)),
+            motivo_nueva_version=str(data.get("motivo_nueva_version", "") if data.get("motivo_nueva_version") else ""),
             fecha_creacion=str(data.get("fecha_creacion", "")),
             fecha_actualizacion=str(data.get("fecha_actualizacion", "")),
             odontologo_id=str(data.get("odontologo_id", "")),
             tipo_odontograma=str(data.get("tipo_odontograma", "adulto")),
-            version=int(data.get("version", 1)),
-            activo=bool(data.get("activo", True)),
             notas_generales=str(data.get("notas_generales", "") if data.get("notas_generales") else ""),
             observaciones_clinicas=str(data.get("observaciones_clinicas", "") if data.get("observaciones_clinicas") else ""),
             template_usado=str(data.get("template_usado", "universal")),
             configuracion=data.get("configuracion", {}),
+            dientes_estados=data.get("dientes_estados", {}),
             paciente_nombre=str(data.get("paciente_nombre", "")),
             odontologo_nombre=str(data.get("odontologo_nombre", ""))
         )
@@ -73,47 +85,66 @@ class OdontogramaModel(rx.Base):
 
 
 class DienteModel(rx.Base):
-    """Modelo para dientes individuales (catálogo FDI)"""
+    """🦷 Modelo catálogo FDI completo (32 dientes permanentes)"""
     id: str = ""
-    numero_diente: int = 0
+    numero_fdi: int = 0           # ← NUEVO: Numeración FDI estándar (11-48)
+    nombre_diente: str = ""       # ← NUEVO: Nombre completo anatómico
+    cuadrante: int = 0            # ← MEJORADO: 1-4 según FDI
+    tipo_diente: str = ""         # incisivo, canino, premolar, molar
+    coordenadas_svg: Dict[str, float] = {}  # ← NUEVO: Posición en odontograma
+    superficies_disponibles: List[str] = [] # ← NUEVO: Superficies anatómicas
+    
+    # Compatibilidad con sistema anterior
+    numero_diente: int = 0        # Mantener para backward compatibility
     numero_diente_pediatrico: Optional[int] = None
-    nombre: str = ""
-    tipo_diente: str = ""  # incisivo, canino, premolar, molar
-    ubicacion: str = ""    # superior_derecha, superior_izquierda, etc.
-    cuadrante: int = 0
+    ubicacion: str = ""           # superior_derecha, superior_izquierda, etc.
     es_temporal: bool = False
     posicion_en_cuadrante: Optional[int] = None
-    caras: List[str] = []  # oclusal, mesial, distal, vestibular, lingual
+    caras: List[str] = []         # oclusal, mesial, distal, vestibular, lingual
     descripcion_anatomica: Optional[str] = ""
     activo: bool = True
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "DienteModel":
-        """Crear instancia desde diccionario de Supabase"""
+        """🔄 Crear instancia desde catálogo FDI avanzado"""
         if not data or not isinstance(data, dict):
             return cls()
         
         return cls(
             id=str(data.get("id", "")),
-            numero_diente=int(data.get("numero_diente", 0)),
-            numero_diente_pediatrico=int(data.get("numero_diente_pediatrico")) if data.get("numero_diente_pediatrico") else None,
-            nombre=str(data.get("nombre", "")),
-            tipo_diente=str(data.get("tipo_diente", "")),
-            ubicacion=str(data.get("ubicacion", "")),
+            numero_fdi=int(data.get("numero_fdi", 0)),
+            nombre_diente=str(data.get("nombre_diente", "")),
             cuadrante=int(data.get("cuadrante", 0)),
+            tipo_diente=str(data.get("tipo_diente", "")),
+            coordenadas_svg=data.get("coordenadas_svg", {}),
+            superficies_disponibles=data.get("superficies_disponibles", []),
+            # Compatibilidad backward
+            numero_diente=int(data.get("numero_diente", data.get("numero_fdi", 0))),
+            numero_diente_pediatrico=int(data.get("numero_diente_pediatrico")) if data.get("numero_diente_pediatrico") else None,
+            ubicacion=str(data.get("ubicacion", "")),
             es_temporal=bool(data.get("es_temporal", False)),
             posicion_en_cuadrante=int(data.get("posicion_en_cuadrante")) if data.get("posicion_en_cuadrante") else None,
-            caras=data.get("caras", []),
+            caras=data.get("caras", data.get("superficies_disponibles", [])),
             descripcion_anatomica=str(data.get("descripcion_anatomica", "") if data.get("descripcion_anatomica") else ""),
             activo=bool(data.get("activo", True))
         )
     
     @property
     def numero_display(self) -> str:
-        """Número de diente formateado"""
+        """🔢 Número FDI formateado"""
         if self.es_temporal and self.numero_diente_pediatrico:
             return f"{self.numero_diente_pediatrico} (temp)"
-        return str(self.numero_diente)
+        return str(self.numero_fdi if self.numero_fdi else self.numero_diente)
+    
+    @property
+    def nombre_completo(self) -> str:
+        """🦷 Nombre completo con numeración FDI"""
+        return f"{self.numero_fdi} - {self.nombre_diente}" if self.nombre_diente else f"Diente {self.numero_fdi}"
+    
+    @property
+    def posicion_svg(self) -> Dict[str, float]:
+        """📍 Coordenadas SVG para renderizado"""
+        return self.coordenadas_svg if self.coordenadas_svg else {"x": 0, "y": 0}
     
     @property
     def tipo_emoji(self) -> str:
@@ -269,6 +300,49 @@ class CondicionDienteModel(rx.Base):
             "otro": "#AED6F1"            # Azul claro
         }
         return self.color_hex if self.color_hex != "#FFFFFF" else colores_condicion.get(self.tipo_condicion.lower(), "#FFFFFF")
+    
+    @property
+    def condicion_display(self) -> str:
+        """🎨 Condición formateada con emoji y categoría"""
+        if self.nombre_condicion:
+            categoria_emoji = {
+                "normal": "✅",
+                "patologia": "🦠", 
+                "restauracion": "🔧",
+                "protesis": "👑",
+                "ausencia": "❌",
+                "especialidad": "🦷",
+                "trauma": "💥",
+                "periodontal": "⚠️"
+            }.get(self.categoria, "🦷")
+            
+            urgencia = " 🚨" if self.es_urgente else ""
+            return f"{categoria_emoji} {self.nombre_condicion}{urgencia}"
+        
+        # Fallback para compatibilidad
+        return self.tipo_condicion_display
+    
+    @property
+    def superficie_display(self) -> str:
+        """🦷 Superficie anatómica formateada"""
+        superficies_map = {
+            "mesial": "M",
+            "distal": "D", 
+            "vestibular": "V",
+            "lingual": "L",
+            "oclusal": "O",
+            "incisal": "I"
+        }
+        if self.superficie_afectada:
+            return superficies_map.get(self.superficie_afectada.lower(), self.superficie_afectada[0].upper())
+        return "Completa"
+    
+    @property
+    def urgencia_display(self) -> str:
+        """🚨 Indicador de urgencia"""
+        if self.es_urgente:
+            return "🚨 URGENTE"
+        return "✅ Normal"
 
 
 class HistorialClinicoModel(rx.Base):
@@ -519,3 +593,144 @@ class IntervencionFormModel(rx.Base):
             "complicaciones": self.complicaciones,
             "observaciones": self.observaciones,
         }
+
+
+class HistorialMedicoModel(rx.Base):
+    """📋 Modelo para historial médico inicial y evolución del paciente"""
+    id: Optional[str] = ""
+    paciente_id: str = ""
+    consulta_id: Optional[str] = ""
+    intervencion_id: Optional[str] = ""
+    odontologo_id: str = ""
+
+    # Tipo de registro
+    tipo_registro: str = "inicial"  # inicial, consulta, tratamiento, control, urgencia, nota
+
+    # Información clínica principal
+    sintomas_principales: str = ""
+    examen_clinico: str = ""
+    diagnostico_principal: str = ""
+    diagnosticos_secundarios: List[str] = []
+    plan_tratamiento: str = ""
+    pronostico: str = ""
+
+    # Medicamentos y recomendaciones
+    medicamentos_recetados: List[Dict[str, Any]] = []
+    recomendaciones: str = ""
+    contraindicaciones: str = ""
+
+    # Signos vitales (opcional)
+    presion_arterial: Optional[str] = ""
+    frecuencia_cardiaca: Optional[int] = None
+    temperatura: Optional[float] = None
+
+    # Archivos adjuntos
+    imagenes_url: List[str] = []
+    documentos_url: List[str] = []
+
+    # Seguimiento
+    proxima_consulta: Optional[str] = ""
+    observaciones: str = ""
+    confidencial: bool = False
+
+    # Control del sistema
+    fecha_registro: str = ""
+    fecha_actualizacion: str = ""
+    registrado_por: str = ""
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "HistorialMedicoModel":
+        """Crear instancia desde diccionario de Supabase"""
+        if not data or not isinstance(data, dict):
+            return cls()
+
+        return cls(
+            id=str(data.get("id", "")),
+            paciente_id=str(data.get("paciente_id", "")),
+            consulta_id=str(data.get("consulta_id", "") if data.get("consulta_id") else ""),
+            intervencion_id=str(data.get("intervencion_id", "") if data.get("intervencion_id") else ""),
+            odontologo_id=str(data.get("odontologo_id", "")),
+
+            tipo_registro=str(data.get("tipo_registro", "inicial")),
+
+            sintomas_principales=str(data.get("sintomas_principales", "")),
+            examen_clinico=str(data.get("examen_clinico", "")),
+            diagnostico_principal=str(data.get("diagnostico_principal", "")),
+            diagnosticos_secundarios=data.get("diagnosticos_secundarios", []) if isinstance(data.get("diagnosticos_secundarios"), list) else [],
+            plan_tratamiento=str(data.get("plan_tratamiento", "")),
+            pronostico=str(data.get("pronostico", "")),
+
+            medicamentos_recetados=data.get("medicamentos_recetados", []) if isinstance(data.get("medicamentos_recetados"), list) else [],
+            recomendaciones=str(data.get("recomendaciones", "")),
+            contraindicaciones=str(data.get("contraindicaciones", "")),
+
+            presion_arterial=str(data.get("presion_arterial", "") if data.get("presion_arterial") else ""),
+            frecuencia_cardiaca=data.get("frecuencia_cardiaca") if isinstance(data.get("frecuencia_cardiaca"), int) else None,
+            temperatura=data.get("temperatura") if isinstance(data.get("temperatura"), (int, float)) else None,
+
+            imagenes_url=data.get("imagenes_url", []) if isinstance(data.get("imagenes_url"), list) else [],
+            documentos_url=data.get("documentos_url", []) if isinstance(data.get("documentos_url"), list) else [],
+
+            proxima_consulta=str(data.get("proxima_consulta", "") if data.get("proxima_consulta") else ""),
+            observaciones=str(data.get("observaciones", "")),
+            confidencial=bool(data.get("confidencial", False)),
+
+            fecha_registro=str(data.get("fecha_registro", "")),
+            fecha_actualizacion=str(data.get("fecha_actualizacion", "")),
+            registrado_por=str(data.get("registrado_por", ""))
+        )
+
+    @property
+    def fecha_registro_display(self) -> str:
+        """Fecha de registro formateada"""
+        try:
+            if self.fecha_registro:
+                fecha_obj = datetime.fromisoformat(self.fecha_registro.replace('Z', '+00:00'))
+                return fecha_obj.strftime("%d/%m/%Y %H:%M")
+            return "Sin fecha"
+        except:
+            return str(self.fecha_registro)
+
+    @property
+    def tipo_registro_display(self) -> str:
+        """Tipo de registro formateado"""
+        tipos_map = {
+            "inicial": "📋 Registro Inicial",
+            "consulta": "🏥 Consulta",
+            "tratamiento": "🦷 Tratamiento",
+            "control": "🔍 Control",
+            "urgencia": "🚨 Urgencia",
+            "nota": "📝 Nota Clínica"
+        }
+        return tipos_map.get(self.tipo_registro, self.tipo_registro.title())
+
+    @property
+    def medicamentos_display(self) -> str:
+        """Medicamentos formateados para mostrar"""
+        if not self.medicamentos_recetados:
+            return "Sin medicamentos recetados"
+
+        medicamentos_str = []
+        for med in self.medicamentos_recetados:
+            if isinstance(med, dict):
+                nombre = med.get("nombre", "")
+                dosis = med.get("dosis", "")
+                if nombre:
+                    med_str = f"{nombre}"
+                    if dosis:
+                        med_str += f" ({dosis})"
+                    medicamentos_str.append(med_str)
+            elif isinstance(med, str):
+                medicamentos_str.append(med)
+
+        return ", ".join(medicamentos_str) if medicamentos_str else "Sin medicamentos recetados"
+
+    @property
+    def tiene_archivos_adjuntos(self) -> bool:
+        """Verificar si tiene archivos adjuntos"""
+        return bool(self.imagenes_url) or bool(self.documentos_url)
+
+    @property
+    def total_archivos(self) -> int:
+        """Total de archivos adjuntos"""
+        return len(self.imagenes_url) + len(self.documentos_url)

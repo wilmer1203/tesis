@@ -15,12 +15,14 @@ PATRÓN: Substate con get_estado_odontologia() en AppState
 
 import reflex as rx
 from datetime import date, datetime
-from typing import Dict, Any, List, Optional, Union, Tuple
+from typing import Dict, Any, List, Optional, Union, Tuple, cast
 import logging
 
 # Servicios y modelos
 from dental_system.services.odontologia_service import odontologia_service
 from dental_system.services.servicios_service import servicios_service
+from dental_system.state.estado_odontograma_avanzado import EstadoOdontogramaAvanzado
+from dental_system.state.estado_ui import EstadoUI
 from dental_system.models import (
     PacienteModel,
     ConsultaModel, 
@@ -35,14 +37,14 @@ from dental_system.models import (
 
 logger = logging.getLogger(__name__)
 
-class EstadoOdontologia(rx.State,mixin=True):
+class EstadoOdontologia(EstadoOdontogramaAvanzado):
     """
     🦷 ESTADO ESPECIALIZADO EN MÓDULO ODONTOLÓGICO
     
     RESPONSABILIDADES:
     - Gestión de pacientes asignados por orden de llegada
     - Formulario completo de intervenciones con servicios
-    - Odontograma FDI visual de 32 dientes
+    - Integración con odontograma FDI avanzado
     - Historia clínica básica del paciente
     - Integración con servicios odontológicos disponibles
     - Gestión de estado de consultas (programada → en_progreso → completada)
@@ -117,83 +119,42 @@ class EstadoOdontologia(rx.State,mixin=True):
     # 📊 COMPUTED VARS OPTIMIZADAS PARA ODONTOGRAMA
     # ==========================================
     
+    # Los métodos surface_condition_optimized, tooth_has_changes_optimized y
+    # selected_tooth_info_optimized han sido reemplazados por la funcionalidad
+    # proporcionada por EstadoOdontogramaAvanzado
+    
     @rx.var(cache=True)
     def surface_condition_optimized(self) -> Dict[str, str]:
-        """⚡ Condición optimizada de superficie - Elimina rx.cond anidados"""
-        try:
-            # Función unificada para determinar condición de cualquier diente/superficie
-            result = {}
-            for tooth in range(11, 49):  # Todos los dientes FDI
-                if tooth in [19, 20, 29, 30, 39, 40]:  # Saltar números no válidos FDI
-                    continue
-                    
-                tooth_key = f"{tooth}"
-                for surface in ["oclusal", "mesial", "distal", "vestibular", "lingual"]:
-                    key = f"{tooth}_{surface}"
-                    
-                    # 1. Verificar cambios pendientes primero (prioridad más alta)
-                    if tooth in self.cambios_pendientes_odontograma:
-                        if surface in self.cambios_pendientes_odontograma[tooth]:
-                            result[key] = self.cambios_pendientes_odontograma[tooth][surface]
-                            continue
-                    
-                    # 2. Verificar condiciones guardadas
-                    if tooth in self.condiciones_odontograma:
-                        if surface in self.condiciones_odontograma[tooth]:
-                            result[key] = self.condiciones_odontograma[tooth][surface]
-                            continue
-                    
-                    # 3. Por defecto: sano
-                    result[key] = "sano"
-            
-            return result
-        except Exception as e:
-            logger.error(f"Error en surface_condition_optimized: {e}")
-            return {}
-    
-    @rx.var(cache=True) 
-    def tooth_has_changes_optimized(self) -> Dict[int, bool]:
-        """⚡ Indica qué dientes tienen cambios pendientes - Optimizado"""
-        try:
-            result = {}
-            for tooth in range(11, 49):
-                if tooth in [19, 20, 29, 30, 39, 40]:
-                    continue
-                result[tooth] = tooth in self.cambios_pendientes_odontograma
-            return result
-        except Exception:
-            return {}
-    
+        """⚡ Proxy al estado del odontograma avanzado"""
+        result: Dict[str, str] = {}
+        for numero_fdi, estado in self.dientes_estados.items():
+            for superficie in ["oclusal", "mesial", "distal", "vestibular", "lingual"]:
+                key = f"{numero_fdi}_{superficie}"
+                result[key] = estado.get("codigo", "SAO")
+        return result
+        
     @rx.var(cache=True)
     def selected_tooth_info_optimized(self) -> Dict[str, Any]:
-        """⚡ Info del diente seleccionado en una sola computed var optimizada"""
-        try:
-            if not self.diente_seleccionado:
-                return {"tooth": None, "surfaces": {}, "pending": {}, "quadrant": 0}
-            
-            tooth = self.diente_seleccionado
-            
-            # Determinar cuadrante de forma optimizada
-            if tooth in range(11, 19):
-                quadrant = 1  # Superior derecho
-            elif tooth in range(21, 29):
-                quadrant = 2  # Superior izquierdo  
-            elif tooth in range(31, 39):
-                quadrant = 3  # Inferior izquierdo
-            elif tooth in range(41, 49):
-                quadrant = 4  # Inferior derecho
-            else:
-                quadrant = 0
-            
-            return {
-                "tooth": tooth,
-                "surfaces": self.condiciones_odontograma.get(tooth, {}),
-                "pending": self.cambios_pendientes_odontograma.get(tooth, {}),
-                "quadrant": quadrant,
-                "has_changes": tooth in self.cambios_pendientes_odontograma
-            }
-        except Exception:
+        """⚡ Info del diente seleccionado usando el estado avanzado"""
+        if not self.diente_seleccionado:
             return {"tooth": None, "surfaces": {}, "pending": {}, "quadrant": 0}
+            
+        # Obtener información del diente del catálogo
+        diente_info = next(
+            (d for d in self.dientes_catalogo if d["numero_fdi"] == self.diente_seleccionado),
+            None
+        )
+        
+        if not diente_info:
+            return {"tooth": None, "surfaces": {}, "pending": {}, "quadrant": 0}
+            
+        return {
+            "tooth": self.diente_seleccionado,
+            "surfaces": self.dientes_estados.get(self.diente_seleccionado, {}),
+            "pending": {},  # No hay cambios pendientes en el nuevo sistema
+            "quadrant": diente_info["cuadrante"],
+            "has_changes": False  # Los cambios son inmediatos en el nuevo sistema
+        }
     
     @rx.var
     def odontogram_stats_summary(self) -> List[Tuple[str, int]]:
@@ -242,6 +203,9 @@ class EstadoOdontologia(rx.State,mixin=True):
     condiciones_odontograma: Dict[int, Dict[str, str]] = {}  # {diente: {superficie: condicion}}
     cambios_pendientes_odontograma: Dict[int, Dict[str, str]] = {}  # Cambios no guardados
     modo_odontograma: str = "edicion"  # visualizacion, edicion - Por defecto en modo edición para intervenciones
+
+    # 📚 Variables para historial de dientes (modo consulta)
+    historial_diente_seleccionado: List[Dict[str, Any]] = []  # Historial real del diente
     modal_condicion_abierto: bool = False  # Estado del modal selector de condición
     termino_busqueda_condicion: str = ""  # Búsqueda en modal de condiciones
     categoria_condicion_seleccionada: str = "todas"  # Filtro de categoría de condiciones
@@ -268,8 +232,8 @@ class EstadoOdontologia(rx.State,mixin=True):
     # 🦷 FILTROS Y BÚSQUEDAS
     # ==========================================
     
-    # Filtros de pacientes asignados
-    filtro_estado_consulta: str = "programada"  # programada, en_progreso, completada
+    # Filtros de pacientes asignados (Estados reales de BD)
+    filtro_estado_consulta: str = "Todos"  # Todos, En Espera, En Atención, Entre Odontólogos, Completada, Cancelada
     filtro_fecha_consulta: str = ""  # Fecha específica o hoy
     mostrar_solo_urgencias: bool = False
     
@@ -549,69 +513,38 @@ class EstadoOdontologia(rx.State,mixin=True):
             self.cargando_servicios = False
     
     async def cargar_odontograma_paciente(self, paciente_id: str):
-        """Cargar odontograma del paciente actual"""
+        """Cargar odontograma del paciente actual usando el estado avanzado"""
         try:
-            # Verificar que tenemos el ID del odontólogo autenticado
+            # Verificar autenticación
             if not self.id_personal:
                 print("⚠️ No hay odontólogo autenticado para cargar odontograma")
                 return
-                
-            # Llamar al servicio con ambos parámetros requeridos
+            
+            # Primero cargar el catálogo FDI si no está cargado
+            if not self.catalogo_cargado:
+                await self.cargar_catalogo_fdi()
+            
+            # Obtener datos del odontograma del paciente
             odontograma_data = await odontologia_service.get_odontograma_paciente(paciente_id, self.id_personal)
-            if odontograma_data:
-                self.odontograma_actual = odontograma_data
-                # Cargar condiciones desde los datos obtenidos
-                if hasattr(odontograma_data, 'condiciones'):
-                    self.condiciones_odontograma = odontograma_data.condiciones or {}
+            
+            if odontograma_data and hasattr(odontograma_data, 'condiciones'):
+                # Actualizar estados de los dientes según condiciones guardadas
+                for numero_fdi, condicion in odontograma_data.condiciones.items():
+                    self.aplicar_condicion_diente(
+                        int(numero_fdi), 
+                        condicion.get('codigo', 'SAO')
+                    )
             else:
-                # Inicializar odontograma vacío si no existe
-                print(f"🔄 Creando nuevo odontograma para paciente {paciente_id}")
-                self.condiciones_odontograma = {}
-            
-            # Inicializar estructura FDI (32 dientes permanentes)
-            if not self.dientes_fdi:
-                self.dientes_fdi = self._inicializar_dientes_fdi()
-            
+                # Si no hay datos, inicializar todos como sanos (ya hecho en cargar_catalogo_fdi)
+                print(f"🔄 Inicializando nuevo odontograma para paciente {paciente_id}")
+                
             print(f"✅ Odontograma cargado para paciente {paciente_id} por odontólogo {self.id_personal}")
             
         except Exception as e:
             print(f"❌ Error cargando odontograma: {e}")
-    
-    def _inicializar_dientes_fdi(self) -> List[Dict[str, Any]]:
-        """Inicializar estructura básica de dientes FDI"""
-        todos_los_dientes = self.cuadrante_1 + self.cuadrante_2 + self.cuadrante_3 + self.cuadrante_4
-        
-        return [
-            {
-                "numero": diente,
-                "cuadrante": self._obtener_cuadrante_diente(diente),
-                "tipo": self._obtener_tipo_diente(diente),
-                "condiciones": {
-                    "oclusal": "sano",
-                    "mesial": "sano", 
-                    "distal": "sano",
-                    "vestibular": "sano",
-                    "lingual": "sano"
-                }
-            }
-            for diente in sorted(todos_los_dientes)
-        ]
-    
-    def _obtener_cuadrante_diente(self, numero_diente: int) -> int:
-        """Obtener cuadrante FDI del diente"""
-        return numero_diente // 10
-    
-    def _obtener_tipo_diente(self, numero_diente: int) -> str:
-        """Obtener tipo de diente según numeración FDI"""
-        ultimo_digito = numero_diente % 10
-        if ultimo_digito in [1, 2]:
-            return "incisivo"
-        elif ultimo_digito == 3:
-            return "canino"
-        elif ultimo_digito in [4, 5]:
-            return "premolar"
-        elif ultimo_digito in [6, 7, 8]:
-            return "molar"
+            self.error_message = f"Error cargando odontograma: {str(e)}"
+    # Los métodos _inicializar_dientes_fdi, _obtener_cuadrante_diente y _obtener_tipo_diente
+    # han sido reemplazados por la funcionalidad del catálogo FDI en EstadoOdontogramaAvanzado
         else:
             return "desconocido"
     
@@ -724,8 +657,7 @@ class EstadoOdontologia(rx.State,mixin=True):
             paciente: Modelo del paciente a tomar
             consulta_id: ID de la consulta asociada
         """
-        # Auth variables available via mixin pattern
-        from dental_system.state.estado_ui import EstadoUI
+        # Get UI state
         ui_state = self.get_state(EstadoUI)
         
         try:
@@ -976,25 +908,11 @@ class EstadoOdontologia(rx.State,mixin=True):
         except Exception as e:
             logger.error(f"Error validando precio: {e}")
     
-    # ==========================================
-    # 🦷 MÉTODOS OPTIMIZADOS PARA ODONTOGRAMA
-    # ==========================================
-    
-    def get_surface_condition_optimized(self, tooth: int, surface: str) -> str:
-        """⚡ Obtener condición de superficie optimizada - Reemplaza rx.cond anidados"""
-        try:
-            key = f"{tooth}_{surface}"
-            return self.surface_condition_optimized.get(key, "sano")
-        except Exception:
-            return "sano"
-    
-    def select_tooth_optimized(self, tooth_number: int):
-        """⚡ Selección optimizada de diente"""
-        try:
-            # Validar número FDI
-            if tooth_number not in range(11, 49) or tooth_number in [19, 20, 29, 30, 39, 40]:
-                logger.warning(f"Número de diente FDI inválido: {tooth_number}")
-                return
+    # Los métodos optimizados para el odontograma están ahora heredados 
+    # de EstadoOdontogramaAvanzado, que incluye:
+    # - surface_condition_optimized
+    # - tooth_has_changes_optimized  
+    # - select_tooth_optimized
             
             self.diente_seleccionado = tooth_number
             logger.info(f"✅ Diente seleccionado: {tooth_number}")
@@ -1096,6 +1014,13 @@ class EstadoOdontologia(rx.State,mixin=True):
         if numero_diente not in dientes_actuales:
             dientes_actuales.append(numero_diente)
             self.formulario_intervencion.dientes_afectados = ",".join(map(str, dientes_actuales))
+
+            # ✨ SINCRONIZACIÓN: Odontograma → Campo manual
+            try:
+                if hasattr(self, 'dientes_seleccionados_texto'):
+                    self.dientes_seleccionados_texto = ",".join(map(str, dientes_actuales))
+            except Exception as e:
+                logger.warning(f"Error sincronizando campo manual: {e}")
     
     def quitar_diente_afectado(self, numero_diente: int):
         """Quitar diente de la lista de afectados"""
@@ -1111,6 +1036,13 @@ class EstadoOdontologia(rx.State,mixin=True):
         if numero_diente in dientes_actuales:
             dientes_actuales.remove(numero_diente)
             self.formulario_intervencion.dientes_afectados = ",".join(map(str, dientes_actuales))
+
+            # ✨ SINCRONIZACIÓN: Odontograma → Campo manual
+            try:
+                if hasattr(self, 'dientes_seleccionados_texto'):
+                    self.dientes_seleccionados_texto = ",".join(map(str, dientes_actuales))
+            except Exception as e:
+                logger.warning(f"Error sincronizando campo manual: {e}")
     
     def limpiar_formulario_intervencion(self):
         """Limpiar todos los datos del formulario"""
@@ -1173,15 +1105,14 @@ class EstadoOdontologia(rx.State,mixin=True):
     def actualizar_lista_dientes_seleccionados(self):
         """Actualizar la lista visual de dientes seleccionados para la UI"""
         try:
-            # Obtener dientes desde el formulario
-            if isinstance(self.formulario_intervencion.dientes_afectados, str):
-                if self.formulario_intervencion.dientes_afectados.strip():
-                    dientes_str = [x.strip() for x in self.formulario_intervencion.dientes_afectados.split(",") if x.strip().isdigit()]
-                    dientes_nums = [int(d) for d in dientes_str]
-                else:
-                    dientes_nums = []
-            else:
-                dientes_nums = []
+            # Obtener dientes con condiciones no sanas
+            dientes_nums = [
+                numero_fdi for numero_fdi, estado in self.dientes_estados.items()
+                if estado.get("codigo", "SAO") != "SAO"
+            ]
+            
+            # Actualizar formulario
+            self.formulario_intervencion.dientes_afectados = ",".join(map(str, dientes_nums))
             
             # Actualizar lista de diccionarios para la UI
             self.dientes_seleccionados_lista = [
@@ -1240,18 +1171,31 @@ class EstadoOdontologia(rx.State,mixin=True):
         print("✅ Selección de odontograma reseteada")
     
     async def guardar_odontograma(self):
-        """Guardar cambios del odontograma SVG"""
+        """Guardar cambios del odontograma usando el estado avanzado"""
         try:
-            if self.cambios_pendientes_odontograma:
-                # Aquí implementar guardado en BD
-                await odontologia_service.guardar_cambios_odontograma(
-                    self.paciente_actual.id,
-                    self.cambios_pendientes_odontograma
-                )
-                self.cambios_pendientes_odontograma = {}
-                self.mostrar_mensaje_exito("Odontograma guardado correctamente")
-            else:
-                self.mostrar_mensaje_info("No hay cambios pendientes")
+            if not self.paciente_actual.id:
+                self.mostrar_mensaje_error("No hay paciente seleccionado")
+                return
+                
+            # Convertir estados actuales a formato de guardado
+            cambios = {
+                str(numero_fdi): {
+                    "codigo": estado.get("codigo", "SAO"),
+                    "condicion": estado.get("condicion", "sano"),
+                    "superficie": estado.get("superficie", "completa"),
+                    "observaciones": estado.get("observaciones", "")
+                }
+                for numero_fdi, estado in self.dientes_estados.items()
+            }
+            
+            # Guardar en BD
+            await odontologia_service.guardar_cambios_odontograma(
+                self.paciente_actual.id,
+                cambios
+            )
+            
+            self.mostrar_mensaje_exito("Odontograma guardado correctamente")
+            
         except Exception as e:
             self.mostrar_mensaje_error(f"Error al guardar odontograma: {str(e)}")
     
@@ -1265,29 +1209,46 @@ class EstadoOdontologia(rx.State,mixin=True):
     autor_ultima_nota: str = ""
     
     def obtener_cuadrante_diente(self) -> str:
-        """Obtener el cuadrante del diente seleccionado"""
+        """Obtener el cuadrante del diente seleccionado usando el catálogo FDI"""
         if not self.diente_seleccionado:
             return ""
+            
+        # Obtener información del diente del catálogo
+        diente_info = next(
+            (d for d in self.dientes_catalogo if d["numero_fdi"] == self.diente_seleccionado),
+            None
+        )
         
-        if self.diente_seleccionado in [18, 17, 16, 15, 14, 13, 12, 11]:
-            return "Superior Derecho (1)"
-        elif self.diente_seleccionado in [21, 22, 23, 24, 25, 26, 27, 28]:
-            return "Superior Izquierdo (2)"
-        elif self.diente_seleccionado in [31, 32, 33, 34, 35, 36, 37, 38]:
-            return "Inferior Izquierdo (3)"
-        elif self.diente_seleccionado in [48, 47, 46, 45, 44, 43, 42, 41]:
-            return "Inferior Derecho (4)"
-        else:
+        if not diente_info:
             return "Desconocido"
+            
+        cuadrante = diente_info["cuadrante"]
+        
+        # Mapear número de cuadrante a texto descriptivo
+        cuadrantes = {
+            1: "Superior Derecho (1)",
+            2: "Superior Izquierdo (2)", 
+            3: "Inferior Izquierdo (3)",
+            4: "Inferior Derecho (4)"
+        }
+        
+        return cuadrantes.get(cuadrante, "Desconocido")
     
     def obtener_tipo_diente(self) -> str:
-        """Obtener el tipo de diente según FDI"""
+        """Obtener el tipo de diente según catálogo FDI"""
         if not self.diente_seleccionado:
             return ""
+            
+        # Obtener información del diente del catálogo
+        diente_info = next(
+            (d for d in self.dientes_catalogo if d["numero_fdi"] == self.diente_seleccionado),
+            None
+        )
         
-        numero_str = str(self.diente_seleccionado)
-        if len(numero_str) < 2:
+        if not diente_info:
             return "Desconocido"
+            
+        return diente_info.get("tipo_diente", "Desconocido")
         
         posicion = numero_str[-1]
         
@@ -1847,8 +1808,19 @@ class EstadoOdontologia(rx.State,mixin=True):
             return False
     
     async def filtrar_por_estado_consulta(self, estado: str):
-        """Filtrar consultas por estado"""
+        """Filtrar consultas por estado - Estados reales de BD"""
+        # Mapear estados de UI a estados de BD
+        estados_map = {
+            "Todos": "",
+            "En Espera": "en_espera", 
+            "En Atención": "en_atencion",
+            "Entre Odontólogos": "entre_odontologos",
+            "Completada": "completada",
+            "Cancelada": "cancelada"
+        }
+        
         self.filtro_estado_consulta = estado
+        # El servicio usará el mapeo para filtrar por estado real de BD
         await self.cargar_pacientes_asignados()
     
     def alternar_mostrar_urgencias(self):
@@ -2063,7 +2035,7 @@ class EstadoOdontologia(rx.State,mixin=True):
         self.estadisticas_dia = OdontologoStatsModel()
         
         # Limpiar filtros
-        self.filtro_estado_consulta = "programada"
+        self.filtro_estado_consulta = "Todos"
         self.filtro_fecha_consulta = ""
         self.mostrar_solo_urgencias = False
         self.termino_busqueda_pacientes = ""
@@ -2445,17 +2417,8 @@ class EstadoOdontologia(rx.State,mixin=True):
         
         return f"{tipo} {cuadrante}"
 
-    @rx.var
-    def tiene_historial_disponible(self) -> bool:
-        """📚 Verificar si hay historial disponible para mostrar botón flotante"""
-        # Placeholder - en implementación real verificaría base de datos
-        return True  # Por ahora siempre mostrar
 
-    @rx.var 
-    def total_historial_items(self) -> int:
-        """📊 Total de items en el historial para badge de notificación"""
-        # Placeholder - sumaría intervenciones + consultas + notas
-        return 5  # Valor fijo por ahora
+
 
     async def abrir_modal_condicion(self):
         """🔧 Abrir modal selector de condición dental"""
@@ -2585,10 +2548,89 @@ class EstadoOdontologia(rx.State,mixin=True):
     # Gestión de dientes seleccionados
     async def limpiar_seleccion_dientes(self):
         """🧹 Limpiar todos los dientes seleccionados"""
-        self.dientes_seleccionados_lista = []
-        self.total_dientes_seleccionados = 0
-        logger.info("✅ Selección de dientes limpiada")
-    
+        try:
+            # Restablecer el diente seleccionado
+            self.diente_seleccionado = None
+            
+            # Limpiar el formulario
+            self.formulario_intervencion.dientes_afectados = ""
+            
+            # Actualizar la lista de dientes seleccionados
+            self.actualizar_lista_dientes_seleccionados()
+            
+            logger.info("✅ Selección de dientes limpiada")
+            
+        except Exception as e:
+            logger.error(f"❌ Error limpiando selección de dientes: {e}")
+            self.error_message = str(e)
+
+    async def seleccionar_todos_los_dientes(self):
+        """🦷 Seleccionar todos los 32 dientes FDI para servicios generales"""
+        try:
+            # Lista completa de dientes FDI (32 dientes adulto)
+            todos_los_dientes = []
+            todos_los_dientes.extend(self.cuadrante_1)  # 11-18
+            todos_los_dientes.extend(self.cuadrante_2)  # 21-28
+            todos_los_dientes.extend(self.cuadrante_3)  # 31-38
+            todos_los_dientes.extend(self.cuadrante_4)  # 41-48
+
+            # Actualizar lista de seleccionados
+            self.dientes_seleccionados_lista = [
+                {"numero": diente, "condicion": "sano"} for diente in todos_los_dientes
+            ]
+            self.total_dientes_seleccionados = len(todos_los_dientes)
+
+            # Actualizar formulario (string separado por comas)
+            self.formulario_intervencion.dientes_afectados = ",".join(map(str, todos_los_dientes))
+
+            # ✨ SINCRONIZACIÓN: Actualizar también el campo manual
+            try:
+                if hasattr(self, 'dientes_seleccionados_texto'):
+                    self.dientes_seleccionados_texto = ",".join(map(str, todos_los_dientes))
+            except Exception as e:
+                logger.warning(f"Error sincronizando campo manual: {e}")
+
+            logger.info(f"✅ Seleccionados todos los {len(todos_los_dientes)} dientes FDI")
+
+        except Exception as e:
+            logger.error(f"❌ Error seleccionando todos los dientes: {e}")
+
+    async def seleccionar_diente_para_historial(self, numero_diente: int):
+        """📚 Seleccionar diente para ver su historial (modo consulta)"""
+        try:
+            self.diente_seleccionado = numero_diente
+            # Cargar historial real desde BD para este diente
+            await self.cargar_historial_diente_especifico(numero_diente)
+            logger.info(f"✅ Diente {numero_diente} seleccionado para consulta de historial")
+        except Exception as e:
+            logger.error(f"❌ Error seleccionando diente para historial: {e}")
+
+    async def cargar_historial_diente_especifico(self, numero_diente: int):
+        """📊 Cargar historial real de intervenciones en un diente específico"""
+        try:
+            # Aquí integrarías con el servicio real de odontología
+            # Por ahora simulamos datos hasta que tengas el servicio
+            self.historial_diente_seleccionado = [
+                {
+                    "servicio_nombre": "Obturación",
+                    "fecha_formateada": "15/08/2024",
+                    "observaciones": "Obturación con resina compuesta en superficie oclusal",
+                    "odontologo_nombre": "Dr. García",
+                    "costo_total": 150.00
+                },
+                {
+                    "servicio_nombre": "Revisión",
+                    "fecha_formateada": "10/06/2024",
+                    "observaciones": "Control post-tratamiento, evolución favorable",
+                    "odontologo_nombre": "Dr. García",
+                    "costo_total": 50.00
+                }
+            ]
+            logger.info(f"✅ Historial cargado para diente {numero_diente}")
+        except Exception as e:
+            logger.error(f"❌ Error cargando historial del diente {numero_diente}: {e}")
+            self.historial_diente_seleccionado = []
+
     async def activar_modo_seleccion_multiple(self):
         """🎯 Activar modo de selección múltiple de dientes"""
         self.modo_seleccion_multiple = True

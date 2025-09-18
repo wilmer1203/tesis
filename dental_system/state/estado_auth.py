@@ -54,6 +54,7 @@ class EstadoAuth(rx.State, mixin=True):
     ultima_actividad: str = ""
     error_login: str = ""
     esta_cargando_auth: bool = False
+
     
     # UNUSED - [2025-01-04] - Estados de formularios multi-paso no utilizados
     # paso_formulario_paciente: int = 0
@@ -69,7 +70,7 @@ class EstadoAuth(rx.State, mixin=True):
     # ==========================================
     
     @rx.event
-    async def iniciar_sesion(self, datos_formulario: Dict[str, str]):
+    async def iniciar_sesion(self, form_data: dict):
         """
         🔐 MÉTODO PRINCIPAL DE LOGIN CON NOMBRES EN ESPAÑOL
         
@@ -91,9 +92,9 @@ class EstadoAuth(rx.State, mixin=True):
         
         try:
             # Extraer y validar credenciales
-            email = datos_formulario.get("email", "").strip().lower()
-            contraseña = datos_formulario.get("password", "").strip()
-            
+            email = form_data.get("email", "").strip().lower()
+            contraseña = form_data.get("password", "").strip()
+
             if not email or not contraseña:
                 self.error_login = "Email y contraseña son requeridos"
                 return
@@ -143,16 +144,17 @@ class EstadoAuth(rx.State, mixin=True):
                         print(f"❌ Error obteniendo personal completo: {e}")
                 
                 print(f"✅ Usuario autenticado: {self.email_usuario} - Rol: {self.rol_usuario} - Personal ID: {self.id_personal}")
-                
+
                 # 🚀 INICIALIZAR DATOS POST-LOGIN
                 await self.post_login_inicializacion()
-                
+
+
                 # Determinar ruta según rol y redirigir
                 ruta_dashboard = self.obtener_ruta_dashboard()
-                
+
                 # # Invalidar cache al cambiar usuario
                 # CacheInvalidationHooks.force_refresh_all_dashboard_cache()
-                
+
                 return rx.redirect(ruta_dashboard)
                 
             else:
@@ -211,6 +213,12 @@ class EstadoAuth(rx.State, mixin=True):
         
         print("✅ Sesión cerrada correctamente")
         return rx.redirect("/login")
+    
+    @rx.event
+    def limpiar_error_login(self):
+        """🧹 Limpiar mensaje de error de login"""
+        self.error_login = ""
+
     
     def obtener_ruta_dashboard(self) -> str:
         """

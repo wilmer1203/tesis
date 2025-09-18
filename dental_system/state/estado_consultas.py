@@ -237,9 +237,81 @@ class EstadoConsultas(rx.State,mixin=True):
     def consulta_seleccionada_valida(self) -> bool:
         """✅ Validar si hay consulta seleccionada"""
         return (
-            hasattr(self.consulta_seleccionada, 'id') and 
+            hasattr(self.consulta_seleccionada, 'id') and
             bool(self.consulta_seleccionada.id)
         )
+
+    @rx.var(cache=True)
+    def conteos_consultas_por_doctor(self) -> Dict[str, int]:
+        """📊 Conteo de consultas por odontólogo"""
+        conteos = {}
+        for consulta in self.lista_consultas:
+            doctor_id = consulta.primer_odontologo_id
+            if doctor_id:
+                conteos[doctor_id] = conteos.get(doctor_id, 0) + 1
+        return conteos
+
+    @rx.var(cache=True)
+    def get_urgentes_por_doctor(self) -> Dict[str, int]:
+        """🚨 Conteo de consultas urgentes por odontólogo"""
+        urgentes = {}
+        for consulta in self.lista_consultas:
+            if consulta.prioridad == "urgente" and consulta.estado in ["en_espera", "en_atencion"]:
+                doctor_id = consulta.primer_odontologo_id
+                if doctor_id:
+                    urgentes[doctor_id] = urgentes.get(doctor_id, 0) + 1
+        return urgentes
+
+    @rx.var(cache=True)
+    def get_tiempo_promedio_espera(self) -> Dict[str, str]:
+        """⏱️ Tiempo promedio de espera por odontólogo"""
+        tiempos = {}
+        for consulta in self.lista_consultas:
+            if consulta.estado == "en_espera":
+                doctor_id = consulta.primer_odontologo_id
+                if doctor_id:
+                    # Simulación de tiempo - en producción calcular desde fecha_llegada
+                    tiempos[doctor_id] = "25min"
+        return tiempos
+
+    @rx.var(cache=True)
+    def estadisticas_globales_tiempo_real(self) -> Dict[str, int]:
+        """📊 Estadísticas globales del sistema en tiempo real"""
+        return {
+            "total_pacientes": len(self.lista_consultas),
+            "en_espera": len([c for c in self.lista_consultas if c.estado == "en_espera"]),
+            "en_atencion": len([c for c in self.lista_consultas if c.estado == "en_atencion"]),
+            "urgentes": len([c for c in self.lista_consultas if c.prioridad == "urgente" and c.estado in ["en_espera", "en_atencion"]]),
+            "completadas": len([c for c in self.lista_consultas if c.estado == "completada"]),
+            "dentistas_activos": len(set(c.primer_odontologo_id for c in self.lista_consultas if c.primer_odontologo_id))
+        }
+
+    @rx.var(cache=True)
+    def consultas_con_orden_por_doctor_con_prioridad(self) -> Dict[str, List[ConsultaModel]]:
+        """📋 Consultas agrupadas por odontólogo y ordenadas por prioridad y orden de llegada"""
+        consultas_por_doctor = {}
+
+        # Agrupar por odontólogo
+        for consulta in self.lista_consultas:
+            if consulta.estado in ["en_espera", "en_atencion"]:  # Solo consultas activas
+                doctor_id = consulta.primer_odontologo_id
+                if doctor_id:
+                    if doctor_id not in consultas_por_doctor:
+                        consultas_por_doctor[doctor_id] = []
+                    consultas_por_doctor[doctor_id].append(consulta)
+
+        # Ordenar por prioridad y orden de llegada dentro de cada grupo
+        orden_prioridad = {"urgente": 0, "alta": 1, "normal": 2, "baja": 3}
+
+        for doctor_id in consultas_por_doctor:
+            consultas_por_doctor[doctor_id].sort(
+                key=lambda c: (
+                    orden_prioridad.get(c.prioridad or "normal", 2),
+                    c.orden_llegada_general or 999
+                )
+            )
+
+        return consultas_por_doctor
     
     # ==========================================
     # 📅 MÉTODOS PRINCIPALES DE CRUD
@@ -2001,24 +2073,23 @@ class EstadoConsultas(rx.State,mixin=True):
                 user_profile=self.perfil_usuario
             )
             
-            # Usar el servicio para actualizar la consulta
-            consulta_actualizada = await consultas_service.change_consultation_dentist(
+            # Usar el método directo de transferencia simplificado
+            transferencia_exitosa = await consultas_service.transferir_consulta(
                 consulta_id, nuevo_odontologo_id, motivo.strip()
             )
             
-            if consulta_actualizada:
-                # Actualizar en la lista local
-                for i, consulta in enumerate(self.lista_consultas):
-                    if consulta.id == consulta_id:
-                        self.lista_consultas[i] = consulta_actualizada
-                        break
-                
-                # Actualizar todas las listas de consultas
-                await self.cargar_consultas_hoy()
-                
-                # Si hay un odontólogo seleccionado, recargar sus consultas también
-                if hasattr(self, 'odontologo_seleccionado_id') and self.odontologo_seleccionado_id:
-                    await self.cargar_consultas_odontologo(self.odontologo_seleccionado_id)
+            if transferencia_exitosa:
+                # Invalidar cache completamente
+                self.cache_timestamp_consultas = ""
+                self._invalidar_cache_consultas()
+
+                # Limpiar todas las listas para forzar recálculo
+                self.consultas_hoy = []
+                self.lista_consultas = []
+                self.cache_consultas_odontologo = {}
+
+                # Recargar desde cero para forzar la actualización
+                await self.cargar_consultas_hoy(forzar_refresco=True)
                 
                 # Limpiar variables auxiliares
                 self.consulta_seleccionada = None
@@ -2229,9 +2300,9 @@ class EstadoConsultas(rx.State,mixin=True):
             odontologo_id = consulta_actual.primer_odontologo_id
             orden_actual = consulta_actual.orden_cola_odontologo
             
-            # Contar total de consultas en esa cola
-            total_en_cola = len([c for c in self.consultas_hoy 
-                               if c.primer_odontologo_id == odontologo_id and c.estado == "en_espera"])
+            # Contar total de consultas en esa cola (usar estados correctos)
+            total_en_cola = len([c for c in self.consultas_hoy
+                               if c.primer_odontologo_id == odontologo_id and c.estado in ["programada", "en_espera"]])
             
             if orden_actual >= total_en_cola:
                 self.mostrar_toast("Ya está en la última posición", "warning")

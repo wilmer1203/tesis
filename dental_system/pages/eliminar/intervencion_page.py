@@ -373,7 +373,7 @@ def mobile_intervention_layout() -> rx.Component:
 # ==========================================
 # 📄 PÁGINA PRINCIPAL INTEGRADA
 # ==========================================
-
+@rx.page(route="/intervencion", title="🦷 Intervención Avanzada")
 def intervencion_page() -> rx.Component:
     """
     🦷 Página de Intervención Odontológica V3.0 - INTEGRACIÓN COMPLETA

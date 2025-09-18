@@ -30,6 +30,7 @@ from .estado_personal import EstadoPersonal
 from .estado_odontologia import EstadoOdontologia
 from .estado_servicios import EstadoServicios
 from .estado_intervencion_servicios import EstadoIntervencionServicios
+from .estado_odontograma_avanzado import EstadoOdontogramaAvanzado
 
 # ✅ MODELOS TIPADOS PARA COMPUTED VARS
 from dental_system.models import (
@@ -54,11 +55,13 @@ from dental_system.models import (
 
 logger = logging.getLogger(__name__)
 
-class AppState(EstadoIntervencionServicios,EstadoServicios,EstadoConsultas,EstadoOdontologia,EstadoPersonal,EstadoAuth, EstadoPacientes,EstadoUI,rx.State):
+class AppState(EstadoIntervencionServicios,EstadoServicios,EstadoConsultas,EstadoOdontologia,EstadoPersonal,EstadoAuth, EstadoPacientes,EstadoUI, rx.State):
+    """Incluye AdvancedFDIState como mixin - se integra automáticamente"""
     """
     🎯 APPSTATE DEFINITIVO CON MIXINS
     
     Hereda de todos los substates como mixins:
+    - AdvancedFDIState: Odontograma FDI interactivo avanzado
     - EstadoAuth: Autenticación y permisos
     - EstadoUI: Navegación y estados de UI
     - EstadoPacientes: Gestión de pacientes
@@ -230,6 +233,32 @@ class AppState(EstadoIntervencionServicios,EstadoServicios,EstadoConsultas,Estad
         for doctor_id, consultas in self.consultas_por_doctor_dict.items():
             conteos[doctor_id] = len(consultas)
         return conteos
+
+    @rx.var
+    def get_urgentes_por_doctor(self) -> Dict[str, int]:
+        """🚨 Contador de urgentes por odontólogo"""
+        urgentes = {}
+        for doctor_id, consultas in self.consultas_por_doctor_dict.items():
+            urgentes_count = len([c for c in consultas if c.prioridad == "urgente"])
+            urgentes[doctor_id] = urgentes_count
+        return urgentes
+
+    @rx.var
+    def get_tiempo_promedio_espera(self) -> Dict[str, str]:
+        """⏱️ Tiempo promedio de espera por odontólogo"""
+        tiempos = {}
+        for doctor in self.odontologos_disponibles:
+            # TODO: Calcular tiempo real basado en consultas
+            consultas_doctor = self.consultas_por_doctor_dict.get(doctor.id, [])
+            if len(consultas_doctor) == 0:
+                tiempos[doctor.id] = "0m"
+            elif len(consultas_doctor) <= 2:
+                tiempos[doctor.id] = "15m"
+            elif len(consultas_doctor) <= 5:
+                tiempos[doctor.id] = "30m"
+            else:
+                tiempos[doctor.id] = "45m+"
+        return tiempos
     
     @rx.var
     def consultas_con_orden_por_doctor(self) -> Dict[str, List[ConsultaConOrdenModel]]:
@@ -329,35 +358,11 @@ class AppState(EstadoIntervencionServicios,EstadoServicios,EstadoConsultas,Estad
     # 🔧 MÉTODOS HELPER PARA CONSULTAS v4.1
     # ==========================================
     
-    @rx.var
-    def get_lista_odontologos_activos(self) -> List[PersonalModel]:
-        """👨‍⚕️ Lista de odontólogos activos"""
-        return [p for p in self.lista_personal if p.es_odontologo and p.estado == "activo"]
-    
-    @rx.var
-    def get_fecha_actual(self) -> str:
-        """📅 Fecha actual formateada"""
-        return date.today().strftime("%d/%m/%Y")
-    
-    @rx.var
-    def get_total_consultas_hoy(self) -> int:
-        """📊 Total de consultas del día"""
-        return len(self.consultas_hoy)
-    
+
     @rx.var
     def get_consultas_pendientes(self) -> List[ConsultaModel]:
         """⏳ Consultas pendientes (en espera)"""
         return [c for c in self.consultas_hoy if c.estado == "en_espera"]
-    
-    @rx.var
-    def get_consultas_en_progreso(self) -> List[ConsultaModel]:
-        """🏥 Consultas en progreso (en atención)"""
-        return [c for c in self.consultas_hoy if c.estado == "en_atencion"]
-    
-    @rx.var
-    def get_consultas_completadas_hoy(self) -> List[ConsultaModel]:
-        """✅ Consultas completadas hoy"""
-        return [c for c in self.consultas_hoy if c.estado == "completada"]
     
     def get_consultas_pendientes_doctor(self, doctor_id: str) -> List[ConsultaModel]:
         """⏳ Consultas pendientes de un doctor específico - v4.1"""

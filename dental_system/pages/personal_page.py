@@ -19,7 +19,10 @@ from dental_system.components.common import (
     primary_button, 
     secondary_button, 
     eliminar_button, 
-    page_header
+    page_header,
+    medical_page_layout,
+    medical_toast_container,
+    toast_animations_css
 )
 from dental_system.components.table_components import personal_table
 from dental_system.components.forms import multi_step_staff_form
@@ -53,7 +56,7 @@ def delete_personal_confirmation_modal() -> rx.Component:
             # Header con icono de advertencia
             rx.vstack(
                 rx.box(
-                    rx.icon("triangle_alert", size=48, color=COLORS["error"]["500"]),
+                    rx.icon("alert-triangle", size=48, color=COLORS["error"]["500"]),
                     padding=SPACING["4"],
                     border_radius=RADIUS["full"],
                     background=COLORS["error"]["50"]
@@ -87,7 +90,7 @@ def delete_personal_confirmation_modal() -> rx.Component:
             rx.hstack(
                 rx.button(
                     "Cancelar",
-                    on_click=AppState.cerrar_todos_los_modales,
+                    on_click=AppState.cerrar_modal,
                     style={
                         **GLASS_EFFECTS["light"],
                         "border": f"1px solid {COLORS['gray']['300']}60",
@@ -313,7 +316,7 @@ def modern_alerts() -> rx.Component:
             AppState.mensaje_modal_confirmacion != "",
             rx.box(
                 rx.hstack(
-                    rx.icon("check", size=20, color=COLORS["success"]["500"]),
+                    rx.icon("check-circle", size=20, color=COLORS["success"]["500"]),
                     rx.text(
                         AppState.mensaje_modal_confirmacion,
                         color=COLORS["success"]["700"],
@@ -338,7 +341,7 @@ def modern_alerts() -> rx.Component:
             AppState.mensaje_modal_alerta != "",
             rx.box(
                 rx.hstack(
-                    rx.icon("circle_alert", size=20, color=COLORS["error"]["500"]),
+                    rx.icon("alert-circle", size=20, color=COLORS["error"]["500"]),
                     rx.text(
                         AppState.mensaje_modal_alerta,
                         color=COLORS["error"]["700"],
@@ -364,7 +367,7 @@ def modern_alerts() -> rx.Component:
 
 def personal_page() -> rx.Component:
     """
-    🏥 PÁGINA DE GESTIÓN DE PERSONAL - REFACTORIZADA
+    🏥 PÁGINA DE GESTIÓN DE PERSONAL - REFACTORIZADA CON TOASTS
     
     ✨ Características mejoradas:
     - Diseño moderno con glassmorphism
@@ -372,38 +375,37 @@ def personal_page() -> rx.Component:
     - Layout responsive mobile-first 
     - Cards de estadísticas elegantes
     - Header con gradientes y efectos
-    - Sistema de alertas renovado
+    - Sistema de toasts flotantes
     """
-    return rx.box(
-            rx.box(
-                rx.vstack(
-                    # Header limpio y elegante
-                    clean_page_header(),
-                    
-                    # Sistema de alertas mejorado
-                    modern_alerts(), 
-                    # Tabla de personal con diseño actualizado - Usar función utilitaria
-                    rx.box(
-                        personal_table(),
-                        style=dark_table_container(),
-                        width="100%"
-                    ),
-                    spacing="3",
+    return rx.fragment(
+        # CSS para animaciones de toasts
+        toast_animations_css(),
+        
+        # Contenedor de toasts flotantes
+        medical_toast_container(),
+        
+        # Layout principal usando el wrapper
+        medical_page_layout(
+            rx.vstack(
+                # Header limpio y elegante
+                clean_page_header(),
+                
+                # Sistema de alertas mejorado (mantener por compatibilidad)
+                modern_alerts(), 
+                
+                # Tabla de personal con diseño actualizado
+                rx.box(
+                    personal_table(),
+                    style=dark_table_container(),
                     width="100%"
                 ),
-                style={
-                    "position": "relative",
-                    "z_index": "10"
-                }
-            ),
-            multi_step_staff_form(),  # ✅ Formulario multi-step staff reactivado
-            delete_personal_confirmation_modal(),  # ✅ Modal de eliminación reactivado
-            # Utilizar función utilitaria para el fondo de página
-            style={
-                **dark_page_background(),
-                "padding": f"{SPACING['4']} {SPACING['6']}",
-                "min_height": "100vh"
-            },   
-        width="100%", 
-        # aling="center"
+                
+                spacing="3",
+                width="100%"
+            )
+        ),
+        
+        # Modales
+        multi_step_staff_form(),
+        # delete_personal_confirmation_modal()  # TODO: Arreglar modal
     )

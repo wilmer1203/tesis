@@ -56,13 +56,19 @@ from .pagos_models import (
     PagoParcialFormModel
 )
 
+from .ui_models import (
+    ToastModel,
+    NotificationModel
+)
+
 from .odontologia_models import (
     OdontogramaModel,
     DienteModel,
     CondicionDienteModel,
     HistorialClinicoModel,
     PlanTratamientoModel,
-    IntervencionFormModel
+    IntervencionFormModel,
+    HistorialMedicoModel
 )
 
 from .dashboard_models import (
@@ -129,6 +135,7 @@ __all__ = [
     "CondicionDienteModel",
     "HistorialClinicoModel",
     "PlanTratamientoModel",
+    "HistorialMedicoModel",
     
     # ✅ DASHBOARD Y ESTADÍSTICAS
     "DashboardStatsModel",

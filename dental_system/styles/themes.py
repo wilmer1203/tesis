@@ -14,24 +14,25 @@ Sistema completo de diseño con:
 from typing import Dict, Any, Optional, Union, List
 from functools import lru_cache
 import colorsys
+import reflex as rx
 
 # ==========================================
 # 🎨 PALETA DE COLORES PRINCIPAL - EXPANDIDA
 # ==========================================
 
 COLORS = {
-    # Colores primarios (Turquesa dental) - Optimizados
+    # Colores primarios (Turquesa dental) - Más azulados y vibrantes
     "primary": {
-        "50": "#E6F9F8",
-        "100": "#B3F0ED", 
-        "200": "#80E7E2",
-        "300": "#4DDED7",
-        "400": "#1AD5CC",
-        "500": "#1CBBBA",  # Color principal
-        "600": "#18A8A7",
-        "700": "#159594",
-        "800": "#118281",
-        "900": "#0E6F6E"
+        "50": "#E6F8FF",
+        "100": "#B3ECFF", 
+        "200": "#80E0FF",
+        "300": "#4DD4FF",
+        "400": "#1AC8FF",
+        "500": "#00BCD4",  # Color principal turquesa vibrante
+        "600": "#00ACC1",
+        "700": "#0097A7",
+        "800": "#00838F",
+        "900": "#006064"
     },
     
     # Colores secundarios (dorado) - Optimizados
@@ -196,6 +197,74 @@ ROLE_THEMES = {
         "bg_pattern": "geometric"
     }
 }
+
+# ==========================================
+# 🔮 EFECTOS GLASSMORPHISM SIMPLIFICADOS
+# ==========================================
+
+def glassmorphism_card(opacity: str = "90", blur: str = "20px") -> dict:
+    """🔮 Función glassmorphism simplificada y eficiente"""
+    return {
+        "background": f"linear-gradient(135deg, {COLORS['gray']['900']}{opacity} 0%, {COLORS['gray']['800']}{opacity} 100%)",
+        "backdrop_filter": f"blur({blur}) saturate(180%)",
+        "border": f"1px solid {COLORS['primary']['500']}30",
+        "box_shadow": f"""
+            0 25px 50px -12px {COLORS['gray']['900']}80,
+            0 0 0 1px {COLORS['primary']['500']}20,
+            inset 0 1px 0 {COLORS['gray']['700']}50
+        """,
+        "border_radius": RADIUS["2xl"],
+        "position": "relative"
+    }
+
+def glassmorphism_input() -> dict:
+    """🔮 Input glassmorphism para formularios"""
+    return {
+        "background": f"{COLORS['gray']['800']}60",
+        "backdrop_filter": "blur(10px)",
+        "border": f"1px solid {COLORS['primary']['500']}30",
+        "border_radius": RADIUS["md"],
+        "color": COLORS["gray"]["50"],
+        "_focus": {
+            "border_color": COLORS["primary"]["400"],
+            "box_shadow": f"0 0 0 3px {COLORS['primary']['500']}20",
+            "background": f"{COLORS['gray']['700']}80"
+        },
+        "_hover": {
+            "border_color": COLORS["primary"]["500"],
+            "background": f"{COLORS['gray']['700']}70"
+        }
+    }
+
+
+
+def primary_button() -> dict:
+    """🔘 Botón primario turquesa con efectos premium"""
+    return {
+        "background": ROLE_THEMES['gerente']['gradient'],
+        "border": f"1px solid {COLORS['primary']['700']}50",
+        "border_radius": RADIUS["xl"],
+        "color": "white",
+        "font_weight": "600",
+        "font_size": "1.1em",
+        "padding": f"{SPACING['2']} {SPACING['4']}",
+        "min_height": "48px",
+        "cursor": "pointer",
+        "transition": "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+        "_hover": {
+            "transform": "translateY(-2px)",
+            "background": f"linear-gradient(135deg, {COLORS['primary']['500']} 0%, {COLORS['primary']['400']} 100%)",
+            "box_shadow": f"0 8px 25px {COLORS['primary']['500']}40",
+        },
+        "_active": {
+            "transform": "translateY(0px)"
+        },
+        "_disabled": {
+            "opacity": "0.6",
+            "cursor": "not-allowed",
+            "transform": "none"
+        }
+    }
 
 # ==========================================
 # 📐 ESPACIADO Y DIMENSIONES - SISTEMA COMPLETO
@@ -398,6 +467,43 @@ ANIMATIONS = {
         "rotate_glow": {
             "0%": {"transform": "rotate(0deg)", "box-shadow": f"0 0 20px {COLORS['primary']['500']}40"},
             "100%": {"transform": "rotate(360deg)", "box-shadow": f"0 0 20px {COLORS['secondary']['500']}40"}
+        },
+        
+        # 🦷 ANIMACIONES MÉDICAS ESPECÍFICAS PARA ODONTOGRAMA
+        "pulse_urgent": {
+            "0%, 100%": { 
+                "box-shadow": "0 0 0 0 rgba(220, 38, 38, 0.7)",
+                "border-color": "#dc2626"
+            },
+            "50%": { 
+                "box-shadow": "0 0 0 10px rgba(220, 38, 38, 0)",
+                "border-color": "#ef4444"
+            }
+        },
+        
+        "glow_healthy": {
+            "0%, 100%": { 
+                "box-shadow": "0 2px 8px rgba(22, 163, 74, 0.15)"
+            },
+            "50%": { 
+                "box-shadow": "0 4px 16px rgba(22, 163, 74, 0.3)"
+            }
+        },
+        
+        "subtle_lift": {
+            "0%": {"transform": "translateY(0px)"},
+            "100%": {"transform": "translateY(-2px)"}
+        },
+        
+        "medical_attention": {
+            "0%": {"background-position": "-200% center"},
+            "100%": {"background-position": "200% center"}
+        },
+        
+        "tooth_selected": {
+            "0%": {"transform": "scale(1)", "box-shadow": "0 2px 8px rgba(37, 99, 235, 0.15)"},
+            "50%": {"transform": "scale(1.05)", "box-shadow": "0 8px 25px rgba(37, 99, 235, 0.4)"},
+            "100%": {"transform": "scale(1.02)", "box-shadow": "0 6px 20px rgba(37, 99, 235, 0.3)"}
         }
     }
 }
@@ -767,7 +873,7 @@ DARK_THEME_STYLES = {
 }
 
 # ==========================================
-# 🎯 ESTILOS ESPECÍFICOS DENTALES
+# 🎯 ESTILOS ESPECÍFICOS DENTALES EXPANDIDOS
 # ==========================================
 
 DENTAL_SPECIFIC = {
@@ -780,13 +886,68 @@ DENTAL_SPECIFIC = {
         "tooth_root_canal": COLORS["warning"]["500"]
     },
     
-    "status_colors": {
+    "consultation_status": {
         "scheduled": COLORS["info"]["500"],
         "confirmed": COLORS["primary"]["500"],
-        "in_progress": COLORS["warning"]["500"],
+        "waiting": COLORS["warning"]["500"],
+        "in_progress": COLORS["info"]["500"],
         "completed": COLORS["success"]["500"],
         "cancelled": COLORS["error"]["500"],
         "no_show": COLORS["gray"]["500"]
+    },
+    
+    "priority_system": {
+        "urgent": {
+            "color": "#dc2626",
+            "background": "rgba(220, 38, 38, 0.1)",
+            "border": "rgba(220, 38, 38, 0.3)",
+            "icon": "🚨"
+        },
+        "high": {
+            "color": "#ea580c",
+            "background": "rgba(234, 88, 12, 0.1)", 
+            "border": "rgba(234, 88, 12, 0.3)",
+            "icon": "⚡"
+        },
+        "normal": {
+            "color": COLORS["gray"]["500"],
+            "background": "rgba(107, 114, 128, 0.1)",
+            "border": "rgba(107, 114, 128, 0.3)",
+            "icon": "📋"
+        }
+    }
+}
+
+# ==========================================
+# 🏥 COLORES ESPECÍFICOS MÉDICOS EXPANDIDOS
+# ==========================================
+
+MEDICAL_COLORS = {
+    # Estados de consulta médica
+    "consultation": {
+        "waiting": COLORS["warning"]["500"],
+        "in_progress": COLORS["info"]["500"], 
+        "completed": COLORS["success"]["500"],
+        "cancelled": COLORS["error"]["500"],
+        "urgent": "#dc2626",
+        "high_priority": "#ea580c",
+        "normal_priority": COLORS["gray"]["500"]
+    },
+    
+    # Colores específicos dental tema oscuro
+    "dark_medical": {
+        "background": "#0f1419",
+        "surface": "#1a1f2e",
+        "surface_hover": "#252b3a",
+        "border": "#2d3748",
+        "border_hover": "#4a5568",
+        "text_primary": "#f7fafc",
+        "text_secondary": "#a0aec0",
+        "text_muted": "#718096",
+        "glass_bg": "rgba(26, 31, 46, 0.8)",
+        "glass_border": "rgba(255, 255, 255, 0.1)",
+        "accent_cyan": COLORS["primary"]["400"],
+        "accent_turquoise": "#1CBBBA"
     }
 }
 
@@ -801,7 +962,7 @@ def create_dark_style(
     **overrides
 ) -> Dict[str, Any]:
     """
-    🎨 Función genérica para crear estilos de tema oscuro reutilizables
+    🎨 Función genérica OPTIMIZADA para crear estilos de tema oscuro reutilizables
     
     Args:
         style_key: Clave en DARK_THEME_STYLES para usar como base
@@ -816,16 +977,13 @@ def create_dark_style(
         # Patrón simple (usa DARK_THEME_STYLES)
         create_dark_style("crystal_card")
         
+        # Patrón médico específico
+        create_dark_style("medical_card", priority="urgent")
+        
         # Patrón con lógica personalizada
         create_dark_style(
             custom_logic=lambda color=None, **kw: {"background": color} if color else {},
             color="#123456"
-        )
-        
-        # Patrón base personalizado
-        create_dark_style(
-            base_style={"padding": "10px"},
-            margin="5px"
         )
     """
     final_style = {}
@@ -840,9 +998,13 @@ def create_dark_style(
     
     # 3. Aplicar lógica personalizada si existe
     if custom_logic and callable(custom_logic):
-        custom_result = custom_logic(**overrides)
-        if isinstance(custom_result, dict):
-            final_style.update(custom_result)
+        try:
+            custom_result = custom_logic(**overrides)
+            if isinstance(custom_result, dict):
+                final_style.update(custom_result)
+        except Exception:
+            # Fallback silencioso si la lógica personalizada falla
+            pass
     
     # 4. Aplicar overrides finales
     final_style.update(overrides)
@@ -1110,5 +1272,173 @@ __all__ = [
     
     # Estilos especializados
     "botton_login",
-    "input_login"
+    "input_login",
+    
+    # Funciones médicas específicas optimizadas
+    "MEDICAL_COLORS",
+    "create_medical_card_style",
+    "create_priority_badge_style", 
+    "create_consultation_status_style"
 ]
+
+# ==========================================
+# 🏥 FUNCIONES MÉDICAS ESPECÍFICAS OPTIMIZADAS
+# ==========================================
+
+def create_medical_card_style(priority: str = "normal", status: str = "waiting", **overrides) -> Dict[str, Any]:
+    """
+    🏥 Crear tarjeta médica con prioridad y estado visual
+    
+    Args:
+        priority: 'urgent', 'high', 'normal'
+        status: 'waiting', 'in_progress', 'completed', 'cancelled'
+        **overrides: Propiedades adicionales CSS
+    
+    Returns:
+        Dict con estilo CSS completo para tarjeta médica
+    """
+    def _medical_logic(priority="normal", status="waiting", **kwargs):
+        base_style = DARK_THEME_STYLES["crystal_card"].copy()
+        
+        # Obtener colores según prioridad
+        priority_config = DENTAL_SPECIFIC["priority_system"].get(priority, DENTAL_SPECIFIC["priority_system"]["normal"])
+        status_color = DENTAL_SPECIFIC["consultation_status"].get(status, COLORS["gray"]["500"])
+        
+        # Personalización por prioridad
+        if priority == "urgent":
+            base_style.update({
+                "border_left": f"4px solid {priority_config['color']}",
+                "box_shadow": f"0 8px 32px rgba(0, 0, 0, 0.5), 0 4px 16px {priority_config['color']}30, inset 0 1px 0 rgba(255, 255, 255, 0.1)",
+                "_hover": {
+                    "transform": "translateY(-6px)",
+                    "box_shadow": f"0 20px 40px rgba(0, 0, 0, 0.6), 0 8px 24px {priority_config['color']}40",
+                    "border_color": "rgba(255, 255, 255, 0.3)"
+                }
+            })
+        elif priority == "high":
+            base_style.update({
+                "border_left": f"3px solid {priority_config['color']}",
+                "box_shadow": f"0 8px 32px rgba(0, 0, 0, 0.5), 0 2px 8px {priority_config['color']}20, inset 0 1px 0 rgba(255, 255, 255, 0.1)"
+            })
+        
+        # Personalización por estado
+        if status == "in_progress":
+            base_style.update({
+                "background": "rgba(255, 255, 255, 0.12)",
+                "_after": {
+                    "content": "''",
+                    "position": "absolute",
+                    "top": "0",
+                    "left": "0", 
+                    "right": "0",
+                    "height": "2px",
+                    "background": f"linear-gradient(90deg, transparent 0%, {status_color} 50%, transparent 100%)",
+                    "animation": "shimmer 2s infinite"
+                }
+            })
+        elif status == "completed":
+            base_style.update({
+                "opacity": "0.8",
+                "background": "rgba(255, 255, 255, 0.05)"
+            })
+        
+        return base_style
+    
+    return create_dark_style(
+        custom_logic=_medical_logic,
+        priority=priority,
+        status=status,
+        **overrides
+    )
+
+def create_priority_badge_style(priority: str = "normal", **overrides) -> Dict[str, Any]:
+    """
+    🚨 Crear badge de prioridad con colores y efectos específicos
+    
+    Args:
+        priority: 'urgent', 'high', 'normal'
+        **overrides: Propiedades adicionales CSS
+    
+    Returns:
+        Dict con estilo CSS para badge de prioridad
+    """
+    priority_config = DENTAL_SPECIFIC["priority_system"].get(priority, DENTAL_SPECIFIC["priority_system"]["normal"])
+    
+    base_style = {
+        "background": priority_config["background"],
+        "border": f"1px solid {priority_config['border']}",
+        "color": priority_config["color"],
+        "border_radius": RADIUS["lg"],
+        "padding": f"{SPACING['1']} {SPACING['2']}",
+        "font_size": TYPOGRAPHY["font_size"]["xs"],
+        "font_weight": TYPOGRAPHY["font_weight"]["bold"],
+        "text_transform": "uppercase",
+        "letter_spacing": "0.05em",
+        "backdrop_filter": "blur(10px)",
+        "transition": ANIMATIONS["presets"]["fade_in"]
+    }
+    
+    rx.cond(
+        priority == "urgent",
+        base_style.update({
+            "animation": "pulse 2s infinite",
+            "box_shadow": f"0 2px 8px {priority_config['color']}30"
+        }),
+        rx.fragment()
+    )
+    
+    base_style.update(overrides)
+    return base_style
+
+def create_consultation_status_style(status: str = "waiting", size: str = "md", **overrides) -> Dict[str, Any]:
+    """
+    📊 Crear indicador de estado de consulta
+    
+    Args:
+        status: 'waiting', 'in_progress', 'completed', 'cancelled'
+        size: 'sm', 'md', 'lg'
+        **overrides: Propiedades adicionales CSS
+    
+    Returns:
+        Dict con estilo CSS para indicador de estado
+    """
+    status_color = DENTAL_SPECIFIC["consultation_status"].get(status, COLORS["gray"]["500"])
+    
+    sizes = {
+        "sm": {"padding": f"{SPACING['1']} {SPACING['2']}", "font_size": TYPOGRAPHY["font_size"]["2xs"]},
+        "md": {"padding": f"{SPACING['2']} {SPACING['3']}", "font_size": TYPOGRAPHY["font_size"]["xs"]},
+        "lg": {"padding": f"{SPACING['2.5']} {SPACING['4']}", "font_size": TYPOGRAPHY["font_size"]["sm"]}
+    }
+    
+    base_style = {
+        "background": f"{status_color}20",
+        "border": f"1px solid {status_color}40",
+        "color": status_color,
+        "border_radius": RADIUS["xl"],
+        "font_weight": TYPOGRAPHY["font_weight"]["semibold"],
+        "text_align": "center",
+        "backdrop_filter": "blur(10px)",
+        "transition": ANIMATIONS["presets"]["fade_in"],
+        **sizes.get(size, sizes["md"])
+    }
+    
+    rx.cond(
+        status == "in_progress",
+        base_style.update({
+            "animation": "pulse 2s infinite"
+        }),
+        rx.cond(
+            status == "completed",
+            base_style.update({
+            "background": f"{COLORS['success']['500']}15",
+            "border_color": f"{COLORS['success']['500']}40",
+            "color": COLORS["success"]["500"]
+            }),
+            rx.fragment(),
+        ),
+        
+    )
+
+    
+    base_style.update(overrides)
+    return base_style

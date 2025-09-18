@@ -391,7 +391,7 @@ def dashboard_page() -> rx.Component:
         
         style={
             "min_height": "100vh",
-            "background": f"linear-gradient(to bottom right, {COLORS['gray']['50']} 0%, {COLORS['primary']['25']} 50%, {COLORS['secondary']['25']} 100%)",
+            "background": f"linear-gradient(to bottom right, {COLORS['gray']['50']} 0%, {COLORS['primary']['50']} 50%, {COLORS['secondary']['50']} 100%)",
             "position": "relative"
         },
         width="100%"

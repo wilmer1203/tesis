@@ -1194,12 +1194,12 @@ def personal_row(personal: rx.Var[PersonalModel]) -> rx.Component:
                         f"{personal.primer_nombre} {personal.primer_apellido}",
                         size="3",
                         weight="medium",
-                        color=DARK_THEME["colors"]["text_primary"]
+                        color=COLORS["gray"]["100"]  # Texto principal claro
                     ),
                     rx.text(
                         personal.usuario.email,
                         size="2",
-                        color=DARK_THEME["colors"]["text_secondary"]
+                        color=COLORS["gray"]["300"]  # Texto secundario
                     ),
                     spacing="1",
                     align_items="start"
@@ -1215,8 +1215,8 @@ def personal_row(personal: rx.Var[PersonalModel]) -> rx.Component:
                 rx.text(
                     f"{personal.tipo_documento}-{personal.numero_documento}",
                     size="3",
-                    font_family=TYPOGRAPHY["font_family"]["mono"],
-                    color=DARK_THEME["colors"]["text_primary"],
+                    font_family="monospace",  # Familia mono simplificada
+                    color=COLORS["gray"]["100"],  # Texto principal claro
                     weight="medium"
                 ),
 
@@ -1237,13 +1237,13 @@ def personal_row(personal: rx.Var[PersonalModel]) -> rx.Component:
                 rx.text(
                     personal.especialidad, 
                     size="3",
-                    color=DARK_THEME["colors"]["text_primary"],
+                    color=COLORS["gray"]["100"],  # Texto principal claro
                     weight="medium"
                 ),
                 rx.text(
                     "General", 
                     size="3", 
-                    color=DARK_THEME["colors"]["text_muted"],
+                    color=COLORS["gray"]["500"],  # Texto muted
                     style={"font_style": "italic"}
                 )
             ),
@@ -1265,18 +1265,18 @@ def personal_row(personal: rx.Var[PersonalModel]) -> rx.Component:
                     rx.text(
                         personal.celular,
                         size="3",
-                        color=DARK_THEME["colors"]["text_primary"],
+                        color=COLORS["gray"]["100"],  # Texto principal claro
                         weight="medium"
                     ),
                     spacing="2",
                     align="center"
                 ),
                 rx.hstack(
-                    rx.icon("phone-off", size=16, color=DARK_THEME["colors"]["text_muted"]),
+                    rx.icon("phone-off", size=16, color=COLORS["gray"]["500"]),  # Icono muted
                     rx.text(
                         "Sin celular", 
                         size="3", 
-                        color=DARK_THEME["colors"]["text_muted"],
+                        color=COLORS["gray"]["500"],  # Texto muted
                         style={"font_style": "italic"}
                     ),
                     spacing="2",
@@ -1350,7 +1350,7 @@ def personal_type_badge(tipo: rx.Var[str]) -> rx.Component:
                 tipo,
                 ("Odontólogo", f"linear-gradient(135deg, {COLORS['success']['500']}40 0%, {COLORS['success']['600']}80 100%)"),
                 ("Administrador", f"linear-gradient(135deg, {COLORS['blue']['500']}40 0%, {COLORS['blue']['600']}80 100%)"),
-                ("Asistente", f"linear-gradient(135deg, {COLORS['warning']['500']}40 0%, {COLORS['warning']['600']}80 100%)"),
+                ("Asistente", f"linear-gradient(135deg, {COLORS['warning']['500']}40 0%, {COLORS['warning']['700']}80 100%)"),  # warning 700 existe
                 ("Gerente", f"linear-gradient(135deg, {COLORS['secondary']['500']}40 0%, {COLORS['secondary']['600']}80 100%)"),
                 f"linear-gradient(135deg, {COLORS['gray']['500']} 0%, {COLORS['gray']['600']} 100%)"
             ),

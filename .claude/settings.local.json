@@ -106,7 +106,11 @@
       "Bash(del:*)",
       "WebSearch",
       "WebFetch(domain:lucide.dev)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "mcp__ide__getDiagnostics",
+      "Bash(copy consultas_page_v41.py consultas_page_v41_BACKUP_20250910.py)",
+      "Bash(taskkill:*)",
+      "Bash(copy:*)"
     ],
     "deny": [],
     "additionalDirectories": [

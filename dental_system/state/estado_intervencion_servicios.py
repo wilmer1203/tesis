@@ -23,10 +23,16 @@ class ServicioIntervencionTemporal(rx.Base):
     precio_unitario_usd: float = 0.0
     total_bs: float = 0.0
     total_usd: float = 0.0
+
+    # 🆕 Nuevos campos clínicos
+    material_utilizado: str = ""      # Amalgama, Resina, Composite, etc.
+    superficie_dental: str = ""       # Oclusal, Mesial, Distal, etc.
+    observaciones: str = ""           # Notas específicas del procedimiento
     
     @classmethod
-    def from_servicio(cls, servicio: ServicioModel, dientes: str, cantidad: int = 1):
-        """Crear desde ServicioModel con dientes y cantidad"""
+    def from_servicio(cls, servicio: ServicioModel, dientes: str, cantidad: int = 1,
+                     material: str = "", superficie: str = "", observaciones: str = ""):
+        """Crear desde ServicioModel con dientes, cantidad y datos clínicos"""
         return cls(
             id_servicio=servicio.id,
             nombre_servicio=servicio.nombre,
@@ -36,7 +42,11 @@ class ServicioIntervencionTemporal(rx.Base):
             precio_unitario_bs=servicio.precio_bs or 0.0,
             precio_unitario_usd=servicio.precio_usd or 0.0,
             total_bs=(servicio.precio_bs or 0.0) * cantidad,
-            total_usd=(servicio.precio_usd or 0.0) * cantidad
+            total_usd=(servicio.precio_usd or 0.0) * cantidad,
+            # 🆕 Nuevos campos clínicos
+            material_utilizado=material,
+            superficie_dental=superficie,
+            observaciones=observaciones
         )
 
 class EstadoIntervencionServicios(rx.State, mixin=True):
@@ -50,6 +60,34 @@ class EstadoIntervencionServicios(rx.State, mixin=True):
     servicio_temporal: ServicioModel = ServicioModel()
     dientes_seleccionados_texto: str = ""
     cantidad_temporal: int = 1
+
+    # 🆕 Campos clínicos temporales
+    material_temporal: str = ""
+    superficie_temporal: str = ""
+    observaciones_temporal: str = ""
+
+    # 📋 Catálogos para selección
+    materiales_disponibles: List[str] = [
+        "Amalgama",
+        "Resina Compuesta",
+        "Composite",
+        "Ionómero de Vidrio",
+        "Porcelana",
+        "Oro",
+        "Temporal",
+        "No Aplica"
+    ]
+
+    superficies_disponibles: List[str] = [
+        "Oclusal",
+        "Mesial",
+        "Distal",
+        "Vestibular",
+        "Lingual/Palatino",
+        "Incisal",
+        "Completa",
+        "No Específica"
+    ]
     
     # ==========================================
     # 📋 LISTA DE SERVICIOS AGREGADOS
@@ -157,7 +195,7 @@ class EstadoIntervencionServicios(rx.State, mixin=True):
         if self.servicio_actual_requiere_dientes:
             return "Dientes afectados (requerido):"
         else:
-            return "Dientes (opcional - dejar vacío para toda la boca):"
+            return "Dientes (opcional):"
     
     @rx.var
     def placeholder_campo_dientes(self) -> str:
@@ -266,8 +304,20 @@ class EstadoIntervencionServicios(rx.State, mixin=True):
     
     @rx.event
     def set_dientes_seleccionados_texto(self, texto: str):
-        """🦷 Establecer texto de dientes seleccionados"""
+        """🦷 Establecer texto de dientes seleccionados + sincronizar con odontograma"""
         self.dientes_seleccionados_texto = texto.strip()
+
+        # ✨ SINCRONIZACIÓN: Campo manual → Odontograma visual
+        try:
+            # Actualizar formulario_intervencion.dientes_afectados para sincronizar con odontograma
+            if hasattr(self, 'formulario_intervencion'):
+                self.formulario_intervencion.dientes_afectados = texto.strip()
+                # Actualizar la lista visual también
+                if hasattr(self, 'actualizar_lista_dientes_seleccionados'):
+                    self.actualizar_lista_dientes_seleccionados()
+        except Exception as e:
+            logger.warning(f"Error sincronizando odontograma: {e}")
+
         # Limpiar mensaje de error cuando el usuario empieza a escribir
         if self.mensaje_error_intervencion and texto.strip():
             self.mensaje_error_intervencion = ""
@@ -280,7 +330,23 @@ class EstadoIntervencionServicios(rx.State, mixin=True):
             self.cantidad_temporal = max(1, cantidad_int)  # Mínimo 1
         except ValueError:
             self.cantidad_temporal = 1
-    
+
+    # 🆕 Métodos para campos clínicos
+    @rx.event
+    def set_material_temporal(self, material: str):
+        """🧱 Establecer material temporal"""
+        self.material_temporal = material.strip()
+
+    @rx.event
+    def set_superficie_temporal(self, superficie: str):
+        """🦷 Establecer superficie temporal"""
+        self.superficie_temporal = superficie.strip()
+
+    @rx.event
+    def set_observaciones_temporal(self, observaciones: str):
+        """📝 Establecer observaciones temporales"""
+        self.observaciones_temporal = observaciones.strip()[:200]  # Límite 200 caracteres
+
     @rx.event
     def usar_dientes_del_odontograma(self):
         """🦷 Usar dientes seleccionados del odontograma"""
@@ -341,7 +407,11 @@ class EstadoIntervencionServicios(rx.State, mixin=True):
             servicio_intervencion = ServicioIntervencionTemporal.from_servicio(
                 servicio=self.servicio_temporal,
                 dientes=self.dientes_seleccionados_texto,
-                cantidad=self.cantidad_temporal
+                cantidad=self.cantidad_automatica,  # 🔢 Usar cantidad automática
+                # 🆕 Incluir datos clínicos
+                material=self.material_temporal,
+                superficie=self.superficie_temporal,
+                observaciones=self.observaciones_temporal
             )
             
             # Agregar a la lista
@@ -394,6 +464,10 @@ class EstadoIntervencionServicios(rx.State, mixin=True):
         self.servicio_temporal = ServicioModel()
         self.dientes_seleccionados_texto = ""
         self.cantidad_temporal = 1
+        # 🆕 Limpiar campos clínicos
+        self.material_temporal = ""
+        self.superficie_temporal = ""
+        self.observaciones_temporal = ""
         self.mensaje_error_intervencion = ""
     
     # ==========================================
@@ -516,3 +590,50 @@ class EstadoIntervencionServicios(rx.State, mixin=True):
         self.dientes_seleccionados_texto = ""
         self.cantidad_temporal = 1
         self.guardando_intervencion = False
+
+    # ==========================================
+    # 🧮 COMPUTED VARS - CANTIDAD AUTOMÁTICA
+    # ==========================================
+
+    @rx.var
+    def cantidad_automatica(self) -> int:
+        """🔢 Calcular cantidad automáticamente basado en dientes seleccionados"""
+        try:
+            texto_dientes = self.dientes_seleccionados_texto.strip()
+
+            if not texto_dientes:
+                return 1
+
+            # Casos especiales para servicios generales
+            if texto_dientes.lower() in ["todos", "toda la boca", "todas"]:
+                return 1  # Un servicio general para toda la boca
+
+            # Contar dientes individuales separados por comas
+            dientes = [x.strip() for x in texto_dientes.split(",") if x.strip()]
+            dientes_validos = [d for d in dientes if d.isdigit() and 11 <= int(d) <= 48]
+
+            return max(1, len(dientes_validos))  # Mínimo 1
+
+        except Exception as e:
+            logger.warning(f"Error calculando cantidad automática: {e}")
+            return 1
+
+    @rx.var
+    def precio_total_calculado_bs(self) -> float:
+        """💰 Precio total en BS basado en cantidad automática"""
+        try:
+            if hasattr(self.servicio_temporal, 'precio_bs') and self.servicio_temporal.precio_bs:
+                return float(self.servicio_temporal.precio_bs) * self.cantidad_automatica
+            return 0.0
+        except Exception:
+            return 0.0
+
+    @rx.var
+    def precio_total_calculado_usd(self) -> float:
+        """💰 Precio total en USD basado en cantidad automática"""
+        try:
+            if hasattr(self.servicio_temporal, 'precio_usd') and self.servicio_temporal.precio_usd:
+                return float(self.servicio_temporal.precio_usd) * self.cantidad_automatica
+            return 0.0
+        except Exception:
+            return 0.0

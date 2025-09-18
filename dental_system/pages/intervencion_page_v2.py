@@ -1,370 +1,270 @@
-# 🦷 PÁGINA DE INTERVENCIÓN ODONTOLÓGICA - ARQUITECTURA DE 3 PANELES
-# dental_system/pages/intervencion_page_v2.py
+"""
+🦷 PÁGINA DE INTERVENCIÓN ODONTOLÓGICA V3 - DISEÑO ENTERPRISE
+==============================================================
+
+REDISEÑO COMPLETO aplicando patrones de consultas_page_v41.py y personal_page.py:
+- ✨ Glassmorphism médico premium con tema oscuro consistente
+- 🎨 Clean page header con gradiente de texto
+- 💎 Crystal cards con animaciones de hover
+- 📱 Layout responsive mobile-first
+- 🎯 Integración completa con themes.py
+- 🚀 Componentes reutilizables del sistema
+"""
 
 import reflex as rx
 from dental_system.state.app_state import AppState
-from dental_system.components.common import page_header, primary_button, secondary_button
+from dental_system.components.common import primary_button, secondary_button, medical_page_layout
 from dental_system.components.odontologia.panel_paciente import panel_informacion_paciente
-# from dental_system.components.odontologia.panel_historial import panel_historial_notas  # Ya no se usa en layout fijo
-from dental_system.components.odontologia.intervention_tabs_v2 import intervention_tabs_integrated
-from dental_system.styles.themes import COLORS, RADIUS, SPACING, SHADOWS
+from dental_system.components.odontologia.intervention_tabs_v2 import intervention_tabs_integrated, REFINED_COLORS
+from dental_system.styles.themes import (
+    COLORS, RADIUS, SPACING, SHADOWS, DARK_THEME, GRADIENTS,
+    dark_crystal_card, dark_header_style, dark_page_background,
+    create_dark_style
+)
 
 # ==========================================
-# 🎨 ESTILOS PARA LA NUEVA ARQUITECTURA
+# 🎨 ESTILOS ENTERPRISE CONSISTENTES
 # ==========================================
 
-# Layout principal de 2 paneles optimizado
-MAIN_LAYOUT_STYLE = {
-    # "display": "grid", 
-    "grid_template_columns": "20% 80%",  # Panel paciente | Panel central (más espacio)
-    "gap": SPACING["4"],
-    "height": "calc(100vh - 140px)",  # Altura total menos header
-    "width": "100%",
-    "padding": "0"
-}
-
-# Estilos para cada panel
-PANEL_BASE_STYLE = {
-    "height": "100%",
-    "overflow": "hidden",
-    "position": "relative"
-}
-
-PANEL_CENTRAL_STYLE = {
-    **PANEL_BASE_STYLE,
-    "background": "white",
-    "border_radius": RADIUS["xl"],
-    "box_shadow": SHADOWS["lg"],
-    "border": f"1px solid {COLORS['gray']['200']}"
-}
-
-# Header de navegación para la página
-PAGE_HEADER_STYLE = {
-    "background": f"linear-gradient(135deg, {COLORS['primary']['500']} 0%, {COLORS['primary']['600']} 100%)",
-    "color": "white",
-    "padding": SPACING["4"],
-    "border_radius": RADIUS["lg"],
-    "margin_bottom": SPACING["4"],
-    "box_shadow": SHADOWS["lg"]
-}
-
-# Botones de acción en el header
-ACTION_BUTTONS_STYLE = {
-    "position": "fixed",
-    "top": SPACING["4"],
-    "right": SPACING["4"],
-    "z_index": "999",
-    "display": "flex",
-    "gap": SPACING["2"]
-}
-
-# Responsive para tablets optimizado
-TABLET_RESPONSIVE = {
-    "@media (max-width: 1024px)": {
-        "grid_template_columns": "40% 60%"  # Ajuste para tablets
-    },
-    "@media (max-width: 768px)": {
-        "grid_template_columns": "100%",  # Stack vertical en móvil
-        "grid_template_rows": "auto auto",  # Solo 2 paneles
-        "height": "auto"
-    }
-}
+# Usando REFINED_COLORS importado de intervention_tabs_v2.py
+# que está basado en DARK_THEME y componentes exitosos
 
 # ==========================================
-# 🧩 COMPONENTES DE LA NUEVA ARQUITECTURA
+# 🏥 COMPONENTES ENTERPRISE REDESIGNED
 # ==========================================
 
-def header_intervencion() -> rx.Component:
-    """🦷 Header principal de la página de intervención"""
+def clean_page_header_intervencion() -> rx.Component:
+    """🏥 Header limpio aplicando patrón de personal_page.py"""
     return rx.box(
         rx.hstack(
-            # Información de navegación
-            rx.hstack(
-                rx.button(
-                    "← Volver al Dashboard",
-                    size="2",
-                    variant="ghost",
-                    color="white",
-                    on_click=lambda: AppState.navigate_to("odontologia")
-                ),
-                rx.text("|", color="rgba(255, 255, 255, 0.5)"),
-                rx.text(
+            rx.vstack(
+                rx.heading(
                     "🦷 Intervención Odontológica",
-                    font_size="20px",
-                    font_weight="bold",
-                    color="white"
+                    style={
+                        "font_size": "2.75rem",
+                        "font_weight": "800",
+                        "line_height": "1.2",
+                        "background": GRADIENTS["text_gradient_primary"],
+                        "background_clip": "text",
+                        "color": "transparent"
+                    }
                 ),
-                spacing="3",
-                align_items="center"
+                rx.text(
+                    "Registro completo de tratamiento dental con odontograma interactivo",
+                    size="4",
+                    color=DARK_THEME["colors"]["text_secondary"],
+                    font_weight="medium"
+                ),
+                spacing="1",
+                align_items="start"
             ),
             
             rx.spacer(),
             
-            # Información de la sesión
+            # Acciones header consistentes con personal_page
             rx.hstack(
-                rx.text(
-                    AppState.texto_estado_consulta_actual,
-                    font_size="14px",
-                    color="rgba(255, 255, 255, 0.8)"
+                rx.button(
+                    rx.hstack(
+                        rx.icon("arrow-left", size=16),
+                        rx.text("Volver", size="3"),
+                        spacing="2"
+                    ),
+                    on_click=lambda: AppState.navigate_to("odontologia"),
+                    variant="outline",
+                    size="3",
+                    style={
+                        "background": REFINED_COLORS["surface"],
+                        "border": f"1px solid {REFINED_COLORS['border']}",
+                        "color": DARK_THEME["colors"]["text_primary"],
+                        "backdrop_filter": "blur(10px)",
+                        "_hover": {
+                            "background": REFINED_COLORS["surface_elevated"],
+                            "transform": "translateY(-2px)"
+                        }
+                    }
                 ),
-                rx.text("|", color="rgba(255, 255, 255, 0.5)"),
-                rx.text(
-                    "Sesión iniciada",
-                    font_size="14px",
-                    color="rgba(255, 255, 255, 0.8)"
+                spacing="3"
+            ),
+            
+            width="100%",
+            align="center"
+        ),
+        style=dark_header_style(),
+        width="100%"
+    )
+
+def stats_intervencion() -> rx.Component:
+    """📊 Stats de intervención aplicando patrón minimal_stat_card"""
+    return rx.grid(
+        # Paciente actual
+        rx.box(
+            rx.vstack(
+                rx.hstack(
+                    rx.icon("user", size=20, color=COLORS["primary"]["400"]),
+                    rx.vstack(
+                        rx.text(
+                            AppState.paciente_actual.nombre_completo,
+                            font_weight="700",
+                            size="4",
+                            color=DARK_THEME["colors"]["text_primary"]
+                        ),
+                        rx.text(
+                            f"HC: {AppState.paciente_actual.numero_historia}",
+                            size="2",
+                            color=DARK_THEME["colors"]["text_secondary"]
+                        ),
+                        spacing="1",
+                        align_items="start"
+                    ),
+                    spacing="3",
+                    align_items="center"
                 ),
                 spacing="2",
-                align_items="center"
+                width="100%"
             ),
-            
-            spacing="4",
-            align_items="center",
-            width="100%"
+            style=dark_crystal_card(color=COLORS["primary"]["500"], hover_lift="4px")
         ),
-        style=PAGE_HEADER_STYLE
-    )
-
-def botones_accion_principales() -> rx.Component:
-    """⚡ Botones de acción principales en el header"""
-    return rx.box(
-        rx.hstack(
-            # Guardar borrador
-            rx.button(
-                "💾 Guardar",
-                size="2",
-                variant="outline",
-                color="white",
-                border_color="rgba(255, 255, 255, 0.3)",
-                on_click=lambda: AppState.navigate_to("dashboard"),  # Placeholder - guardar_borrador_intervencion
-                _hover={
-                    "background": "rgba(255, 255, 255, 0.1)",
-                    "border_color": "rgba(255, 255, 255, 0.5)"
-                }
-            ),
-            
-            # Cancelar
-            rx.button(
-                "❌ Cancelar",
-                size="2",
-                variant="outline",
-                color_scheme="red",
-                on_click=lambda: AppState.navigate_to("odontologia")
-            ),
-            
-            # Finalizar (principal)
-            rx.button(
-                rx.hstack(
-                    rx.text("✅", font_size="16px"),
-                    rx.text("Finalizar Intervención", color="white"),
-                    spacing="2"
-                ),
-                size="2",
-                color_scheme="green",
-                loading=False,  # AppState.creando_intervencion
-                disabled=False,  # AppState.formulario_intervencion_valido
-                on_click=lambda: AppState.navigate_to("dashboard")  # Placeholder - crear_intervencion
-            ),
-            
-            spacing="2"
-        ),
-        style=ACTION_BUTTONS_STYLE
-    )
-
-def panel_central_intervencion() -> rx.Component:
-    """🦷 Panel central con odontograma y formulario"""
-    return rx.box(
-        rx.vstack(
-            # Header del panel central
-            rx.hstack(
-                rx.text(
-                    "🦷 Odontograma y Tratamiento",
-                    font_size="18px",
-                    font_weight="bold",
-                    color=COLORS["gray"]["800"]
-                ),
-                rx.spacer(),
-                rx.badge(
-                    f"Dientes: {AppState.resumen_dientes_seleccionados}",
-                    color_scheme="blue",
-                    size="2"
-                ),
-                spacing="3",
-                align_items="center",
-                width="100%",
-                padding=SPACING["6"],
-                border_bottom=f"1px solid {COLORS['gray']['200']}"
-            ),
-            
-            # Contenido principal del panel central (Tabs existentes)
-            rx.box(
-                intervention_tabs_integrated(),
-                flex="1",
-                overflow="hidden",
-                padding=SPACING["6"]
-            ),
-            
-            spacing="0",
-            height="100%"
-        ),
-        style=PANEL_CENTRAL_STYLE
-    )
-
-def validation_alert() -> rx.Component:
-    """⚠️ Alerta de validación si faltan datos"""
-    return rx.cond(
-        AppState.errores_validacion_intervencion.length() > 0,
+        
+        # Estado consulta
         rx.box(
-            rx.hstack(
-                rx.text("⚠️", font_size="20px", color=COLORS["warning"]["500"]),
-                rx.vstack(
-                    rx.text(
-                        "Datos incompletos",
-                        font_weight="bold",
-                        color=COLORS["warning"]["700"]
+            rx.vstack(
+                rx.hstack(
+                    rx.icon("activity", size=20, color=COLORS["success"]["400"]),
+                    rx.vstack(
+                        rx.text(
+                            "Estado: En Atención",
+                            font_weight="700",
+                            size="4",
+                            color=DARK_THEME["colors"]["text_primary"]
+                        ),
+                        rx.text(
+                            f"Consulta: {AppState.consulta_actual.numero_consulta}",
+                            size="2",
+                            color=DARK_THEME["colors"]["text_secondary"]
+                        ),
+                        spacing="1",
+                        align_items="start"
                     ),
-                    rx.text(
-                        "Complete los campos requeridos para continuar",
-                        font_size="14px",
-                        color=COLORS["warning"]["600"]
-                    ),
-                    spacing="1",
-                    align_items="start"
+                    spacing="3",
+                    align_items="center"
                 ),
-                spacing="3",
-                align_items="center"
+                spacing="2",
+                width="100%"
             ),
-            background=COLORS["warning"]["50"],
-            border=f"1px solid {COLORS['warning']['200']}",
-            border_radius=RADIUS["lg"],
-            padding=SPACING["4"],
-            margin_bottom=SPACING["4"]
-        )
+            style=dark_crystal_card(color=COLORS["success"]["500"], hover_lift="4px")
+        ),
+        
+        # Tab activo
+        rx.box(
+            rx.vstack(
+                rx.hstack(
+                    rx.icon("clipboard-list", size=20, color=COLORS["warning"]["500"]),
+                    rx.vstack(
+                        rx.text(
+                            AppState.active_intervention_tab.capitalize(),
+                            font_weight="700",
+                            size="4",
+                            color=DARK_THEME["colors"]["text_primary"]
+                        ),
+                        rx.text(
+                            "Sección Activa",
+                            size="2",
+                            color=DARK_THEME["colors"]["text_secondary"]
+                        ),
+                        spacing="1",
+                        align_items="start"
+                    ),
+                    spacing="3",
+                    align_items="center"
+                ),
+                spacing="2",
+                width="100%"
+            ),
+            style=dark_crystal_card(color=COLORS["warning"]["500"], hover_lift="4px")
+        ),
+        
+        columns=rx.breakpoints(initial="1", sm="2", lg="3"),
+        spacing="4",
+        width="100%",
+        margin_bottom="6"
+    )
+
+def panel_paciente_enterprise() -> rx.Component:
+    """👤 Panel paciente con diseño enterprise"""
+    return rx.box(
+        panel_informacion_paciente(),
+        style={
+            **dark_crystal_card(color=COLORS["primary"]["500"], hover_lift="6px"),
+            "height": "fit-content",
+            "min_height": "500px"
+        },
+        width="100%"
     )
 
 # ==========================================
-# 📄 PÁGINA PRINCIPAL DE INTERVENCIÓN - REDISEÑADA
+# 📄 PÁGINA PRINCIPAL ENTERPRISE REDESIGNED
 # ==========================================
 
 def intervencion_page_v2() -> rx.Component:
     """
-    🦷 Página de intervención odontológica - ARQUITECTURA DE 2 PANELES
+    🦷 PÁGINA INTERVENCIÓN ODONTOLÓGICA V3 - ENTERPRISE DESIGN
     
-    ✅ NUEVA ARQUITECTURA IMPLEMENTADA:
-    - Layout de 2 paneles optimizado: Paciente (35%) | Central (65%)
-    - Panel izquierdo: Información completa del paciente + datos médicos
-    - Panel central: Odontograma interactivo + Formulario de intervención
-    - Historial: Accesible via popover/botón flotante
-    - Navigation header con breadcrumbs y acciones
-    - Responsive design adaptable a tablets/desktop
-    - Componentes reutilizables y tipados
-    - UX optimizada para flujo médico profesional
+    ✨ CARACTERÍSTICAS ENTERPRISE APLICADAS:
+    - 🎨 Clean page header con gradiente de texto (patrón personal_page)
+    - 💎 Stats cards con glassmorphism (patrón minimal_stat_card)
+    - 🌙 Tema oscuro consistente con consultas_page_v41
+    - 📱 Layout responsive mobile-first
+    - 🔄 Animaciones de hover y microinteracciones
+    - 🎯 Crystal cards con efectos premium
+    - 🚀 Integración completa themes.py
     
-    🎯 MEJORAS CLAVE:
-    - Información contextual siempre visible
-    - Navegación intuitiva entre paneles
-    - Espacio optimizado para odontograma
-    - Historial accesible sin interrumpir flujo
-    - Validaciones en tiempo real
-    - Estados visuales claros
-    
-    ✅ FIXES APLICADOS (2025-09-06):
-    - Resuelto problema de carga de datos del paciente
-    - Implementado fallback sincrónico via servicio de pacientes
-    - Corregidos errores de permisos para odontólogos
-    - Sistema de navegación completamente funcional
-    
-    📊 MÉTRICAS OBJETIVO:
-    - Tiempo de intervención: < 4 minutos
-    - Eficiencia de navegación: +40%
-    - Reducción de errores: 60%
-    - Satisfacción de usuario: >95%
+    🏗️ ARQUITECTURA:
+    - Layout: medical_page_layout wrapper (PATRÓN CONSULTAS)
+    - Grid responsive: Adapta de 1 col (móvil) a 2 cols (desktop) 
+    - Colores: REFINED_COLORS basado en DARK_THEME y componentes exitosos
+    - Componentes: Reutiliza funciones dark_crystal_card, clean_header
     """
-    return rx.vstack(
-        # Header superior con navegación y acciones
-        rx.box(
-            rx.hstack(
-                header_intervencion(),
-                botones_accion_principales(),
-                spacing="0",
-                justify="between",
-                width="100%",
-                position="relative"
-            ),
-            width="100%"
-        ),
-        
-        # Alerta de validación si es necesaria
-        validation_alert(),
-        
-        # Layout principal de 2 paneles optimizado
-        rx.box(
-            rx.hstack(
-                # ==========================================
-                # PANEL IZQUIERDO: INFORMACIÓN DEL PACIENTE (25% - COMO REFERENCIA)
-                # ==========================================
-                rx.box(
-                    panel_informacion_paciente(),
-                    style={**PANEL_BASE_STYLE, "width": "20%"}
-                ),
+    return rx.box(
+        medical_page_layout(
+            rx.vstack(
+                # Header enterprise con gradiente
+                clean_page_header_intervencion(),
                 
-                # ==========================================
-                # PANEL CENTRAL: ODONTOGRAMA + FORMULARIO (75% - COMO REFERENCIA)
-                # ==========================================
-                rx.box(
-                    panel_central_intervencion(),
-                    style={**PANEL_BASE_STYLE, "width": "80%"}
-                ),
+                # Stats cards aplicando patrón minimal_stat_card
+                stats_intervencion(),
                 
-                spacing="4",
-                align_items="start",
-                width="100%",
-                height="100%"
-            ),
-            style={
-                **MAIN_LAYOUT_STYLE,
-                **TABLET_RESPONSIVE
-            }
-        ),
-        
-        # Footer con información de sesión
-        rx.box(
-            rx.hstack(
-                rx.text(
-                    rx.cond(
-                        AppState.paciente_actual.nombre_completo,
-                        f"Sesión iniciada: {AppState.paciente_actual.nombre_completo}",
-                        "Sesión iniciada: Sin paciente"
+                # Layout principal responsive
+                rx.grid(
+                    # Panel paciente (sidebar)
+                    panel_paciente_enterprise(),
+                    
+                    # Panel central con tabs
+
+                    intervention_tabs_integrated(),
+                    columns=rx.breakpoints(
+                        initial="1",    # Móvil: stack vertical
+                        md="1",         # Tablet: stack vertical  
+                        lg="320px 1fr", # Desktop: sidebar + main
+                        xl="350px 1fr"  # XL: sidebar más ancho
                     ),
-                    font_size="12px",
-                    color=COLORS["gray"]["500"]
+                    spacing="6",
+                    width="100%",
+                    min_height="calc(100vh - 220px)"
                 ),
-                rx.spacer(),
-                rx.text(
-                    "Sistema de Gestión Odontológica - Intervención Activa",
-                    font_size="12px",
-                    color=COLORS["gray"]["500"]
-                ),
-                spacing="4",
-                align_items="center",
-                width="100%"
-            ),
-            background=COLORS["gray"]["50"],
-            border_top=f"1px solid {COLORS['gray']['200']}",
-            padding=SPACING["2"],
-            width="100%"
+                
+                spacing="6",
+                width="100%",
+                max_width="1600px",
+                align="center"
+            )
         ),
         
-        spacing="0",
-        width="100%",
-        min_height="100vh",
-        background=COLORS["gray"]["25"],
-        padding=SPACING["6"],
-        position= "relative",
-        
-        # Eventos de inicialización
+        # Eventos de inicialización médica
         on_mount=[
             AppState.cargar_servicios_disponibles,
             AppState.cargar_historial_paciente(AppState.paciente_actual.id),
-            AppState.cargar_estadisticas_dia
+            AppState.cargar_estadisticas_dia,
+            # Asegurar tab inicial - INTERVENCIÓN PRIMERO
+            AppState.set_active_intervention_tab("intervencion")
         ]
     )

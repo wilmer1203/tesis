@@ -7,6 +7,7 @@ from typing import Dict, List, Optional, Any
 from datetime import date, datetime
 from .base_service import BaseService
 from dental_system.supabase.tablas import consultas_table, personal_table, services_table
+from dental_system.supabase.tablas.cola_atencion import cola_atencion_table
 from dental_system.models import ConsultaModel, PersonalModel, ConsultaFormModel
 from .cache_invalidation_hooks import invalidate_after_consultation_operation, track_cache_invalidation
 import logging
@@ -24,6 +25,7 @@ class ConsultasService(BaseService):
         self.consultas_table = consultas_table
         self.personal_table = personal_table
         self.services_table = services_table
+        self.cola_atencion_table = cola_atencion_table
     
     async def get_today_consultations(self, 
                                     odontologo_id: str = None) -> List[ConsultaModel]:
@@ -43,8 +45,19 @@ class ConsultasService(BaseService):
             # Verificar permisos
             self.require_permission("consultas", "leer")
             
-            # Obtener consultas usando el método de la tabla (ya corregido)
-            consultas_data = self.consultas_table.get_today_consultations(odontologo_id)
+            # Usar vista optimizada si está disponible, sino fallback a método estándar
+            try:
+                consultas_data = self.consultas_table.get_vista_consultas_dia()
+
+                # Filtrar por odontólogo si se especifica
+                if odontologo_id:
+                    consultas_data = [
+                        c for c in consultas_data
+                        if c.get('primer_odontologo_id') == odontologo_id
+                    ]
+            except Exception:
+                # Fallback al método estándar
+                consultas_data = self.consultas_table.get_today_consultations(odontologo_id)
             
             # Convertir a modelos tipados
             consultas_models = []
@@ -325,7 +338,166 @@ class ConsultasService(BaseService):
         except Exception as e:
             self.handle_error("Error actualizando consulta", e)
             raise ValueError(f"Error inesperado: {str(e)}")
-    
+
+    async def obtener_cola_odontologo(self, odontologo_id: str) -> List[Dict[str, Any]]:
+        """
+        Obtener cola de pacientes de un odontólogo específico
+
+        Args:
+            odontologo_id: ID del odontólogo
+
+        Returns:
+            Lista de consultas en cola ordenadas por prioridad y orden de llegada
+        """
+        try:
+            logger.info(f"Obteniendo cola del odontólogo {odontologo_id}")
+
+            # Verificar permisos
+            self.require_permission("consultas", "leer")
+
+            # Obtener cola usando la tabla especializada
+            cola_data = self.cola_atencion_table.obtener_cola_odontologo(odontologo_id)
+
+            return cola_data
+
+        except Exception as e:
+            self.handle_error("Error obteniendo cola de odontólogo", e)
+            return []
+
+    async def obtener_proximo_paciente(self, odontologo_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Obtener el próximo paciente en la cola del odontólogo
+
+        Args:
+            odontologo_id: ID del odontólogo
+
+        Returns:
+            Datos del próximo paciente o None
+        """
+        try:
+            logger.info(f"Obteniendo próximo paciente para odontólogo {odontologo_id}")
+
+            # Verificar permisos
+            self.require_permission("consultas", "leer")
+
+            # Usar función especializada de cola_atencion
+            proximo_paciente = self.cola_atencion_table.obtener_proximo_paciente(odontologo_id)
+
+            return proximo_paciente
+
+        except Exception as e:
+            self.handle_error("Error obteniendo próximo paciente", e)
+            return None
+
+    async def transferir_consulta(self,
+                                 consulta_id: str,
+                                 nuevo_odontologo_id: str,
+                                 motivo: str) -> bool:
+        """
+        Transferir consulta de un odontólogo a otro
+
+        Args:
+            consulta_id: ID de la consulta
+            nuevo_odontologo_id: ID del nuevo odontólogo
+            motivo: Motivo de la transferencia (OBLIGATORIO)
+
+        Returns:
+            True si la transferencia fue exitosa
+        """
+        try:
+            logger.info(f"Transfiriendo consulta {consulta_id} a odontólogo {nuevo_odontologo_id}")
+
+            # Verificar permisos
+            self.require_permission("consultas", "actualizar")
+
+            # VALIDACIÓN OBLIGATORIA: Motivo requerido
+            if not motivo or motivo.strip() == "":
+                raise ValueError("El motivo de transferencia es obligatorio")
+
+            # Actualizar directamente la consulta en la tabla principal
+            current_time = datetime.now().isoformat()
+            observaciones_previas = ""
+
+            # Obtener observaciones actuales
+            consulta_actual = self.consultas_table.get_by_id(consulta_id)
+            if consulta_actual and consulta_actual.get('observaciones'):
+                observaciones_previas = consulta_actual['observaciones'] + "\n\n"
+
+            update_data = {
+                'primer_odontologo_id': nuevo_odontologo_id,
+                'observaciones': f"{observaciones_previas}TRANSFERENCIA: {motivo} - {current_time}"
+            }
+
+            consulta_actualizada = self.consultas_table.update(consulta_id, update_data)
+
+            if consulta_actualizada:
+                logger.info(f"✅ Consulta {consulta_id} transferida exitosamente")
+                return True
+            else:
+                raise ValueError("Error actualizando consulta en transferencia")
+
+        except ValueError as ve:
+            logger.warning(f"Error de validación en transferencia: {str(ve)}")
+            raise
+        except Exception as e:
+            self.handle_error("Error transfiriendo consulta", e)
+            return False
+
+    async def obtener_estadisticas_colas(self) -> Dict[str, Any]:
+        """
+        Obtener estadísticas de todas las colas de odontólogos
+
+        Returns:
+            Diccionario con estadísticas por odontólogo
+        """
+        try:
+            logger.info("Obteniendo estadísticas de colas")
+
+            # Verificar permisos
+            self.require_permission("consultas", "leer")
+
+            # Obtener estadísticas usando tabla especializada
+            estadisticas = self.cola_atencion_table.obtener_estadisticas_colas()
+
+            return estadisticas
+
+        except Exception as e:
+            self.handle_error("Error obteniendo estadísticas de colas", e)
+            return {}
+
+    async def obtener_estadisticas_optimizadas(self) -> Dict[str, Any]:
+        """
+        Obtener estadísticas usando vistas y funciones optimizadas de BD
+
+        Returns:
+            Diccionario con estadísticas completas del sistema
+        """
+        try:
+            logger.info("Obteniendo estadísticas usando funciones optimizadas")
+
+            # Verificar permisos
+            self.require_permission("consultas", "leer")
+
+            # Usar vista optimizada de colas
+            estadisticas_colas = self.consultas_table.get_vista_cola_odontologos()
+
+            # Procesar estadísticas para el formato esperado
+            estadisticas_procesadas = {
+                'colas_por_odontologo': estadisticas_colas,
+                'resumen_global': {
+                    'total_odontologos': len(estadisticas_colas),
+                    'total_esperando': sum(cola.get('pacientes_esperando', 0) for cola in estadisticas_colas),
+                    'total_atendiendo': sum(cola.get('pacientes_atendiendo', 0) for cola in estadisticas_colas),
+                    'total_atendidos_hoy': sum(cola.get('pacientes_atendidos_hoy', 0) for cola in estadisticas_colas)
+                }
+            }
+
+            return estadisticas_procesadas
+
+        except Exception as e:
+            self.handle_error("Error obteniendo estadísticas optimizadas", e)
+            return {}
+
     async def change_consultation_status(self, consultation_id: str, nuevo_estado: str, notas: str = None) -> bool:
         """
         Cambia el estado de una consulta
@@ -914,104 +1086,122 @@ class ConsultasService(BaseService):
             self.handle_error("Error cambiando odontólogo de consulta", e)
             raise ValueError(f"Error inesperado: {str(e)}")
 
-    async def intercambiar_orden_cola(self, 
-                                    consulta_id: str, 
-                                    odontologo_id: str, 
-                                    orden_actual: int, 
+    async def intercambiar_orden_cola(self,
+                                    consulta_id: str,
+                                    odontologo_id: str,
+                                    orden_actual: int,
                                     orden_nuevo: int) -> Dict[str, Any]:
         """
         🔄 Intercambiar posiciones de dos pacientes en la cola del odontólogo
-        
+
         Args:
             consulta_id: ID de la consulta a mover
             odontologo_id: ID del odontólogo (para validación)
             orden_actual: Posición actual en cola
             orden_nuevo: Nueva posición deseada
-            
+
         Returns:
             Dict con resultado de la operación
         """
         try:
             logger.info(f"🔄 Intercambiando orden en cola: {consulta_id} de {orden_actual} a {orden_nuevo}")
-            
+
             # Verificar permisos
             self.require_permission("consultas", "actualizar")
-            
+
             # Validar parámetros
             if orden_actual == orden_nuevo:
                 return {"success": False, "message": "Las posiciones son iguales"}
-                
+
             # Obtener consultas del día del odontólogo usando método tipado
             consultas_doctor: List[ConsultaModel] = await self.get_today_consultations(odontologo_id)
-            
-            # Filtrar solo las consultas en espera del odontólogo específico
+
+            # Filtrar solo las consultas en espera del odontólogo específico (usar estado correcto)
             cola_activa = [
-                c for c in consultas_doctor 
-                if c.estado == "en_espera" and c.primer_odontologo_id == odontologo_id
+                c for c in consultas_doctor
+                if c.estado in ["programada", "en_espera"] and c.primer_odontologo_id == odontologo_id
             ]
-            
+
             # Ordenar por posición actual en cola
             cola_activa.sort(key=lambda c: c.orden_cola_odontologo or 0)
-            
+
             # Validar que hay suficientes pacientes para intercambiar
             if len(cola_activa) < 2:
                 return {"success": False, "message": "No hay suficientes pacientes para reordenar"}
-            
-            # Encontrar las consultas a intercambiar
+
+            # Encontrar la consulta que se quiere mover
             consulta_a_mover = None
-            consulta_destino = None
-            
-            # Buscar la consulta que se quiere mover
-            for i, consulta in enumerate(cola_activa):
+            for consulta in cola_activa:
                 if consulta.id == consulta_id:
                     consulta_a_mover = consulta
-                    posicion_actual = i
                     break
-                    
+
             if not consulta_a_mover:
                 return {"success": False, "message": "Consulta no encontrada en la cola"}
-            
-            # Validar límites de movimiento
-            if orden_nuevo < 1:
-                orden_nuevo = 1
-            elif orden_nuevo > len(cola_activa):
-                orden_nuevo = len(cola_activa)
-                
-            # Calcular nueva posición en el array (índice base 0)
-            posicion_nueva = orden_nuevo - 1
-            
-            if posicion_actual == posicion_nueva:
+
+            # Validar que el orden_actual coincide con el de la consulta
+            if consulta_a_mover.orden_cola_odontologo != orden_actual:
+                logger.warning(f"⚠️ Orden actual inconsistente: esperado {orden_actual}, real {consulta_a_mover.orden_cola_odontologo}")
+                orden_actual = consulta_a_mover.orden_cola_odontologo
+
+            # Validar límites de movimiento basándose en las posiciones reales
+            ordenes_existentes = sorted([c.orden_cola_odontologo for c in cola_activa if c.orden_cola_odontologo])
+            if not ordenes_existentes:
+                return {"success": False, "message": "No hay órdenes válidos en la cola"}
+
+            orden_min = min(ordenes_existentes)
+            orden_max = max(ordenes_existentes)
+
+            if orden_nuevo < orden_min:
+                orden_nuevo = orden_min
+            elif orden_nuevo > orden_max:
+                orden_nuevo = orden_max
+
+            # Buscar la consulta que está en la posición destino
+            consulta_destino = None
+            for consulta in cola_activa:
+                if consulta.orden_cola_odontologo == orden_nuevo:
+                    consulta_destino = consulta
+                    break
+
+            if not consulta_destino:
+                return {"success": False, "message": f"No hay consulta en la posición {orden_nuevo}"}
+
+            if consulta_a_mover.id == consulta_destino.id:
                 return {"success": False, "message": "Ya está en esa posición"}
-            
-            # Obtener la consulta que está en la posición destino
-            consulta_destino = cola_activa[posicion_nueva]
-            
-            # Intercambiar las posiciones en la base de datos
-            # Actualizar consulta que se mueve
+
+            # Intercambiar las posiciones en la base de datos usando transacción implícita
+            orden_temp = orden_actual
+            orden_destino_temp = consulta_destino.orden_cola_odontologo
+
+            # Actualizar consulta que se mueve a la nueva posición
             resultado_1 = self.consultas_table.update(consulta_a_mover.id, {
-                "orden_cola_odontologo": consulta_destino.orden_cola_odontologo
+                "orden_cola_odontologo": orden_destino_temp
             })
-            
-            # Actualizar consulta que cede su posición  
+
+            # Actualizar consulta que cede su posición
             resultado_2 = self.consultas_table.update(consulta_destino.id, {
-                "orden_cola_odontologo": consulta_a_mover.orden_cola_odontologo
+                "orden_cola_odontologo": orden_temp
             })
-            
+
             if resultado_1 and resultado_2:
-                logger.info(f"✅ Intercambio exitoso: {consulta_a_mover.paciente_nombre} ↔ {consulta_destino.paciente_nombre}")
-                
+                paciente_movido = getattr(consulta_a_mover, 'paciente_nombre', 'Paciente')
+                paciente_destino = getattr(consulta_destino, 'paciente_nombre', 'Paciente')
+
+                logger.info(f"✅ Intercambio exitoso: {paciente_movido} ↔ {paciente_destino}")
+
                 # Invalidar cache
                 try:
                     invalidate_after_consultation_operation()
                 except Exception as cache_error:
                     logger.warning(f"Error invalidando cache tras intercambio: {cache_error}")
-                
+
                 return {
-                    "success": True, 
-                    "message": f"Paciente {consulta_a_mover.paciente_nombre} movido a posición {orden_nuevo}",
+                    "success": True,
+                    "message": f"Paciente movido de posición {orden_actual} a {orden_nuevo}",
                     "consulta_movida": {
                         "id": consulta_a_mover.id,
-                        "paciente": consulta_a_mover.paciente_nombre,
+                        "paciente": paciente_movido,
                         "posicion_anterior": orden_actual,
                         "posicion_nueva": orden_nuevo
                     },

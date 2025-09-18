@@ -172,6 +172,116 @@ def form_section_header(title: str, subtitle: str, icon: str, color: str = None)
         margin_bottom=SPACING["4"]
     )
 
+def enhanced_form_field_dinamico(
+    label: str,
+    field_name: str,
+    value: Any,
+    on_change: Callable,
+    placeholder: str = "",
+    required: bool = False,
+    validation_error: str = "",
+    help_text: str = "",
+    icon: Optional[str] = None
+) -> rx.Component:
+    """📝 Campo de formulario con select dinámico de odontólogos"""
+    
+    return rx.vstack(
+        # Label con indicador de requerido
+        rx.hstack(
+            rx.hstack(
+                *([rx.icon(icon, size=18, color=COLORS["primary"]["500"])] if icon else []),
+                rx.text(
+                    label,
+                    style={
+                        "font_size": "1rem",
+                        "font_weight": "600",
+                        "color": DARK_THEME["colors"]["text_primary"]
+                    }
+                ),
+                spacing="2",
+                align="center"
+            ),
+            
+            *([rx.text(
+                "*",
+                style={
+                    "color": COLORS["error"]["500"],
+                    "font_weight": "700",
+                    "margin_left": "2px"
+                }
+            )] if required else []),
+            
+            rx.spacer(),
+            
+            # Texto de ayuda opcional
+            *([rx.text(
+                help_text,
+                style={
+                    "font_size": "0.75rem",
+                    "color": COLORS["gray"]["500"],
+                    "font_style": "italic"
+                }
+            )] if help_text else []),
+            
+            width="100%",
+            align="center"
+        ),
+        
+        # Select dinámico con estructura correcta
+        rx.box(
+            rx.select.root(
+                rx.select.trigger(
+                    placeholder=placeholder,
+                    style=_get_field_style()
+                ),
+                rx.select.content(
+                    rx.cond(
+                        AppState.odontologos_disponibles.length() > 0,
+                        rx.foreach(
+                            AppState.odontologos_disponibles,
+                            lambda doctor: rx.select.item(
+                                f"Dr(a). {doctor.primer_nombre} {doctor.primer_apellido} ({doctor.especialidad})",
+                                value=doctor.id
+                            )
+                        ),
+                        rx.select.item(
+                            "No hay odontólogos disponibles",
+                            value="",
+                            disabled=True
+                        )
+                    )
+                ),
+                value=value,
+                on_change=lambda v: on_change(field_name, v) if on_change else None,
+                width="100%"
+            ),
+            width="100%"
+        ),
+        
+        # Mensaje de error
+        rx.cond(
+            validation_error != "",
+            rx.hstack(
+                rx.icon("triangle-alert", size=14, color=COLORS["error"]["500"]),
+                rx.text(
+                    validation_error,
+                    style={
+                        "font_size": "0.75rem",
+                        "color": COLORS["error"]["500"],
+                        "font_weight": "500"
+                    }
+                ),
+                spacing="2",
+                align="center"
+            ),
+            rx.box()
+        ),
+        
+        spacing="2",
+        align="start",
+        width="100%"
+    )
+
 def enhanced_form_field(
     label: str,
     field_name: str,
@@ -645,7 +755,7 @@ def _patient_form_step_2() -> rx.Component:
             "Información de Contacto",
             "Datos de contacto y ubicación del paciente",
             "phone",
-            COLORS["secondary"]["500"]
+            COLORS["secondary"]["600"]
         ),
         
         # Contacto principal
@@ -966,7 +1076,7 @@ def multi_step_staff_form() -> rx.Component:
                 "border_radius": RADIUS["3xl"],
                 **GLASS_EFFECTS["strong"],
                 "box_shadow": SHADOWS["2xl"],
-                "border": f"1px solid {COLORS['secondary']['200']}30",
+                "border": f"1px solid {COLORS['secondary']['600']}30",
                 "overflow_y": "auto"
             }
         ),
@@ -1314,7 +1424,7 @@ def _staff_form_step_3() -> rx.Component:
                     spacing="3"
                 ),
                 style={
-                    "background": f"linear-gradient(135deg, {COLORS['primary']['50']} 0%, {COLORS['primary']['25']} 100%)",
+                    "background": f"linear-gradient(135deg, {COLORS['primary']['50']} 0%, {COLORS['primary']['100']} 100%)",  # primary 100 existe
                     "border": f"1px solid {COLORS['primary']['200']}",
                     "border_radius": RADIUS["xl"],
                     "padding": SPACING["4"],
@@ -1718,7 +1828,7 @@ def loading_feedback(message: str = "Procesando...") -> rx.Component:
             align="center"
         ),
         style={
-            "background": f"linear-gradient(135deg, {COLORS['primary']['50']} 0%, {COLORS['primary']['25']} 100%)",
+            "background": f"linear-gradient(135deg, {COLORS['primary']['50']} 0%, {COLORS['primary']['100']} 100%)",
             "border": f"1px solid {COLORS['primary']['200']}",
             "border_radius": RADIUS["lg"],
             "padding": f"{SPACING['3']} {SPACING['4']}"

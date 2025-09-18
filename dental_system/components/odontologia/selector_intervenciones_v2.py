@@ -4,14 +4,15 @@
 import reflex as rx
 from dental_system.state.app_state import AppState
 from dental_system.styles.themes import COLORS, DARK_THEME, RADIUS, SPACING, SHADOWS
+from dental_system.components.odontologia.intervention_tabs_v2 import REFINED_COLORS
 
 # ==========================================
 # 🎨 ESTILOS PARA EL NUEVO FLUJO
 # ==========================================
 
 SELECTOR_CARD_STYLE = {
-    "background": f"linear-gradient(135deg, {COLORS['primary']['50']} 0%, white 100%)",
-    "border": f"1px solid {COLORS['primary']['200']}",
+    "background": REFINED_COLORS["surface"],
+    "border": f"1px solid {REFINED_COLORS['border']}",
     "border_radius": RADIUS["xl"],
     "padding": SPACING["6"],
     "box_shadow": SHADOWS["lg"],
@@ -19,18 +20,18 @@ SELECTOR_CARD_STYLE = {
 }
 
 TABLA_SERVICIOS_STYLE = {
-    "background": "white",
-    "border": f"1px solid {COLORS['gray']['200']}",
+    "background": REFINED_COLORS["surface"],
+    "border": f"1px solid {REFINED_COLORS['border']}",
     "border_radius": RADIUS["lg"],
     "overflow": "hidden",
     "margin_bottom": SPACING["6"]
 }
 
 TOTAL_ROW_STYLE = {
-    "background": f"linear-gradient(135deg, {COLORS['success']['50']} 0%, {COLORS['success']['25']} 100%)",
-    "border_top": f"2px solid {COLORS['success']['200']}",
+    "background": REFINED_COLORS["success_light"],
+    "border_top": f"2px solid {REFINED_COLORS['success']}",
     "font_weight": "bold",
-    "color": COLORS["success"]["700"]
+    "color": REFINED_COLORS["success"]
 }
 
 # ==========================================
@@ -45,10 +46,10 @@ def selector_servicio_formulario() -> rx.Component:
             rx.hstack(
                 rx.icon("stethoscope", size=24, color=COLORS["primary"]["500"]),
                 rx.text(
-                    "Agregar Servicio a la Intervención",
+                    "Agregar Intervención Odontológica",
                     size="5",
                     weight="bold",
-                    color=COLORS["gray"]["800"]
+                    color=REFINED_COLORS["text_primary"]
                 ),
                 spacing="3",
                 align_items="center",
@@ -74,7 +75,7 @@ def selector_servicio_formulario() -> rx.Component:
                         spacing="2"
                     ),
                     rx.hstack(
-                        rx.icon("alert_circle", size=16, color="orange.500"),
+                        rx.icon("circle_alert", size=16, color="orange.500"),
                         rx.text(
                             rx.cond(
                                 AppState.servicios_para_selector.length() > 0,
@@ -113,7 +114,7 @@ def selector_servicio_formulario() -> rx.Component:
                         "Servicio *",
                         size="3",
                         weight="medium",
-                        color=COLORS["gray"]["600"]
+                        color=REFINED_COLORS["text_primary"]
                     ),
                     rx.select.root(
                         rx.select.trigger(
@@ -121,11 +122,13 @@ def selector_servicio_formulario() -> rx.Component:
                             style={
                                 "width": "100%",
                                 "padding": "0.75rem",
-                                "border": f"1px solid {COLORS['gray']['300']}",
+                                "background": REFINED_COLORS["surface"],
+                                "border": f"1px solid {REFINED_COLORS['border']}",
                                 "border_radius": "8px",
+                                "color": REFINED_COLORS["text_primary"],
                                 "_focus": {
-                                    "border_color": COLORS["primary"]["400"],
-                                    "box_shadow": f"0 0 0 3px {COLORS['primary']['100']}"
+                                    "border_color": REFINED_COLORS["primary"],
+                                    "box_shadow": f"0 0 0 3px rgba({REFINED_COLORS['primary']}, 0.1)"
                                 }
                             }
                         ),
@@ -133,29 +136,33 @@ def selector_servicio_formulario() -> rx.Component:
                             rx.foreach(
                                 AppState.servicios_para_selector,
                                 lambda servicio: rx.select.item(
-                                    rx.vstack(
-                                        rx.text(servicio.nombre, weight="medium"),
-                                        rx.hstack(
-                                            rx.text(
-                                                servicio.categoria,
-                                                size="2",
-                                                color=COLORS["gray"]["500"]
-                                            ),
-                                            rx.text("•", size="2", color=COLORS["gray"]["400"]),
-                                            rx.text(
-                                                servicio.precios_dual_display,
-                                                size="2",
-                                                color=COLORS["primary"]["600"],
-                                                weight="medium"
-                                            ),
-                                            spacing="1"
+                                    rx.box(
+                                        rx.text(
+                                            servicio.nombre, 
+                                            weight="medium", 
+                                            color=REFINED_COLORS["text_primary"],
+                                            size="3"
                                         ),
-                                        align_items="start",
-                                        spacing="1"
+                                        style={
+                                            "padding": "0.75rem",
+                                            "width": "100%",
+                                            "border_bottom": f"1px solid {REFINED_COLORS['border']}",
+                                            "_last": {
+                                                "border_bottom": "none"
+                                            }
+                                        }
                                     ),
                                     value=servicio.id
                                 )
-                            )
+                            ),
+                            style={
+                                "background": REFINED_COLORS["surface"],
+                                "border": f"1px solid {REFINED_COLORS['border']}",
+                                "border_radius": "8px",
+                                "max_height": "300px",
+                                "overflow_y": "auto",
+                                "z_index": "50"
+                            }
                         ),
                         value=AppState.servicio_temporal.id,
                         on_change=AppState.seleccionar_servicio_temporal
@@ -173,7 +180,7 @@ def selector_servicio_formulario() -> rx.Component:
                             weight="medium",
                             color=rx.cond(
                                 AppState.servicio_actual_requiere_dientes,
-                                COLORS["gray"]["600"],      # Color normal si es requerido
+                                REFINED_COLORS["text_primary"],      # Color normal si es requerido
                                 COLORS["gray"]["500"]       # Color más tenue si es opcional
                             )
                         ),
@@ -188,12 +195,13 @@ def selector_servicio_formulario() -> rx.Component:
                         placeholder=AppState.placeholder_campo_dientes,  # 🔥 Placeholder dinámico
                         value=AppState.dientes_seleccionados_texto,
                         on_change=AppState.set_dientes_seleccionados_texto,
+                        color=REFINED_COLORS["text_primary"],
                         style={
                             "width": "100%",
-                            "padding": "0.75rem",
+                            "background": REFINED_COLORS["surface"],
                             "border": rx.cond(
                                 AppState.servicio_actual_requiere_dientes,
-                                f"1px solid {COLORS['gray']['300']}",      # Borde normal si es requerido
+                               f"1px solid {REFINED_COLORS['border']}",      # Borde normal si es requerido
                                 f"1px solid {COLORS['gray']['200']}"       # Borde más tenue si es opcional
                             ),
                             "border_radius": "8px",
@@ -232,16 +240,16 @@ def selector_servicio_formulario() -> rx.Component:
                                 align_items="center"
                             ),
                             rx.text(
-                                "Usar números FDI (11-18, 21-28, 31-38, 41-48) o 'Todos' para limpieza general",
+                                "Usar números FDI (11-18, 21-28, 31-38, 41-48) o 'Todos'",
                                 size="1",
-                                color=COLORS["gray"]["500"]
+                                color=REFINED_COLORS["text_secondary"]
                             ),
                             spacing="1"
                         ),
                         rx.text(
-                            "💡 Este servicio se aplicará a toda la boca automáticamente",
+                            "Se aplicará a toda la boca",
                             size="2",
-                            color=COLORS["gray"]["400"],
+                            color=REFINED_COLORS["text_muted"],
                             style={"font_style": "italic"}
                         )
                     ),
@@ -249,26 +257,51 @@ def selector_servicio_formulario() -> rx.Component:
                     width="100%"
                 ),
                 
-                # Columna 3: Cantidad
+                # Columna 3: Cantidad Automática
                 rx.vstack(
-                    rx.text(
-                        "Cantidad",
-                        size="3",
-                        weight="medium",
-                        color=COLORS["gray"]["600"]
+                    rx.hstack(
+                        rx.text(
+                            "Cantidad",
+                            size="3",
+                            weight="medium",
+                            color=REFINED_COLORS["text_primary"]
+                        ),
+                        rx.badge(
+                            "Auto",
+                            color_scheme="green",
+                            size="1"
+                        ),
+                        spacing="2",
+                        align="center"
                     ),
-                    rx.input(
-                        type="number",
-                        value=AppState.cantidad_temporal,
-                        on_change=AppState.set_cantidad_temporal,
-                        min="1",
-                        placeholder="1",
+                    rx.box(
+                        rx.text(
+                            AppState.cantidad_automatica,
+                            size="3",
+                            weight="bold",
+                            color=COLORS["primary"]["500"]
+                        ),
                         style={
-                            "width": "100%",
+                            "background": REFINED_COLORS["surface_elevated"],
                             "padding": "0.75rem",
-                            "border": f"1px solid {COLORS['gray']['300']}",
-                            "border_radius": "8px"
+                            "border": f"2px solid {COLORS['primary']['300']}",
+                            "border_radius": "8px",
+                            "text_align": "center",
+                            "min_height": "40px",
+                            "display": "flex",
+                            "align_items": "center",
+                            "justify_content": "center"
                         }
+                    ),
+                    rx.text(
+                        rx.cond(
+                            AppState.cantidad_automatica == 1,
+                            "Por diente/servicio",
+                            f"× {AppState.cantidad_automatica} dientes"
+                        ),
+                        size="1",
+                        color=REFINED_COLORS["text_secondary"],
+                        style={"text_align": "center"}
                     ),
                     spacing="2",
                     width="100%"
@@ -277,6 +310,127 @@ def selector_servicio_formulario() -> rx.Component:
                 columns="3",
                 spacing="6",
                 width="100%"
+            ),
+
+            # 🆕 Fila 2: Campos clínicos adicionales
+            rx.grid(
+                # Material
+                rx.vstack(
+                    rx.text(
+                        "Material",
+                        size="3",
+                        weight="medium",
+                        color=REFINED_COLORS["text_primary"]
+                    ),
+                    rx.select.root(
+                        rx.select.trigger(
+                            placeholder="Seleccionar material...",
+                            style={
+                                "width": "100%",
+                                "padding": "0.75rem",
+                                "background": REFINED_COLORS["surface"],
+                                "border": f"1px solid {REFINED_COLORS['border']}",
+                                "border_radius": "8px",
+                                "color": REFINED_COLORS["text_primary"]
+                            }
+                        ),
+                        rx.select.content(
+                            rx.foreach(
+                                AppState.materiales_disponibles,
+                                lambda material: rx.select.item(
+                                    material,
+                                    value=material
+                                )
+                            ),
+                            style={
+                                "background": REFINED_COLORS["surface"],
+                                "border": f"1px solid {REFINED_COLORS['border']}",
+                                "border_radius": "8px",
+                                "max_height": "200px",
+                                "overflow_y": "auto"
+                            }
+                        ),
+                        value=AppState.material_temporal,
+                        on_change=AppState.set_material_temporal
+                    ),
+                    spacing="2",
+                    width="100%"
+                ),
+
+                # Superficie
+                rx.vstack(
+                    rx.text(
+                        "Superficie Dental",
+                        size="3",
+                        weight="medium",
+                        color=REFINED_COLORS["text_primary"]
+                    ),
+                    rx.select.root(
+                        rx.select.trigger(
+                            placeholder="Seleccionar superficie...",
+                            style={
+                                "width": "100%",
+                                "padding": "0.75rem",
+                                "background": REFINED_COLORS["surface"],
+                                "border": f"1px solid {REFINED_COLORS['border']}",
+                                "border_radius": "8px",
+                                "color": REFINED_COLORS["text_primary"]
+                            }
+                        ),
+                        rx.select.content(
+                            rx.foreach(
+                                AppState.superficies_disponibles,
+                                lambda superficie: rx.select.item(
+                                    superficie,
+                                    value=superficie
+                                )
+                            ),
+                            style={
+                                "background": REFINED_COLORS["surface"],
+                                "border": f"1px solid {REFINED_COLORS['border']}",
+                                "border_radius": "8px",
+                                "max_height": "200px",
+                                "overflow_y": "auto"
+                            }
+                        ),
+                        value=AppState.superficie_temporal,
+                        on_change=AppState.set_superficie_temporal
+                    ),
+                    spacing="2",
+                    width="100%"
+                ),
+
+                # Observaciones
+                rx.vstack(
+                    rx.text(
+                        "Observaciones",
+                        size="3",
+                        weight="medium",
+                        color=REFINED_COLORS["text_primary"]
+                    ),
+                    rx.text_area(
+                        placeholder="Notas del procedimiento (máx 200 caracteres)...",
+                        value=AppState.observaciones_temporal,
+                        on_change=AppState.set_observaciones_temporal,
+                        rows="3",
+                        max_length=200,
+                        style={
+                            "background": REFINED_COLORS["surface"],
+                            "border": f"1px solid {REFINED_COLORS['border']}",
+                            "border_radius": "8px",
+                            "color": REFINED_COLORS["text_primary"],
+                            "resize": "vertical",
+                            "min_height": "80px"
+                        }
+                    ),
+                    spacing="2",
+                    width="100%"
+                ),
+
+                columns="3",
+                spacing="6",
+                width="100%",
+                margin_top="4"
             ),
             
             # Mensaje de error si existe
@@ -302,7 +456,68 @@ def selector_servicio_formulario() -> rx.Component:
                 ),
                 rx.box()
             ),
-            
+
+            # Previsualización del precio total
+            rx.cond(
+                AppState.servicio_temporal.id != "",
+                rx.box(
+                    rx.vstack(
+                        rx.text(
+                            "💰 Precio Total Calculado",
+                            size="3",
+                            weight="medium",
+                            color=REFINED_COLORS["text_primary"],
+                            style={"text_align": "center"}
+                        ),
+                        rx.hstack(
+                            rx.vstack(
+                                rx.text(
+                                    f"Bs. {AppState.precio_total_calculado_bs:,.0f}",
+                                    size="4",
+                                    weight="bold",
+                                    color=COLORS["success"]["500"]
+                                ),
+                                rx.text(
+                                    f"(Bs. {AppState.servicio_temporal.precio_bs} × {AppState.cantidad_automatica})",
+                                    size="1",
+                                    color=REFINED_COLORS["text_secondary"]
+                                ),
+                                spacing="1",
+                                align="center"
+                            ),
+                            rx.divider(orientation="vertical", size="4"),
+                            rx.vstack(
+                                rx.text(
+                                    f"${AppState.precio_total_calculado_usd:.2f}",
+                                    size="4",
+                                    weight="bold",
+                                    color=COLORS["success"]["500"]
+                                ),
+                                rx.text(
+                                    f"(${AppState.servicio_temporal.precio_usd} × {AppState.cantidad_automatica})",
+                                    size="1",
+                                    color=REFINED_COLORS["text_secondary"]
+                                ),
+                                spacing="1",
+                                align="center"
+                            ),
+                            spacing="4",
+                            align="center",
+                            justify="center"
+                        ),
+                        spacing="2",
+                        align="center"
+                    ),
+                    style={
+                        "background": REFINED_COLORS["surface_elevated"],
+                        "border": f"2px solid {COLORS['success']['300']}",
+                        "border_radius": "12px",
+                        "padding": "1rem",
+                        "margin_bottom": "1rem"
+                    }
+                )
+            ),
+
             # Botones de acción
             rx.hstack(
                 rx.cond(
@@ -324,7 +539,7 @@ def selector_servicio_formulario() -> rx.Component:
                 rx.button(
                     rx.hstack(
                         rx.icon("plus", size=16),
-                        rx.text("Agregar Servicio"),
+                        rx.text("Agregar Intervención"),
                         spacing="2"
                     ),
                     size="3",
@@ -332,8 +547,17 @@ def selector_servicio_formulario() -> rx.Component:
                     disabled=AppState.servicio_temporal.id == "",
                     on_click=AppState.agregar_servicio_a_intervencion,
                     style={
-                        "background": f"linear-gradient(135deg, {COLORS['success']['500']} 0%, {COLORS['success']['600']} 100%)",
-                        "box_shadow": f"0 4px 15px {COLORS['success']['200']}"
+                        "background": REFINED_COLORS["gradient_neon"],
+                        "color": "white",
+                        "border": "none",
+                        "border_radius": "8px",
+                        "box_shadow": f"0 4px 20px rgba({REFINED_COLORS['primary']}, 0.4)",
+                        "font_weight": "600",
+                        "_hover": {
+                            "transform": "translateY(-2px)",
+                            "box_shadow": f"0 8px 30px rgba({REFINED_COLORS['primary']}, 0.5)"
+                        },
+                        "transition": "all 0.3s ease"
                     }
                 ),
                 spacing="3",
@@ -357,12 +581,12 @@ def tabla_servicios_agregados() -> rx.Component:
         rx.vstack(
             # Header de la tabla
             rx.hstack(
-                rx.icon("list", size=24, color=COLORS["primary"]["500"]),
+                rx.icon("list", size=16, color=COLORS["primary"]["500"]),
                 rx.text(
                     "Servicios en la Intervención",
                     size="5",
                     weight="bold",
-                    color=COLORS["gray"]["800"]
+                    color=REFINED_COLORS["text_primary"]
                 ),
                 rx.spacer(),
                 rx.badge(
@@ -385,28 +609,41 @@ def tabla_servicios_agregados() -> rx.Component:
                         rx.table.row(
                             rx.table.column_header_cell(
                                 "Servicio",
-                                style={"background": COLORS["gray"]["50"]}
+                                
                             ),
                             rx.table.column_header_cell(
                                 "Diente(s)",
-                                style={"background": COLORS["gray"]["50"]}
+                                
                             ),
                             rx.table.column_header_cell(
                                 "Cant.",
-                                style={"background": COLORS["gray"]["50"]}
                             ),
                             rx.table.column_header_cell(
                                 "Precio BS",
-                                style={"background": COLORS["gray"]["50"]}
+
                             ),
                             rx.table.column_header_cell(
                                 "Precio USD",
-                                style={"background": COLORS["gray"]["50"]}
+
+                            ),
+                            rx.table.column_header_cell(
+                                "Material",
+
+                            ),
+                            rx.table.column_header_cell(
+                                "Superficie",
+
+                            ),
+                            rx.table.column_header_cell(
+                                "Observaciones",
+
                             ),
                             rx.table.column_header_cell(
                                 "Acciones",
-                                style={"background": COLORS["gray"]["50"]}
+
                             ),
+                            color=REFINED_COLORS["text_primary"],
+                            style={"background": REFINED_COLORS["surface_elevated"]}
                         )
                     ),
                     rx.table.body(
@@ -419,12 +656,12 @@ def tabla_servicios_agregados() -> rx.Component:
                                         rx.text(
                                             servicio.nombre_servicio,
                                             weight="medium",
-                                            color=COLORS["gray"]["800"]
+                                            color=REFINED_COLORS["text_primary"]
                                         ),
                                         rx.text(
                                             servicio.categoria_servicio,
                                             size="2",
-                                            color=COLORS["gray"]["500"]
+                                            color=REFINED_COLORS["text_secondary"]
                                         ),
                                         align_items="start",
                                         spacing="1"
@@ -434,14 +671,14 @@ def tabla_servicios_agregados() -> rx.Component:
                                     rx.text(
                                         servicio.dientes_texto,
                                         size="3",
-                                        color=COLORS["gray"]["700"]
+                                        color=REFINED_COLORS["text_primary"]
                                     )
                                 ),
                                 rx.table.cell(
                                     rx.text(
                                         servicio.cantidad,
                                         size="3",
-                                        color=COLORS["gray"]["700"],
+                                        color=REFINED_COLORS["text_primary"],
                                         text_align="center"
                                     )
                                 ),
@@ -449,7 +686,7 @@ def tabla_servicios_agregados() -> rx.Component:
                                     rx.text(
                                         f"{servicio.total_bs:,.0f} Bs",
                                         size="3",
-                                        color=COLORS["gray"]["700"],
+                                        color=REFINED_COLORS["text_primary"],
                                         weight="medium"
                                     )
                                 ),
@@ -459,6 +696,47 @@ def tabla_servicios_agregados() -> rx.Component:
                                         size="3",
                                         color=COLORS["primary"]["600"],
                                         weight="medium"
+                                    )
+                                ),
+                                # 🆕 Nueva celda: Material
+                                rx.table.cell(
+                                    rx.text(
+                                        rx.cond(
+                                            servicio.material_utilizado != "",
+                                            servicio.material_utilizado,
+                                            "-"
+                                        ),
+                                        size="2",
+                                        color=REFINED_COLORS["text_secondary"]
+                                    )
+                                ),
+                                # 🆕 Nueva celda: Superficie
+                                rx.table.cell(
+                                    rx.text(
+                                        rx.cond(
+                                            servicio.superficie_dental != "",
+                                            servicio.superficie_dental,
+                                            "-"
+                                        ),
+                                        size="2",
+                                        color=REFINED_COLORS["text_secondary"]
+                                    )
+                                ),
+                                # 🆕 Nueva celda: Observaciones
+                                rx.table.cell(
+                                    rx.text(
+                                        rx.cond(
+                                            servicio.observaciones != "",
+                                            rx.cond(
+                                                servicio.observaciones.length() > 30,
+                                                servicio.observaciones[:30] + "...",
+                                                servicio.observaciones
+                                            ),
+                                            "-"
+                                        ),
+                                        size="2",
+                                        color=REFINED_COLORS["text_secondary"],
+                                        style={"max_width": "150px", "overflow": "hidden", "text_overflow": "ellipsis"}
                                     )
                                 ),
                                 rx.table.cell(
@@ -471,7 +749,7 @@ def tabla_servicios_agregados() -> rx.Component:
                                     )
                                 ),
                                 style={
-                                    "_hover": {"background": COLORS["gray"]["50"]}
+                                    "_hover": {"background": REFINED_COLORS["surface_elevated"]}
                                 }
                             )
                         ),
@@ -512,13 +790,13 @@ def tabla_servicios_agregados() -> rx.Component:
                         rx.text(
                             "No hay servicios agregados",
                             size="4",
-                            color=COLORS["gray"]["500"],
+                            color=REFINED_COLORS["text_secondary"],
                             weight="medium"
                         ),
                         rx.text(
                             "Selecciona servicios arriba para agregarlos a la intervención",
                             size="3",
-                            color=COLORS["gray"]["400"],
+                            color=REFINED_COLORS["text_muted"],
                             text_align="center"
                         ),
                         spacing="3",
@@ -529,15 +807,17 @@ def tabla_servicios_agregados() -> rx.Component:
                     style={
                         "border": f"2px dashed {COLORS['gray']['200']}",
                         "border_radius": RADIUS["lg"],
-                        "background": COLORS["gray"]["25"]
+                        "background": REFINED_COLORS["surface"]
                     }
                 )
             ),
             
             spacing="4",
+            align="center",
             width="100%"
         ),
-        style=TABLA_SERVICIOS_STYLE
+        style=TABLA_SERVICIOS_STYLE,
+        align="center",
     )
 
 # ==========================================
@@ -558,19 +838,19 @@ def boton_finalizar_intervencion() -> rx.Component:
                             "Resumen de la Intervención",
                             size="4",
                             weight="bold",
-                            color=COLORS["gray"]["700"]
+                            color=REFINED_COLORS["text_primary"]
                         ),
                         rx.hstack(
                             rx.text(
                                 f"Total de servicios: {AppState.servicios_en_intervencion.length()}",
                                 size="3",
-                                color=COLORS["gray"]["600"]
+                                color=REFINED_COLORS["text_secondary"]
                             ),
                             rx.text("•", color=COLORS["gray"]["400"]),
                             rx.text(
                                 f"Paciente: {AppState.paciente_actual.nombre_completo}",
                                 size="3",
-                                color=COLORS["gray"]["600"]
+                                color=REFINED_COLORS["text_secondary"]
                             ),
                             spacing="2"
                         ),
@@ -615,30 +895,7 @@ def boton_finalizar_intervencion() -> rx.Component:
                     
                     rx.spacer(),
                     
-                    rx.button(
-                        rx.hstack(
-                            rx.cond(
-                                AppState.guardando_intervencion,
-                                rx.spinner(size="3", color="white"),
-                                rx.icon("check", size=16)
-                            ),
-                            rx.text("Finalizar Consulta"),
-                            spacing="2"
-                        ),
-                        size="4",
-                        loading=AppState.guardando_intervencion,
-                        disabled=AppState.guardando_intervencion,
-                        on_click=AppState.finalizar_consulta_completa,
-                        style={
-                            "background": f"linear-gradient(135deg, {COLORS['success']['500']} 0%, {COLORS['success']['600']} 100%)",
-                            "box_shadow": f"0 6px 25px {COLORS['success']['300']}",
-                            "color": "white",
-                            "_hover": {
-                                "transform": "translateY(-2px)",
-                                "box_shadow": f"0 10px 35px {COLORS['success']['400']}"
-                            }
-                        }
-                    ),
+                    
                     
                     spacing="4",
                     width="100%",
@@ -664,20 +921,23 @@ def boton_finalizar_intervencion() -> rx.Component:
 
 def nuevo_tab_intervencion() -> rx.Component:
     """📦 Tab completo de intervención con el nuevo flujo"""
+    # Import del selector visual de dientes
+    from dental_system.components.odontologia.selector_dientes_visual import selector_dientes_visual
+    
     return rx.vstack(
-        # Selector de servicios
+        # Selector de servicios (existente)
         selector_servicio_formulario(),
         
-        # Tabla de servicios agregados
-        tabla_servicios_agregados(),
+        # ✨ NUEVO: Selector visual de dientes
+        selector_dientes_visual(),
         
-        # Botón finalizar
-        boton_finalizar_intervencion(),
+        # Tabla de servicios agregados (existente)
+        tabla_servicios_agregados(),
         
         spacing="6",
         width="100%",
         padding="4",
-        
+        align="center",
         # Cargar servicios al montar el componente
         on_mount=AppState.cargar_servicios_para_intervencion
     )

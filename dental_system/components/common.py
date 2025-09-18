@@ -3,7 +3,8 @@ from typing import List, Dict, Any, Optional
 from ..state.app_state import AppState
 from dental_system.styles.themes import (
     COLORS, SHADOWS, ROLE_THEMES, RADIUS, GRADIENTS, GLASS_EFFECTS, ANIMATIONS,
-    DARK_THEME, SPACING, dark_sidebar_style, dark_nav_item_style, dark_nav_item_active_style
+    DARK_THEME, SPACING, dark_sidebar_style, dark_nav_item_style, dark_nav_item_active_style,
+    dark_page_background
 )
 
 # ==========================================
@@ -606,4 +607,222 @@ def _nav_item(label: str, icon: str, page: str) -> rx.Component:
             "background": rx.cond(is_active,f"{ROLE_THEMES['gerente']['gradient']}",  COLORS["gray"]["50"])
         },
         on_click=lambda: AppState.navigate_to(page) # type: ignore
+    )
+
+# ==========================================
+# LAYOUT Y PÁGINAS MÉDICAS
+# ==========================================
+
+def medical_page_layout(children) -> rx.Component:
+    """🏥 Wrapper universal para todas las páginas médicas
+    
+    Aplica el fondo estándar y layout consistente.
+    Usar en todas las páginas para mantener diseño uniforme.
+    """
+    return rx.box(
+        rx.box(
+            children,
+            style={
+                "position": "relative",
+                "z_index": "10"
+            }
+        ),
+        style={
+            **dark_page_background(),
+            "padding": f"{SPACING['3']} {SPACING['5']}",
+            "min_height": "100vh"
+        },
+        width="100%"
+    )
+
+# ==========================================
+# SISTEMA DE TOASTS FLOTANTES
+# ==========================================
+
+def medical_toast(
+    message: str,
+    toast_type: str = "success", 
+    duration: int = 4000
+) -> rx.Component:
+    """🚨 Toast médico flotante individual"""
+    
+    # Configuración por tipo usando rx.cond
+    icon = rx.cond(
+        toast_type == "success", "circle_check",
+        rx.cond(
+            toast_type == "error", "circle_alert",
+            rx.cond(
+                toast_type == "warning", "triangle_alert",
+                "info"  # default
+            )
+        )
+    )
+    
+    # Configuración de colores por tipo
+    success_color = COLORS["success"]
+    error_color = COLORS["error"] 
+    warning_color = COLORS["warning"]
+    primary_color = COLORS["primary"]
+    
+    gradient = rx.cond(
+        toast_type == "success", f"linear-gradient(135deg, {success_color['600']} 0%, {success_color['500']} 100%)",
+        rx.cond(
+            toast_type == "error", f"linear-gradient(135deg, {error_color['600']} 0%, {error_color['500']} 100%)",
+            rx.cond(
+                toast_type == "warning", f"linear-gradient(135deg, {warning_color['500']} 0%, {warning_color['500']} 100%)",
+                f"linear-gradient(135deg, {primary_color['600']} 0%, {primary_color['500']} 100%)"
+            )
+        )
+    )
+    
+    border_color = rx.cond(
+        toast_type == "success", f"1px solid {success_color['400']}60",
+        rx.cond(
+            toast_type == "error", f"1px solid {error_color['400']}60",
+            rx.cond(
+                toast_type == "warning", f"1px solid {warning_color['500']}60",
+                f"1px solid {primary_color['400']}60"
+            )
+        )
+    )
+    
+    shadow_color = rx.cond(
+        toast_type == "success", f"0 10px 25px {success_color['500']}30",
+        rx.cond(
+            toast_type == "error", f"0 10px 25px {error_color['500']}30", 
+            rx.cond(
+                toast_type == "warning", f"0 10px 25px {warning_color['500']}30",
+                f"0 10px 25px {primary_color['500']}30"
+            )
+        )
+    )
+    
+    return rx.box(
+        rx.hstack(
+            rx.icon(icon, size=20, color="white"),
+            rx.text(
+                message,
+                size="3",
+                color="white",
+                weight="medium"
+            ),
+            rx.button(
+                rx.icon("x", size=16, color="white"),
+                size="1",
+                variant="ghost",
+                on_click=lambda: AppState.remove_toast(message),
+                style={
+                    "background": "transparent",
+                    "border": "none",
+                    "padding": "2px",
+                    "_hover": {"background": "rgba(255,255,255,0.1)"}
+                }
+            ),
+            justify="between",
+            align="center",
+            width="100%"
+        ),
+        style={
+            "background": gradient,
+            "border": border_color,
+            "border_radius": RADIUS["lg"],
+            "padding": f"{SPACING['4']} {SPACING['5']}",
+            "min_width": "320px",
+            "max_width": "400px",
+            "backdrop_filter": "blur(20px)",
+            "box_shadow": shadow_color,
+            "animation": "slideInRight 0.4s ease-out, fadeOut 0.3s ease-out forwards",
+            "animation_delay": f"0s, {duration/1000}s",
+            "margin_bottom": SPACING["3"]
+        }
+    )
+
+def medical_toast_container() -> rx.Component:
+    """📱 Contenedor de toasts flotantes"""
+    return rx.box(
+        rx.foreach(
+            AppState.active_toasts,
+            lambda toast: medical_toast(
+                toast.message,
+                toast.toast_type,
+                toast.duration
+            )
+        ),
+        style={
+            "position": "fixed",
+            "top": "20px",
+            "right": "20px",
+            "z_index": "9999",
+            "max_width": "400px"
+        }
+    )
+
+# CSS para animaciones
+def toast_animations_css() -> rx.Component:
+    """🎬 CSS para animaciones de toasts"""
+    return rx.script("""
+        if (!document.getElementById('toast-animations')) {
+            const style = document.createElement('style');
+            style.id = 'toast-animations';
+            style.textContent = `
+                @keyframes slideInRight {
+                    from {
+                        opacity: 0;
+                        transform: translateX(100%);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateX(0);
+                    }
+                }
+                @keyframes fadeOut {
+                    from {
+                        opacity: 1;
+                        transform: translateX(0) scale(1);
+                    }
+                    to {
+                        opacity: 0;
+                        transform: translateX(100%) scale(0.95);
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+    """)
+
+# ==========================================
+# BREADCRUMBS MÉDICOS
+# ==========================================
+
+def medical_breadcrumb(
+    current_page: str,
+    parent_pages: List[Dict[str, str]] = None
+) -> rx.Component:
+    """🧭 Breadcrumb médico profesional"""
+    if parent_pages is None:
+        parent_pages = []
+    
+    return rx.hstack(
+        rx.foreach(
+            parent_pages,
+            lambda page: rx.hstack(
+                rx.link(
+                    page["name"],
+                    href=page["url"],
+                    color=COLORS["gray"]["400"],
+                    text_decoration="none",
+                    _hover={"color": COLORS["primary"]["400"]}
+                ),
+                rx.icon("chevron_right", size=14, color=COLORS["gray"]["500"]),
+                spacing="2"
+            )
+        ),
+        rx.text(
+            current_page,
+            color=COLORS["primary"]["400"],
+            font_weight="500"
+        ),
+        spacing="2",
+        align="center",
+        margin_bottom=SPACING["4"]
     )

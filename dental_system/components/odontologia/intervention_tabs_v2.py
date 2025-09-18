@@ -3,32 +3,71 @@
 
 import reflex as rx
 from dental_system.state.app_state import AppState
-from dental_system.styles.themes import COLORS, DARK_THEME, RADIUS, SPACING, SHADOWS, dark_crystal_card
-from dental_system.components.odontologia.odontogram_grid import (
-    odontogram_interactive_grid, odontogram_toolbar, odontogram_toolbar_professional
-)
-from dental_system.components.odontologia.condition_selector_modal import (
-    condition_selector_modal, odontogram_legend
-)
-from dental_system.components.odontologia.interactive_tooth import selected_tooth_info_panel
-from dental_system.components.odontologia.tooth_popover import tooth_popover
-from dental_system.components.odontologia.floating_history_button import floating_history_button
+from dental_system.styles.themes import COLORS, DARK_THEME, RADIUS, SPACING, SHADOWS, dark_crystal_card, GRADIENTS
+
+# Paleta REAL basada en DARK_THEME y componentes que funcionan
+REFINED_COLORS = {
+    # Fondos usando DARK_THEME real
+    "background": DARK_THEME["colors"]["background"],           # #0a0b0d
+    "surface": DARK_THEME["colors"]["surface_secondary"],      # #242529
+    "surface_hover": DARK_THEME["colors"]["surface_elevated"], # #2d2f33
+    "surface_elevated": DARK_THEME["colors"]["surface_elevated"], # #2d2f33
+
+    # Bordes usando DARK_THEME real
+    "border": DARK_THEME["colors"]["border"],                  # #3a3b3f
+    "border_strong": DARK_THEME["colors"]["border_strong"],    # #4a4b4f
+    "border_hover": COLORS["primary"]["400"],                  # Color primario para hover
+    "border_focus": COLORS["primary"]["300"],                  # Color primario más suave
+
+    # Textos usando DARK_THEME real
+    "text_primary": DARK_THEME["colors"]["text_primary"],      # gray 100
+    "text_secondary": DARK_THEME["colors"]["text_secondary"],  # gray 300
+    "text_muted": DARK_THEME["colors"]["text_muted"],          # gray 500
+    "text_accent": COLORS["primary"]["400"],                   # Color primario
+
+    # Colores principales del sistema (COLORS reales)
+    "primary": COLORS["primary"]["400"],                       # Turquesa sistema
+    "primary_hover": COLORS["primary"]["300"],                 # Turquesa hover
+    "primary_light": f"rgba({COLORS['primary']['400']}, 0.1)", # Turquesa suave
+
+    "secondary": COLORS["blue"]["500"],                        # Azul sistema
+    "secondary_hover": COLORS["blue"]["200"],                  # Azul hover
+    "secondary_light": f"rgba({COLORS['blue']['500']}, 0.1)",  # Azul suave
+
+    "success": COLORS["success"]["500"],                       # Verde sistema
+    "success_hover": COLORS["success"]["400"],                 # Verde hover
+    "success_light": f"rgba({COLORS['success']['500']}, 0.1)", # Verde suave
+
+    "warning": COLORS["warning"]["500"],                       # Naranja sistema
+    "warning_hover": COLORS["warning"]["300"],                 # Naranja hover
+    "warning_light": f"rgba({COLORS['warning']['500']}, 0.1)", # Naranja suave
+
+    "error": COLORS["error"]["500"],                           # Rojo sistema
+    "error_hover": COLORS["error"]["400"],                     # Rojo hover
+    "error_light": f"rgba({COLORS['error']['500']}, 0.1)",     # Rojo suave
+
+    # Gradientes suaves como en consultas_page_v41.py
+
+    "gradient_neon": GRADIENTS["neon_primary"],                              # Del sistema
+    "gradient_text": GRADIENTS["text_gradient_primary"],                     # Del sistema
+}
+
+# Colores del módulo odontólogo (usando REFINED_COLORS)
+ODONTOLOGO_COLORS = {
+    "primary": REFINED_COLORS["primary"],          # Turquesa sistema
+    "secondary": REFINED_COLORS["secondary"],      # Azul médico
+    "accent": REFINED_COLORS["success"],           # Verde para acentos
+    "surface": REFINED_COLORS["surface"],          # Superficie glassmorphism
+    "border": REFINED_COLORS["border"]             # Bordes cristal
+}
 
 # ==========================================
 # 🎨 ESTILOS PARA TABS INTEGRADO
 # ==========================================
 
-ODONTOLOGO_COLORS = {
-    "primary": COLORS["success"]["500"],        # Verde profesional
-    "secondary": COLORS["primary"]["500"],      # Turquesa dental
-    "accent": COLORS["primary"]["400"],         # Acento turquesa claro
-    "surface": "rgba(255, 255, 255, 0.08)",   # Glassmorphism
-    "border": "rgba(255, 255, 255, 0.2)"      # Bordes cristal
-}
-
 TAB_CONFIG = {
-    "odontograma": {"title": "🦷 Odontograma", "icon": "clipboard-list", "color": ODONTOLOGO_COLORS["primary"]},
-    "intervencion": {"title": "⚕️ Intervención", "icon": "activity", "color": COLORS["warning"]["500"]},
+    "intervencion": {"title": "📝 Intervención", "icon": "activity", "color": COLORS["warning"]["500"]},
+    "odontograma": {"title": "🦷 Historial", "icon": "clipboard-list", "color": ODONTOLOGO_COLORS["primary"]},
     "finalizar": {"title": "💾 Finalizar", "icon": "check", "color": ODONTOLOGO_COLORS["accent"]}
 }
 
@@ -39,7 +78,7 @@ TAB_CONFIG = {
 def tab_button_simple(tab_id: str) -> rx.Component:
     """🎯 Botón de tab simplificado con condiciones reactivas"""
     config = TAB_CONFIG[tab_id]
-    
+
     return rx.button(
         rx.hstack(
             rx.icon(tag=config["icon"], size=18),
@@ -47,9 +86,9 @@ def tab_button_simple(tab_id: str) -> rx.Component:
             spacing="2",
             align_items="center"
         ),
-        
+
         on_click=AppState.set_active_intervention_tab(tab_id),
-        
+
         style=rx.cond(
             AppState.active_intervention_tab == tab_id,
             # Estilo activo
@@ -66,13 +105,13 @@ def tab_button_simple(tab_id: str) -> rx.Component:
             {
                 "background": "rgba(255, 255, 255, 0.03)",
                 "border": "1px solid transparent",
-                "color": DARK_THEME["colors"]["text_secondary"],
+                "color": REFINED_COLORS["text_secondary"],
                 "border_radius": RADIUS["xl"],
                 "padding": f"{SPACING['2']} {SPACING['4']}",
                 "transition": "all 0.3s ease",
                 "_hover": {
                     "background": f"linear-gradient(135deg, {config['color']}30 0%, {config['color']}15 100%)",
-                    "color": DARK_THEME["colors"]["text_primary"]
+                    "color": REFINED_COLORS["text_primary"]
                 }
             }
         )
@@ -105,423 +144,125 @@ def tabs_navigation() -> rx.Component:
 # 📋 CONTENIDO DE TABS ESPECÍFICOS
 # ==========================================
 
-# Función eliminada - la información del paciente ahora se muestra en el panel izquierdo
-
 def tab_content_odontograma() -> rx.Component:
-    """🦷 Contenido del tab del odontograma - VERSIÓN INTERACTIVA FASE 2"""
+    """🦷 Contenido del odontograma - MODO HISTORIAL/CONSULTA"""
+
     return rx.vstack(
-        # Header mejorado con indicadores
+        # Header del historial
         rx.hstack(
-            rx.icon(tag="clipboard-list", size=32, color=ODONTOLOGO_COLORS["primary"]),
+            rx.icon(tag="history", size=32, color=ODONTOLOGO_COLORS["primary"]),
             rx.vstack(
-                rx.text("🦷 Odontograma Digital Interactivo", size="6", weight="bold", color=DARK_THEME["colors"]["text_primary"]),
-                rx.text("Click en cualquier superficie para modificar condiciones", size="3", color=DARK_THEME["colors"]["text_secondary"]),
+                rx.text("🦷 Historial Odontológico", size="6", weight="bold", color=REFINED_COLORS["text_primary"]),
+                rx.text("Consulta el historial de tratamientos por diente del paciente", size="3", color=REFINED_COLORS["text_secondary"]),
                 spacing="1", align_items="start"
             ),
             rx.spacer(),
-            
-            # Indicador de estado del odontograma
-            rx.cond(
-                AppState.cargando_odontograma,
-                rx.badge("🔄 Cargando...", color_scheme="blue", variant="soft"),
-                rx.cond(
-                    AppState.cambios_pendientes_odontograma.length() > 0,
-                    rx.badge("⚠️ Cambios sin guardar", color_scheme="orange", variant="soft"),
-                    rx.badge("✅ Sincronizado", color_scheme="green", variant="soft")
-                )
+
+            # Indicadores de modo consulta
+            rx.hstack(
+                rx.badge("👁️ Solo Lectura", color_scheme="blue", variant="soft"),
+                rx.badge("📚 Historial", color_scheme="purple", variant="soft"),
+                rx.badge(f"📊 {AppState.paciente_actual.nombre_completo}", color_scheme="green", variant="soft"),
+                spacing="2"
             ),
-            
+
             spacing="3", align_items="start", width="100%"
         ),
-        
-        # Toolbar profesional optimizado
-        odontogram_toolbar_professional(),
-        
-        # Contenedor principal del odontograma
-        rx.box(
-            rx.cond(
-                AppState.cargando_odontograma,
-                
-                # Estado de carga
-                rx.vstack(
-                    rx.spinner(size="3", color=ODONTOLOGO_COLORS["primary"]),
-                    rx.text("Cargando odontograma del paciente...", size="4", color=DARK_THEME["colors"]["text_secondary"]),
-                    spacing="4", align_items="center", height="400px", justify_content="center"
-                ),
-                
-                # Odontograma interactivo completo
-                odontogram_interactive_grid()
-            ),
-            
-            style={
-                "background": "rgba(255, 255, 255, 0.03)",
-                "backdrop_filter": "blur(20px) saturate(150%)",
-                "border": f"1px solid {ODONTOLOGO_COLORS['border']}",
-                "border_radius": RADIUS["2xl"],
-                "padding": SPACING["6"],
-                "min_height": "500px"
-            },
-            width="100%"
-        ),
-        
-        # Panel inferior con información y leyenda
+
+        # Layout principal: Odontograma + Panel de Detalles
         rx.hstack(
-            # Leyenda de condiciones (lado izquierdo)
-            odontogram_legend(),
-            
-            rx.spacer(),
-            
-            # Panel de información del diente seleccionado (lado derecho)
-            rx.cond(
-                AppState.diente_seleccionado,
-                selected_tooth_info_panel(),
-                rx.box(
-                    rx.vstack(
-                        rx.icon(tag="info", size=24, color=DARK_THEME["colors"]["text_muted"]),
-                        rx.text("Selecciona un diente para ver información detallada", 
-                               size="3", color=DARK_THEME["colors"]["text_muted"], text_align="center"),
-                        rx.text("Click en cualquier superficie para cambiar condiciones",
-                               size="2", color=DARK_THEME["colors"]["text_muted"], text_align="center"),
-                        spacing="2", align_items="center"
-                    ),
-                    style={
-                        "background": DARK_THEME["colors"]["surface_secondary"],
-                        "border": f"1px solid {DARK_THEME['colors']['primary']}",
-                        "border_radius": RADIUS["lg"],
-                        "padding": SPACING["6"],
-                        "min_width": "250px",
-                        "min_height": "120px",
-                        "display": "flex",
-                        "align_items": "center",
-                        "justify_content": "center"
-                    }
-                )
-            ),
-            
-            spacing="6", width="100%", align_items="start"
-        ),
-        
-        # Modal selector de condiciones
-        condition_selector_modal(),
-        
-        # 🎈 Popover contextual del diente (flotante)
-        tooth_popover(),
-        
-        # 📚 Botón historial flotante
-        floating_history_button(),
-        
-        spacing="6", width="100%", align_items="start",
-        
-        # Event handler para inicializar el odontograma cuando se carga el tab
-        on_mount=AppState.cargar_odontograma_paciente("")
-    )
-
-def panel_contexto_paciente() -> rx.Component:
-    """👤 Panel de contexto del paciente - MEJORA CRÍTICA"""
-    return rx.box(
-        rx.vstack(
-            rx.hstack(
-                rx.avatar(size="3", fallback="P"),
+            # Odontograma de consulta (lado izquierdo)
+            rx.box(
                 rx.vstack(
-                    rx.text(AppState.paciente_actual.nombre_completo, size="4", weight="bold", color=DARK_THEME["colors"]["text_primary"]),
-                    rx.hstack(
-                        rx.text(f"HC: {AppState.paciente_actual.numero_historia}", size="2", color=DARK_THEME["colors"]["text_secondary"]),
-                        rx.text("•", size="2", color=DARK_THEME["colors"]["text_muted"]),
-                        rx.text(f"Edad: {AppState.paciente_actual.edad_display}", size="2", color=DARK_THEME["colors"]["text_secondary"]),
-                        spacing="2"
-                    ),
-                    spacing="1", align_items="start"
-                ),
-                spacing="3", align_items="center"
-            ),
-            
-            # Alerta de alergias si las hay
-            rx.cond(
-                AppState.alergias_conocidas.length() > 0,
-                rx.callout(
-                    rx.hstack(
-                        rx.icon(tag="triangle-alert", size=16),
-                        rx.text("⚠️ ALERGIAS: " + AppState.alergias_display, size="2", weight="medium"),
-                        spacing="2"
-                    ),
-                    color_scheme="red", size="1", width="100%"
-                )
-            ),
-            
-            spacing="3", width="100%"
-        ),
-        style={
-            "background": f"linear-gradient(135deg, {COLORS['info']['500']}20 0%, {COLORS['info']['600']}10 100%)",
-            "border": f"1px solid {COLORS['info']['200']}",
-            "border_radius": RADIUS["lg"],
-            "padding": SPACING["4"],
-            "margin_bottom": SPACING["4"]
-        }
-    )
+                    rx.text("🦷 Selecciona un diente para ver su historial",
+                           size="3", color=REFINED_COLORS["text_secondary"],
+                           text_align="center", margin_bottom="4"),
 
-def panel_validacion_tiempo_real() -> rx.Component:
-    """⚠️ Panel de validación en tiempo real - MEJORA CRÍTICA"""
-    return rx.cond(
-        AppState.errores_validacion_tiempo_real.length() > 0,
-        rx.box(
-            rx.vstack(
-                rx.hstack(
-                    rx.icon(tag="triangle-alert", size=18, color=COLORS["warning"]["500"]),
-                    rx.text("⚠️ Campos requeridos:", size="3", weight="medium", color=COLORS["warning"]["700"]),
-                    spacing="2", align_items="center"
-                ),
-                rx.foreach(
-                    AppState.errores_validacion_tiempo_real,
-                    lambda error: rx.text(f"• {error}", size="2", color=COLORS["warning"]["600"])
-                ),
-                spacing="2", width="100%"
-            ),
-            style={
-                "background": COLORS["warning"]["50"],
-                "border": f"1px solid {COLORS['warning']['200']}",
-                "border_radius": RADIUS["lg"],
-                "padding": SPACING["4"],
-                "margin_bottom": SPACING["4"]
-            }
-        )
-    )
+                    # Odontograma simple para consulta
+                    odontograma_consulta_historial(),
 
-def selector_anestesia_profesional() -> rx.Component:
-    """💉 Selector de anestesia profesional - MEJORA CRÍTICA"""
-    return rx.vstack(
-        rx.text("Anestesia Utilizada", size="3", weight="medium", color=DARK_THEME["colors"]["text_secondary"]),
-        rx.select.root(
-            rx.select.trigger(
-                placeholder="Seleccionar tipo de anestesia...",
-                style={
-                    "background": DARK_THEME["colors"]["surface_secondary"],
-                    "border": f"1px solid {ODONTOLOGO_COLORS['border']}",
-                    "color": DARK_THEME["colors"]["text_primary"],
-                    "border_radius": "8px",
-                    "padding": "0.75rem",
-                    "width": "100%"
-                }
+                    spacing="4",
+                    align_items="center",
+                    width="100%"
+                ),
+                width="60%"
             ),
-            rx.select.content(
-                rx.select.item("Sin anestesia", value="ninguna"),
-                rx.select.item("Lidocaína 2% + Epinefrina", value="lidocaina_epi"),
-                rx.select.item("Lidocaína 2% simple", value="lidocaina_simple"),
-                rx.select.item("Articaína 4% + Epinefrina", value="articaina_epi"),
-                rx.select.item("Mepivacaína 3% simple", value="mepivacaina"),
-                rx.select.item("Otra (especificar)", value="otra"),
-                style={
-                    "background": DARK_THEME["colors"]["surface_secondary"],
-                    "border": f"1px solid {ODONTOLOGO_COLORS['border']}",
-                    "border_radius": "8px"
-                }
+
+            # Panel de historial del diente (lado derecho)
+            rx.box(
+                panel_historial_diente_seleccionado(),
+                width="40%"
             ),
-            value=rx.cond(AppState.formulario_intervencion.anestesia_utilizada, AppState.formulario_intervencion.anestesia_utilizada, "ninguna"),
-            on_change=lambda value: AppState.actualizar_campo_intervencion("anestesia_utilizada", value)
+
+            spacing="6",
+            width="100%",
+            align_items="start"
         ),
-        spacing="2", width="100%"
+
+        spacing="6", width="100%", align_items="start"
     )
 
 def tab_content_intervencion() -> rx.Component:
     """⚕️ Contenido NUEVO con selector de servicios y tabla agregada"""
     from dental_system.components.odontologia.selector_intervenciones_v2 import nuevo_tab_intervencion
-    
+
     return rx.vstack(
         # Header del tab
         rx.hstack(
             rx.icon(tag="activity", size=32, color=ODONTOLOGO_COLORS["primary"]),
-            rx.text("⚕️ Registro de Intervención", size="6", weight="bold", color=DARK_THEME["colors"]["text_primary"]),
-            spacing="3", align_items="center", margin_bottom="6"
+            rx.text("Registro de Intervención", size="6", weight="bold", color=REFINED_COLORS["text_primary"]),
+
+            rx.spacer(),
+             rx.button(
+                rx.hstack(
+                    rx.cond(
+                        AppState.guardando_intervencion,
+                        rx.spinner(size="3", color="white"),
+                        rx.icon("check", size=16)
+                    ),
+                    rx.text("Finalizar Intervencion"),
+                    spacing="2"
+                ),
+                size="4",
+                loading=AppState.guardando_intervencion,
+                disabled=AppState.guardando_intervencion,
+                on_click=AppState.finalizar_consulta_completa,
+                style={
+                    "background": REFINED_COLORS["gradient_neon"],
+                    "box_shadow": f"0 6px 25px {COLORS['blue']['600']}",
+                    "color": "white",
+                    "_hover": {
+                        "transform": "translateY(-2px)",
+                        "box_shadow": f"0 10px 35px {COLORS['blue']['600']}"
+                    }
+                }
+            ),
+
+
+            spacing="3", align_items="center", margin_bottom="6",
         ),
-        
+
         # Nuevo componente con flujo mejorado
         nuevo_tab_intervencion(),
-        
+
         spacing="6", width="100%", align_items="start"
     )
-
-def tab_content_intervencion_BACKUP() -> rx.Component:
-    """⚕️ Contenido del formulario de intervención MEJORADO - BACKUP"""
-    return rx.vstack(
-        # Contexto del paciente - NUEVO
-        panel_contexto_paciente(),
-        
-        # Panel de validación en tiempo real - NUEVO
-        panel_validacion_tiempo_real(),
-       
-        rx.hstack(
-            rx.icon(tag="activity", size=32, color=ODONTOLOGO_COLORS["primary"]),
-            rx.text("⚕️ Registro de Intervención", size="6", weight="bold", color=DARK_THEME["colors"]["text_primary"]),
-            spacing="3", align_items="center", margin_bottom="6"
-        ),
-        
-        rx.grid(
-            # Columna 1: Servicio y procedimiento
-            rx.vstack(
-                rx.vstack(
-                    rx.hstack(
-                        rx.text("Servicio a Realizar *", size="3", weight="medium", color=DARK_THEME["colors"]["text_secondary"]),
-                        rx.cond(
-                            AppState.servicios_disponibles.length() > 0,
-                            rx.badge(f"{AppState.servicios_disponibles.length()} disponibles", color_scheme="green", variant="soft", size="1"),
-                            rx.badge("Cargando servicios...", color_scheme="orange", variant="soft", size="1")
-                        ),
-                        spacing="2", align_items="center"
-                    ),
-                    rx.select.root(
-                        rx.select.trigger(
-                            placeholder="Seleccionar servicio...",
-                            style={
-                                "background": DARK_THEME["colors"]["surface_secondary"], 
-                                "border": f"1px solid {ODONTOLOGO_COLORS['border']}", 
-                                "color": DARK_THEME["colors"]["text_primary"],
-                                "border_radius": "8px",
-                                "padding": "0.75rem",
-                                "width": "100%",
-                                "_focus": {
-                                    "border_color": ODONTOLOGO_COLORS["primary"],
-                                    "box_shadow": f"0 0 0 3px rgba({ODONTOLOGO_COLORS['primary']}, 0.1)"
-                                }
-                            }
-                        ),
-                        rx.select.content(
-                            rx.foreach(
-                                AppState.servicios_disponibles,
-                                lambda servicio: rx.select.item(
-                                    rx.hstack(
-                                        rx.icon("stethoscope", size=16),
-                                        rx.vstack(
-                                            rx.text(servicio.nombre, weight="medium"),
-                                            rx.text(
-                                                f"{servicio.categoria} - ${servicio.precio_base}",
-                                                size="1",
-                                                color=DARK_THEME["colors"]["text_secondary"]
-                                            ),
-                                            spacing="1",
-                                            align="start"
-                                        ),
-                                        spacing="2",
-                                        align="center"
-                                    ),
-                                    value=servicio.id
-                                )
-                            ),
-                            style={
-                                "background": DARK_THEME["colors"]["surface_secondary"],
-                                "border": f"1px solid {ODONTOLOGO_COLORS['border']}",
-                                "border_radius": "8px",
-                                "max_height": "200px",
-                                "overflow_y": "auto"
-                            }
-                        ),
-                        value=AppState.id_servicio_seleccionado,
-                        on_change=AppState.seleccionar_servicio
-                    ),
-                    spacing="2", width="100%"
-                ),
-                rx.vstack(
-                    rx.text("Procedimiento Realizado *", size="3", weight="medium", color=DARK_THEME["colors"]["text_secondary"]),
-                    rx.text_area(value=rx.cond(AppState.formulario_intervencion.procedimiento_realizado, AppState.formulario_intervencion.procedimiento_realizado, ""),
-                               on_change=lambda value: AppState.actualizar_campo_intervencion("procedimiento_realizado", value),
-                               placeholder="Describe el procedimiento...", height="120px",
-                               style={"background": DARK_THEME["colors"]["surface_secondary"], "border": f"1px solid {ODONTOLOGO_COLORS['border']}", "color": DARK_THEME["colors"]["text_primary"]}),
-                    spacing="2", width="100%"
-                ),
-                spacing="6", width="100%"
-            ),
-            
-            # Columna 2: Materiales y precio
-            rx.vstack(
-                rx.vstack(
-                    rx.text("Materiales Utilizados", size="3", weight="medium", color=DARK_THEME["colors"]["text_secondary"]),
-                    rx.text_area(value=rx.cond(AppState.formulario_intervencion.materiales_utilizados, AppState.formulario_intervencion.materiales_utilizados, ""),
-                               on_change=lambda value: AppState.actualizar_campo_intervencion("materiales_utilizados", value),
-                               placeholder="Lista de materiales...", height="80px",
-                               style={"background": DARK_THEME["colors"]["surface_secondary"], "border": f"1px solid {ODONTOLOGO_COLORS['border']}", "color": DARK_THEME["colors"]["text_primary"]}),
-                    spacing="2", width="100%"
-                ),
-                rx.hstack(
-                    # Nuevo selector de anestesia profesional
-                    selector_anestesia_profesional(),
-                    rx.vstack(
-                        rx.hstack(
-                            rx.text("Precio Final *", size="3", weight="medium", color=DARK_THEME["colors"]["text_secondary"]),
-                            rx.cond(
-                                AppState.precio_servicio_base > 0,
-                                rx.badge(f"Base: ${AppState.precio_servicio_base:,.2f}", color_scheme="blue", variant="soft", size="1"),
-                                rx.fragment()
-                            ),
-                            spacing="2", align_items="center"
-                        ),
-                        rx.hstack(
-                            rx.input(type="number", value=rx.cond(AppState.formulario_intervencion.precio_final, AppState.formulario_intervencion.precio_final, "0"),
-                                   on_change=lambda value: AppState.actualizar_campo_intervencion("precio_final", value),
-                                   placeholder="0.00",
-                                   style={"background": DARK_THEME["colors"]["surface_secondary"], "border": f"1px solid {ODONTOLOGO_COLORS['border']}", "color": DARK_THEME["colors"]["text_primary"]}),
-                            rx.cond(
-                                AppState.precio_servicio_base > 0,
-                                rx.button(
-                                    "↻",
-                                    size="2",
-                                    variant="ghost",
-                                    on_click=AppState.restaurar_precio_base,
-                                    style={"color": COLORS["primary"]["400"], "_hover": {"background": COLORS["primary"]["900"]}}
-                                ),
-                                rx.fragment()
-                            ),
-                            spacing="2", width="100%"
-                        ),
-                        spacing="2", width="100%"
-                    ),
-                    spacing="4", width="100%"
-                ),
-                spacing="6", width="100%"
-            ),
-            columns="2", spacing="8", width="100%",
-            # on_mount=AppState.load_servicios_for_intervention,  # Placeholder
-        ),
-        
-        # Instrucciones y control
-        rx.vstack(
-            rx.text("Instrucciones para el Paciente", size="3", weight="medium", color=DARK_THEME["colors"]["text_secondary"]),
-            rx.text_area(value="",  # Placeholder - AppState.intervencion_form["instrucciones"]
-                       on_change=rx.noop,  # Placeholder - AppState.update_intervencion_form
-                       placeholder="Instrucciones post-tratamiento...", height="80px",
-                       style={"background": DARK_THEME["colors"]["surface_secondary"], "border": f"1px solid {ODONTOLOGO_COLORS['border']}", "color": DARK_THEME["colors"]["text_primary"]}),
-            
-            rx.checkbox("Requiere Control", checked=False,  # Placeholder - AppState.intervencion_form["requiere_control"] == "true"
-                       on_change=rx.noop),  # Placeholder - AppState.toggle_control_requerido
-            
-            rx.cond(False,  # Placeholder - AppState.intervencion_form["requiere_control"] == "true"
-                   rx.input(type="date", value="",  # Placeholder - AppState.intervencion_form["fecha_control"]
-                           on_change=rx.noop,  # Placeholder - AppState.update_intervencion_form
-                           style={"background": DARK_THEME["colors"]["surface_secondary"], "border": f"1px solid {ODONTOLOGO_COLORS['border']}", "color": DARK_THEME["colors"]["text_primary"]})),
-            
-            spacing="3", align_items="start", width="100%"
-        ),
-        
-        spacing="6", width="100%", align_items="start",
-        
-        # Cargar servicios cuando se abre este tab
-        on_mount=AppState.cargar_servicios_disponibles
-    )
-
-
 
 def tab_content_finalizar() -> rx.Component:
     """💾 Contenido de finalización"""
     return rx.vstack(
         rx.hstack(
             rx.icon(tag="check", size=32, color=ODONTOLOGO_COLORS["primary"]),
-            rx.text("💾 Revisar y Finalizar", size="6", weight="bold", color=DARK_THEME["colors"]["text_primary"]),
+            rx.text("💾 Revisar y Finalizar", size="6", weight="bold", color=REFINED_COLORS["text_primary"]),
             spacing="3", align_items="center", margin_bottom="6"
         ),
-        
+
         rx.grid(
             rx.box(
                 rx.vstack(
                     rx.text("👤 Paciente", size="4", weight="medium", color=ODONTOLOGO_COLORS["primary"]),
-                    rx.text(AppState.paciente_actual.nombre_completo, size="3", weight="medium", color=DARK_THEME["colors"]["text_primary"]),
-                    rx.text(f"HC: {AppState.paciente_actual.numero_historia}", size="2", color=DARK_THEME["colors"]["text_secondary"]),
+                    rx.text(AppState.paciente_actual.nombre_completo, size="3", weight="medium", color=REFINED_COLORS["text_primary"]),
+                    rx.text(f"HC: {AppState.paciente_actual.numero_historia}", size="2", color=REFINED_COLORS["text_secondary"]),
                     spacing="2", align_items="start", width="100%"
                 ),
                 style=dark_crystal_card(color=COLORS["info"]["500"])
@@ -531,8 +272,8 @@ def tab_content_finalizar() -> rx.Component:
                     rx.text("⚕️ Intervención", size="4", weight="medium", color=ODONTOLOGO_COLORS["primary"]),
                     rx.cond(
                         AppState.servicio_seleccionado.nombre,
-                        rx.text(f"Servicio: {AppState.servicio_seleccionado.nombre}", size="3", color=DARK_THEME["colors"]["text_primary"]),
-                        rx.text("Sin servicio seleccionado", size="3", color=COLORS["warning"]["400"])
+                        rx.text(f"Servicio: {AppState.servicio_seleccionado.nombre}", size="3", color=REFINED_COLORS["text_primary"]),
+                        rx.text("Sin servicio seleccionado", size="3", color=COLORS["warning"]["300"])
                     ),
                     rx.hstack(
                         rx.text(rx.cond(AppState.formulario_intervencion.precio_final, f"Precio: ${AppState.formulario_intervencion.precio_final:.2f}", "Precio: $0.00"), color=ODONTOLOGO_COLORS["primary"], weight="bold"),
@@ -549,7 +290,7 @@ def tab_content_finalizar() -> rx.Component:
                     ),
                     rx.cond(
                         AppState.formulario_intervencion.requiere_control,
-                        rx.text("Control: Sí", color=COLORS["warning"]["400"]),
+                        rx.text("Control: Sí", color=COLORS["warning"]["300"]),
                         rx.text("Control: No", color=COLORS["success"]["400"])
                     ),
                     spacing="2", align_items="start", width="100%"
@@ -558,24 +299,24 @@ def tab_content_finalizar() -> rx.Component:
             ),
             columns="2", spacing="6", width="100%"
         ),
-        
+
         rx.box(
             rx.vstack(
-                rx.text("📝 Procedimiento", size="4", weight="medium", color=DARK_THEME["colors"]["text_primary"]),
+                rx.text("📝 Procedimiento", size="4", weight="medium", color=REFINED_COLORS["text_primary"]),
                 rx.cond(
                     AppState.formulario_intervencion.procedimiento_realizado,
                     rx.cond(
                         AppState.formulario_intervencion.procedimiento_realizado.strip() != "",
-                        rx.text(AppState.formulario_intervencion.procedimiento_realizado, color=DARK_THEME["colors"]["text_primary"]),
-                        rx.text("No especificado", color=DARK_THEME["colors"]["text_secondary"])
+                        rx.text(AppState.formulario_intervencion.procedimiento_realizado, color=REFINED_COLORS["text_primary"]),
+                        rx.text("No especificado", color=REFINED_COLORS["text_secondary"])
                     ),
-                    rx.text("No especificado", color=DARK_THEME["colors"]["text_secondary"])
+                    rx.text("No especificado", color=REFINED_COLORS["text_secondary"])
                 ),
                 spacing="3", align_items="start", width="100%"
             ),
             style=dark_crystal_card(color=COLORS["warning"]["500"]), margin_top="6"
         ),
-        
+
         # Resumen del odontograma si hay cambios
         rx.cond(
             AppState.cambios_pendientes_odontograma.length() > 0,
@@ -586,8 +327,8 @@ def tab_content_finalizar() -> rx.Component:
                         rx.text("🦷 Cambios en Odontograma", size="4", weight="medium", color=ODONTOLOGO_COLORS["primary"]),
                         spacing="2", align_items="center"
                     ),
-                    rx.text("⚠️ Hay cambios sin guardar en el odontograma que se incluirán en la intervención", 
-                           color=COLORS["warning"]["400"], size="3"),
+                    rx.text("⚠️ Hay cambios sin guardar en el odontograma que se incluirán en la intervención",
+                           color=COLORS["warning"]["300"], size="3"),
                     rx.hstack(
                         rx.foreach(
                             AppState.odontogram_stats_summary,
@@ -604,14 +345,14 @@ def tab_content_finalizar() -> rx.Component:
                 style=dark_crystal_card(color=ODONTOLOGO_COLORS["primary"]), margin_top="6"
             )
         ),
-        
+
         # Panel de validaciones
         rx.cond(
             AppState.errores_validacion_intervencion.length() > 0,
             rx.box(
                 rx.vstack(
                     rx.hstack(
-                        rx.icon(tag="triangle-alert", size=20, color=COLORS["error"]["400"]),
+                        rx.icon(tag="triangle_alert", size=20, color=COLORS["error"]["400"]),
                         rx.text("⚠️ Errores de Validación", size="4", weight="medium", color=COLORS["error"]["400"]),
                         spacing="2", align_items="center"
                     ),
@@ -628,7 +369,7 @@ def tab_content_finalizar() -> rx.Component:
                 margin_top="6"
             )
         ),
-        
+
         # Botones de acción
         rx.hstack(
             # Botón guardar borrador
@@ -648,9 +389,9 @@ def tab_content_finalizar() -> rx.Component:
                     "_hover": {"background": "rgba(0, 188, 212, 0.1)"}
                 }
             ),
-            
+
             rx.spacer(),
-            
+
             # Botón cancelar
             rx.button(
                 rx.hstack(
@@ -659,12 +400,12 @@ def tab_content_finalizar() -> rx.Component:
                     spacing="2"
                 ),
                 size="3",
-                variant="outline", 
+                variant="outline",
                 color_scheme="red",
                 on_click=lambda: AppState.navigate_to("odontologia"),
                 disabled=AppState.guardando_intervencion
             ),
-            
+
             # Botón finalizar intervención
             rx.button(
                 rx.hstack(
@@ -694,7 +435,7 @@ def tab_content_finalizar() -> rx.Component:
                     }
                 }
             ),
-            
+
             spacing="4",
             align_items="center",
             width="100%",
@@ -706,7 +447,7 @@ def tab_content_finalizar() -> rx.Component:
                 "border_radius": f"0 0 {RADIUS['2xl']} {RADIUS['2xl']}"
             }
         ),
-        
+
         spacing="6", width="100%", align_items="start"
     )
 
@@ -719,17 +460,17 @@ def intervention_tabs_integrated() -> rx.Component:
     return rx.vstack(
         # Navegación de tabs
         tabs_navigation(),
-        
+
         # Contenido dinámico
         rx.box(
             rx.cond(
-                AppState.active_intervention_tab == "odontograma", tab_content_odontograma(),
+                AppState.active_intervention_tab == "intervencion", tab_content_intervencion(),
                 rx.cond(
-                    AppState.active_intervention_tab == "intervencion", tab_content_intervencion(),
+                    AppState.active_intervention_tab == "odontograma", tab_content_odontograma(),
                     tab_content_finalizar()
                 )
             ),
-            
+
             style={
                 "background": "rgba(255, 255, 255, 0.05)",
                 "backdrop_filter": "blur(20px) saturate(180%)",
@@ -740,10 +481,194 @@ def intervention_tabs_integrated() -> rx.Component:
                 "min_height": "600px"
             }
         ),
-        
+
         spacing="6",
         width="100%",
         max_width="1400px",
-        
-        # Click handler removido - el popover se cierra por el overlay principal
+    )
+
+# ==========================================
+# 🦷 COMPONENTES PARA TAB HISTORIAL - CON DATOS REALES
+# ==========================================
+
+def odontograma_consulta_historial() -> rx.Component:
+    """🦷 Odontograma con datos reales de la BD - modo consulta"""
+
+    def diente_consulta_real(numero_diente: int) -> rx.Component:
+        """Diente que muestra estado real desde BD"""
+        return rx.button(
+            rx.vstack(
+                rx.text(numero_diente, size="2", weight="bold", color="white"),
+                rx.text("🦷", size="1"),
+                spacing="0", align_items="center"
+            ),
+            # Color según estado real del diente desde BD
+            color_scheme=rx.cond(
+                AppState.diente_seleccionado == numero_diente,
+                "blue",  # Seleccionado
+                rx.cond(
+                    AppState.obtener_color_diente(numero_diente) == "green",
+                    "green",  # Sano
+                    rx.cond(
+                        AppState.obtener_color_diente(numero_diente) == "red",
+                        "red",    # Caries
+                        "gray"    # Otros estados
+                    )
+                )
+            ),
+            variant="solid",
+            size="1",
+            on_click=lambda: AppState.seleccionar_diente_para_historial(numero_diente),
+            style={
+                "width": "45px",
+                "height": "45px",
+                "transition": "all 0.2s ease",
+                "_hover": {
+                    "transform": "scale(1.05)"
+                }
+            }
+        )
+
+    return rx.vstack(
+        # Usar los cuadrantes reales del AppState
+        rx.vstack(
+            rx.text("Arcada Superior", size="2", color=REFINED_COLORS["text_secondary"], text_align="center"),
+            rx.hstack(
+                # Cuadrante 1 (Superior Derecho: 18-11)
+                rx.hstack(
+                    rx.foreach(AppState.cuadrante_1, diente_consulta_real),
+                    spacing="1"
+                ),
+                rx.box(width="10px"),
+                # Cuadrante 2 (Superior Izquierdo: 21-28)
+                rx.hstack(
+                    rx.foreach(AppState.cuadrante_2, diente_consulta_real),
+                    spacing="1"
+                ),
+                spacing="2", justify_content="center"
+            ),
+            spacing="2"
+        ),
+
+        rx.box(height="20px"),
+
+        rx.vstack(
+            rx.hstack(
+                # Cuadrante 4 (Inferior Derecho: 48-41)
+                rx.hstack(
+                    rx.foreach(AppState.cuadrante_4, diente_consulta_real),
+                    spacing="1"
+                ),
+                rx.box(width="10px"),
+                # Cuadrante 3 (Inferior Izquierdo: 31-38)
+                rx.hstack(
+                    rx.foreach(AppState.cuadrante_3, diente_consulta_real),
+                    spacing="1"
+                ),
+                spacing="2", justify_content="center"
+            ),
+            rx.text("Arcada Inferior", size="2", color=REFINED_COLORS["text_secondary"], text_align="center"),
+            spacing="2"
+        ),
+
+        spacing="4",
+        align_items="center",
+        style={
+            "background": REFINED_COLORS["surface"],
+            "border": f"1px solid {REFINED_COLORS['border']}",
+            "border_radius": RADIUS["xl"],
+            "padding": SPACING["6"]
+        }
+    )
+
+def panel_historial_diente_seleccionado() -> rx.Component:
+    """📚 Panel que muestra historial REAL del diente desde BD"""
+
+    return rx.box(
+        rx.cond(
+            AppState.diente_seleccionado,
+            # Mostrar historial real del diente
+            rx.vstack(
+                # Header del diente con info real
+                rx.hstack(
+                    rx.text("🦷", size="6"),
+                    rx.vstack(
+                        rx.text(f"Diente #{AppState.diente_seleccionado}",
+                               size="5", weight="bold", color=REFINED_COLORS["text_primary"]),
+                        rx.text(f"Tipo: {AppState.obtener_tipo_diente()}",
+                               size="2", color=REFINED_COLORS["text_secondary"]),
+                        rx.text(f"Cuadrante: {AppState.obtener_cuadrante_diente()}",
+                               size="2", color=REFINED_COLORS["text_secondary"]),
+                        spacing="1", align_items="start"
+                    ),
+                    spacing="3", align_items="center", width="100%", margin_bottom="4"
+                ),
+
+                # Historial real desde BD
+                rx.vstack(
+                    rx.text("📅 Historial de Intervenciones", size="4", weight="medium", color=ODONTOLOGO_COLORS["primary"]),
+
+                    # Lista real de intervenciones en este diente
+                    rx.cond(
+                        AppState.historial_diente_seleccionado.length() > 0,
+                        rx.foreach(
+                            AppState.historial_diente_seleccionado,
+                            lambda intervencion: entrada_historial_real(intervencion)
+                        ),
+                        rx.text("Sin intervenciones registradas en este diente",
+                               size="2", color=REFINED_COLORS["text_muted"],
+                               style={"fontStyle": "italic"})
+                    ),
+
+                    spacing="3", width="100%"
+                ),
+
+                spacing="4", width="100%"
+            ),
+
+            # Sin diente seleccionado
+            rx.center(
+                rx.vstack(
+                    rx.icon("mouse-pointer", size=48, color=REFINED_COLORS["text_muted"]),
+                    rx.text("Selecciona un diente", size="4", color=REFINED_COLORS["text_muted"]),
+                    rx.text("para ver su historial", size="3", color=REFINED_COLORS["text_muted"]),
+                    spacing="2", align_items="center"
+                ),
+                height="300px"
+            )
+        ),
+
+        style={
+            "background": REFINED_COLORS["surface"],
+            "border": f"1px solid {REFINED_COLORS['border']}",
+            "border_radius": RADIUS["xl"],
+            "padding": SPACING["6"],
+            "min_height": "400px"
+        }
+    )
+
+def entrada_historial_real(intervencion) -> rx.Component:
+    """📝 Entrada de historial con datos reales de IntervencionModel"""
+    return rx.card(
+        rx.vstack(
+            rx.hstack(
+                rx.badge(intervencion.get("servicio_nombre", "Servicio"), color_scheme="blue", variant="soft"),
+                rx.spacer(),
+                rx.text(intervencion.get("fecha_formateada", "Fecha"), size="1", color=REFINED_COLORS["text_muted"]),
+                width="100%", align_items="center"
+            ),
+            rx.text(intervencion.get("observaciones", "Sin observaciones"),
+                   size="2", color=REFINED_COLORS["text_primary"]),
+            rx.hstack(
+                rx.icon("user", size=12, color=REFINED_COLORS["text_muted"]),
+                rx.text(intervencion.get("odontologo_nombre", "Dr. Sistema"),
+                       size="1", color=REFINED_COLORS["text_muted"]),
+                rx.spacer(),
+                rx.text(f"${intervencion.get('costo_total', 0):.2f}",
+                       size="1", color=COLORS["success"]["400"], weight="medium"),
+                spacing="1", align_items="center", width="100%"
+            ),
+            spacing="2", align_items="start", width="100%"
+        ),
+        size="1", width="100%"
     )

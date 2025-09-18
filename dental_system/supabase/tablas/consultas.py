@@ -519,6 +519,149 @@ class ConsultationsTable(BaseTable):
         
         return slots_disponibles
 
+    @handle_supabase_error
+    def get_vista_consultas_dia(self, fecha: date = None) -> List[Dict[str, Any]]:
+        """
+        Obtener consultas del día usando vista optimizada
+
+        Args:
+            fecha: Fecha específica (por defecto hoy)
+
+        Returns:
+            Lista de consultas con información completa optimizada
+        """
+        if fecha is None:
+            fecha = date.today()
+
+        logger.info(f"Obteniendo consultas del día {fecha} usando vista optimizada")
+
+        # Si existe la vista, usarla. Si no, usar query manual optimizada
+        try:
+            # Intentar usar la vista primero
+            result = self.client.table('vista_consultas_dia').select('*').eq(
+                'fecha', fecha.isoformat()
+            ).execute()
+
+            return result.data if result.data else []
+
+        except Exception:
+            # Fallback a query manual si la vista no existe
+            logger.info("Vista no disponible, usando query optimizada manual")
+            return self.get_today_consultations()
+
+    @handle_supabase_error
+    def get_vista_cola_odontologos(self) -> List[Dict[str, Any]]:
+        """
+        Obtener estado de colas por odontólogo usando vista optimizada
+
+        Returns:
+            Lista con estadísticas de cola por odontólogo
+        """
+        logger.info("Obteniendo estadísticas de colas usando vista optimizada")
+
+        try:
+            # Intentar usar la vista primero
+            result = self.client.table('vista_cola_odontologos').select('*').execute()
+
+            return result.data if result.data else []
+
+        except Exception:
+            # Fallback a query manual si la vista no existe
+            logger.info("Vista no disponible, calculando estadísticas manualmente")
+            return self._calcular_estadisticas_colas_manual()
+
+    @handle_supabase_error
+    def obtener_proximo_paciente_bd(self, odontologo_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Obtener próximo paciente usando función de BD
+
+        Args:
+            odontologo_id: ID del odontólogo
+
+        Returns:
+            Datos del próximo paciente o None
+        """
+        logger.info(f"Obteniendo próximo paciente para {odontologo_id} usando función BD")
+
+        try:
+            # Intentar usar la función de BD primero
+            result = self.client.rpc('obtener_proximo_paciente', {
+                'odontologo_id_param': odontologo_id
+            }).execute()
+
+            return result.data[0] if result.data else None
+
+        except Exception:
+            # Fallback a query manual
+            logger.info("Función BD no disponible, usando query manual")
+            return self._obtener_proximo_paciente_manual(odontologo_id)
+
+    def _calcular_estadisticas_colas_manual(self) -> List[Dict[str, Any]]:
+        """
+        Calcular estadísticas de colas manualmente (fallback)
+
+        Returns:
+            Lista con estadísticas por odontólogo
+        """
+        # Query manual para obtener estadísticas
+        result = self.client.table(self.table_name).select(
+            """
+            primer_odontologo_id,
+            estado,
+            personal!inner(primer_nombre, primer_apellido, especialidad)
+            """
+        ).eq('fecha_llegada::date', date.today().isoformat()).execute()
+
+        estadisticas = {}
+        for consulta in result.data:
+            odontologo_id = consulta['primer_odontologo_id']
+            estado = consulta['estado']
+
+            if odontologo_id not in estadisticas:
+                personal_data = consulta.get('personal', {})
+                estadisticas[odontologo_id] = {
+                    'odontologo_id': odontologo_id,
+                    'odontologo_nombre': f"{personal_data.get('primer_nombre', '')} {personal_data.get('primer_apellido', '')}".strip(),
+                    'especialidad': personal_data.get('especialidad', ''),
+                    'pacientes_esperando': 0,
+                    'pacientes_atendiendo': 0,
+                    'pacientes_atendidos_hoy': 0,
+                    'proximo_en_cola': None
+                }
+
+            # Contar por estado
+            if estado == 'en_espera':
+                estadisticas[odontologo_id]['pacientes_esperando'] += 1
+            elif estado == 'en_atencion':
+                estadisticas[odontologo_id]['pacientes_atendiendo'] += 1
+            elif estado == 'completada':
+                estadisticas[odontologo_id]['pacientes_atendidos_hoy'] += 1
+
+        return list(estadisticas.values())
+
+    def _obtener_proximo_paciente_manual(self, odontologo_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Obtener próximo paciente manualmente (fallback)
+
+        Args:
+            odontologo_id: ID del odontólogo
+
+        Returns:
+            Datos del próximo paciente
+        """
+        result = self.client.table(self.table_name).select(
+            """
+            *,
+            pacientes!inner(primer_nombre, primer_apellido, numero_documento, celular_1)
+            """
+        ).eq(
+            'primer_odontologo_id', odontologo_id
+        ).eq(
+            'estado', 'en_espera'
+        ).order('orden_llegada_general').limit(1).execute()
+
+        return result.data[0] if result.data else None
+
 
 # ✅ NUEVA INSTANCIA PARA IMPORTAR - CORREGIDA
 consultas_table = ConsultationsTable()

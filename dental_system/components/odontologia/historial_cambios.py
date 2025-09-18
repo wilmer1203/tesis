@@ -35,7 +35,7 @@ HISTORIAL_CONTAINER_STYLE = {
 }
 
 TIMELINE_CHANGE_STYLE = {
-    "border_left": f"4px solid {COLORS['blue']['400']}",
+    "border_left": f"4px solid {COLORS['blue']['600']}",
     "padding_left": SPACING["3"],
     "margin_left": SPACING["2"],
     "margin_bottom": SPACING["3"],
@@ -49,7 +49,7 @@ CHANGE_CARD_STYLE = {
     "padding": SPACING["3"],
     "transition": "all 0.2s ease",
     "_hover": {
-        "border_color": COLORS['blue']['400'],
+        "border_color": COLORS['blue']['600'],
         "box_shadow": SHADOWS["sm"]
     }
 }

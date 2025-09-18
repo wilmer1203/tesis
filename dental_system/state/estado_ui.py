@@ -17,6 +17,7 @@ import reflex as rx
 from datetime import datetime
 from typing import Dict, Any, List, Optional, Union
 import logging
+from dental_system.models.ui_models import ToastModel, NotificationModel
 
 logger = logging.getLogger(__name__)
 
@@ -90,6 +91,10 @@ class EstadoUI(rx.State, mixin=True):
     titulo_modal_alerta: str = ""
     mensaje_modal_alerta: str = ""
     tipo_alerta: str = "info"  # info, warning, error, success
+    
+    # 🍞 SISTEMA DE TOASTS FLOTANTES
+    active_toasts: List[ToastModel] = []
+    active_notifications: List[NotificationModel] = []
     
     # ==========================================
     # 📱 ESTADOS DE FORMULARIOS MULTI-PASO
@@ -424,6 +429,82 @@ class EstadoUI(rx.State, mixin=True):
         """🙈 Ocultar toast message"""
         self.toast_visible = False
         self.toast_mensaje = ""
+        print("🙈 Toast ocultado")
+    
+    # ==========================================
+    # 🍞 SISTEMA DE TOASTS FLOTANTES MODERNO
+    # ==========================================
+    
+    @rx.event
+    def add_toast(self, message: str, toast_type: str = "info", duration: int = 4000):
+        """🍞 Agregar toast flotante"""
+        if toast_type == "success":
+            toast = ToastModel.success(message, duration)
+        elif toast_type == "error":
+            toast = ToastModel.error(message, duration)
+        elif toast_type == "warning":
+            toast = ToastModel.warning(message, duration)
+        else:
+            toast = ToastModel.info(message, duration)
+            
+        # Agregar al inicio de la lista
+        self.active_toasts = [toast] + self.active_toasts
+        
+        # Limitar a máximo 3 toasts simultáneos
+        if len(self.active_toasts) > 3:
+            self.active_toasts = self.active_toasts[:3]
+            
+        print(f"🍞 Toast agregado ({toast_type}): {message}")
+    
+    @rx.event
+    def remove_toast(self, toast_id: str):
+        """❌ Remover toast específico"""
+        self.active_toasts = [t for t in self.active_toasts if t.id != toast_id]
+        print(f"❌ Toast removido: {toast_id}")
+    
+    @rx.event
+    def clear_all_toasts(self):
+        """🧹 Limpiar todos los toasts"""
+        self.active_toasts = []
+        print("🧹 Todos los toasts limpiados")
+    
+    @rx.event
+    def add_notification(self, title: str, message: str, notification_type: str = "info", action_url: str = "", action_text: str = ""):
+        """📢 Agregar notificación persistente"""
+        notification = NotificationModel(
+            id=f"notif_{datetime.now().timestamp()}",
+            title=title,
+            message=message,
+            notification_type=notification_type,
+            timestamp=datetime.now().isoformat(),
+            is_read=False,
+            action_url=action_url,
+            action_text=action_text
+        )
+        
+        # Agregar al inicio
+        self.active_notifications = [notification] + self.active_notifications
+        
+        # Limitar a máximo 10 notificaciones
+        if len(self.active_notifications) > 10:
+            self.active_notifications = self.active_notifications[:10]
+            
+        print(f"📢 Notificación agregada: {title}")
+    
+    @rx.event
+    def mark_notification_read(self, notification_id: str):
+        """✅ Marcar notificación como leída"""
+        for notif in self.active_notifications:
+            if notif.id == notification_id:
+                notif.is_read = True
+                break
+        print(f"✅ Notificación marcada como leída: {notification_id}")
+    
+    @rx.event
+    def remove_notification(self, notification_id: str):
+        """🗑️ Remover notificación"""
+        self.active_notifications = [n for n in self.active_notifications if n.id != notification_id]
+        print(f"🗑️ Notificación removida: {notification_id}")
     
     @rx.event
     def agregar_notificacion(self, titulo: str, mensaje: str, tipo: str = "info"):
