@@ -23,28 +23,26 @@ class ServicesTable(BaseTable):
                       codigo: str,
                       nombre: str,
                       categoria: str,
-                      precio_base: Decimal,
+                      precio_base_bs: Decimal,
+                      precio_base_usd: Decimal,
                       descripcion: Optional[str] = None,
                       subcategoria: Optional[str] = None,
                       duracion_estimada: str = "30 minutes",
-                      precio_minimo: Optional[Decimal] = None,
-                      precio_maximo: Optional[Decimal] = None,
-                      requiere_cita_previa: bool = True,
-                      requiere_autorizacion: bool = False,
                       material_incluido: Optional[List[str]] = None,
                       instrucciones_pre: Optional[str] = None,
                       instrucciones_post: Optional[str] = None,
                       creado_por: Optional[str] = None) -> Dict[str, Any]:
         """
-        Crea un nuevo servicio odontológico
-        
+        Crea un nuevo servicio odontológico con dual currency
+
         Args:
             codigo: Código único del servicio
             nombre: Nombre del servicio
             categoria: Categoría (Consulta, Preventiva, Restaurativa, etc.)
-            precio_base: Precio base del servicio
+            precio_base_bs: Precio base en Bolívares
+            precio_base_usd: Precio base en Dólares
             ... otros campos opcionales
-            
+
         Returns:
             Servicio creado
         """
@@ -52,22 +50,17 @@ class ServicesTable(BaseTable):
             "codigo": codigo,
             "nombre": nombre,
             "categoria": categoria,
-            "precio_base": float(precio_base),
+            "precio_base_bs": float(precio_base_bs),
+            "precio_base_usd": float(precio_base_usd),
             "duracion_estimada": duracion_estimada,
-            "requiere_cita_previa": requiere_cita_previa,
-            "requiere_autorizacion": requiere_autorizacion,
             "activo": True
         }
-        
+
         # Agregar campos opcionales
         if descripcion:
             data["descripcion"] = descripcion
         if subcategoria:
             data["subcategoria"] = subcategoria
-        if precio_minimo:
-            data["precio_minimo"] = float(precio_minimo)
-        if precio_maximo:
-            data["precio_maximo"] = float(precio_maximo)
         if material_incluido:
             data["material_incluido"] = material_incluido
         if instrucciones_pre:

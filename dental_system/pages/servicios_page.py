@@ -1,340 +1,496 @@
-# 📄 PÁGINA DE SERVICIOS - SIGUIENDO PATRÓN DE PACIENTES
-# dental_system/pages/servicios_page.py
+"""
+🏥 PÁGINA DE SERVICIOS MODERNA - GESTIÓN COMPLETA DE CATÁLOGO
+==============================================================
+
+FUNCIONALIDADES:
+- ✅ CRUD completo de servicios (solo Gerente)
+- ✅ Catálogo con 14 servicios precargados
+- ✅ Activar/desactivar servicios
+- ✅ Filtros por categoría y estado
+- ✅ Búsqueda avanzada
+- ✅ Estadísticas en tiempo real
+- ✅ Modal moderno para crear/editar
+- ✅ Diseño glassmorphism profesional
+
+INTEGRACIÓN:
+- Estado: EstadoServicios (integrado en AppState)
+- Servicios: 14 servicios precargados con códigos SER001-014
+- Permisos: Solo Gerente puede CRUD, otros ven catálogo
+"""
 
 import reflex as rx
 from dental_system.state.app_state import AppState
-from dental_system.components.common import page_header, primary_button, secondary_button
-from dental_system.components.table_components import services_table
+from dental_system.components.common import medical_page_layout, primary_button, secondary_button
+from dental_system.components.forms import service_form_modal
+from dental_system.styles.themes import (
+    COLORS, RADIUS, SPACING, SHADOWS, DARK_THEME, GRADIENTS, GLASS_EFFECTS, ANIMATIONS,
+    dark_crystal_card, dark_header_style, create_dark_style, dark_table_container
+)
 
+# ==========================================
+# 🎨 COMPONENTES MODERNOS PARA SERVICIOS
+# ==========================================
 
-def service_form_modal() -> rx.Component:
-    """📝 Modal para crear/editar servicio"""
-    return rx.dialog.root(
-        rx.dialog.content(
-            rx.dialog.title(
-                rx.cond(
-                    AppState.selected_servicio,
-                    "Editar Servicio",
-                    "Nuevo Servicio"
-                )
-            ),
-            
-            # Formulario
-            rx.vstack(
-                # Código y Nombre
-                rx.hstack(
-                    rx.vstack(
-                        rx.text("Código *", size="2", weight="medium"),
-                        rx.input(
-                            value=AppState.servicio_form["codigo"],
-                            on_change=lambda v: AppState.update_servicio_form("codigo", v),
-                            placeholder="CON001"
-                        ),
-                        spacing="1",
-                        width="100%"
-                    ),
-                    rx.vstack(
-                        rx.text("Nombre del Servicio *", size="2", weight="medium"),
-                        rx.input(
-                            value=AppState.servicio_form["nombre"],
-                            on_change=lambda v: AppState.update_servicio_form("nombre", v),
-                            placeholder="Consulta General"
-                        ),
-                        spacing="1",
-                        width="100%"
-                    ),
-                    spacing="3",
-                    width="100%"
+def minimal_servicios_stat_card(
+    title: str,
+    value: str,
+    icon: str,
+    color: str,
+    subtitle: str = ""
+) -> rx.Component:
+    """🎯 Card de estadística minimalista para servicios (patrón Personal/Pacientes)"""
+    return rx.box(
+        rx.vstack(
+            # Layout superior: Icono a la izquierda, Número a la derecha
+            rx.hstack(
+                # Icono pequeño a la izquierda
+                rx.box(
+                    rx.icon(icon, size=24, color=color),
+                    style={
+                        "width": "50px",
+                        "height": "50px",
+                        "background": f"{color}100",
+                        "border_radius": RADIUS["xl"],
+                        "display": "flex",
+                        "align_items": "center",
+                        "justify_content": "center",
+                        "border": f"1px solid {color}35"
+                    }
                 ),
-                
-                # Categoría y Precio
-                rx.hstack(
-                    rx.vstack(
-                        rx.text("Categoría *", size="2", weight="medium"),
-                        rx.select(
-                            [
-                                "Consulta", 
-                                "Preventiva", 
-                                "Restaurativa", 
-                                "Endodoncia", 
-                                "Periodoncia",
-                                "Cirugía",
-                                "Ortodoncia",
-                                "Prostodoncia",
-                                "Estética"
-                            ],
-                            value=AppState.servicio_form["categoria"],
-                            on_change=lambda v: AppState.update_servicio_form("categoria", v),
-                            placeholder="Seleccionar categoría"
-                        ),
-                        spacing="1",
-                        width="100%"
-                    ),
-                    rx.vstack(
-                        rx.text("Precio Base *", size="2", weight="medium"),
-                        rx.input(
-                            type="number",
-                            value=AppState.servicio_form["precio_base"],
-                            on_change=lambda v: AppState.update_servicio_form("precio_base", v),
-                            placeholder="50000"
-                        ),
-                        spacing="1",
-                        width="100%"
-                    ),
-                    spacing="3",
-                    width="100%"
+
+                rx.spacer(),
+
+                # Número grande a la derecha
+                rx.text(
+                    value,
+                    style={
+                        "font_size": "2.5rem",
+                        "font_weight": "800",
+                        "color": color,
+                        "line_height": "1"
+                    }
                 ),
-                
-                # Descripción
-                rx.vstack(
-                    rx.text("Descripción", size="2", weight="medium"),
-                    rx.text_area(
-                        value=AppState.servicio_form["descripcion"],
-                        on_change=lambda v: AppState.update_servicio_form("descripcion", v),
-                        placeholder="Descripción del servicio...",
-                        height="100px"
-                    ),
-                    spacing="1",
-                    width="100%"
-                ),
-                
-                # Información adicional (opcional)
-                rx.vstack(
-                    rx.text("Información Adicional", size="3", weight="medium", color="gray.700"),
-                    rx.hstack(
-                        rx.vstack(
-                            rx.text("Subcategoría", size="2", weight="medium"),
-                            rx.input(
-                                value=AppState.servicio_form["subcategoria"],
-                                on_change=lambda v: AppState.update_servicio_form("subcategoria", v),
-                                placeholder="Subcategoría específica"
-                            ),
-                            spacing="1",
-                            width="100%"
-                        ),
-                        rx.vstack(
-                            rx.text("Duración Estimada", size="2", weight="medium"),
-                            rx.input(
-                                value=AppState.servicio_form["duracion_estimada"],
-                                on_change=lambda v: AppState.update_servicio_form("duracion_estimada", v),
-                                placeholder="30 minutes"
-                            ),
-                            spacing="1",
-                            width="100%"
-                        ),
-                        spacing="3",
-                        width="100%"
-                    ),
-                    rx.hstack(
-                        rx.vstack(
-                            rx.text("Precio Mínimo", size="2", weight="medium"),
-                            rx.input(
-                                type="number",
-                                value=AppState.servicio_form["precio_minimo"],
-                                on_change=lambda v: AppState.update_servicio_form("precio_minimo", v),
-                                placeholder="40000"
-                            ),
-                            spacing="1",
-                            width="100%"
-                        ),
-                        rx.vstack(
-                            rx.text("Precio Máximo", size="2", weight="medium"),
-                            rx.input(
-                                type="number",
-                                value=AppState.servicio_form["precio_maximo"],
-                                on_change=lambda v: AppState.update_servicio_form("precio_maximo", v),
-                                placeholder="80000"
-                            ),
-                            spacing="1",
-                            width="100%"
-                        ),
-                        spacing="3",
-                        width="100%"
-                    ),
-                    spacing="2"
-                ),
-                
-                # Opciones adicionales
-                rx.vstack(
-                    rx.text("Configuraciones", size="3", weight="medium", color="gray.700"),
-                    rx.hstack(
-                        rx.checkbox(
-                            # checked=AppState.servicio_form["requiere_cita_previa"],
-                            checked= rx.cond(AppState.servicio_form["requiere_cita_previa"].split() == "true",
-                                             True,
-                                             False),
-                            on_change=lambda v: AppState.update_servicio_form("requiere_cita_previa", str(v).lower()),
-                            color_scheme="teal"
-                        ),
-                        rx.text("Requiere cita previa", size="2"),
-                        spacing="2",
-                        align_items="center"
-                    ),
-                    rx.hstack(
-                        rx.checkbox(
-                            # checked=AppState.servicio_form["requiere_autorizacion"],
-                            checked= rx.cond(AppState.servicio_form["requiere_autorizacion"].split() == "true",
-                                             True,
-                                             False),
-                            on_change=lambda v: AppState.update_servicio_form("requiere_autorizacion", str(v).lower()),
-                            color_scheme="teal"
-                        ),
-                        rx.text("Requiere autorización", size="2"),
-                        spacing="2",
-                        align_items="center"
-                    ),
-                    spacing="2"
-                ),
-                
-                # Material incluido
-                rx.vstack(
-                    rx.text("Material Incluido", size="2", weight="medium"),
-                    rx.text_area(
-                        value=AppState.servicio_form["material_incluido"],
-                        on_change=lambda v: AppState.update_servicio_form("material_incluido", v),
-                        placeholder="Materiales incluidos en el servicio (separados por comas)",
-                        height="60px"
-                    ),
-                    spacing="1",
-                    width="100%"
-                ),
-                
-                # Instrucciones
-                rx.hstack(
-                    rx.vstack(
-                        rx.text("Instrucciones Pre", size="2", weight="medium"),
-                        rx.text_area(
-                            value=AppState.servicio_form["instrucciones_pre"],
-                            on_change=lambda v: AppState.update_servicio_form("instrucciones_pre", v),
-                            placeholder="Instrucciones antes del procedimiento",
-                            height="80px"
-                        ),
-                        spacing="1",
-                        width="100%"
-                    ),
-                    rx.vstack(
-                        rx.text("Instrucciones Post", size="2", weight="medium"),
-                        rx.text_area(
-                            value=AppState.servicio_form["instrucciones_post"],
-                            on_change=lambda v: AppState.update_servicio_form("instrucciones_post", v),
-                            placeholder="Instrucciones después del procedimiento",
-                            height="80px"
-                        ),
-                        spacing="1",
-                        width="100%"
-                    ),
-                    spacing="3",
-                    width="100%"
-                ),
-                
-                spacing="4",
+
+                align="center",
                 width="100%"
             ),
-            
-            # Error message
-            rx.cond(
-                AppState.error_message != "",
-                rx.callout(
-                    AppState.error_message,
-                    icon="triangle-alert",
-                    color_scheme="red",
-                    variant="surface",
-                    margin_bottom="16px"
-                )
+
+            # Título descriptivo abajo
+            rx.text(
+                title,
+                style={
+                    "font_size": "1rem",
+                    "font_weight": "600",
+                    "color": DARK_THEME["colors"]["text_primary"],
+                    "text_align": "center",
+                    "margin_top": SPACING["1"]
+                }
             ),
-            
-            # Botones de acción
+
+            spacing="3",
+            align="stretch",
+            width="100%",
+            padding=SPACING["3"]
+        ),
+
+        # Utilizar función utilitaria de cristal reutilizable
+        style=dark_crystal_card(color=color, hover_lift="6px"),
+        width="100%"
+    )
+
+# ==========================================
+# 📊 ESTADÍSTICAS DE SERVICIOS
+# ==========================================
+
+def servicios_stats() -> rx.Component:
+    """📊 Grid de estadísticas minimalistas y elegantes para servicios"""
+    return rx.grid(
+        minimal_servicios_stat_card(
+            title="Total Servicios",
+            value=AppState.total_servicios.to_string(),
+            icon="layers",
+            color=COLORS["primary"]["600"],
+            subtitle="en catálogo"
+        ),
+        minimal_servicios_stat_card(
+            title="Servicios Activos",
+            value=AppState.servicios_activos_count.to_string(),
+            icon="check",
+            color=COLORS["success"]["600"],
+            subtitle="disponibles"
+        ),
+        minimal_servicios_stat_card(
+            title="Precio Promedio",
+            value=f"${AppState.precio_promedio_servicios:,.0f}",
+            icon="dollar-sign",
+            color=COLORS["warning"]["500"],
+            subtitle="USD promedio"
+        ),
+        minimal_servicios_stat_card(
+            title="Categorías",
+            value=AppState.categorias_servicios.length().to_string(),
+            icon="grid-3x3",
+            color=COLORS["secondary"]["600"],
+            subtitle="especializadas"
+        ),
+        columns=rx.breakpoints(initial="1", sm="2", md="2", lg="4"),
+        spacing="6",
+        width="100%",
+        margin_bottom="8"
+    )
+
+# ==========================================
+# 🔍 FILTROS Y BÚSQUEDA
+# ==========================================
+
+def filtros_servicios() -> rx.Component:
+    """🔍 Panel de filtros y búsqueda con glassmorphism"""
+    return rx.box(
+        rx.vstack(
+            # Header de filtros
             rx.hstack(
-                rx.dialog.close(
-                    secondary_button("Cancelar"),
-                ),
-                primary_button(
-                    text=rx.cond(
-                        AppState.selected_servicio,
-                        "Actualizar",
-                        "Crear Servicio"
-                    ),
-                    icon="check",
-                    on_click=AppState.save_servicio,
-                    loading=AppState.is_loading_servicios
+                rx.icon("filter", size=20, color=COLORS["primary"]["500"]),
+                rx.text(
+                    "Filtros y Búsqueda",
+                    size="4",
+                    weight="bold",
+                    color=DARK_THEME["colors"]["text_primary"]
                 ),
                 spacing="2",
-                justify="end"
+                align_items="center"
             ),
-            
-            max_width="800px",
-            padding="6"
+
+            # Búsqueda principal
+            rx.input(
+                placeholder="Buscar servicios por nombre o descripción...",
+                value=AppState.termino_busqueda_servicios,
+                on_change=AppState.buscar_servicios,
+                style={
+                    "width": "100%",
+                    "background": DARK_THEME["colors"]["surface_secondary"],
+                    "border": f"1px solid {DARK_THEME['colors']['border']}",
+                    "border_radius": RADIUS["md"],
+                    "padding": SPACING["3"],
+                    "_focus": {
+                        "border_color": COLORS["primary"]["500"],
+                        "box_shadow": f"0 0 0 3px {COLORS['primary']['500']}20"
+                    }
+                }
+            ),
+
+            # Filtros en línea
+            rx.hstack(
+                # Filtro por categoría
+                rx.vstack(
+                    rx.text("Categoría", size="2", weight="medium", color=DARK_THEME["colors"]["text_secondary"]),
+                    rx.select(
+                        AppState.opciones_categoria_completas,
+                        value=AppState.filtro_categoria,
+                        on_change=AppState.filtrar_por_categoria,
+                        placeholder="Todas las categorías",
+                        style={"width": "200px"}
+                    ),
+                    spacing="1"
+                ),
+
+                # Filtro por estado
+                rx.vstack(
+                    rx.text("Estado", size="2", weight="medium", color=DARK_THEME["colors"]["text_secondary"]),
+                    rx.select(
+                        ["todos", "activos", "inactivos"],
+                        value=AppState.filtro_estado_servicio,
+                        on_change=AppState.filtrar_por_estado_servicio,
+                        placeholder="Todos los estados",
+                        style={"width": "150px"}
+                    ),
+                    spacing="1"
+                ),
+
+                # Solo activos switch
+                rx.vstack(
+                    rx.text("Vista", size="2", weight="medium", color=DARK_THEME["colors"]["text_secondary"]),
+                    rx.switch(
+                        checked=AppState.mostrar_solo_activos_servicios,
+                        on_change=lambda v: AppState.set_mostrar_solo_activos_servicios(v),
+                        color_scheme="cyan"
+                    ),
+                    spacing="1"
+                ),
+
+                spacing="6",
+                align_items="end",
+                width="100%"
+            ),
+
+            spacing="4",
+            width="100%"
         ),
-        open=AppState.show_servicio_modal,
-        on_open_change=AppState.toggle_servicio_modal
+        style=dark_crystal_card(color=COLORS["primary"]["500"]),
+        width="100%"
     )
 
+# ==========================================
+# 🎯 HEADER ELEGANTE PARA SERVICIOS
+# ==========================================
 
-def services_controls() -> rx.Component:
-    """🎛️ Controles de la página de servicios"""
-    return rx.hstack(
-        # Búsqueda
-        rx.input(
-            placeholder="🔍 Buscar por código, nombre o descripción...",
-            value=AppState.termino_busqueda_servicios,
-            on_change=AppState.set_termino_busqueda_servicios,
-            size="3",
-            width="400px"
+def clean_servicios_header() -> rx.Component:
+    """🎯 Header limpio y elegante para servicios (patrón Personal/Pacientes)"""
+    return rx.box(
+        rx.hstack(
+            rx.vstack(
+                # Título principal alineado a la izquierda
+                rx.heading(
+                    "🏥 Gestión de Servicios",
+                    style={
+                        "font_size": "2.75rem",
+                        "font_weight": "800",
+                        "background": GRADIENTS["text_gradient_primary"],
+                        "background_clip": "text",
+                        "color": "transparent",
+                        "line_height": "1.2",
+                        "text_align": "left"
+                    }
+                ),
+
+                # Subtítulo elegante
+                rx.text(
+                    "Administra el catálogo completo de servicios odontológicos",
+                    style={
+                        "font_size": "1.125rem",
+                        "color": DARK_THEME["colors"]["text_secondary"],
+                        "line_height": "1.5",
+                        "opacity": "0.8"
+                    }
+                ),
+
+                spacing="1",
+                align="start",
+                width="100%"
+            ),
+
+            rx.spacer(),
+
+            # Botón de actualización
+            rx.hstack(
+                rx.button(
+                    rx.hstack(
+                        rx.icon("refresh-cw", size=16),
+                        rx.text("Actualizar", size="2"),
+                        spacing="2"
+                    ),
+                    on_click=AppState.cargar_lista_servicios,
+                    variant="outline",
+                    color_scheme="cyan",
+                    size="2"
+                ),
+                spacing="2"
+            ),
+
+            width="100%",
+            align_items="center"
         ),
-        
-        # Filtro por categoría
-        rx.select(
-            ["todas", "Consulta", "Preventiva", "Restaurativa", "Endodoncia", "Periodoncia", "Cirugía", "Ortodoncia", "Prostodoncia", "Estética"],
-            placeholder="Todas las categorías",
-            value=AppState.filtro_categoria,
-            on_change=AppState.set_filtro_categoria,
-            size="3"
-        ),
-        
-        # Toggle activos/todos
-        rx.switch(
-            checked=AppState.mostrar_solo_activos_servicios,
-            on_change=AppState.set_mostrar_solo_activos_servicios,
-            color_scheme="teal"
-        ),
-        rx.text("Solo activos", size="2", color="gray.700"),
-        
-        rx.spacer(),
-        
-        # Botón nuevo servicio
-        primary_button(
-            text="Nuevo Servicio",
-            icon="plus",
-            # on_click=AppState.crear_servicio,  # TODO: Implementar modal
-            loading=AppState.cargando_operacion_servicio
-        ),
-        
-        spacing="3",
-        align="center",
-        width="100%",
-        padding_bottom="4"
+        # Utilizar función utilitaria para header
+        style=dark_header_style(),
+        width="100%"
     )
+
+# ==========================================
+# 📋 TABLA DE SERVICIOS
+# ==========================================
+
+def servicios_table() -> rx.Component:
+    """📋 Tabla principal de servicios con glassmorphism"""
+    return rx.box(
+        rx.vstack(
+            # Header de tabla
+            rx.hstack(
+                rx.text(
+                    "📋 Catálogo de Servicios",
+                    size="5",
+                    weight="bold",
+                    color=DARK_THEME["colors"]["text_primary"]
+                ),
+                rx.spacer(),
+                rx.cond(
+                    AppState.rol_usuario == "gerente",
+                    rx.button(
+                        rx.hstack(
+                            rx.icon("plus", size=16),
+                            rx.text("Nuevo Servicio", size="2"),
+                            spacing="2"
+                        ),
+                        on_click=lambda: AppState.seleccionar_y_abrir_modal_servicio(""),
+                        variant="solid",
+                        color_scheme="cyan",
+                        size="2"
+                    ),
+                    rx.text("Vista de solo lectura", size="2", color=DARK_THEME["colors"]["text_secondary"])
+                ),
+                width="100%",
+                align_items="center"
+            ),
+
+            # Tabla responsive
+            rx.table.root(
+                rx.table.header(
+                    rx.table.row(
+                        rx.table.column_header_cell("Código"),
+                        rx.table.column_header_cell("Servicio"),
+                        rx.table.column_header_cell("Categoría"),
+                        rx.table.column_header_cell("Precio"),
+                        rx.table.column_header_cell("Estado"),
+                        rx.table.column_header_cell("Acciones", display=rx.cond(AppState.rol_usuario == "gerente", "table-cell", "none"))
+                    )
+                ),
+                rx.table.body(
+                    rx.foreach(
+                        AppState.servicios_filtrados,
+                        servicio_row
+                    )
+                ),
+                style={
+                    "width": "100%",
+                    "background": DARK_THEME["colors"]["surface_secondary"]
+                },
+                size="2"
+            ),
+
+            spacing="4",
+            width="100%"
+        ),
+        style=dark_table_container(),
+        width="100%"
+    )
+
+def servicio_row(servicio) -> rx.Component:
+    """🔗 Fila de servicio en tabla"""
+    return rx.table.row(
+        rx.table.cell(
+            rx.badge(
+                servicio.codigo,
+                color_scheme="blue",
+                size="1"
+            )
+        ),
+        rx.table.cell(
+            rx.vstack(
+                rx.text(
+                    servicio.nombre,
+                    size="3",
+                    weight="medium",
+                    color=DARK_THEME["colors"]["text_primary"]
+                ),
+                rx.text(
+                    servicio.descripcion,
+                    size="2",
+                    color=DARK_THEME["colors"]["text_secondary"],
+                    style={"overflow": "hidden", "text_overflow": "ellipsis", "white_space": "nowrap", "max_width": "200px"}
+                ),
+                spacing="1",
+                align_items="start"
+            )
+        ),
+        rx.table.cell(
+            rx.badge(
+                servicio.categoria,
+                color_scheme="green",
+                size="1"
+            )
+        ),
+        rx.table.cell(
+            rx.text(
+                f"${servicio.precio_base_usd:,.0f} USD",
+                size="3",
+                weight="medium",
+                color=COLORS["warning"]["500"]
+            )
+        ),
+        rx.table.cell(
+            rx.badge(
+                rx.cond(
+                    servicio.activo,
+                    "Activo",
+                    "Inactivo"
+                ),
+                color_scheme=rx.cond(
+                    servicio.activo,
+                    "green",
+                    "gray"
+                ),
+                size="1"
+            )
+        ),
+        rx.table.cell(
+            rx.hstack(
+                rx.button(
+                    rx.icon("pencil", size=14),
+                    on_click=lambda: AppState.seleccionar_y_abrir_modal_servicio(servicio.id),
+                    variant="ghost",
+                    size="1",
+                    color_scheme="blue"
+                ),
+                rx.cond(
+                    servicio.activo,
+                    # Si está activo, mostrar botón para desactivar
+                    rx.button(
+                        rx.icon("eye-off", size=14),
+                        on_click=lambda: AppState.activar_desactivar_servicio(servicio.id, False),
+                        variant="ghost",
+                        size="1",
+                        color_scheme="orange"
+                    ),
+                    # Si está inactivo, mostrar botón para activar
+                    rx.button(
+                        rx.icon("eye", size=14),
+                        on_click=lambda: AppState.activar_desactivar_servicio(servicio.id, True),
+                        variant="ghost",
+                        size="1",
+                        color_scheme="green"
+                    )
+                ),
+                spacing="1"
+            ),
+            display=rx.cond(AppState.rol_usuario == "gerente", "table-cell", "none")
+        )
+    )
+
+# ==========================================
+# 📱 PÁGINA PRINCIPAL
+# ==========================================
 
 
 def servicios_page() -> rx.Component:
     """
-    📄 Página principal de gestión de servicios
-    Accesible por: Jefe (CRUD completo), otros según permisos
+    🏥 PÁGINA DE GESTIÓN DE SERVICIOS - REFACTORIZADA CON TEMA ELEGANTE
+
+    ✨ Características actualizadas:
+    - Diseño moderno con glassmorphism siguiendo patrón Personal/Pacientes
+    - Header limpio y elegante con gradientes
+    - Cards de estadísticas minimalistas
+    - Formularios modernizados con efectos cristal
+    - Tema oscuro unificado
+    - Animaciones suaves y micro-interacciones
     """
-    return rx.vstack(
-        page_header("🦷 Gestión de Servicios", "Administrar servicios odontológicos"),
-        
-        # Controles
-        services_controls(),
-        
-        # Tabla de servicios
-        services_table(),
-        
-        # Modal de formulario
-        service_form_modal(),
-        
-        spacing="6",
-        padding="6",
-        width="100%",
-        min_height="100vh"
+    return rx.fragment(
+        medical_page_layout(
+            rx.vstack(
+                # Header limpio y elegante
+                clean_servicios_header(),
+
+                # Estadísticas con cards modernos
+                servicios_stats(),
+
+                # Filtros con glassmorphism
+                filtros_servicios(),
+
+                # Tabla principal con diseño actualizado
+                servicios_table(),
+
+                spacing="6",
+                width="100%"
+            ),
+        ),
+        # Modales usando componentes de forms.py
+        service_form_modal()
+        # on_mount eliminado: datos se cargan en post_login_inicializacion()
     )

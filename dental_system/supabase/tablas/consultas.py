@@ -225,10 +225,6 @@ class ConsultationsTable(BaseTable):
         fecha_inicio = today.isoformat()
         fecha_fin = f"{today.isoformat()}T23:59:59"
         
-        print(f"[DEBUG] 📅 get_today_consultations - Hoy: {today}")
-        print(f"[DEBUG] 🔍 Rango de búsqueda: {fecha_inicio} a {fecha_fin}")
-        print(f"[DEBUG] 👨‍⚕️ Odontólogo ID: {odontologo_id}")
-        
         # Query para consultas con información básica
         query = self.table.select("""
             *,
@@ -240,16 +236,11 @@ class ConsultationsTable(BaseTable):
         """).gte("fecha_llegada", fecha_inicio
         ).lt("fecha_llegada", fecha_fin
         ).order("fecha_llegada")
-        
+
         if odontologo_id:
             query = query.eq("primer_odontologo_id", odontologo_id)
-        
+
         response = query.execute()
-        print(f"[DEBUG] 🏥 Consultas encontradas en BD: {len(response.data) if response.data else 0}")
-        
-        if response.data:
-            for i, consulta in enumerate(response.data):
-                print(f"[DEBUG] 📋 Consulta {i+1}: {consulta.get('id')} - {consulta.get('fecha_llegada')} - Estado: {consulta.get('estado')}")
         
         if response.data:
             # Procesar datos para construir nombres completos

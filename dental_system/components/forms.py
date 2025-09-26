@@ -1439,10 +1439,368 @@ def _staff_form_step_3() -> rx.Component:
         align="stretch"
     )
 
+def service_form_modal() -> rx.Component:
+    """🏥 Modal simple para crear/editar servicios (patrón Personal/Pacientes)"""
+
+    return rx.dialog.root(
+        rx.dialog.content(
+            # Header del modal
+            rx.vstack(
+                rx.hstack(
+                    rx.heading(
+                        rx.cond(
+                            AppState.servicio_seleccionado_valido,
+                            "Editar Servicio",
+                            "Nuevo Servicio"
+                        ),
+                        style={
+                            "font_size": "1.75rem",
+                            "font_weight": "700",
+                            "color": DARK_THEME["colors"]["text_primary"]
+                        }
+                    ),
+                    rx.spacer(),
+                    rx.dialog.close(
+                        rx.button(
+                            rx.icon("x", size=20),
+                            style={
+                                "background": "transparent",
+                                "border": "none",
+                                "color": COLORS["gray"]["500"],
+                                "cursor": "pointer",
+                                "_hover": {"color": COLORS["gray"]["700"]}
+                            },
+                            on_click=AppState.limpiar_formulario_servicio
+                        )
+                    ),
+                    width="100%",
+                    align="center"
+                ),
+
+                # Formulario completo en una sola página
+                service_form_fields(),
+
+                # Botones de acción
+                rx.hstack(
+                    rx.button(
+                        "Cancelar",
+                        style={
+                            **GLASS_EFFECTS["light"],
+                            "border": f"1px solid {COLORS['gray']['300']}60",
+                            "color": COLORS["gray"]["700"],
+                            "border_radius": RADIUS["xl"],
+                            "padding": f"{SPACING['3']} {SPACING['6']}",
+                            "font_weight": "600",
+                            "transition": ANIMATIONS["presets"]["crystal_hover"],
+                            "_hover": {
+                                **GLASS_EFFECTS["medium"],
+                                "transform": "translateY(-2px)",
+                                "box_shadow": SHADOWS["crystal_sm"]
+                            }
+                        },
+                        on_click=lambda: [AppState.limpiar_formulario_servicio(), AppState.cerrar_todos_los_modales()],
+                    ),
+                    rx.button(
+                        rx.cond(
+                            AppState.cargando_operacion_servicio,
+                            rx.hstack(
+                                rx.spinner(size="1"),
+                                rx.text(rx.cond(AppState.servicio_seleccionado_valido, "Guardando...", "Creando..."), size="2"),
+                                spacing="2"
+                            ),
+                            rx.hstack(
+                                rx.icon("save", size=16),
+                                rx.text(rx.cond(AppState.servicio_seleccionado_valido, "Guardar Cambios", "Crear Servicio"), size="2"),
+                                spacing="2"
+                            )
+                        ),
+                        on_click=rx.cond(
+                            AppState.servicio_seleccionado_valido,
+                            AppState.actualizar_servicio,
+                            AppState.crear_servicio
+                        ),
+                        style={
+                            "background": GRADIENTS["neon_primary"],
+                            "color": "white",
+                            "border": "none",
+                            "border_radius": RADIUS["xl"],
+                            "padding": f"{SPACING['3']} {SPACING['6']}",
+                            "font_weight": "700",
+                            "box_shadow": SHADOWS["glow_primary"],
+                            "transition": ANIMATIONS["presets"]["crystal_hover"],
+                            "_hover": {
+                                "transform": "translateY(-2px) scale(1.02)",
+                                "box_shadow": f"0 0 30px {COLORS['primary']['500']}50, 0 8px 16px {COLORS['primary']['500']}30"
+                            }
+                        },
+                        disabled=AppState.cargando_operacion_servicio
+                    ),
+                    spacing="3",
+                    justify="end",
+                    width="100%"
+                ),
+
+                spacing="6",
+                width="100%"
+            ),
+
+            style={
+                "max_width": "700px",
+                "width": "85vw",
+                "max_height": "85vh",
+                "padding": SPACING["8"],
+                "border_radius": RADIUS["3xl"],
+                **GLASS_EFFECTS["strong"],
+                "box_shadow": SHADOWS["2xl"],
+                "border": f"1px solid {COLORS['primary']['500']}30",
+                "overflow_y": "auto"
+            }
+        ),
+
+        open=AppState.modal_crear_servicio_abierto | AppState.modal_editar_servicio_abierto,
+        on_open_change=AppState.cerrar_todos_los_modales
+    )
+
+def service_form_fields() -> rx.Component:
+    """📝 Campos del formulario de servicio (todo en una página)"""
+    return rx.vstack(
+        # Información Básica
+        form_section_header(
+            "Información Básica",
+            "Datos fundamentales del servicio odontológico",
+            "info",
+            COLORS["primary"]["500"]
+        ),
+
+        # Código y Nombre en grid
+        rx.grid(
+            enhanced_form_field(
+                label="Código del Servicio",
+                field_name="codigo",
+                value= AppState.formulario_servicio.codigo,
+                on_change=AppState.actualizar_campo_formulario_servicio,
+                placeholder="SER015",
+                required=True,
+                icon="hash",
+                max_length=10,
+                validation_error=rx.cond(AppState.errores_validacion_servicio, AppState.errores_validacion_servicio.get("codigo", ""), "")
+            ),
+            enhanced_form_field(
+                label="Nombre del Servicio",
+                field_name="nombre",
+                value=AppState.formulario_servicio.nombre,
+                on_change=AppState.actualizar_campo_formulario_servicio,
+                placeholder="Ej: Limpieza profunda",
+                required=True,
+                icon="clipboard",
+                max_length=100,
+                validation_error=rx.cond(AppState.errores_validacion_servicio, AppState.errores_validacion_servicio.get("nombre", ""), "")
+            ),
+            columns=rx.breakpoints(initial="1", sm="2"),
+            spacing="4",
+            width="100%"
+        ),
+
+        # Descripción
+        enhanced_form_field(
+            label="Descripción",
+            field_name="descripcion",
+            value=AppState.formulario_servicio.descripcion,
+            on_change=AppState.actualizar_campo_formulario_servicio,
+            field_type="textarea",
+            placeholder="Descripción detallada del servicio...",
+            required=False,
+            icon="file-text"
+        ),
+
+        # Categoría y Precios
+        form_section_header(
+            "Categoría y Precios",
+            "Clasificación y costos del servicio",
+            "tag",
+            COLORS["secondary"]["500"]
+        ),
+
+        # Categoría y duración
+        rx.grid(
+            enhanced_form_field_select(
+                label="Categoría",
+                field_name="categoria",
+                value=AppState.formulario_servicio.categoria,
+                on_change=AppState.actualizar_campo_formulario_servicio,
+                options=AppState.categorias_servicios,
+                placeholder="Seleccionar categoría",
+                required=True,
+                icon="grid"
+            ),
+            enhanced_form_field(
+                label="Duración (min)",
+                field_name="duracion_estimada",
+                value=AppState.formulario_duracion_value,
+                on_change=AppState.actualizar_campo_formulario_servicio,
+                field_type="number",
+                placeholder="30",
+                required=True,
+                icon="clock"
+            ),
+            columns=rx.breakpoints(initial="1", sm="2"),
+            spacing="4",
+            width="100%"
+        ),
+
+        # Precios
+        rx.grid(
+            enhanced_form_field(
+                label="Precio Base USD",
+                field_name="precio_base_usd",
+                value=AppState.formulario_precio_usd_value,
+                on_change=AppState.actualizar_campo_formulario_servicio,
+                field_type="number",
+                placeholder="50.00",
+                required=True,
+                icon="dollar-sign",
+                validation_error=rx.cond(AppState.errores_validacion_servicio, AppState.errores_validacion_servicio.get("precio_base_usd", ""), "")
+            ),
+            enhanced_form_field(
+                label="Precio Base BS",
+                field_name="precio_base_bs",
+                value=AppState.formulario_precio_bs_value,
+                on_change=AppState.actualizar_campo_formulario_servicio,
+                field_type="number",
+                placeholder="1800.00",
+                required=True,
+                icon="banknote",
+                validation_error=rx.cond(AppState.errores_validacion_servicio, AppState.errores_validacion_servicio.get("precio_base_bs", ""), "")
+            ),
+            columns=rx.breakpoints(initial="1", sm="2"),
+            spacing="4",
+            width="100%"
+        ),
+
+        # Material incluido
+        enhanced_form_field(
+            label="Material Incluido",
+            field_name="material_incluido",
+            value=AppState.formulario_servicio.material_incluido,
+            on_change=AppState.actualizar_campo_formulario_servicio,
+            placeholder="Ej: Amalgama, anestesia local",
+            icon="package"
+        ),
+
+        # Mostrar errores
+        rx.cond(
+            AppState.errores_validacion_servicio,
+            rx.vstack(
+                rx.foreach(
+                    AppState.errores_validacion_servicio,
+                    lambda error: rx.text(
+                        error,
+                        size="2",
+                        color=COLORS["error"]["500"]
+                    )
+                ),
+                spacing="1",
+                width="100%"
+            )
+        ),
+
+        spacing="6",
+        width="100%",
+        align="stretch"
+    )
+
+def enhanced_form_field_select(
+    label: str,
+    field_name: str,
+    value: Any,
+    on_change: Callable,
+    options: List[str],
+    placeholder: str = "",
+    required: bool = False,
+    validation_error: str = "",
+    help_text: str = "",
+    icon: Optional[str] = None
+) -> rx.Component:
+    """📝 Campo select mejorado para formularios"""
+
+    return rx.vstack(
+        # Label con indicador de requerido
+        rx.hstack(
+            rx.hstack(
+                *([rx.icon(icon, size=18, color=COLORS["primary"]["500"])] if icon else []),
+                rx.text(
+                    label,
+                    style={
+                        "font_size": "1rem",
+                        "font_weight": "600",
+                        "color": DARK_THEME["colors"]["text_primary"]
+                    }
+                ),
+                *([rx.text("*", color=COLORS["error"]["500"], font_weight="bold")] if required else []),
+                spacing="2",
+                align="center"
+            ),
+            spacing="2",
+            align="center"
+        ),
+
+        # Select field
+        rx.select(
+            options,
+            value=value,
+            on_change=lambda v: on_change(field_name, v),
+            placeholder=placeholder,
+            style={
+                "width": "100%",
+                "min_height": "44px",
+                "background": DARK_THEME["colors"]["surface_secondary"],
+                "border": f"2px solid {COLORS['error']['300'] if validation_error else DARK_THEME['colors']['border']}",
+                "border_radius": RADIUS["lg"],
+                "padding": f"0 {SPACING['4']}",
+                "font_size": "1rem",
+                "color": DARK_THEME["colors"]["text_primary"],
+                "transition": "all 200ms ease",
+                "_focus": {
+                    "border_color": COLORS["primary"]["400"],
+                    "box_shadow": f"0 0 0 3px {COLORS['primary']['100']}"
+                }
+            }
+        ),
+
+        # Texto de ayuda y errores
+        rx.cond(
+            validation_error != "",
+            rx.text(
+                validation_error,
+                style={
+                    "font_size": "0.875rem",
+                    "color": COLORS["error"]["500"],
+                    "margin_top": SPACING["1"]
+                }
+            ),
+            rx.cond(
+                help_text != "",
+                rx.text(
+                    help_text,
+                    style={
+                        "font_size": "0.875rem",
+                        "color": DARK_THEME["colors"]["text_secondary"],
+                        "margin_top": SPACING["1"]
+                    }
+                ),
+                rx.box()
+            )
+        ),
+
+        spacing="2",
+        width="100%",
+        align="stretch"
+    )
+
 def _role_selection_card(role: str, icon: str, description: str, color: str) -> rx.Component:
     """👤 Card visual para selección de rol del personal"""
     is_selected = rx.cond(AppState.formulario_empleado, AppState.formulario_empleado.tipo_personal, "") == role
-    
+
     return rx.box(
         rx.vstack(
             # Icono del rol

@@ -103,6 +103,7 @@ COLORS = {
         "100": "#FEF3C7",
         "200": "#FDE68A",
         "300": "#FCD34D",
+        "400": "#FBBF24",  # Agregado el 400 faltante
         "500": "#F59E0B",  # Principal
         "700": "#B45309",
         "800": "#92400E"
@@ -1439,6 +1440,305 @@ def create_consultation_status_style(status: str = "waiting", size: str = "md", 
         
     )
 
-    
+
     base_style.update(overrides)
     return base_style
+
+
+# ==========================================
+# 🏥 ESTILOS MÉDICOS PROFESIONALES
+# ==========================================
+
+MEDICAL_PROFESSIONAL_COLORS = {
+    # Paleta médica especializada para historial odontológico
+    "medical_primary": "#0066CC",      # Azul médico confiable
+    "medical_secondary": "#00A896",    # Verde médico (salud)
+    "medical_accent": "#FF6B35",       # Naranja médico (atención)
+
+    # Estados dentales con códigos de color médicos
+    "tooth_healthy": "#90EE90",        # Verde claro - diente sano
+    "tooth_caries": "#FF4500",         # Rojo naranja - caries
+    "tooth_filled": "#C0C0C0",         # Plata - obturado
+    "tooth_crown": "#4169E1",          # Azul real - corona
+    "tooth_extraction": "#8B0000",     # Rojo oscuro - extracción
+    "tooth_implant": "#32CD32",        # Verde lima - implante
+    "tooth_endodontics": "#FFD700",    # Dorado - endodoncia
+    "tooth_missing": "#FFFFFF",        # Blanco - ausente
+
+    # Gradientes médicos profesionales
+    "medical_bg_gradient": "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 50%, #f0f9ff 100%)",
+    "medical_card_gradient": "linear-gradient(135deg, rgba(0,102,204,0.05) 0%, rgba(0,168,150,0.05) 100%)",
+    "medical_header_gradient": "linear-gradient(90deg, #0066CC 0%, #00A896 100%)",
+
+    # Sombras médicas
+    "medical_shadow_light": "0 1px 3px rgba(0,102,204,0.1)",
+    "medical_shadow_medium": "0 4px 12px rgba(0,102,204,0.15)",
+    "medical_shadow_heavy": "0 8px 30px rgba(0,102,204,0.2)",
+
+    # Bordes médicos
+    "medical_border_light": "1px solid rgba(0,102,204,0.1)",
+    "medical_border_medium": "1px solid rgba(0,102,204,0.2)",
+    "medical_border_focus": "2px solid rgba(0,102,204,0.4)",
+}
+
+MEDICAL_TYPOGRAPHY = {
+    # Tipografía médica especializada
+    "medical_title": {
+        "font_family": "'Inter', 'Segoe UI', system-ui, sans-serif",
+        "font_weight": "600",
+        "letter_spacing": "-0.025em",
+        "line_height": "1.2",
+        "color": MEDICAL_PROFESSIONAL_COLORS["medical_primary"]
+    },
+
+    "medical_subtitle": {
+        "font_family": "'Inter', 'Segoe UI', system-ui, sans-serif",
+        "font_weight": "500",
+        "letter_spacing": "-0.015em",
+        "line_height": "1.4",
+        "color": MEDICAL_PROFESSIONAL_COLORS["medical_secondary"]
+    },
+
+    "medical_body": {
+        "font_family": "'Inter', 'Segoe UI', system-ui, sans-serif",
+        "font_weight": "400",
+        "line_height": "1.6",
+        "color": MEDICAL_PROFESSIONAL_COLORS["medical_primary"]
+    },
+
+    "medical_code": {
+        "font_family": "'JetBrains Mono', 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace",
+        "font_weight": "500",
+        "font_size": "0.875em",
+        "color": MEDICAL_PROFESSIONAL_COLORS["medical_accent"]
+    }
+}
+
+def medical_card_style(variant: str = "default", **overrides) -> Dict[str, Any]:
+    """
+    🏥 Crear estilo de card médico profesional
+
+    Args:
+        variant: 'default', 'elevated', 'outline', 'filled'
+        **overrides: Propiedades adicionales CSS
+
+    Returns:
+        Dict con estilo CSS para card médico
+    """
+    base_style = {
+        "background": "rgba(255, 255, 255, 0.95)",
+        "backdrop_filter": "blur(10px)",
+        "border_radius": RADIUS["lg"],
+        "padding": SPACING["4"],
+        "transition": "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+        "position": "relative",
+        "_hover": {
+            "transform": "translateY(-2px)",
+            "box_shadow": MEDICAL_PROFESSIONAL_COLORS["medical_shadow_medium"]
+        }
+    }
+
+    variants = {
+        "default": {
+            "border": MEDICAL_PROFESSIONAL_COLORS["medical_border_light"],
+            "box_shadow": MEDICAL_PROFESSIONAL_COLORS["medical_shadow_light"]
+        },
+        "elevated": {
+            "border": "none",
+            "box_shadow": MEDICAL_PROFESSIONAL_COLORS["medical_shadow_heavy"],
+            "background": MEDICAL_PROFESSIONAL_COLORS["medical_card_gradient"]
+        },
+        "outline": {
+            "border": MEDICAL_PROFESSIONAL_COLORS["medical_border_medium"],
+            "box_shadow": "none",
+            "background": "transparent"
+        },
+        "filled": {
+            "border": "none",
+            "background": MEDICAL_PROFESSIONAL_COLORS["medical_card_gradient"],
+            "box_shadow": "inset 0 1px 0 rgba(255,255,255,0.1)"
+        }
+    }
+
+    base_style.update(variants.get(variant, variants["default"]))
+    base_style.update(overrides)
+    return base_style
+
+def medical_button_style(intent: str = "primary", size: str = "md", **overrides) -> Dict[str, Any]:
+    """
+    🏥 Crear estilo de botón médico profesional
+
+    Args:
+        intent: 'primary', 'secondary', 'success', 'warning', 'danger'
+        size: 'sm', 'md', 'lg'
+        **overrides: Propiedades adicionales CSS
+
+    Returns:
+        Dict con estilo CSS para botón médico
+    """
+    sizes = {
+        "sm": {
+            "padding": f"{SPACING['1.5']} {SPACING['3']}",
+            "font_size": TYPOGRAPHY["font_size"]["sm"],
+            "min_height": "32px"
+        },
+        "md": {
+            "padding": f"{SPACING['2.5']} {SPACING['4']}",
+            "font_size": TYPOGRAPHY["font_size"]["base"],
+            "min_height": "40px"
+        },
+        "lg": {
+            "padding": f"{SPACING['3']} {SPACING['6']}",
+            "font_size": TYPOGRAPHY["font_size"]["lg"],
+            "min_height": "48px"
+        }
+    }
+
+    intents = {
+        "primary": {
+            "background": MEDICAL_PROFESSIONAL_COLORS["medical_primary"],
+            "color": "white",
+            "_hover": {
+                "background": "#0052A3",
+                "box_shadow": f"0 4px 20px {MEDICAL_PROFESSIONAL_COLORS['medical_primary']}40"
+            }
+        },
+        "secondary": {
+            "background": MEDICAL_PROFESSIONAL_COLORS["medical_secondary"],
+            "color": "white",
+            "_hover": {
+                "background": "#008C7A",
+                "box_shadow": f"0 4px 20px {MEDICAL_PROFESSIONAL_COLORS['medical_secondary']}40"
+            }
+        },
+        "success": {
+            "background": COLORS["success"]["500"],
+            "color": "white",
+            "_hover": {
+                "background": COLORS["success"]["600"],
+                "box_shadow": f"0 4px 20px {COLORS['success']['500']}40"
+            }
+        },
+        "warning": {
+            "background": COLORS["warning"]["500"],
+            "color": "white",
+            "_hover": {
+                "background": COLORS["warning"]["600"],
+                "box_shadow": f"0 4px 20px {COLORS['warning']['500']}40"
+            }
+        },
+        "danger": {
+            "background": COLORS["error"]["500"],
+            "color": "white",
+            "_hover": {
+                "background": COLORS["error"]["600"],
+                "box_shadow": f"0 4px 20px {COLORS['error']['500']}40"
+            }
+        }
+    }
+
+    base_style = {
+        "border": "none",
+        "border_radius": RADIUS["md"],
+        "font_weight": TYPOGRAPHY["font_weight"]["semibold"],
+        "cursor": "pointer",
+        "transition": "all 0.2s ease",
+        "display": "inline-flex",
+        "align_items": "center",
+        "justify_content": "center",
+        "text_align": "center",
+        "white_space": "nowrap",
+        "_focus": {
+            "outline": "2px solid",
+            "outline_color": f"{MEDICAL_PROFESSIONAL_COLORS['medical_primary']}50",
+            "outline_offset": "2px"
+        },
+        "_disabled": {
+            "opacity": "0.6",
+            "cursor": "not-allowed",
+            "pointer_events": "none"
+        }
+    }
+
+    base_style.update(sizes.get(size, sizes["md"]))
+    base_style.update(intents.get(intent, intents["primary"]))
+    base_style.update(overrides)
+    return base_style
+
+def tooth_visualization_style(condition: str = "healthy", selected: bool = False, **overrides) -> Dict[str, Any]:
+    """
+    🦷 Crear estilo de visualización de diente para odontograma
+
+    Args:
+        condition: 'healthy', 'caries', 'filled', 'crown', 'extraction', 'implant', 'endodontics', 'missing'
+        selected: True si el diente está seleccionado
+        **overrides: Propiedades adicionales CSS
+
+    Returns:
+        Dict con estilo CSS para visualización de diente
+    """
+    condition_colors = {
+        "healthy": MEDICAL_PROFESSIONAL_COLORS["tooth_healthy"],
+        "caries": MEDICAL_PROFESSIONAL_COLORS["tooth_caries"],
+        "filled": MEDICAL_PROFESSIONAL_COLORS["tooth_filled"],
+        "crown": MEDICAL_PROFESSIONAL_COLORS["tooth_crown"],
+        "extraction": MEDICAL_PROFESSIONAL_COLORS["tooth_extraction"],
+        "implant": MEDICAL_PROFESSIONAL_COLORS["tooth_implant"],
+        "endodontics": MEDICAL_PROFESSIONAL_COLORS["tooth_endodontics"],
+        "missing": MEDICAL_PROFESSIONAL_COLORS["tooth_missing"]
+    }
+
+    base_color = condition_colors.get(condition, condition_colors["healthy"])
+
+    base_style = {
+        "background": base_color,
+        "border": f"1px solid {base_color}80",
+        "border_radius": RADIUS["md"],
+        "width": "35px",
+        "height": "35px",
+        "display": "flex",
+        "align_items": "center",
+        "justify_content": "center",
+        "cursor": "pointer",
+        "transition": "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+        "font_weight": TYPOGRAPHY["font_weight"]["bold"],
+        "font_size": TYPOGRAPHY["font_size"]["xs"],
+        "_hover": {
+            "transform": "scale(1.05)",
+            "box_shadow": f"0 4px 20px {base_color}40",
+            "border": f"2px solid {MEDICAL_PROFESSIONAL_COLORS['medical_accent']}"
+        }
+    }
+
+    # Estilo cuando está seleccionado
+    if selected:
+        base_style.update({
+            "border": f"2px solid {MEDICAL_PROFESSIONAL_COLORS['medical_primary']}",
+            "box_shadow": f"0 0 0 2px {MEDICAL_PROFESSIONAL_COLORS['medical_primary']}40",
+            "transform": "scale(1.1)"
+        })
+
+    # Ajustes específicos por condición
+    if condition == "missing":
+        base_style.update({
+            "background": "transparent",
+            "border": f"2px dashed {COLORS['gray']['300']}",
+            "color": COLORS["gray"]["500"]
+        })
+    elif condition == "extraction":
+        base_style.update({
+            "background": f"linear-gradient(45deg, {base_color}, transparent 50%)",
+            "position": "relative"
+        })
+
+    base_style.update(overrides)
+    return base_style
+
+# Export de todos los estilos médicos
+MEDICAL_STYLES = {
+    "colors": MEDICAL_PROFESSIONAL_COLORS,
+    "typography": MEDICAL_TYPOGRAPHY,
+    "card": medical_card_style,
+    "button": medical_button_style,
+    "tooth": tooth_visualization_style
+}

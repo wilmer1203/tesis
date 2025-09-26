@@ -29,8 +29,10 @@ from .estado_consultas import EstadoConsultas
 from .estado_personal import EstadoPersonal
 from .estado_odontologia import EstadoOdontologia
 from .estado_servicios import EstadoServicios
+from .estado_pagos import EstadoPagos
 from .estado_intervencion_servicios import EstadoIntervencionServicios
 from .estado_odontograma_avanzado import EstadoOdontogramaAvanzado
+from .estado_odontograma_interactivo import EstadoOdontogramaInteractivo
 
 # ✅ MODELOS TIPADOS PARA COMPUTED VARS
 from dental_system.models import (
@@ -55,7 +57,7 @@ from dental_system.models import (
 
 logger = logging.getLogger(__name__)
 
-class AppState(EstadoIntervencionServicios,EstadoServicios,EstadoConsultas,EstadoOdontologia,EstadoPersonal,EstadoAuth, EstadoPacientes,EstadoUI, rx.State):
+class AppState(EstadoIntervencionServicios,EstadoServicios,EstadoPagos,EstadoConsultas,EstadoOdontologia,EstadoPersonal,EstadoAuth, EstadoPacientes,EstadoUI,EstadoOdontogramaInteractivo, rx.State):
     """Incluye AdvancedFDIState como mixin - se integra automáticamente"""
     """
     🎯 APPSTATE DEFINITIVO CON MIXINS
@@ -120,35 +122,66 @@ class AppState(EstadoIntervencionServicios,EstadoServicios,EstadoConsultas,Estad
             print(f"❌ Error cargando estadísticas: {str(e)}")
             return {}
     
-    @rx.event 
+    @rx.event
     async def post_login_inicializacion(self):
-        """🚀 INICIALIZACIÓN COMPLETA DESPUÉS DEL LOGIN
-        
-        Carga todos los datos esenciales una sola vez para que 
-        la navegación sea instantánea
+        """🚀 INICIALIZACIÓN COMPLETA DESPUÉS DEL LOGIN - POR ROL
+
+        Carga solo los datos necesarios según el rol del usuario
+        para evitar errores de permisos y mejorar rendimiento
         """
         try:
             print("🚀 Iniciando carga de datos post-login...")
-            
-            # Cargar datos en paralelo para máxima velocidad
-            await asyncio.gather(
-                # Datos esenciales para todas las páginas
-                self.cargar_lista_pacientes(),
-                self.cargar_lista_personal(),
-                self.cargar_estadisticas_personal(),
+
+            # Datos básicos que TODOS los roles necesitan
+            datos_basicos = [
                 self.cargar_estadisticas_dashboard(),
-                
-                # Agregar aquí otros módulos cuando estén listos:
-                self.cargar_lista_consultas(),
-                self.cargar_servicios_basico(),  # ✅ AHORA FUNCIONA
-                # self.cargar_lista_pagos(),
-                
-                return_exceptions=True  # No fallar si uno falla
-            )
-            
+            ]
+
+            # Datos específicos por rol
+            if self.rol_usuario == "gerente":
+                # Gerente: Acceso completo a todo
+                datos_especificos = [
+                    self.cargar_lista_pacientes(),
+                    self.cargar_lista_personal(),
+                    self.cargar_estadisticas_personal(),
+                    self.cargar_lista_consultas(),
+                    self.cargar_servicios_basico(),
+                    self.cargar_consultas_pendientes_pago(),
+                    self.cargar_estadisticas_duales(),
+                ]
+            elif self.rol_usuario == "administrador":
+                # Administrador: Gestión operativa, sin personal
+                datos_especificos = [
+                    self.cargar_lista_pacientes(),
+                    self.cargar_lista_consultas(),
+                    self.cargar_servicios_basico(),
+                    self.cargar_consultas_pendientes_pago(),
+                    self.cargar_estadisticas_duales(),
+                ]
+            elif self.rol_usuario == "odontologo":
+                # Odontólogo: Solo datos odontológicos, pacientes y servicios
+                datos_especificos = [
+                    self.cargar_pacientes_asignados(),
+                    self.cargar_consultas_disponibles_otros(),
+                    self.cargar_servicios_disponibles(),
+                    self.cargar_estadisticas_dia(),
+                ]
+            elif self.rol_usuario == "asistente":
+                # Asistente: Solo datos básicos
+                datos_especificos = [
+                    self.cargar_lista_consultas(),
+                ]
+            else:
+                # Rol desconocido: solo datos básicos
+                datos_especificos = []
+
+            # Cargar datos en paralelo para máxima velocidad
+            todas_las_tareas = datos_basicos + datos_especificos
+            await asyncio.gather(*todas_las_tareas, return_exceptions=True)
+
             print("✅ Inicialización post-login completada")
-            print("🎯 Datos disponibles: Pacientes, Personal, Dashboard")
-            
+            print(f"🎯 Datos cargados para rol: {self.rol_usuario}")
+
         except Exception as e:
             print(f"⚠️ Error en inicialización post-login: {e}")
             # No lanzar excepción para no bloquear el login
@@ -594,8 +627,8 @@ class AppState(EstadoIntervencionServicios,EstadoServicios,EstadoConsultas,Estad
     # 🔗 NAVEGACIÓN ENTRE MÓDULOS
     # ==========================================
     
-    @rx.event  
-    def navegar_a_odontologia_consulta(self, consulta_id: str):
+    @rx.event
+    async def navegar_a_odontologia_consulta(self, consulta_id: str):
         """🦷 Navegar al módulo de odontología con consulta específica"""
         try:
             print(f"🔍 DEBUG - navegar_a_odontologia_consulta llamado con ID: {consulta_id}")
@@ -633,7 +666,7 @@ class AppState(EstadoIntervencionServicios,EstadoServicios,EstadoConsultas,Estad
                 
                 # Establecer contexto para odontología
                 print(f"🔍 DEBUG - Llamando establecer_contexto_odontologia...")
-                self.establecer_contexto_odontologia(consulta_encontrada)
+                await self.establecer_contexto_odontologia(consulta_encontrada)
                 
                 # Cambiar página
                 self.current_page = "intervencion"
@@ -688,7 +721,7 @@ class AppState(EstadoIntervencionServicios,EstadoServicios,EstadoConsultas,Estad
         except Exception as e:
             self.mostrar_toast(f"Error navegando a pagos: {str(e)}", "error")
     
-    def establecer_contexto_odontologia(self, consulta: ConsultaModel):
+    async def establecer_contexto_odontologia(self, consulta: ConsultaModel):
         """🦷 Establecer contexto para módulo de odontología"""
         try:
             print(f"🔍 DEBUG - Estableciendo contexto para consulta ID: {consulta.id}")
@@ -761,7 +794,20 @@ class AppState(EstadoIntervencionServicios,EstadoServicios,EstadoConsultas,Estad
                                 self.paciente_actual = paciente
                                 print(f"⚠️ USANDO FALLBACK POR NOMBRE")
                                 break
-            
+
+            # ✅ CAMBIO CRÍTICO: Cambiar estado de consulta de "en_espera" a "en_atencion"
+            if consulta.estado in ["en_espera", "programada"]:
+                try:
+                    print(f"🔄 Cambiando estado de consulta: {consulta.estado} → en_atencion")
+                    # Usar el método existente para cambiar estado (sin segundo parámetro)
+                    await self.iniciar_atencion_consulta(consulta.id)
+                    print(f"✅ Estado cambiado exitosamente: {consulta.estado} → en_atencion")
+                except Exception as estado_error:
+                    print(f"❌ Error cambiando estado de consulta: {estado_error}")
+                    # Continuar aunque falle el cambio de estado - el contexto ya está establecido
+            else:
+                print(f"ℹ️ Consulta ya en estado: {consulta.estado}, no se cambia estado")
+
         except Exception as e:
             print(f"❌ Error estableciendo contexto odontología: {e}")
             import traceback
@@ -789,9 +835,106 @@ class AppState(EstadoIntervencionServicios,EstadoServicios,EstadoConsultas,Estad
             return None
     
     def get_estado_pagos(self):
-        """💳 Obtener estado de pagos si existe"""
+        """💳 Obtener estado de pagos (disponible como mixin)"""
+        return self  # EstadoPagos está disponible como mixin
+
+    # ==========================================
+    # 💰 HELPERS SISTEMA DUAL USD/BS
+    # ==========================================
+
+    @rx.event
+    async def crear_pago_coordinado(self, form_data: Dict[str, Any]):
+        """💰 COORDINADOR: Crear pago con sistema dual"""
         try:
-            return getattr(self, '_estado_pagos', None)
+            # Usar el método del substate EstadoPagos
+            resultado = await self.crear_pago_dual()
+
+            if resultado:
+                # Actualizar estadísticas globales
+                await self.actualizar_estadisticas_dashboard()
+                logger.info("✅ Pago dual creado y estadísticas actualizadas")
+                return True
+
+            return False
+
+        except Exception as e:
+            logger.error(f"❌ Error coordinando pago dual: {str(e)}")
+            return False
+
+    @rx.event
+    async def actualizar_tasa_coordinada(self, nueva_tasa: float):
+        """💱 COORDINADOR: Actualizar tasa de cambio"""
+        try:
+            # Usar el método del substate EstadoPagos
+            resultado = await self.actualizar_tasa_del_dia(nueva_tasa)
+
+            if resultado:
+                # Notificar cambio de tasa globalmente
+                await self.mostrar_toast(f"Tasa actualizada: {nueva_tasa} BS/USD", "success")
+                logger.info(f"✅ Tasa coordinada actualizada: {nueva_tasa}")
+                return True
+
+            return False
+
+        except Exception as e:
+            logger.error(f"❌ Error coordinando tasa: {str(e)}")
+            return False
+
+    # ==========================================
+    # 💰 COMPUTED VARS COORDINADAS PARA PAGOS
+    # ==========================================
+
+    @rx.var(cache=True)
+    def estadisticas_pagos_dashboard(self) -> Dict[str, Any]:
+        """📊 Estadísticas de pagos para dashboard principal"""
+        try:
+            # Obtener estadísticas duales
+            dual_stats = self.total_recaudado_dual_hoy
+            pendientes_stats = self.pendientes_dual_totales
+
+            return {
+                "recaudacion_usd_hoy": dual_stats.get("usd", 0.0),
+                "recaudacion_bs_hoy": dual_stats.get("bs", 0.0),
+                "tasa_promedio_dia": dual_stats.get("tasa_promedio", self.tasa_del_dia),
+                "pendiente_usd": pendientes_stats.get("usd", 0.0),
+                "pendiente_bs": pendientes_stats.get("bs", 0.0),
+                "total_facturas_pendientes": pendientes_stats.get("total_facturas", 0),
+                "tasa_actual": self.tasa_del_dia,
+                "vista_dual_activa": self.vista_dual_activa,
+                "moneda_preferida": self.preferencia_moneda_del_dia
+            }
+        except Exception as e:
+            logger.error(f"❌ Error obteniendo estadísticas pagos dashboard: {str(e)}")
+            return {
+                "recaudacion_usd_hoy": 0.0,
+                "recaudacion_bs_hoy": 0.0,
+                "tasa_promedio_dia": 36.50,
+                "pendiente_usd": 0.0,
+                "pendiente_bs": 0.0,
+                "total_facturas_pendientes": 0,
+                "tasa_actual": 36.50,
+                "vista_dual_activa": True,
+                "moneda_preferida": "USD"
+            }
+
+    @rx.var(cache=True)
+    def resumen_pagos_del_dia(self) -> str:
+        """💰 Resumen textual de pagos del día"""
+        try:
+            stats = self.estadisticas_pagos_dashboard
+            usd = stats["recaudacion_usd_hoy"]
+            bs = stats["recaudacion_bs_hoy"]
+            pendientes = stats["total_facturas_pendientes"]
+
+            if usd > 0 and bs > 0:
+                return f"Recaudado: ${usd:.2f} USD + {bs:,.2f} BS | Pendientes: {pendientes}"
+            elif usd > 0:
+                return f"Recaudado: ${usd:.2f} USD | Pendientes: {pendientes}"
+            elif bs > 0:
+                return f"Recaudado: {bs:,.2f} BS | Pendientes: {pendientes}"
+            else:
+                return f"Sin recaudación hoy | Pendientes: {pendientes}"
+
         except Exception:
-            return None
+            return "Error calculando resumen de pagos"
     

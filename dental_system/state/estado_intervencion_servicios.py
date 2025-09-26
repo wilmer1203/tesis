@@ -39,10 +39,10 @@ class ServicioIntervencionTemporal(rx.Base):
             categoria_servicio=servicio.categoria or "General",
             dientes_texto=dientes,
             cantidad=cantidad,
-            precio_unitario_bs=servicio.precio_bs or 0.0,
-            precio_unitario_usd=servicio.precio_usd or 0.0,
-            total_bs=(servicio.precio_bs or 0.0) * cantidad,
-            total_usd=(servicio.precio_usd or 0.0) * cantidad,
+            precio_unitario_bs=servicio.precio_base_bs or 0.0,
+            precio_unitario_usd=servicio.precio_base_usd or 0.0,
+            total_bs=(servicio.precio_base_bs or 0.0) * cantidad,
+            total_usd=(servicio.precio_base_usd or 0.0) * cantidad,
             # 🆕 Nuevos campos clínicos
             material_utilizado=material,
             superficie_dental=superficie,
@@ -141,40 +141,40 @@ class EstadoIntervencionServicios(rx.State, mixin=True):
                 id="serv_001",
                 nombre="Consulta General",
                 categoria="Preventiva",
-                precio_bs=1460.0,
-                precio_usd=40.0,
+                precio_base_bs=1460.0,
+                precio_base_usd=40.0,
                 activo=True
             ),
             ServicioModel(
-                id="serv_002", 
+                id="serv_002",
                 nombre="Limpieza Dental",
                 categoria="Preventiva",
-                precio_bs=2920.0,
-                precio_usd=80.0,
+                precio_base_bs=2920.0,
+                precio_base_usd=80.0,
                 activo=True
             ),
             ServicioModel(
                 id="serv_003",
                 nombre="Endodoncia",
-                categoria="Restaurativa", 
-                precio_bs=11680.0,
-                precio_usd=320.0,
+                categoria="Restaurativa",
+                precio_base_bs=11680.0,
+                precio_base_usd=320.0,
                 activo=True
             ),
             ServicioModel(
                 id="serv_004",
                 nombre="Obturación Simple",
                 categoria="Restaurativa",
-                precio_bs=1825.0,
-                precio_usd=50.0,
+                precio_base_bs=1825.0,
+                precio_base_usd=50.0,
                 activo=True
             ),
             ServicioModel(
                 id="serv_005",
                 nombre="Extracción Simple",
                 categoria="Cirugía",
-                precio_bs=2190.0,
-                precio_usd=60.0,
+                precio_base_bs=2190.0,
+                precio_base_usd=60.0,
                 activo=True
             )
         ]
@@ -225,33 +225,19 @@ class EstadoIntervencionServicios(rx.State, mixin=True):
     
     @rx.event
     async def cargar_servicios_para_intervencion(self):
-        """📋 Cargar servicios para el selector de intervención"""
+        """📋 Reutilizar servicios ya cargados en el sistema"""
         try:
-            logger.info("Cargando servicios para intervención...")
-            
-            # Prioridad 1: Cargar desde EstadoOdontologia si existe el método
-            if hasattr(self, 'cargar_servicios_disponibles'):
-                await self.cargar_servicios_disponibles()
-                if self.servicios_disponibles:
-                    logger.info(f"✅ Servicios cargados desde EstadoOdontologia: {len(self.servicios_disponibles)}")
-                    return
-            
-            # Prioridad 2: Cargar desde EstadoServicios si existe el método
-            if hasattr(self, 'cargar_lista_servicios'):
-                await self.cargar_lista_servicios()
-                if self.lista_servicios:
-                    servicios_activos = [s for s in self.lista_servicios if s.activo]
-                    logger.info(f"✅ Servicios cargados desde EstadoServicios: {len(servicios_activos)} activos")
-                    return
-            
-            # Prioridad 3: Cargar directamente desde el servicio
-            from dental_system.services.servicios_service import servicios_service
-            
-            # Establecer contexto de usuario si está disponible
-            if hasattr(self, 'id_usuario') and hasattr(self, 'perfil_usuario'):
-                servicios_service.set_user_context(self.id_usuario, self.perfil_usuario)
-            
-            # Cargar servicios activos
+            # Simplificar: usar servicios ya disponibles en memoria
+            if hasattr(self, 'servicios_disponibles') and self.servicios_disponibles:
+                logger.info(f"✅ Reutilizando servicios de odontología: {len(self.servicios_disponibles)}")
+                return
+
+            if hasattr(self, 'lista_servicios') and self.lista_servicios:
+                servicios_activos = [s for s in self.lista_servicios if s.activo]
+                logger.info(f"✅ Reutilizando servicios del catálogo: {len(servicios_activos)} activos")
+                return
+
+            # Solo cargar si no hay servicios en memoria
             servicios_data = await servicios_service.get_filtered_services(activos_only=True)
             
             # Asignar a servicios_disponibles si existe el atributo
@@ -292,7 +278,7 @@ class EstadoIntervencionServicios(rx.State, mixin=True):
             
             if servicio_encontrado:
                 self.servicio_temporal = servicio_encontrado
-                print(f"✅ Servicio seleccionado: {servicio_encontrado.nombre} - ${servicio_encontrado.precio_usd} / {servicio_encontrado.precio_bs:,.0f} Bs")
+                print(f"✅ Servicio seleccionado: {servicio_encontrado.nombre} - ${servicio_encontrado.precio_base_usd} / {servicio_encontrado.precio_base_bs:,.0f} Bs")
             else:
                 print(f"❌ Servicio no encontrado: {servicio_id}")
                 print(f"📋 Servicios disponibles: {len(servicios_disponibles)}")
@@ -471,9 +457,303 @@ class EstadoIntervencionServicios(rx.State, mixin=True):
         self.mensaje_error_intervencion = ""
     
     # ==========================================
+    # 🦷 MAPEO AUTOMÁTICO SERVICIO → CONDICIÓN ODONTOGRAMA
+    # ==========================================
+
+    # Diccionario que mapea servicios a condiciones de dientes automáticamente
+    MAPEO_SERVICIOS_CONDICIONES = {
+        # Restaurativos
+        "obturacion": "obturacion",
+        "resina": "obturacion",
+        "restauracion": "obturacion",
+        "amalgama": "obturacion",
+
+        # Quirúrgicos
+        "extraccion": "ausente",
+        "cirugia": "ausente",
+        "exodoncia": "ausente",
+
+        # Endodoncia
+        "endodoncia": "endodoncia",
+        "conducto": "endodoncia",
+        "tratamiento": "endodoncia",
+
+        # Protésicos
+        "corona": "corona",
+        "puente": "puente",
+        "protesis": "protesis",
+        "implante": "implante",
+
+        # Preventivos (no cambian condición - mantienen estado)
+        "limpieza": None,
+        "profilaxis": None,
+        "consulta": None,
+        "blanqueamiento": None,
+        "radiografia": None
+    }
+
+    def obtener_tipo_condicion_por_servicio(self, nombre_servicio: str) -> str:
+        """🦷 Determina automáticamente la condición del diente según el servicio aplicado"""
+        if not nombre_servicio:
+            return None
+
+        nombre_lower = nombre_servicio.lower()
+
+        # Buscar coincidencia en el mapeo
+        for palabra_clave, condicion in self.MAPEO_SERVICIOS_CONDICIONES.items():
+            if palabra_clave in nombre_lower:
+                return condicion
+
+        # Si no coincide con ninguna palabra clave, no modificar el odontograma
+        return None
+
+    # ==========================================
     # 💾 MÉTODOS PARA FINALIZAR INTERVENCIÓN
     # ==========================================
     
+    @rx.event
+    async def finalizar_mi_intervencion_odontologo(self):
+        """
+        🦷 NUEVO MÉTODO: Finalizar SOLO la intervención del odontólogo actual
+
+        FLUJO CORRECTO:
+        1. Guarda intervención con servicios en BD
+        2. Actualiza odontograma automáticamente según servicios aplicados
+        3. Crea nueva versión de odontograma (versionado)
+        4. Cambia consulta a estado "entre_odontologos"
+        5. Navega de vuelta a lista de pacientes
+
+        NO completar la consulta (eso es del administrador)
+        """
+        try:
+            self.guardando_intervencion = True
+
+            # Validaciones previas
+            if not self.servicios_en_intervencion:
+                self.mensaje_error_intervencion = "❌ No hay servicios para guardar"
+                logger.warning("No hay servicios para guardar")
+                return
+
+            if not hasattr(self, 'consulta_actual') or not self.consulta_actual.id:
+                self.mensaje_error_intervencion = "❌ No hay consulta actual seleccionada"
+                logger.warning("No hay consulta actual seleccionada")
+                return
+
+            logger.info(f"🦷 Iniciando finalización de MI intervención: {len(self.servicios_en_intervencion)} servicios")
+
+            # Importar servicios necesarios
+            from dental_system.services.odontologia_service import odontologia_service
+
+            # Configurar contexto del usuario con información completa
+            contexto_usuario = {
+                **self.perfil_usuario,
+                "rol": {"nombre": self.rol_usuario},  # Agregar rol explícitamente
+                "usuario_id": self.id_usuario,
+                "personal_id": getattr(self, 'id_personal', None)
+            }
+            odontologia_service.set_user_context(self.id_usuario, contexto_usuario)
+
+            # 1. GUARDAR INTERVENCIÓN CON SERVICIOS
+            servicios_backend = []
+            for servicio in self.servicios_en_intervencion:
+                servicio_data = {
+                    "servicio_id": servicio.id_servicio,
+                    "cantidad": servicio.cantidad,
+                    "precio_unitario_bs": float(servicio.precio_unitario_bs),
+                    "precio_unitario_usd": float(servicio.precio_unitario_usd),
+                    "dientes_texto": servicio.dientes_texto,
+                    "material_utilizado": servicio.material_utilizado,
+                    "superficie_dental": servicio.superficie_dental,
+                    "observaciones": servicio.observaciones or servicio.nombre_servicio
+                }
+                servicios_backend.append(servicio_data)
+
+            datos_intervencion = {
+                "consulta_id": self.consulta_actual.id,
+                "odontologo_id": self.id_usuario,
+                "servicios": servicios_backend,
+                "observaciones_generales": f"Intervención del Dr. {self.perfil_usuario.get('nombre_completo', 'Usuario')} con {len(self.servicios_en_intervencion)} servicios",
+                "requiere_control": False
+            }
+
+            # Crear intervención en BD
+            resultado = await odontologia_service.crear_intervencion_con_servicios(datos_intervencion)
+
+            if not resultado.get("success"):
+                self.mensaje_error_intervencion = f"❌ Error guardando intervención: {resultado.get('message', 'Error desconocido')}"
+                logger.error(f"Error en resultado del servicio: {resultado}")
+                return
+
+            intervencion_id = resultado.get("intervencion_id")
+            logger.info(f"✅ Intervención guardada: {intervencion_id}")
+
+            # 2. ACTUALIZAR ODONTOGRAMA AUTOMÁTICAMENTE
+            await self._actualizar_odontograma_por_servicios(intervencion_id, self.servicios_en_intervencion)
+
+            # 3. CAMBIAR ESTADO CONSULTA A "ENTRE_ODONTOLOGOS"
+            await self._cambiar_estado_consulta_entre_odontologos()
+
+            # 4. CREAR PAGO PENDIENTE
+            try:
+                await self._crear_pago_pendiente_consulta(
+                    consulta_id=self.consulta_actual.id,
+                    total_usd=resultado.get("total_usd", 0.0),
+                    total_bs=resultado.get("total_bs", 0.0),
+                    servicios_count=len(self.servicios_en_intervencion)
+                )
+                logger.info("💳 Pago pendiente creado automáticamente")
+            except Exception as e:
+                logger.warning(f"⚠️ Error creando pago pendiente: {str(e)}")
+
+            # 5. LIMPIAR Y NAVEGAR
+            self._limpiar_datos_intervencion()
+
+            self.mensaje_error_intervencion = f"✅ Mi intervención finalizada exitosamente - Odontograma actualizado - Redirigiendo..."
+
+            # Navegar después de 2 segundos
+            await self.set_timeout(self.navegar_despues_guardado, 2000)
+
+        except Exception as e:
+            error_msg = f"Error finalizando mi intervención: {str(e)}"
+            self.mensaje_error_intervencion = f"❌ {error_msg}"
+            logger.error(error_msg)
+        finally:
+            self.guardando_intervencion = False
+
+    async def _actualizar_odontograma_por_servicios(self, intervencion_id: str, servicios: List):
+        """
+        🦷 Actualizar odontograma automáticamente según servicios aplicados
+        """
+        try:
+            from dental_system.supabase.tablas.condiciones_diente import condiciones_diente_table
+            from dental_system.supabase.tablas.dientes import dientes_table
+            from dental_system.supabase.tablas.odontograma import odontograms_table
+
+            # Obtener odontograma actual del paciente
+            if not self.paciente_actual or not self.paciente_actual.id:
+                logger.warning("No hay paciente actual válido para actualizar odontograma")
+                return
+
+            odontograma_actual = await odontograms_table.get_active_odontogram(self.paciente_actual.id)
+
+            if not odontograma_actual:
+                logger.warning(f"No se encontró odontograma para paciente {self.paciente_actual.id}")
+                return
+
+            cambios_realizados = 0
+
+            # Para cada servicio aplicado
+            for servicio in servicios:
+                # Determinar nueva condición automáticamente
+                nueva_condicion = self.obtener_tipo_condicion_por_servicio(servicio.nombre_servicio)
+
+                if not nueva_condicion:
+                    logger.info(f"Servicio '{servicio.nombre_servicio}' no modifica odontograma (preventivo)")
+                    continue
+
+                # Procesar dientes afectados
+                dientes_afectados = self._extraer_numeros_dientes(servicio.dientes_texto)
+
+                if not dientes_afectados:
+                    logger.warning(f"No se encontraron dientes válidos en '{servicio.dientes_texto}'")
+                    continue
+
+                # Actualizar cada diente afectado
+                for numero_diente in dientes_afectados:
+                    try:
+                        # Buscar diente en catálogo FDI
+                        diente_fdi = await dientes_table.get_by_numero(numero_diente)
+                        if not diente_fdi:
+                            logger.warning(f"Diente {numero_diente} no encontrado en catálogo FDI")
+                            continue
+
+                        # Crear nueva condición del diente usando método correcto
+                        nueva_condicion_resultado = await condiciones_diente_table.create_condicion(
+                            odontograma_id=odontograma_actual["id"],
+                            diente_id=diente_fdi["id"],
+                            tipo_condicion=nueva_condicion,
+                            registrado_por=self.id_usuario,
+                            caras_afectadas=[servicio.superficie_dental] if servicio.superficie_dental else ["oclusal"],
+                            descripcion=f"Aplicado: {servicio.nombre_servicio}",
+                            material_utilizado=servicio.material_utilizado
+                        )
+                        cambios_realizados += 1
+
+                        logger.info(f"✅ Diente {numero_diente}: {nueva_condicion} - Material: {servicio.material_utilizado}")
+
+                    except Exception as e:
+                        logger.error(f"Error actualizando diente {numero_diente}: {str(e)}")
+
+            # 3. CREAR NUEVA VERSIÓN DE ODONTOGRAMA (si hubo cambios)
+            if cambios_realizados > 0:
+                await self._crear_nueva_version_odontograma(
+                    odontograma_actual["id"],
+                    f"Intervención con {cambios_realizados} dientes modificados",
+                    intervencion_id
+                )
+                logger.info(f"🆕 Nueva versión de odontograma creada - {cambios_realizados} cambios")
+            else:
+                logger.info("ℹ️ No se modificó el odontograma (servicios preventivos)")
+
+        except Exception as e:
+            logger.error(f"Error actualizando odontograma: {str(e)}")
+
+    def _extraer_numeros_dientes(self, texto_dientes: str) -> List[int]:
+        """🦷 Extraer números de dientes válidos del texto"""
+        import re
+
+        if not texto_dientes:
+            return []
+
+        # Si dice "todos" o "toda la boca", devolver todos los dientes FDI
+        if "todos" in texto_dientes.lower() or "toda" in texto_dientes.lower():
+            return list(range(11, 19)) + list(range(21, 29)) + list(range(31, 39)) + list(range(41, 49))
+
+        # Extraer números usando regex
+        numeros = re.findall(r'\b([1-4][1-8])\b', texto_dientes)
+
+        # Convertir a enteros y validar rango FDI
+        dientes_validos = []
+        for num_str in numeros:
+            num = int(num_str)
+            if 11 <= num <= 18 or 21 <= num <= 28 or 31 <= num <= 38 or 41 <= num <= 48:
+                dientes_validos.append(num)
+
+        return dientes_validos
+
+    async def _crear_nueva_version_odontograma(self, odontograma_actual_id: str, motivo: str, intervencion_id: str):
+        """🆕 Crear nueva versión del odontograma automáticamente"""
+        try:
+            from dental_system.supabase.tablas.odontograma import odontograms_table
+
+            # Usar el método correcto para crear una nueva versión
+            nueva_version = await odontograms_table.create_odontogram(
+                paciente_id=self.paciente_actual.id,
+                odontologo_id=self.id_usuario,
+                tipo_odontograma="adulto",
+                notas_generales=motivo,
+                observaciones_clinicas=f"Intervención ID: {intervencion_id}"
+            )
+            logger.info(f"✅ Nueva versión de odontograma creada para paciente {self.paciente_actual.id}")
+
+        except Exception as e:
+            logger.error(f"Error creando nueva versión de odontograma: {str(e)}")
+
+    async def _cambiar_estado_consulta_entre_odontologos(self):
+        """🔄 Cambiar consulta a estado 'entre_odontologos'"""
+        try:
+            from dental_system.supabase.tablas.consultas import consultas_table
+
+            await consultas_table.update_status(
+                self.consulta_actual.id,
+                "entre_odontologos"
+            )
+
+            logger.info(f"🔄 Consulta {self.consulta_actual.numero_consulta} marcada como 'entre_odontologos'")
+
+        except Exception as e:
+            logger.error(f"Error cambiando estado de consulta: {str(e)}")
+
     @rx.event
     async def finalizar_consulta_completa(self):
         """💾 Finalizar consulta creando intervención + servicios"""
@@ -528,13 +808,26 @@ class EstadoIntervencionServicios(rx.State, mixin=True):
             
             if resultado.get("success"):
                 logger.info(f"🎉 Intervención guardada exitosamente: {resultado.get('message')}")
-                
+
+                # 💳 CREAR PAGO PENDIENTE AUTOMÁTICO
+                try:
+                    await self._crear_pago_pendiente_consulta(
+                        consulta_id=self.consulta_actual.id,
+                        total_usd=resultado.get("total_usd", 0.0),
+                        total_bs=resultado.get("total_bs", 0.0),
+                        servicios_count=len(self.servicios_en_intervencion)
+                    )
+                    logger.info("💳 Pago pendiente creado automáticamente")
+                except Exception as e:
+                    logger.warning(f"⚠️ Error creando pago pendiente: {str(e)}")
+                    # No falla el proceso principal, solo log del error
+
                 # Limpiar datos temporales
                 self._limpiar_datos_intervencion()
-                
+
                 # Mostrar mensaje de éxito temporal
-                self.mensaje_error_intervencion = f"✅ {resultado.get('message')} - Redirigiendo..."
-                
+                self.mensaje_error_intervencion = f"✅ {resultado.get('message')} - Pago pendiente creado - Redirigiendo..."
+
                 # Navegar de regreso después de un breve delay
                 await self.set_timeout(self.navegar_despues_guardado, 2000)  # 2 segundos
                 
@@ -591,6 +884,51 @@ class EstadoIntervencionServicios(rx.State, mixin=True):
         self.cantidad_temporal = 1
         self.guardando_intervencion = False
 
+    async def _crear_pago_pendiente_consulta(self, consulta_id: str, total_usd: float, total_bs: float, servicios_count: int):
+        """💳 Crear pago pendiente automático al completar consulta"""
+        try:
+            # Importar el servicio de pagos
+            from dental_system.services.pagos_service import pagos_service
+
+            # Obtener número de consulta para el concepto
+            consulta_numero = getattr(self.consulta_actual, 'numero_consulta', 'CONS-001')
+
+            # Obtener tasa de cambio actual (desde EstadoPagos mixin)
+            tasa_actual = getattr(self, 'tasa_del_dia', 36.50)
+
+            # Preparar datos del pago pendiente
+            pago_data = {
+                "consulta_id": consulta_id,
+                "paciente_id": getattr(self.paciente_actual, 'id', ''),
+                "monto_total_usd": float(total_usd),
+                "monto_total_bs": float(total_bs),
+                "monto_pagado_usd": 0.0,
+                "monto_pagado_bs": 0.0,
+                "saldo_pendiente_usd": float(total_usd),
+                "saldo_pendiente_bs": float(total_bs),
+                "tasa_cambio_bs_usd": float(tasa_actual),
+                "concepto": f"Consulta {consulta_numero} - {servicios_count} servicios realizados",
+                "estado_pago": "pendiente",
+                "procesado_por": self.id_usuario,
+                "metodos_pago": []  # Se completará cuando se procese el pago
+            }
+
+            logger.info(f"💳 Creando pago pendiente: ${total_usd:.2f} USD ({total_bs:.2f} BS)")
+
+            # Crear el pago pendiente usando el servicio dual
+            resultado = await pagos_service.create_dual_payment(pago_data, self.id_usuario)
+
+            if resultado:
+                logger.info(f"✅ Pago pendiente creado: {resultado.get('numero_recibo', 'N/A')}")
+                return True
+            else:
+                logger.error("❌ Error: Servicio de pagos no devolvió resultado")
+                return False
+
+        except Exception as e:
+            logger.error(f"❌ Error creando pago pendiente: {str(e)}")
+            return False
+
     # ==========================================
     # 🧮 COMPUTED VARS - CANTIDAD AUTOMÁTICA
     # ==========================================
@@ -622,8 +960,8 @@ class EstadoIntervencionServicios(rx.State, mixin=True):
     def precio_total_calculado_bs(self) -> float:
         """💰 Precio total en BS basado en cantidad automática"""
         try:
-            if hasattr(self.servicio_temporal, 'precio_bs') and self.servicio_temporal.precio_bs:
-                return float(self.servicio_temporal.precio_bs) * self.cantidad_automatica
+            if hasattr(self.servicio_temporal, 'precio_base_bs') and self.servicio_temporal.precio_base_bs:
+                return float(self.servicio_temporal.precio_base_bs) * self.cantidad_automatica
             return 0.0
         except Exception:
             return 0.0

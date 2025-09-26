@@ -80,7 +80,7 @@ class CondicionesDienteTable(BaseTable):
         logger.info(f"Obteniendo condiciones del odontograma {odontograma_id}")
         query = self.table.select("""
             *,
-            dientes(numero_diente, nombre, tipo_diente, ubicacion)
+            dientes(numero_diente, nombre_diente, tipo_diente, ubicacion)
         """).eq("odontograma_id", odontograma_id).eq("estado", "actual").order("fecha_registro", desc=True)
         
         response = query.execute()
@@ -100,7 +100,7 @@ class CondicionesDienteTable(BaseTable):
         """
         query = self.table.select("*").eq("diente_id", diente_id).eq("estado", "actual")
         
-        if odontograma_id:
+        if odontograma_id and odontograma_id.strip():
             query = query.eq("odontograma_id", odontograma_id)
         
         query = query.order("fecha_registro", desc=True)
@@ -186,7 +186,7 @@ class CondicionesDienteTable(BaseTable):
         """
         query = self.table.select("*").eq("tipo_condicion", tipo_condicion).eq("estado", "actual")
         
-        if odontograma_id:
+        if odontograma_id and odontograma_id.strip():
             query = query.eq("odontograma_id", odontograma_id)
         
         response = query.execute()

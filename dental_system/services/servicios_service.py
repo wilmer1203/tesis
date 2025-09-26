@@ -95,75 +95,46 @@ class ServiciosService(BaseService):
             # Verificar permisos
             self.require_permission("servicios", "crear")
             
-            # Validar campos requeridos
-            required_fields = ["codigo", "nombre", "categoria", "precio_base"]
-            missing_fields = self.validate_required_fields(form_data, required_fields)
-            
-            if missing_fields:
-                error_msg = self.format_error_message("Datos incompletos", missing_fields)
-                raise ValueError(error_msg)
-            
+            # Validar datos usando el modelo
+            errores_validacion = servicio_form.validate_form()
+            if errores_validacion:
+                raise ValueError(f"Errores de validación: {errores_validacion}")
+
+            # Convertir modelo a diccionario para la tabla
+            form_data = servicio_form.to_dict()
+
             # Verificar que no exista el código
             existing = self.table.get_by_codigo(form_data["codigo"])
             if existing:
                 raise ValueError("Ya existe un servicio con este código")
-            
-            # Procesar precio
-            try:
-                precio_base = Decimal(str(form_data["precio_base"]))
-            except (ValueError, TypeError):
-                raise ValueError("Precio base debe ser un número válido")
-            
-            # Procesar precios opcionales
-            precio_minimo = None
-            precio_maximo = None
-            
-            if form_data.get("precio_minimo"):
-                try:
-                    precio_minimo = Decimal(str(form_data["precio_minimo"]))
-                except (ValueError, TypeError):
-                    raise ValueError("Precio mínimo debe ser un número válido")
-            
-            if form_data.get("precio_maximo"):
-                try:
-                    precio_maximo = Decimal(str(form_data["precio_maximo"]))
-                except (ValueError, TypeError):
-                    raise ValueError("Precio máximo debe ser un número válido")
-            
-            # Procesar arrays (material incluido)
-            material_incluido = None
-            if form_data.get("material_incluido"):
-                material_incluido = self.process_array_field(form_data["material_incluido"])
-            
+
             # Crear servicio usando el método de la tabla
             result = self.table.create_service(
-                codigo=form_data["codigo"].strip().upper(),
-                nombre=form_data["nombre"].strip(),
+                codigo=form_data["codigo"],
+                nombre=form_data["nombre"],
                 categoria=form_data["categoria"],
-                precio_base=precio_base,
-                descripcion=form_data.get("descripcion", "").strip() or None,
-                subcategoria=form_data.get("subcategoria", "").strip() or None,
+                precio_base_bs=form_data["precio_base_bs"],
+                precio_base_usd=form_data["precio_base_usd"],
+                descripcion=form_data.get("descripcion"),
+                subcategoria=form_data.get("subcategoria"),
                 duracion_estimada=form_data.get("duracion_estimada", "30 minutes"),
-                precio_minimo=precio_minimo,
-                precio_maximo=precio_maximo,
-                requiere_cita_previa=form_data.get("requiere_cita_previa", "true").lower() == "true",
-                requiere_autorizacion=form_data.get("requiere_autorizacion", "false").lower() == "true",
-                material_incluido=material_incluido,
-                instrucciones_pre=form_data.get("instrucciones_pre", "").strip() or None,
-                instrucciones_post=form_data.get("instrucciones_post", "").strip() or None,
+                material_incluido=form_data.get("material_incluido"),
+                instrucciones_pre=form_data.get("instrucciones_pre"),
+                instrucciones_post=form_data.get("instrucciones_post"),
                 creado_por=user_id
             )
             
             if result:
                 logger.info(f"✅ Servicio creado: {form_data['nombre']}")
-                
+
                 # 🗑️ INVALIDAR CACHE - servicio creado afecta servicios activos
                 try:
                     invalidate_after_service_operation()
                 except Exception as cache_error:
                     logger.warning(f"Error invalidando cache tras crear servicio: {cache_error}")
-                
-                return result
+
+                # Convertir resultado a modelo tipado
+                return ServicioModel.from_dict(result)
             else:
                 raise ValueError("Error creando servicio en la base de datos")
                 
@@ -180,105 +151,68 @@ class ServiciosService(BaseService):
     async def update_service(self, service_id: str, servicio_form: ServicioFormModel) -> Optional[ServicioModel]:
         """
         Actualiza un servicio existente
-        
+
         Args:
-            service_id: ID del servicio
-            form_data: Datos del formulario
-            
+            service_id: ID del servicio a actualizar
+            servicio_form: Formulario con datos actualizados
+
         Returns:
-            Servicio actualizado o None si hay error
+            ServicioModel actualizado o None si hay error
+
+        Raises:
+            ValueError: Si hay errores de validación
+            PermissionError: Si no tiene permisos
         """
         try:
-            logger.info(f"Actualizando servicio: {service_id}")
-            
             # Verificar permisos
-            self.require_permission("servicios", "actualizar")
+            if not self.check_permission("servicios", "actualizar"):
+                raise PermissionError("No tiene permisos para actualizar servicios")
+
+            # Validar que exista el servicio
+            servicio_actual = self.table.get_by_id(service_id)
+            if not servicio_actual:
+                raise ValueError("Servicio no encontrado")
+
+            # Validar formulario
+            errores = servicio_form.validate_form()
+            if errores:
+                raise ValueError(f"Errores de validación: {errores}")
+
+            # Si se cambió el código, verificar que no exista
+            if servicio_form.codigo != servicio_actual["codigo"]:
+                existing = self.table.get_by_codigo(servicio_form.codigo)
+                if existing:
+                    raise ValueError("Ya existe un servicio con este código")
+
+            # Convertir formulario a diccionario
+            data = servicio_form.to_dict()
             
-            # Validar campos requeridos
-            required_fields = ["codigo", "nombre", "categoria", "precio_base"]
-            missing_fields = self.validate_required_fields(form_data, required_fields)
-            
-            if missing_fields:
-                error_msg = self.format_error_message("Datos incompletos", missing_fields)
-                raise ValueError(error_msg)
-            
-            # Verificar código único (excluyendo el actual)
-            existing = self.table.get_by_codigo(form_data["codigo"])
-            if existing and existing.get("id") != service_id:
-                raise ValueError("Ya existe otro servicio con este código")
-            
-            # Procesar precios
-            try:
-                precio_base = Decimal(str(form_data["precio_base"]))
-            except (ValueError, TypeError):
-                raise ValueError("Precio base debe ser un número válido")
-            
-            precio_minimo = None
-            precio_maximo = None
-            
-            if form_data.get("precio_minimo"):
-                try:
-                    precio_minimo = Decimal(str(form_data["precio_minimo"]))
-                except (ValueError, TypeError):
-                    raise ValueError("Precio mínimo debe ser un número válido")
-            
-            if form_data.get("precio_maximo"):
-                try:
-                    precio_maximo = Decimal(str(form_data["precio_maximo"]))
-                except (ValueError, TypeError):
-                    raise ValueError("Precio máximo debe ser un número válido")
-            
-            # Procesar arrays
-            material_incluido = None
-            if form_data.get("material_incluido"):
-                material_incluido = self.process_array_field(form_data["material_incluido"])
-            
-            # Preparar datos para actualización
-            data = {
-                "codigo": form_data["codigo"].strip().upper(),
-                "nombre": form_data["nombre"].strip(),
-                "categoria": form_data["categoria"],
-                "precio_base": float(precio_base),
-                "descripcion": form_data.get("descripcion", "").strip() or None,
-                "subcategoria": form_data.get("subcategoria", "").strip() or None,
-                "duracion_estimada": form_data.get("duracion_estimada", "30 minutes"),
-                "requiere_cita_previa": form_data.get("requiere_cita_previa", "true").lower() == "true",
-                "requiere_autorizacion": form_data.get("requiere_autorizacion", "false").lower() == "true",
-                "material_incluido": material_incluido,
-                "instrucciones_pre": form_data.get("instrucciones_pre", "").strip() or None,
-                "instrucciones_post": form_data.get("instrucciones_post", "").strip() or None
-            }
-            
-            if precio_minimo is not None:
-                data["precio_minimo"] = float(precio_minimo)
-            if precio_maximo is not None:
-                data["precio_maximo"] = float(precio_maximo)
+            # Mantener campos que no se actualizan
+            data["activo"] = servicio_actual["activo"]
+            data["fecha_creacion"] = servicio_actual["fecha_creacion"]
+            data["creado_por"] = servicio_actual["creado_por"]
             
             # Actualizar
-            result = self.table.update(service_id, data)
-            
+            result = self.table.update(
+                service_id,
+                data
+            )
+
             if result:
-                logger.info(f"✅ Servicio actualizado: {form_data['nombre']}")
-                
-                # 🗑️ INVALIDAR CACHE - servicio actualizado puede afectar estadísticas
+                # Invalidar caché
                 try:
                     invalidate_after_service_operation()
                 except Exception as cache_error:
                     logger.warning(f"Error invalidando cache tras actualizar servicio: {cache_error}")
-                
-                return result
-            else:
-                raise ValueError("Error actualizando servicio en la base de datos")
-                
-        except PermissionError:
-            logger.warning("Usuario sin permisos para actualizar servicios")
-            raise
-        except ValueError as e:
-            logger.warning(f"Error de validación: {e}")
-            raise
+
+                return ServicioModel.from_dict(result)
+
         except Exception as e:
-            self.handle_error("Error actualizando servicio", e)
-            raise ValueError(f"Error inesperado: {str(e)}")
+            logger.error(f"Error actualizando servicio {service_id}: {e}")
+            raise
+
+        return None
+
     
     async def deactivate_service(self, service_id: str, motivo: str = None) -> bool:
         """
@@ -402,6 +336,33 @@ class ServiciosService(BaseService):
             self.handle_error("Error obteniendo categorías", e)
             return []
     
+    async def get_all_services(self, activos_only: bool = True) -> List[ServicioModel]:
+        """
+        Obtiene todos los servicios (método requerido por estado_servicios)
+
+        Args:
+            activos_only: Solo servicios activos
+
+        Returns:
+            Lista de servicios como modelos tipados
+        """
+        try:
+            # Verificar permisos
+            if not self.check_permission("servicios", "leer"):
+                raise PermissionError("Sin permisos para acceder a servicios")
+
+            return await self.get_filtered_services(activos_only=activos_only)
+
+        except Exception as e:
+            self.handle_error("Error obteniendo todos los servicios", e)
+            return []
+
+    async def get_servicios_stats(self) -> Dict[str, Any]:
+        """
+        Alias para get_service_stats (requerido por estado_servicios)
+        """
+        return await self.get_service_stats()
+
     async def get_service_stats(self) -> Dict[str, Any]:
         """
         Obtiene estadísticas de servicios
@@ -410,28 +371,28 @@ class ServiciosService(BaseService):
         try:
             # Obtener todos los servicios
             servicios = self.table.get_all()
-            
+
             # Calcular estadísticas básicas
             total = len(servicios)
             activos = len([s for s in servicios if s.get("activo", True)])
             inactivos = total - activos
-            
+
             # Agrupar por categoría
             categorias = {}
             precios_totales = []
-            
+
             for servicio in servicios:
                 if servicio.get("activo", True):  # Solo contar activos
                     cat = servicio.get("categoria", "Sin categoría")
                     categorias[cat] = categorias.get(cat, 0) + 1
-                    
+
                     precio = servicio.get("precio_base", 0)
                     if precio:
                         precios_totales.append(precio)
-            
+
             # Calcular precio promedio
             precio_promedio = sum(precios_totales) / len(precios_totales) if precios_totales else 0
-            
+
             stats = {
                 "total": total,
                 "activos": activos,
@@ -440,10 +401,10 @@ class ServiciosService(BaseService):
                 "precio_promedio": round(precio_promedio, 2),
                 "por_categoria": categorias
             }
-            
+
             logger.info(f"Estadísticas de servicios: {stats}")
             return stats
-            
+
         except Exception as e:
             self.handle_error("Error obteniendo estadísticas de servicios", e)
             return {

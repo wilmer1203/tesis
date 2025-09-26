@@ -457,66 +457,7 @@ def selector_servicio_formulario() -> rx.Component:
                 rx.box()
             ),
 
-            # Previsualización del precio total
-            rx.cond(
-                AppState.servicio_temporal.id != "",
-                rx.box(
-                    rx.vstack(
-                        rx.text(
-                            "💰 Precio Total Calculado",
-                            size="3",
-                            weight="medium",
-                            color=REFINED_COLORS["text_primary"],
-                            style={"text_align": "center"}
-                        ),
-                        rx.hstack(
-                            rx.vstack(
-                                rx.text(
-                                    f"Bs. {AppState.precio_total_calculado_bs:,.0f}",
-                                    size="4",
-                                    weight="bold",
-                                    color=COLORS["success"]["500"]
-                                ),
-                                rx.text(
-                                    f"(Bs. {AppState.servicio_temporal.precio_bs} × {AppState.cantidad_automatica})",
-                                    size="1",
-                                    color=REFINED_COLORS["text_secondary"]
-                                ),
-                                spacing="1",
-                                align="center"
-                            ),
-                            rx.divider(orientation="vertical", size="4"),
-                            rx.vstack(
-                                rx.text(
-                                    f"${AppState.precio_total_calculado_usd:.2f}",
-                                    size="4",
-                                    weight="bold",
-                                    color=COLORS["success"]["500"]
-                                ),
-                                rx.text(
-                                    f"(${AppState.servicio_temporal.precio_usd} × {AppState.cantidad_automatica})",
-                                    size="1",
-                                    color=REFINED_COLORS["text_secondary"]
-                                ),
-                                spacing="1",
-                                align="center"
-                            ),
-                            spacing="4",
-                            align="center",
-                            justify="center"
-                        ),
-                        spacing="2",
-                        align="center"
-                    ),
-                    style={
-                        "background": REFINED_COLORS["surface_elevated"],
-                        "border": f"2px solid {COLORS['success']['300']}",
-                        "border_radius": "12px",
-                        "padding": "1rem",
-                        "margin_bottom": "1rem"
-                    }
-                )
-            ),
+
 
             # Botones de acción
             rx.hstack(

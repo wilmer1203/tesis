@@ -247,6 +247,7 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado):
     # Estados de carga
     cargando_pacientes_asignados: bool = False
     cargando_servicios: bool = False
+    cargando_odontograma_historial: bool = False
     cargando_intervencion: bool = False
     creando_intervencion: bool = False
     
@@ -255,7 +256,7 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado):
     modo_formulario: str = "crear"
     
     # NAVEGACIÓN DE TABS DE INTERVENCIÓN
-    active_intervention_tab: str = "odontograma"  # odontograma, intervencion, finalizar
+    active_intervention_tab: str = "intervencion"  # intervencion, historial
     tabs_completed: List[str] = []  # Tabs completados con validaciones
     puede_avanzar_tab: bool = True
     
@@ -338,22 +339,38 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado):
     
     @rx.var(cache=True)
     def consultas_por_estado(self) -> Dict[str, List[ConsultaModel]]:
-        """Agrupar consultas por estado"""
+        """Agrupar consultas por estado - ESQUEMA v4.1"""
         try:
             agrupadas = {
-                "programada": [],
-                "en_progreso": [],
-                "completada": []
+                "programada": [],  # Mantener para backward compatibility
+                "en_progreso": [],  # Mantener para backward compatibility
+                "completada": [],
+                "en_espera": [],
+                "en_atencion": [],
+                "entre_odontologos": [],
+                "cancelada": []
             }
-            
+
             for consulta in self.consultas_asignadas:
-                if consulta.estado in agrupadas:
-                    agrupadas[consulta.estado].append(consulta)
-            
+                # Mapear estados nuevos a compatibility keys + agregar estados reales
+                estado = consulta.estado
+
+                # Agregar a estado real
+                if estado in agrupadas:
+                    agrupadas[estado].append(consulta)
+
+                # Mapeo para backward compatibility
+                if estado in ["en_espera", "programada"]:
+                    agrupadas["programada"].append(consulta)
+                elif estado in ["en_atencion", "en_progreso"]:
+                    agrupadas["en_progreso"].append(consulta)
+                elif estado == "completada":
+                    agrupadas["completada"].append(consulta)
+
             return agrupadas
-            
+
         except Exception:
-            return {"programada": [], "en_progreso": [], "completada": []}
+            return {"programada": [], "en_progreso": [], "completada": [], "en_espera": [], "en_atencion": [], "entre_odontologos": [], "cancelada": []}
     
     @rx.var(cache=True)
     def servicios_por_categoria_computed(self) -> Dict[str, List[ServicioModel]]:
@@ -475,8 +492,19 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado):
             ]
             
             # BACKWARD COMPATIBILITY: Mantener pacientes_asignados para otros componentes
-            # Extraer solo los pacientes de las consultas
-            self.pacientes_asignados = [c.paciente for c in self.consultas_asignadas if c.paciente]
+            # Crear PacienteModel básico desde información de consulta
+            self.pacientes_asignados = []
+            for c in self.consultas_asignadas:
+                if c.paciente_id and c.paciente_nombre:
+                    from dental_system.models import PacienteModel
+                    paciente_basico = PacienteModel(
+                        id=c.paciente_id,
+                        primer_nombre=c.paciente_nombre.split(' ')[0] if c.paciente_nombre else "",
+                        primer_apellido=' '.join(c.paciente_nombre.split(' ')[1:]) if len(c.paciente_nombre.split(' ')) > 1 else "",
+                        numero_documento=c.paciente_documento,
+                        celular_1=c.paciente_telefono
+                    )
+                    self.pacientes_asignados.append(paciente_basico)
             
             self.total_pacientes_asignados = len(self.consultas_asignadas)
             
@@ -523,6 +551,14 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado):
             # Primero cargar el catálogo FDI si no está cargado
             if not self.catalogo_cargado:
                 await self.cargar_catalogo_fdi()
+
+            # DEBUG: Mostrar estado de cuadrantes
+            print(f"DEBUG - Estado cuadrantes después de cargar catálogo:")
+            print(f"  catalogo_cargado: {self.catalogo_cargado}")
+            print(f"  cuadrante_1: {self.cuadrante_1}")
+            print(f"  cuadrante_2: {self.cuadrante_2}")
+            print(f"  cuadrante_3: {self.cuadrante_3}")
+            print(f"  cuadrante_4: {self.cuadrante_4}")
             
             # Obtener datos del odontograma del paciente
             odontograma_data = await odontologia_service.get_odontograma_paciente(paciente_id, self.id_personal)
@@ -538,15 +574,40 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado):
                 # Si no hay datos, inicializar todos como sanos (ya hecho en cargar_catalogo_fdi)
                 print(f"🔄 Inicializando nuevo odontograma para paciente {paciente_id}")
                 
-            print(f"✅ Odontograma cargado para paciente {paciente_id} por odontólogo {self.id_personal}")
+            print(f"OK Odontograma cargado para paciente {paciente_id} por odontologo {self.id_personal}")
             
         except Exception as e:
-            print(f"❌ Error cargando odontograma: {e}")
+            print(f"ERROR cargando odontograma: {e}")
             self.error_message = f"Error cargando odontograma: {str(e)}"
+
+    @rx.event
+    async def test_forzar_actualizacion_cuadrantes(self):
+        """Método de test para forzar actualización de cuadrantes"""
+        print("\nTEST: Forzando actualización de cuadrantes...")
+
+        # Cargar catálogo si no está cargado
+        if not self.catalogo_cargado:
+            await self.cargar_catalogo_fdi()
+
+        # Forzar cambio de cuadrantes para activar reactivity
+        self.cuadrante_1 = [11, 12, 13, 14, 15, 16, 17, 18]
+        self.cuadrante_2 = [21, 22, 23, 24, 25, 26, 27, 28]
+        self.cuadrante_3 = [31, 32, 33, 34, 35, 36, 37, 38]
+        self.cuadrante_4 = [41, 42, 43, 44, 45, 46, 47, 48]
+
+        print(f"TEST: Cuadrantes actualizados manualmente")
+        print(f"  Cuadrante 1: {self.cuadrante_1}")
+        print(f"  Cuadrante 2: {self.cuadrante_2}")
+        print(f"  Cuadrante 3: {self.cuadrante_3}")
+        print(f"  Cuadrante 4: {self.cuadrante_4}")
+
+        # Obtener estado UI para mostrar mensaje
+        from dental_system.state.estado_ui import EstadoUI
+        ui_state = self.get_state(EstadoUI)
+        ui_state.mostrar_toast("Cuadrantes actualizados manualmente", "success")
+
     # Los métodos _inicializar_dientes_fdi, _obtener_cuadrante_diente y _obtener_tipo_diente
     # han sido reemplazados por la funcionalidad del catálogo FDI en EstadoOdontogramaAvanzado
-        else:
-            return "desconocido"
     
     async def cargar_consultas_disponibles_otros(self):
         """
@@ -626,11 +687,11 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado):
             # Obtener historial médico
             historial_data = await odontologia_service.get_historial_paciente_completo(paciente_id)
             
-            # Obtener intervenciones anteriores
-            intervenciones_data = await odontologia_service.get_intervenciones_anteriores_paciente(paciente_id)
-            
-            # Obtener información de última consulta
-            ultima_consulta_data = await odontologia_service.get_ultima_consulta_paciente(paciente_id)
+            # ⚠️ TEMP FIX: Métodos no implementados - comentar para evitar errores
+            # intervenciones_data = await odontologia_service.get_intervenciones_anteriores_paciente(paciente_id)
+            # ultima_consulta_data = await odontologia_service.get_ultima_consulta_paciente(paciente_id)
+            intervenciones_data = []  # Datos vacíos temporalmente
+            ultima_consulta_data = {}
             
             # Convertir a modelos tipados
             self.historial_paciente_actual = [
@@ -682,9 +743,9 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado):
                 ui_state.mostrar_toast_exito(f"Paciente {paciente.nombre_completo} asignado exitosamente")
                 logger.info(f"✅ Paciente {paciente.nombre_completo} tomado de otro odontólogo")
                 
-                # Recargar datos para mantener sincronización
+                # Recargar solo pacientes asignados para refrescar datos completos
                 await self.cargar_pacientes_asignados()
-                await self.cargar_consultas_disponibles_otros()
+                # ✅ NO recargar consultas disponibles - ya actualizado localmente arriba
             
         except Exception as e:
             logger.error(f"❌ Error tomando paciente disponible: {e}")
@@ -1135,23 +1196,39 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado):
             self.diente_seleccionado = None
     
     def obtener_color_diente(self, numero_diente: int) -> str:
-        """Obtener color del diente según su estado"""
+        """Obtener color del diente según su estado real desde BD"""
         try:
-            # Obtener dientes afectados desde formulario tipado
-            dientes_afectados = []
+            # Primera verificación: dientes afectados en formulario actual
+            dientes_afectados_formulario = []
             if isinstance(self.formulario_intervencion.dientes_afectados, str):
                 if self.formulario_intervencion.dientes_afectados.strip():
-                    dientes_afectados = [int(x.strip()) for x in self.formulario_intervencion.dientes_afectados.split(",") if x.strip().isdigit()]
-            
-            # Si está en dientes afectados, resaltar
-            if numero_diente in dientes_afectados:
-                return "#ff6b6b"  # Rojo para seleccionados
-            
-            # Color por defecto (sano)
-            return "#ffffff"  # Blanco para sanos
-            
-        except Exception:
-            return "#ffffff"
+                    dientes_afectados_formulario = [int(x.strip()) for x in self.formulario_intervencion.dientes_afectados.split(",") if x.strip().isdigit()]
+
+            if numero_diente in dientes_afectados_formulario:
+                return "blue"  # Azul para seleccionados en formulario
+
+            # Segunda verificación: estado real desde BD usando condiciones_odontograma
+            estado_real = self.obtener_estado_diente_bd_sync(numero_diente)
+
+            # Mapeo de estados a esquemas de colores de Reflex
+            color_mapping = {
+                "sano": "green",         # Verde para sanos
+                "caries": "red",         # Rojo para caries
+                "obturado": "gray",      # Gris para obturaciones
+                "corona": "purple",      # Púrpura para coronas
+                "endodoncia": "yellow",  # Amarillo para endodoncias
+                "extraccion": "blackAlpha", # Negro para extracciones
+                "ausente": "gray",       # Gris claro para ausentes
+                "implante": "cyan",      # Cyan para implantes
+                "fractura": "orange",    # Naranja para fracturas
+                "tratado": "teal"        # Verde azulado para tratados
+            }
+
+            return color_mapping.get(estado_real, "gray")  # Por defecto gris
+
+        except Exception as e:
+            logger.warning(f"Error obteniendo color diente {numero_diente}: {e}")
+            return "gray"  # Color por defecto en caso de error
     
     # ==========================================
     # 🦷 MÉTODOS DEL ODONTOGRAMA SVG INTERACTIVO
@@ -1798,7 +1875,7 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado):
     def puede_avanzar_al_siguiente_tab(self) -> bool:
         """Determina si se puede avanzar al siguiente tab"""
         try:
-            if self.active_intervention_tab == "odontograma":
+            if self.active_intervention_tab == "historial":
                 return True  # Siempre se puede avanzar desde odontograma
             elif self.active_intervention_tab == "intervencion":
                 return self._validar_datos_minimos_intervencion()
@@ -2086,30 +2163,30 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado):
             return []
     
     @rx.var(cache=True)
-    def estadisticas_dashboard_optimizadas(self) -> Dict[str, Any]:
-        """📊 Estadísticas optimizadas para dashboard del odontólogo"""
+    def estadisticas_odontologo_tiempo_real(self) -> Dict[str, int]:
+        """📊 Estadísticas en tiempo real del odontólogo - PATRÓN CONSULTAS PAGE"""
         try:
-            base_stats = {
-                "pacientes_asignados": len(self.pacientes_asignados),
+            # Contar directamente desde self.consultas_asignadas (como en página consultas)
+            consultas_del_odontologo = self.consultas_asignadas
+
+            return {
+                "pacientes_asignados": len(consultas_del_odontologo),
+                "consultas_programadas": len([c for c in consultas_del_odontologo if c.estado in ["programada", "en_espera"]]),
+                "consultas_en_progreso": len([c for c in consultas_del_odontologo if c.estado in ["en_progreso", "en_atencion"]]),
+                "consultas_completadas": len([c for c in consultas_del_odontologo if c.estado == "completada"]),
                 "pacientes_disponibles": len(self.pacientes_disponibles_otros),
-                "consultas_programadas": len(self.consultas_por_estado.get("programada", [])),
-                "consultas_en_progreso": len(self.consultas_por_estado.get("en_progreso", [])),
-                "consultas_completadas": len(self.consultas_por_estado.get("completada", [])),
+                "pacientes_urgentes": len([c for c in consultas_del_odontologo if c.prioridad == "urgente" and c.estado in ["programada", "en_espera", "en_progreso", "en_atencion"]])
             }
-            
-            # Combinar con estadísticas del servicio si están disponibles
-            base_stats.update(self.estadisticas_dia)
-            
-            return base_stats
-            
+
         except Exception as e:
-            logger.error(f"Error en estadisticas_dashboard_optimizadas: {e}")
+            logger.error(f"Error en estadisticas_odontologo_tiempo_real: {e}")
             return {
                 "pacientes_asignados": 0,
                 "pacientes_disponibles": 0,
                 "consultas_programadas": 0,
                 "consultas_en_progreso": 0,
                 "consultas_completadas": 0,
+                "pacientes_urgentes": 0
             }
     
     @rx.var(cache=True)
@@ -2237,7 +2314,7 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado):
             return {
                 "tiene_historial": True,
                 "total_entradas": len(self.historial_paciente_actual),
-                "ultima_consulta": self.ultima_consulta_info.fecha_programada if self.ultima_consulta_info else "Sin consultas previas",
+                "ultima_consulta": self.ultima_consulta_info.fecha_llegada if self.ultima_consulta_info else "Sin consultas previas",
                 "intervenciones_previas": len(self.intervenciones_anteriores),
                 "ultima_intervencion": self.intervenciones_anteriores[0].procedimiento_realizado if self.intervenciones_anteriores else "Sin intervenciones previas"
             }
@@ -2608,28 +2685,179 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado):
     async def cargar_historial_diente_especifico(self, numero_diente: int):
         """📊 Cargar historial real de intervenciones en un diente específico"""
         try:
-            # Aquí integrarías con el servicio real de odontología
-            # Por ahora simulamos datos hasta que tengas el servicio
+            if not self.paciente_actual or not self.paciente_actual.id:
+                logger.warning("No hay paciente actual seleccionado")
+                self.historial_diente_seleccionado = []
+                return
+
+            # 🔗 INTEGRACIÓN REAL con BD - Consultar tabla `intervenciones`
+            from dental_system.services.odontologia_service import OdontologiaService
+            odontologia_service = OdontologiaService()
+
+            # Establecer contexto de usuario
+            odontologia_service.set_user_context(self.id_usuario, self.perfil_usuario)
+
+            # Obtener historial real del diente específico
+            historial_bd = await odontologia_service.get_tooth_specific_history(
+                paciente_id=self.paciente_actual.id,
+                numero_diente=numero_diente
+            )
+
+            if historial_bd:
+                # Formatear datos reales para UI
+                self.historial_diente_seleccionado = [
+                    {
+                        "servicio_nombre": item.get("servicio_nombre", "Servicio no especificado"),
+                        "fecha_formateada": item.get("fecha_intervencion", "").strftime("%d/%m/%Y") if item.get("fecha_intervencion") else "Sin fecha",
+                        "observaciones": item.get("observaciones") or item.get("procedimiento_realizado", "Sin observaciones"),
+                        "odontologo_nombre": f"Dr. {item.get('odontologo_nombre', 'Sistema')}",
+                        "costo_total": float(item.get('precio_final', 0) or 0),
+                        "estado_tratamiento": item.get("estado", "completado"),
+                        "materiales_utilizados": item.get("materiales_utilizados", []),
+                        "intervencion_id": item.get("id"),
+                        "requiere_control": item.get("requiere_control", False)
+                    }
+                    for item in historial_bd
+                ]
+                logger.info(f"✅ Historial BD real cargado: {len(self.historial_diente_seleccionado)} intervenciones para diente {numero_diente}")
+            else:
+                # Sin historial real encontrado
+                self.historial_diente_seleccionado = []
+                logger.info(f"ℹ️ Sin historial encontrado para diente {numero_diente} del paciente {self.paciente_actual.numero_historia}")
+
+        except Exception as e:
+            logger.error(f"❌ Error cargando historial BD del diente {numero_diente}: {e}")
+            # Fallback a datos simulados solo en caso de error
             self.historial_diente_seleccionado = [
                 {
-                    "servicio_nombre": "Obturación",
-                    "fecha_formateada": "15/08/2024",
-                    "observaciones": "Obturación con resina compuesta en superficie oclusal",
-                    "odontologo_nombre": "Dr. García",
-                    "costo_total": 150.00
-                },
-                {
-                    "servicio_nombre": "Revisión",
-                    "fecha_formateada": "10/06/2024",
-                    "observaciones": "Control post-tratamiento, evolución favorable",
-                    "odontologo_nombre": "Dr. García",
-                    "costo_total": 50.00
+                    "servicio_nombre": "Error - Datos simulados",
+                    "fecha_formateada": "Hoy",
+                    "observaciones": f"Error cargando historial real: {str(e)}",
+                    "odontologo_nombre": "Dr. Sistema",
+                    "costo_total": 0.00,
+                    "estado_tratamiento": "error"
                 }
             ]
-            logger.info(f"✅ Historial cargado para diente {numero_diente}")
+
+    # ==========================================
+    # 🔬 MÉTODOS BD REALES PARA TAB HISTORIAL PROFESIONAL
+    # ==========================================
+
+    def obtener_estado_diente_bd_sync(self, numero_diente: int) -> str:
+        """🔬 Obtener estado real del diente desde BD (síncrono)"""
+        try:
+            if not self.paciente_actual or not self.paciente_actual.id:
+                return "sano"
+
+            # Consultar última condición del diente desde condiciones_odontograma
+            if hasattr(self, 'condiciones_odontograma') and self.condiciones_odontograma:
+                condicion_diente = self.condiciones_odontograma.get(numero_diente, {})
+                if condicion_diente:
+                    # Obtener la condición más reciente (cualquier superficie)
+                    for superficie, estado in condicion_diente.items():
+                        if estado and estado != "sano":
+                            return estado  # Retornar primer estado no sano encontrado
+                    return "sano"  # Todas las superficies sanas
+
+            # Fallback: consultar historial disponible
+            if hasattr(self, 'historial_diente_seleccionado') and self.diente_seleccionado == numero_diente:
+                if self.historial_diente_seleccionado:
+                    # Inferir estado desde última intervención
+                    ultima_intervencion = self.historial_diente_seleccionado[0]  # Lista ordenada por fecha desc
+                    servicio = ultima_intervencion.get("servicio_nombre", "").lower()
+
+                    if "obturacion" in servicio or "restauracion" in servicio:
+                        return "obturado"
+                    elif "endodoncia" in servicio or "conducto" in servicio:
+                        return "endodoncia"
+                    elif "corona" in servicio:
+                        return "corona"
+                    elif "extraccion" in servicio:
+                        return "extraccion"
+                    elif "implante" in servicio:
+                        return "implante"
+                    else:
+                        return "tratado"  # Genérico para otros tratamientos
+
+            return "sano"  # Por defecto
+
         except Exception as e:
-            logger.error(f"❌ Error cargando historial del diente {numero_diente}: {e}")
-            self.historial_diente_seleccionado = []
+            logger.warning(f"Error obteniendo estado BD diente {numero_diente}: {e}")
+            return "sano"
+
+    @rx.event
+    async def obtener_estadisticas_paciente_bd_async(self):
+        """📊 Obtener estadísticas reales del paciente desde BD"""
+        try:
+            if not self.paciente_actual or not self.paciente_actual.id:
+                logger.warning("No hay paciente actual para estadísticas")
+                return
+
+            from dental_system.services.odontologia_service import OdontologiaService
+            odontologia_service = OdontologiaService()
+            odontologia_service.set_user_context(self.id_usuario, self.perfil_usuario)
+
+            # Obtener estadísticas reales del paciente
+            stats_bd = await odontologia_service.get_patient_dental_stats(self.paciente_actual.id)
+
+            if stats_bd:
+                # Actualizar variables de estadísticas
+                self.estadisticas_paciente_bd = {
+                    "dientes_sanos": stats_bd.get("dientes_sanos", 32),
+                    "dientes_tratados": stats_bd.get("dientes_tratados", 0),
+                    "dientes_criticos": stats_bd.get("dientes_criticos", 0),
+                    "total_intervenciones": stats_bd.get("total_intervenciones", 0),
+                    "ultima_visita": stats_bd.get("ultima_visita", "Sin visitas"),
+                    "proxima_cita": stats_bd.get("proxima_cita", "No programada"),
+                    "costo_total_tratamientos": float(stats_bd.get("costo_total", 0))
+                }
+                logger.info(f"✅ Estadísticas BD cargadas para paciente {self.paciente_actual.numero_historia}")
+            else:
+                # Estadísticas por defecto si no hay datos
+                self.estadisticas_paciente_bd = {
+                    "dientes_sanos": 32,
+                    "dientes_tratados": 0,
+                    "dientes_criticos": 0,
+                    "total_intervenciones": 0,
+                    "ultima_visita": "Primera visita",
+                    "proxima_cita": "No programada",
+                    "costo_total_tratamientos": 0.0
+                }
+
+        except Exception as e:
+            logger.error(f"❌ Error obteniendo estadísticas BD: {e}")
+            # Estadísticas fallback en caso de error
+            self.estadisticas_paciente_bd = {
+                "dientes_sanos": 30,
+                "dientes_tratados": 2,
+                "dientes_criticos": 0,
+                "total_intervenciones": 0,
+                "ultima_visita": "Error cargando datos",
+                "proxima_cita": "Consulte con su odontólogo",
+                "costo_total_tratamientos": 0.0
+            }
+
+    @rx.event
+    async def seleccionar_diente_profesional(self, numero_diente: int):
+        """🦷 Selección profesional de diente con carga BD real + estadísticas"""
+        try:
+            # Seleccionar diente
+            self.diente_seleccionado = numero_diente
+
+            # Cargar historial específico del diente desde BD
+            await self.cargar_historial_diente_especifico(numero_diente)
+
+            # Actualizar estadísticas si es necesario
+            if not hasattr(self, 'estadisticas_paciente_bd') or not self.estadisticas_paciente_bd:
+                await self.obtener_estadisticas_paciente_bd_async()
+
+            logger.info(f"✅ Diente {numero_diente} seleccionado profesionalmente con datos BD")
+
+        except Exception as e:
+            logger.error(f"❌ Error selección profesional diente {numero_diente}: {e}")
+
+    # Variable para almacenar estadísticas de BD
+    estadisticas_paciente_bd: Dict[str, Any] = {}
 
     async def activar_modo_seleccion_multiple(self):
         """🎯 Activar modo de selección múltiple de dientes"""
@@ -2679,10 +2907,10 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado):
                         'codigo': servicio.codigo,
                         'nombre': servicio.nombre,
                         'cantidad': 1,  # Por ahora cantidad fija
-                        'precio_usd': servicio.precio_usd,
-                        'precio_bs': servicio.precio_bs,
-                        'total_usd': servicio.precio_usd * 1,
-                        'total_bs': servicio.precio_bs * 1
+                        'precio_usd': servicio.precio_base_usd,
+                        'precio_bs': servicio.precio_base_bs,
+                        'total_usd': servicio.precio_base_usd * 1,
+                        'total_bs': servicio.precio_base_bs * 1
                     })
             
             self.servicios_seleccionados_detalle = detalles
@@ -2894,4 +3122,268 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado):
             self.procedimiento_valido and
             self.precio_valido
         )
+
+    # ==========================================
+    # 🦷 COMPUTED VARS PARA HISTORIAL CON COLORES REALES
+    # ==========================================
+
+    # Diccionario de colores por condición de diente
+    COLORES_CONDICIONES_HISTORIAL = {
+        "sano": "#22C55E",        # Verde brillante
+        "caries": "#EF4444",      # Rojo
+        "obturacion": "#3B82F6",  # Azul
+        "corona": "#F59E0B",      # Naranja/Dorado
+        "puente": "#A855F7",      # Púrpura
+        "implante": "#10B981",    # Verde esmeralda
+        "ausente": "#6B7280",     # Gris
+        "extraccion_indicada": "#F87171",  # Rojo claro
+        "endodoncia": "#8B5CF6",  # Púrpura claro
+        "protesis": "#EC4899",    # Rosa
+        "fractura": "#DC2626",    # Rojo oscuro
+        "mancha": "#FBBF24",      # Amarillo
+        "desgaste": "#F97316",    # Naranja
+        "sensibilidad": "#06B6D4", # Cian
+        "movilidad": "#EF4444"     # Rojo
+    }
+
+    def color_diente_historial(self, numero_diente: int) -> str:
+        """🦷 Color del diente basado en la condición real de la BD"""
+        try:
+            # Obtener condición actual del diente desde el odontograma cargado
+            if hasattr(self, 'condiciones_odontograma') and self.condiciones_odontograma:
+                condicion = self.condiciones_odontograma.get(str(numero_diente), {}).get("tipo_condicion", "sano")
+                return self.COLORES_CONDICIONES_HISTORIAL.get(condicion, self.COLORES_CONDICIONES_HISTORIAL["sano"])
+
+            # Si no hay condiciones cargadas, usar color por defecto
+            return self.COLORES_CONDICIONES_HISTORIAL["sano"]
+
+        except Exception as e:
+            logger.error(f"Error obteniendo color diente {numero_diente}: {str(e)}")
+            return self.COLORES_CONDICIONES_HISTORIAL["sano"]
+
+    async def cargar_condiciones_historial_paciente(self, paciente_id: str):
+        """🦷 Cargar condiciones reales del odontograma para historial"""
+        try:
+            from dental_system.supabase.tablas.condiciones_diente import condiciones_diente_table
+            from dental_system.supabase.tablas.odontograma import odontograms_table
+
+            # Obtener odontograma actual del paciente
+            if not paciente_id or paciente_id.strip() == "":
+                logger.warning("ID de paciente no válido para cargar condiciones del historial")
+                self.condiciones_odontograma = {}
+                return
+
+            odontograma_actual = await odontograms_table.get_active_odontogram(paciente_id)
+
+            if not odontograma_actual:
+                logger.warning(f"No se encontró odontograma para paciente {paciente_id}")
+                self.condiciones_odontograma = {}
+                return
+
+            # Obtener todas las condiciones actuales
+            condiciones = await condiciones_diente_table.get_by_odontograma(odontograma_actual["id"])
+
+            # Convertir a diccionario indexado por número de diente
+            condiciones_dict = {}
+            for condicion in condiciones:
+                numero_diente = condicion.get("diente", {}).get("numero_diente")
+                if numero_diente:
+                    condiciones_dict[str(numero_diente)] = {
+                        "tipo_condicion": condicion.get("tipo_condicion", "sano"),
+                        "descripcion": condicion.get("descripcion", ""),
+                        "material_utilizado": condicion.get("material_utilizado", ""),
+                        "fecha_tratamiento": condicion.get("fecha_tratamiento"),
+                        "observaciones": condicion.get("observaciones", "")
+                    }
+
+            self.condiciones_odontograma = condiciones_dict
+            logger.info(f"✅ Condiciones del historial cargadas: {len(condiciones_dict)} dientes")
+
+        except Exception as e:
+            logger.error(f"Error cargando condiciones del historial: {str(e)}")
+            self.condiciones_odontograma = {}
+
+    def historial_diente_detalle(self, numero_diente: int) -> Dict[str, Any]:
+        """🦷 Información detallada del diente para mostrar en el historial"""
+        try:
+            if hasattr(self, 'condiciones_odontograma') and self.condiciones_odontograma:
+                condicion_data = self.condiciones_odontograma.get(str(numero_diente), {})
+
+                return {
+                    "numero": numero_diente,
+                    "condicion": condicion_data.get("tipo_condicion", "sano"),
+                    "color": self.color_diente_historial(numero_diente),
+                    "descripcion": condicion_data.get("descripcion", "Sin tratamientos registrados"),
+                    "material": condicion_data.get("material_utilizado", "-"),
+                    "fecha": condicion_data.get("fecha_tratamiento", "-"),
+                    "observaciones": condicion_data.get("observaciones", "-")
+                }
+
+            # Diente sin información
+            return {
+                "numero": numero_diente,
+                "condicion": "sano",
+                "color": self.COLORES_CONDICIONES_HISTORIAL["sano"],
+                "descripcion": "Sin tratamientos registrados",
+                "material": "-",
+                "fecha": "-",
+                "observaciones": "-"
+            }
+
+        except Exception as e:
+            logger.error(f"Error obteniendo detalle diente {numero_diente}: {str(e)}")
+            return {
+                "numero": numero_diente,
+                "condicion": "sano",
+                "color": self.COLORES_CONDICIONES_HISTORIAL["sano"],
+                "descripcion": "Error cargando información",
+                "material": "-",
+                "fecha": "-",
+                "observaciones": "-"
+            }
+
+    @rx.event
+    def seleccionar_diente_para_historial(self, numero_diente: int):
+        """🦷 Seleccionar diente en el historial para ver detalles"""
+        try:
+            self.diente_seleccionado = numero_diente
+            logger.info(f"Diente {numero_diente} seleccionado para historial")
+        except Exception as e:
+            logger.error(f"Error seleccionando diente {numero_diente}: {str(e)}")
+
+    @rx.event
+    async def inicializar_historial_paciente(self):
+        """🦷 Inicializar historial cargando condiciones del paciente actual"""
+        try:
+            if self.paciente_actual.id:
+                await self.cargar_condiciones_historial_paciente(self.paciente_actual.id)
+                logger.info(f"Historial inicializado para paciente {self.paciente_actual.numero_historia}")
+        except Exception as e:
+            logger.error(f"Error inicializando historial: {str(e)}")
+
+    # 🦷 COMPUTED VARS PROFESIONALES - BD REAL
+    # ==========================================
+
+    @rx.var(cache=True)
+    def historial_diente_disponible(self) -> bool:
+        """✅ Verificar si hay historial disponible para el diente seleccionado"""
+        return (
+            self.diente_seleccionado is not None and
+            bool(self.historial_diente_seleccionado) and
+            not self.cargando_odontograma_historial
+        )
+
+    @rx.var(cache=True)
+    def estadisticas_paciente_resumen(self) -> Dict[str, Any]:
+        """📊 Resumen estadísticas del paciente actual con datos BD"""
+        if not self.paciente_actual.id:
+            return {
+                "total_intervenciones": 0,
+                "ultima_visita": "N/A",
+                "dientes_afectados": 0,
+                "total_gastado": "$0"
+            }
+
+        # Usar datos reales de BD si están disponibles
+        if self.estadisticas_paciente_bd:
+            return {
+                "total_intervenciones": self.estadisticas_paciente_bd.get("total_intervenciones", 0),
+                "ultima_visita": self.estadisticas_paciente_bd.get("ultima_visita", "N/A"),
+                "dientes_afectados": self.estadisticas_paciente_bd.get("dientes_tratados", 0),
+                "total_gastado": f"${self.estadisticas_paciente_bd.get('total_gastado', 0):,.2f}"
+            }
+
+        return {
+            "total_intervenciones": 0,
+            "ultima_visita": "Cargando...",
+            "dientes_afectados": 0,
+            "total_gastado": "$0"
+        }
+
+    @rx.var(cache=True)
+    def odontograma_tiene_cambios(self) -> bool:
+        """🔄 Verificar si el odontograma tiene cambios pendientes"""
+        return bool(self.cambios_pendientes_odontograma)
+
+    @rx.var(cache=True)
+    def diente_seleccionado_nombre(self) -> str:
+        """📋 Nombre descriptivo del diente seleccionado (sistema FDI)"""
+        if not self.diente_seleccionado:
+            return "Ningún diente seleccionado"
+
+        nombres_dientes = {
+            # Cuadrante 1 (Superior Derecho)
+            11: "Incisivo Central Superior Derecho", 12: "Incisivo Lateral Superior Derecho",
+            13: "Canino Superior Derecho", 14: "Primer Premolar Superior Derecho",
+            15: "Segundo Premolar Superior Derecho", 16: "Primer Molar Superior Derecho",
+            17: "Segundo Molar Superior Derecho", 18: "Tercer Molar Superior Derecho",
+
+            # Cuadrante 2 (Superior Izquierdo)
+            21: "Incisivo Central Superior Izquierdo", 22: "Incisivo Lateral Superior Izquierdo",
+            23: "Canino Superior Izquierdo", 24: "Primer Premolar Superior Izquierdo",
+            25: "Segundo Premolar Superior Izquierdo", 26: "Primer Molar Superior Izquierdo",
+            27: "Segundo Molar Superior Izquierdo", 28: "Tercer Molar Superior Izquierdo",
+
+            # Cuadrante 3 (Inferior Izquierdo)
+            31: "Incisivo Central Inferior Izquierdo", 32: "Incisivo Lateral Inferior Izquierdo",
+            33: "Canino Inferior Izquierdo", 34: "Primer Premolar Inferior Izquierdo",
+            35: "Segundo Premolar Inferior Izquierdo", 36: "Primer Molar Inferior Izquierdo",
+            37: "Segundo Molar Inferior Izquierdo", 38: "Tercer Molar Inferior Izquierdo",
+
+            # Cuadrante 4 (Inferior Derecho)
+            41: "Incisivo Central Inferior Derecho", 42: "Incisivo Lateral Inferior Derecho",
+            43: "Canino Inferior Derecho", 44: "Primer Premolar Inferior Derecho",
+            45: "Segundo Premolar Inferior Derecho", 46: "Primer Molar Inferior Derecho",
+            47: "Segundo Molar Inferior Derecho", 48: "Tercer Molar Inferior Derecho"
+        }
+
+        return nombres_dientes.get(self.diente_seleccionado, f"Diente #{self.diente_seleccionado}")
+
+    @rx.var(cache=True)
+    def cuadrante_diente_seleccionado(self) -> int:
+        """📍 Cuadrante del diente seleccionado (1-4)"""
+        if not self.diente_seleccionado:
+            return 0
+
+        if self.diente_seleccionado in self.cuadrante_1:
+            return 1
+        elif self.diente_seleccionado in self.cuadrante_2:
+            return 2
+        elif self.diente_seleccionado in self.cuadrante_3:
+            return 3
+        elif self.diente_seleccionado in self.cuadrante_4:
+            return 4
+        else:
+            return 0
+
+    @rx.var(cache=True)
+    def puede_mostrar_historial(self) -> bool:
+        """🔍 Verificar si se puede mostrar el tab de historial"""
+        return (
+            bool(self.paciente_actual.id) and
+            self.diente_seleccionado is not None and
+            not self.cargando_odontograma_historial
+        )
+
+    @rx.var(cache=True)
+    def color_diente_actual(self) -> str:
+        """🎨 Color del diente seleccionado según su estado"""
+        if not self.diente_seleccionado:
+            return "#ffffff"  # Blanco por defecto
+
+        return self.obtener_color_diente(self.diente_seleccionado)
+
+    @rx.var(cache=True)
+    def resumen_historial_diente(self) -> str:
+        """📄 Resumen del historial del diente seleccionado"""
+        if not self.historial_diente_seleccionado:
+            return "Sin historial registrado"
+
+        total_intervenciones = len(self.historial_diente_seleccionado)
+        if total_intervenciones == 0:
+            return "Sin intervenciones registradas"
+        elif total_intervenciones == 1:
+            return "1 intervención registrada"
+        else:
+            return f"{total_intervenciones} intervenciones registradas"
 

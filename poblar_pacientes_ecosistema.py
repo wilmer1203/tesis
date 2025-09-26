@@ -24,13 +24,13 @@ from dental_system.models.pacientes_models import PacienteFormModel
 
 # 🆔 IDs REALES DE USUARIOS Y PERSONAL (los que me diste)
 USER_IDS = [
-    "0077e929-327c-43ae-9495-25918db10b72",
-    "f2324186-6d7c-4a78-8258-36855fad23dd"
+    "25356728-1a6e-4cb4-b466-b2b9a31e11ca",
+    "6214feee-9786-4d6d-8157-439b1d9e379a"
 ]
 
 PERSONAL_IDS = [
-    "db443ae0-b106-404f-abdd-8f05f6090cf6",
-    "b2aa6bd5-d57e-4c09-b7af-1b1a0c06847f"
+    "3208d456-85fa-4adf-96d6-4b3962844527",
+    "e192130f-9c34-4eb1-9fa4-77f59eef4597"
 ]
 
 # 🎭 DATOS FICTICIOS REALISTAS

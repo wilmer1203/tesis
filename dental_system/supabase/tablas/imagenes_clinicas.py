@@ -71,7 +71,7 @@ class ImagenesClinicasTable(BaseTable):
         # Agregar campos opcionales
         if consulta_id:
             data["consulta_id"] = consulta_id
-        if odontograma_id:
+        if odontograma_id and odontograma_id.strip():
             data["odontograma_id"] = odontograma_id
         if descripcion:
             data["descripcion"] = descripcion

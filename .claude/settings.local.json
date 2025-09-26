@@ -110,7 +110,19 @@
       "mcp__ide__getDiagnostics",
       "Bash(copy consultas_page_v41.py consultas_page_v41_BACKUP_20250910.py)",
       "Bash(taskkill:*)",
-      "Bash(copy:*)"
+      "Bash(copy:*)",
+      "Bash(supabase:*)",
+      "Bash(npm install:*)",
+      "Bash(winget install:*)",
+      "Bash(npx supabase:*)",
+      "Bash(systeminfo)",
+      "Bash(findstr:*)",
+      "Bash(wsl:*)",
+      "Bash(dxdiag:*)",
+      "Bash(node:*)",
+      "Bash(docker:*)",
+      "Bash(set SUPABASE_ACCESS_TOKEN=sbp_9bb911c3deec785ccd57ab5bcfe8e158b8b0e1f5)",
+      "Bash(psql:*)"
     ],
     "deny": [],
     "additionalDirectories": [

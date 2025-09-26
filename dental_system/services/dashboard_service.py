@@ -107,8 +107,8 @@ class DashboardService(BaseService):
             
             # 📅 CONSULTAS DE HOY (real-time - cada llegada de paciente)
             consultas_response = self.client.table('consultas').select('id', count='exact').gte(
-                'fecha_programada', today
-            ).lt('fecha_programada', f"{today}T23:59:59").execute()
+                'fecha_llegada', today
+            ).lt('fecha_llegada', f"{today}T23:59:59").execute()
             consultas_hoy = consultas_response.count or 0
             
             # ⏰ CONSULTAS EN CURSO (real-time - estado actual)
@@ -229,11 +229,11 @@ class DashboardService(BaseService):
         try:
             # 💰 INGRESOS DEL MES (cache 30 min - se actualiza diariamente)
             current_month = datetime.now().strftime('%Y-%m')
-            pagos_response = self.client.table('pagos').select('monto_pagado').gte(
+            pagos_response = self.client.table('pagos').select('monto_pagado_usd, monto_pagado_bs').gte(
                 'fecha_pago', f"{current_month}-01"
             ).eq('estado_pago', 'completado').execute()
-            
-            ingresos_mes = sum([pago['monto_pagado'] for pago in pagos_response.data]) if pagos_response.data else 0
+
+            ingresos_mes = sum([(pago.get('monto_pagado_usd', 0) or 0) + (pago.get('monto_pagado_bs', 0) or 0) for pago in pagos_response.data]) if pagos_response.data else 0
             
             # 🦷 TOTAL ODONTÓLOGOS (cache 30 min - cambia muy poco)
             odontologos_response = self.client.table('vista_personal_completo').select('id', count='exact').eq(
@@ -404,11 +404,11 @@ class DashboardService(BaseService):
             
             # Ingresos del mes
             current_month = datetime.now().strftime('%Y-%m')
-            pagos_mes = self.client.table('pagos').select('monto_pagado').gte(
+            pagos_mes = self.client.table('pagos').select('monto_pagado_usd, monto_pagado_bs').gte(
                 'fecha_pago', f"{current_month}-01"
             ).eq('estado_pago', 'completado').execute()
-            
-            total_mes = sum([pago['monto_pagado'] for pago in pagos_mes.data]) if pagos_mes.data else 0
+
+            total_mes = sum([(pago.get('monto_pagado_usd', 0) or 0) + (pago.get('monto_pagado_bs', 0) or 0) for pago in pagos_mes.data]) if pagos_mes.data else 0
             
             # Pendientes
             pendientes = self.client.table('pagos').select('monto_total', 'monto_pagado').eq(
@@ -533,9 +533,9 @@ class DashboardService(BaseService):
                 consultas_response = self.client.table('consultas').select(
                     'id', count='exact'
                 ).gte(
-                    'fecha_programada', f"{date_info['date_sql']}T00:00:00"
+                    'fecha_llegada', f"{date_info['date_sql']}T00:00:00"
                 ).lt(
-                    'fecha_programada', f"{date_info['date_sql']}T23:59:59"
+                    'fecha_llegada', f"{date_info['date_sql']}T23:59:59"
                 ).execute()
                 
                 consultas_count = consultas_response.count or 0
@@ -623,9 +623,9 @@ class DashboardService(BaseService):
                 consultas_response = self.client.table('consultas').select(
                     'id', count='exact'
                 ).eq('odontologo_id', odontologo_id).gte(
-                    'fecha_programada', f"{date_info['date_sql']}T00:00:00"
+                    'fecha_llegada', f"{date_info['date_sql']}T00:00:00"
                 ).lt(
-                    'fecha_programada', f"{date_info['date_sql']}T23:59:59"
+                    'fecha_llegada', f"{date_info['date_sql']}T23:59:59"
                 ).execute()
                 
                 consultas_count = consultas_response.count or 0
@@ -751,7 +751,7 @@ class DashboardService(BaseService):
             # Total consultas últimos 30 días
             consultas_response = self.client.table('consultas').select(
                 'id', count='exact'
-            ).gte('fecha_programada', fecha_30_dias).execute()
+            ).gte('fecha_llegada', fecha_30_dias).execute()
             
             # Total pacientes nuevos últimos 30 días
             pacientes_response = self.client.table('pacientes').select(

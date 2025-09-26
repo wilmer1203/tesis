@@ -25,11 +25,9 @@ from dental_system.styles.themes import (
     RADIUS, 
     SPACING, 
     ANIMATIONS, 
-    ROLE_THEMES,
     GRADIENTS,
     GLASS_EFFECTS,
     DARK_THEME,
-    get_color,
     dark_page_background,
     dark_crystal_card,
     dark_table_container,
@@ -175,8 +173,6 @@ def patients_stats() -> rx.Component:
         margin_bottom="8"
     )
 
-# El formulario multi-step ahora está en components/forms.py
-# Se usa multi_step_patient_form() en lugar de este modal básico
 
 def delete_paciente_confirmation_modal() -> rx.Component:
     """❌ Modal de confirmación moderno con mejor UX para pacientes"""
@@ -443,7 +439,6 @@ def pacientes_page() -> rx.Component:
         multi_step_patient_form(),  # ✅ Formulario multi-step reactivado
         delete_paciente_confirmation_modal(),  # ✅ Modal de eliminación reactivado
         # reactivate_confirmation_modal(),  # TODO: Arreglar modal de reactivación
-        # Utilizar función utilitaria para el fondo de página
         style={
             **dark_page_background(),
             "padding": f"{SPACING['4']} {SPACING['6']}",

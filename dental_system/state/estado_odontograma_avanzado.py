@@ -77,7 +77,10 @@ class EstadoOdontogramaAvanzado(rx.State,mixin=True):
                 # Cargar condiciones disponibles
                 condiciones = await odontograma_service.cargar_condiciones_disponibles()
                 self.condiciones_disponibles = condiciones
-                
+
+                # Actualizar cuadrantes con los dientes reales de la BD
+                self._actualizar_cuadrantes_desde_catalogo()
+
                 self.catalogo_cargado = True
                 self.calcular_estadisticas()
                 
@@ -179,3 +182,53 @@ class EstadoOdontogramaAvanzado(rx.State,mixin=True):
         self.total_sanos = sanos
         self.total_con_patologia = patologia
         self.total_tratados = tratados
+
+    def _actualizar_cuadrantes_desde_catalogo(self):
+        """🦷 Actualizar variables de cuadrantes con datos reales del catálogo FDI"""
+        try:
+            # Limpiar cuadrantes actuales
+            cuadrante_1 = []
+            cuadrante_2 = []
+            cuadrante_3 = []
+            cuadrante_4 = []
+
+            # Organizar dientes por cuadrante
+            for diente in self.dientes_catalogo:
+                numero_fdi = diente["numero_fdi"]
+                cuadrante = diente["cuadrante"]
+
+                if cuadrante == 1:
+                    cuadrante_1.append(numero_fdi)
+                elif cuadrante == 2:
+                    cuadrante_2.append(numero_fdi)
+                elif cuadrante == 3:
+                    cuadrante_3.append(numero_fdi)
+                elif cuadrante == 4:
+                    cuadrante_4.append(numero_fdi)
+
+            # Ordenar los dientes dentro de cada cuadrante
+            cuadrante_1.sort()
+            cuadrante_2.sort()
+            cuadrante_3.sort()
+            cuadrante_4.sort()
+
+            # Actualizar variables del estado directamente
+            # En Reflex, las variables de estado siempre existen después de la definición
+            try:
+                self.cuadrante_1 = cuadrante_1
+                self.cuadrante_2 = cuadrante_2
+                self.cuadrante_3 = cuadrante_3
+                self.cuadrante_4 = cuadrante_4
+            except AttributeError as e:
+                # Si no existen, significa que no estamos en EstadoOdontologia
+                print(f"INFO: Variables de cuadrante no disponibles en clase base: {e}")
+                pass
+
+            print(f"OK Cuadrantes actualizados desde catalogo:")
+            print(f"   Cuadrante 1: {cuadrante_1}")
+            print(f"   Cuadrante 2: {cuadrante_2}")
+            print(f"   Cuadrante 3: {cuadrante_3}")
+            print(f"   Cuadrante 4: {cuadrante_4}")
+
+        except Exception as e:
+            print(f"ERROR actualizando cuadrantes: {e}")

@@ -442,25 +442,30 @@ def sidebar() -> rx.Component:
             rx.box(
                 rx.vstack(
                     _modern_nav_item("Dashboard", "home", "dashboard"),
-                    _modern_nav_item("Pacientes", "users", "pacientes"), 
-                    _modern_nav_item("Consultas", "calendar", "consultas"),
-                    
+                    _modern_nav_item("Pacientes", "users", "pacientes"),
+
+                    # Consultas solo para gerente y administrador
+                    rx.cond(
+                        (AppState.rol_usuario == "gerente") | (AppState.rol_usuario == "administrador"),
+                        _modern_nav_item("Consultas", "calendar", "consultas")
+                    ),
+
                     # Opciones específicas por rol
                     rx.cond(
                         AppState.rol_usuario == "gerente",
                         rx.fragment(
                             _modern_nav_item("Pagos", "credit-card", "pagos"),
                             _modern_nav_item("Personal", "user-plus", "personal"),
-                            _modern_nav_item("Servicios", "list", "servicios"), 
+                            _modern_nav_item("Servicios", "list", "servicios"),
                             _modern_nav_item("Reportes", "bar-chart", "reportes")
                         )
                     ),
-                    
+
                     rx.cond(
                         AppState.rol_usuario == "administrador",
                         _modern_nav_item("Pagos", "credit-card", "pagos")
                     ),
-                    
+
                     rx.cond(
                         AppState.rol_usuario == "odontologo",
                         _modern_nav_item("Odontología", "activity", "odontologia")

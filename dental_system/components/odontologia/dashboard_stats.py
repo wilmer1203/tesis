@@ -126,7 +126,7 @@ def dashboard_stats_grid() -> rx.Component:
         # Pacientes Asignados
         stat_card(
             titulo="Pacientes Asignados",
-            valor=AppState.estadisticas_dashboard_optimizadas["pacientes_asignados"],
+            valor=AppState.estadisticas_odontologo_tiempo_real["pacientes_asignados"],
             icono="👥",
             estilo=STAT_CARD_PRIMARY_STYLE
         ),
@@ -134,7 +134,7 @@ def dashboard_stats_grid() -> rx.Component:
         # Pacientes Disponibles
         stat_card(
             titulo="Disponibles",
-            valor=AppState.estadisticas_dashboard_optimizadas["pacientes_disponibles"],
+            valor=AppState.estadisticas_odontologo_tiempo_real["pacientes_disponibles"],
             icono="🔄",
             estilo=STAT_CARD_SUCCESS_STYLE
         ),
@@ -142,7 +142,7 @@ def dashboard_stats_grid() -> rx.Component:
         # Consultas En Progreso
         stat_card(
             titulo="En Atención",
-            valor=AppState.estadisticas_dashboard_optimizadas["consultas_en_progreso"],
+            valor=AppState.estadisticas_odontologo_tiempo_real["consultas_en_progreso"],
             icono="🏥",
             estilo=STAT_CARD_WARNING_STYLE
         ),
@@ -150,7 +150,7 @@ def dashboard_stats_grid() -> rx.Component:
         # Consultas Completadas
         stat_card(
             titulo="Completadas Hoy",
-            valor=AppState.estadisticas_dashboard_optimizadas["consultas_completadas"],
+            valor=AppState.estadisticas_odontologo_tiempo_real["consultas_completadas"],
             icono="✅",
             estilo=STAT_CARD_SUCCESS_STYLE
         ),
@@ -158,7 +158,7 @@ def dashboard_stats_grid() -> rx.Component:
         # Tiempo promedio
         stat_card(
             titulo="Tiempo Promedio",
-            valor=f"{AppState.estadisticas_dashboard_optimizadas.get('tiempo_promedio_minutos', 25)} min",
+            valor=f"{AppState.estadisticas_odontologo_tiempo_real.get('tiempo_promedio_minutos', 25)} min",
             icono="⏱️",
             estilo=STAT_CARD_INFO_STYLE
         ),
@@ -166,7 +166,7 @@ def dashboard_stats_grid() -> rx.Component:
         # Próxima Consulta Info
         stat_card(
             titulo="En Cola",
-            valor=AppState.estadisticas_dashboard_optimizadas["consultas_programadas"],
+            valor=AppState.estadisticas_odontologo_tiempo_real["consultas_programadas"],
             icono="⏳",
             estilo=STAT_CARD_PRIMARY_STYLE
         ),

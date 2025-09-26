@@ -102,11 +102,7 @@ class EstadoAuth(rx.State, mixin=True):
             # Autenticar con Supabase
             sesion, info_usuario = auth.sign_in(email, contraseña)
 
-            if sesion and info_usuario:
-                # Debug: mostrar información de usuario
-                print(f"🔍 DEBUG AUTH - info_usuario: {info_usuario}")
-                print(f"🔍 DEBUG AUTH - rol disponible: {info_usuario.get('rol')}")
-                
+            if sesion and info_usuario: 
                 # Actualizar estado de autenticación
                 self.esta_autenticado = True
                 self.id_usuario = info_usuario["id"]
@@ -147,13 +143,8 @@ class EstadoAuth(rx.State, mixin=True):
 
                 # 🚀 INICIALIZAR DATOS POST-LOGIN
                 await self.post_login_inicializacion()
-
-
                 # Determinar ruta según rol y redirigir
                 ruta_dashboard = self.obtener_ruta_dashboard()
-
-                # # Invalidar cache al cambiar usuario
-                # CacheInvalidationHooks.force_refresh_all_dashboard_cache()
 
                 return rx.redirect(ruta_dashboard)
                 

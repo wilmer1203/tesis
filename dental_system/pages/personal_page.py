@@ -15,11 +15,6 @@ Desarrollado para Reflex.dev con patrones modernos
 
 import reflex as rx
 from dental_system.components.common import (
-    stat_card, 
-    primary_button, 
-    secondary_button, 
-    eliminar_button, 
-    page_header,
     medical_page_layout,
     medical_toast_container,
     toast_animations_css
@@ -27,19 +22,15 @@ from dental_system.components.common import (
 from dental_system.components.table_components import personal_table
 from dental_system.components.forms import multi_step_staff_form
 from dental_system.state.app_state import AppState
-from dental_system.models import PersonalModel
 from dental_system.styles.themes import (
     COLORS, 
     SHADOWS, 
     RADIUS, 
     SPACING, 
     ANIMATIONS, 
-    ROLE_THEMES,
     GRADIENTS,
     GLASS_EFFECTS,
     DARK_THEME,
-    get_color,
-    dark_page_background,
     dark_crystal_card,
     dark_table_container,
     dark_header_style
@@ -154,13 +145,6 @@ def delete_personal_confirmation_modal() -> rx.Component:
         on_open_change=AppState.cerrar_modal
     )
 
-
-# ==========================================
-# MODAL DE PERSONAL 
-# ==========================================
-
-# El formulario multi-step ahora está en components/forms.py
-# Se usa multi_step_staff_form() en lugar de este modal básico
 
 # ==========================================
 # ESTADÍSTICAS DE PERSONAL

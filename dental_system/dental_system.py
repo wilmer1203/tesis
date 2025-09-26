@@ -7,13 +7,12 @@ from dental_system.styles.themes import COLORS, SHADOWS
 # from dental_system.pages.dashboard import dashboard_page
 from dental_system.pages.pacientes_page import pacientes_page
 from dental_system.pages.personal_page import personal_page
-from dental_system.pages.consultas_page_v41 import consultas_page_v41
-# from dental_system.pages.servicios_page import servicios_page  # TODO: Fix estado_servicios integration
-from dental_system.pages.intervencion_advanced_page import intervencion_advanced_page
+from dental_system.pages.consultas_page import consultas_page_v41
+from dental_system.pages.servicios_page import servicios_page
+from dental_system.pages.pagos_page import pagos_page
 from dental_system.pages.odontologia_page import odontologia_page
-from dental_system.pages.intervencion_page_v2 import intervencion_page_v2
+from dental_system.pages.intervencion_page import intervencion_page_v2
 from dental_system.pages.login import login_page
-from dental_system.pages.test_selector import test_selector_page
 from dental_system.components.common import sidebar
 from dental_system.utils.route_guard import (
     boss_only_component,
@@ -21,7 +20,6 @@ from dental_system.utils.route_guard import (
     dentist_component,
     authenticated_only_component
 )
-# test_generic_tables.py
 
 
 # ==========================================
@@ -88,8 +86,8 @@ def main_content() -> rx.Component:
         ("pacientes", pacientes_page()),
         ("consultas", consultas_page_v41()),  # 🔄 VERSIÓN ORIGINAL (FUNCIONA)
         ("personal", personal_page()),
-        # ("servicios", servicios_page()),  # TODO: Completar integración estado servicios
-        # ("pagos", pagos_page()),  # TODO: Implementar módulo pagos
+        ("servicios", servicios_page()),  # ✅ Habilitado
+        ("pagos", pagos_page()),  # ✅ Habilitado
         ("odontologia", odontologia_page()),
         ("intervencion", intervencion_page_v2()),
         ("reportes", reportes_placeholder()),
@@ -248,10 +246,7 @@ def create_app() -> rx.App:
     app.add_page(boss_page, route="/boss")        # Gerente
     app.add_page(admin_page, route="/admin")      # Administrador  
     app.add_page(dentist_page, route="/dentist")  # Odontólogo
-    
-    # Agregar páginas de prueba del odontograma avanzado
-    app.add_page(intervencion_advanced_page, route="/intervencion-avanzada")  # Página avanzada completa
-    
+ 
     return app
 
 # Crear la aplicación

@@ -120,7 +120,8 @@ class EstadoUI(rx.State, mixin=True):
     errores_formulario_consulta: Dict[str, str] = {}
     puede_continuar_form_consulta: bool = True
     datos_temporales_consulta: Dict[str, Any] = {}
-    
+    datos_temporales_servicio: Dict[str, Any] = {}
+
     # ==========================================
     # 📱 NOTIFICACIONES Y FEEDBACK
     # ==========================================
@@ -254,7 +255,20 @@ class EstadoUI(rx.State, mixin=True):
             self.datos_temporales_personal = datos or {}
         
         print(f"👨‍⚕️ Modal personal abierto: {tipo}")
-    
+
+    @rx.event
+    def abrir_modal_servicio(self, tipo: str, datos: Dict[str, Any] = None):
+        """🏥 Abrir modal de servicio"""
+        self.cerrar_todos_los_modales()
+        if tipo == "crear":
+            self.modal_crear_servicio_abierto = True
+            self.datos_temporales_servicio = {}
+        elif tipo == "editar":
+            self.modal_editar_servicio_abierto = True
+            self.datos_temporales_servicio = datos or {}
+
+        print(f"🏥 Modal servicio abierto: {tipo}")
+
     @rx.event
     def abrir_modal_confirmacion(self, titulo: str, mensaje: str, accion: str):
         """⚠️ Abrir modal de confirmación"""
@@ -747,6 +761,7 @@ class EstadoUI(rx.State, mixin=True):
         self.datos_temporales_paciente = {}
         self.datos_temporales_consulta = {}
         self.datos_temporales_personal = {}
+        self.datos_temporales_servicio = {}
         
         # Resetear formularios
         self.resetear_formulario_paciente()

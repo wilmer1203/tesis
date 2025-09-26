@@ -37,20 +37,95 @@ class OdontogramaService:
     # ==========================================
     # 📊 CATÁLOGO FDI - CARGA Y CONSULTA
     # ==========================================
+
+    def obtener_catalogo_fdi(self) -> Dict[str, Any]:
+        """📊 Obtener catálogo FDI organizado por cuadrantes para AppState"""
+        try:
+            # Obtener todos los dientes activos de la BD
+            response = self.supabase.table("dientes").select(
+                "id, numero_diente, nombre, tipo_diente, cuadrante, ubicacion, es_temporal"
+            ).eq("activo", True).order("numero_diente").execute()
+
+            if not response.data:
+                return {"error": "No hay dientes en el catálogo"}
+
+            # Organizar por cuadrantes
+            cuadrantes = {
+                "cuadrante_1": [],  # Superior derecho
+                "cuadrante_2": [],  # Superior izquierdo
+                "cuadrante_3": [],  # Inferior izquierdo
+                "cuadrante_4": []   # Inferior derecho
+            }
+
+            # Distribuir dientes por cuadrante
+            for diente in response.data:
+                cuadrante = diente.get("cuadrante")
+                numero = diente.get("numero_diente")
+
+                if cuadrante == 1:
+                    cuadrantes["cuadrante_1"].append(numero)
+                elif cuadrante == 2:
+                    cuadrantes["cuadrante_2"].append(numero)
+                elif cuadrante == 3:
+                    cuadrantes["cuadrante_3"].append(numero)
+                elif cuadrante == 4:
+                    cuadrantes["cuadrante_4"].append(numero)
+
+            return {
+                "dientes": response.data,
+                "cuadrantes": cuadrantes,
+                "total_dientes": len(response.data)
+            }
+
+        except Exception as e:
+            print(f"❌ Error obteniendo catálogo FDI: {e}")
+            # Fallback con estructura vacía
+            return {
+                "dientes": [],
+                "cuadrantes": {
+                    "cuadrante_1": [],
+                    "cuadrante_2": [],
+                    "cuadrante_3": [],
+                    "cuadrante_4": []
+                },
+                "total_dientes": 0,
+                "error": str(e)
+            }
     
     async def cargar_catalogo_fdi(self) -> List[DienteModel]:
         """📊 Cargar catálogo completo FDI (32 dientes)"""
         try:
             response = self.supabase.table("dientes").select(
-                "*, numero_fdi, nombre_diente, cuadrante, tipo_diente, coordenadas_svg, superficies_disponibles"
-            ).order("numero_fdi").execute()
-            
+                "id, numero_diente, nombre, cuadrante, tipo_diente, ubicacion, es_temporal, activo"
+            ).eq("activo", True).order("numero_diente").execute()
+
             if response.data:
-                return [DienteModel.from_dict(diente) for diente in response.data]
-            return []
-            
+                # Mapear campos de BD a campos esperados por DienteModel
+                dientes_formateados = []
+                for diente_bd in response.data:
+                    diente_modelo = {
+                        "id": diente_bd.get("id"),
+                        "numero_fdi": diente_bd.get("numero_diente"),  # Mapeo correcto
+                        "numero_diente": diente_bd.get("numero_diente"),  # Backward compatibility
+                        "nombre_diente": diente_bd.get("nombre"),  # Mapeo correcto
+                        "cuadrante": diente_bd.get("cuadrante"),
+                        "tipo_diente": diente_bd.get("tipo_diente"),
+                        "ubicacion": diente_bd.get("ubicacion"),
+                        "es_temporal": diente_bd.get("es_temporal", False),
+                        "activo": diente_bd.get("activo", True),
+                        "coordenadas_svg": {},  # Por ahora vacío
+                        "superficies_disponibles": ["oclusal", "mesial", "distal", "vestibular", "lingual"]  # Por defecto
+                    }
+                    dientes_formateados.append(DienteModel.from_dict(diente_modelo))
+
+                print(f"OK Catalogo FDI cargado: {len(dientes_formateados)} dientes")
+                return dientes_formateados
+
+            print("WARNING No hay dientes en la base de datos, usando fallback")
+            return self._get_catalogo_fdi_fallback()
+
         except Exception as e:
-            print(f"❌ Error cargando catálogo FDI: {e}")
+            print(f"ERROR cargando catalogo FDI: {e}")
             return self._get_catalogo_fdi_fallback()
     
     def _get_catalogo_fdi_fallback(self) -> List[DienteModel]:
@@ -86,7 +161,7 @@ class OdontogramaService:
     async def obtener_diente_por_fdi(self, numero_fdi: int) -> Optional[DienteModel]:
         """🔍 Obtener información detallada de un diente FDI específico"""
         try:
-            response = self.supabase.table("dientes").select("*").eq("numero_fdi", numero_fdi).single().execute()
+            response = self.supabase.table("dientes").select("*").eq("numero_diente", numero_fdi).single().execute()
             
             if response.data:
                 return DienteModel.from_dict(response.data)

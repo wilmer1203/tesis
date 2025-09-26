@@ -124,7 +124,7 @@ def item_procedimiento(servicio) -> rx.Component:
                 # Línea de precios
                 rx.hstack(
                     rx.text(
-                        f"${servicio.get('precio_bs', 0):,.0f} BS",
+                        f"${servicio.get('precio_base_bs', 0):,.0f} BS",
                         size="2",
                         weight="bold",
                         color="green.600"

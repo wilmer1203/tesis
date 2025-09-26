@@ -10,11 +10,11 @@ from datetime import datetime
 
 class OdontogramaModel(rx.Base):
     """🦷 Modelo avanzado para odontogramas con versionado automático"""
-    id: Optional[str] = ""
+    id: Optional[str] = None
     numero_historia: str = ""  # ← NUEVO: Link directo a paciente por HC
     version: int = 1           # ← MEJORADO: Versionado automático
-    id_version_anterior: Optional[str] = ""  # ← NUEVO: Historial de versiones
-    id_intervencion_origen: Optional[str] = ""  # ← NUEVO: Trazabilidad
+    id_version_anterior: Optional[str] = None  # ← NUEVO: Historial de versiones
+    id_intervencion_origen: Optional[str] = None  # ← NUEVO: Trazabilidad
     es_version_actual: bool = True             # ← NUEVO: Control de versión activa
     motivo_nueva_version: Optional[str] = ""  # ← NUEVO: Razón del cambio
     
@@ -42,11 +42,11 @@ class OdontogramaModel(rx.Base):
             return cls()
         
         return cls(
-            id=str(data.get("id", "")),
+            id=str(data.get("id", "")) if data.get("id") else None,
             numero_historia=str(data.get("numero_historia", "")),
             version=int(data.get("version", 1)),
-            id_version_anterior=str(data.get("id_version_anterior", "") if data.get("id_version_anterior") else ""),
-            id_intervencion_origen=str(data.get("id_intervencion_origen", "") if data.get("id_intervencion_origen") else ""),
+            id_version_anterior=str(data.get("id_version_anterior", "")) if data.get("id_version_anterior") else None,
+            id_intervencion_origen=str(data.get("id_intervencion_origen", "")) if data.get("id_intervencion_origen") else None,
             es_version_actual=bool(data.get("es_version_actual", True)),
             motivo_nueva_version=str(data.get("motivo_nueva_version", "") if data.get("motivo_nueva_version") else ""),
             fecha_creacion=str(data.get("fecha_creacion", "")),
@@ -111,7 +111,7 @@ class DienteModel(rx.Base):
             return cls()
         
         return cls(
-            id=str(data.get("id", "")),
+            id=str(data.get("id", "")) if data.get("id") else None,
             numero_fdi=int(data.get("numero_fdi", 0)),
             nombre_diente=str(data.get("nombre_diente", "")),
             cuadrante=int(data.get("cuadrante", 0)),
@@ -171,7 +171,7 @@ class DienteModel(rx.Base):
 
 class CondicionDienteModel(rx.Base):
     """Modelo para condiciones específicas de cada diente"""
-    id: Optional[str] = ""
+    id: Optional[str] = None
     odontograma_id: str = ""
     diente_id: str = ""
     tipo_condicion: str = ""
@@ -204,7 +204,7 @@ class CondicionDienteModel(rx.Base):
         diente_data = data.get("dientes", {})
         
         return cls(
-            id=str(data.get("id", "")),
+            id=str(data.get("id", "")) if data.get("id") else None,
             odontograma_id=str(data.get("odontograma_id", "")),
             diente_id=str(data.get("diente_id", "")),
             tipo_condicion=str(data.get("tipo_condicion", "")),
@@ -347,7 +347,7 @@ class CondicionDienteModel(rx.Base):
 
 class HistorialClinicoModel(rx.Base):
     """Modelo para historial médico dental detallado"""
-    id: Optional[str] = ""
+    id: Optional[str] = None
     paciente_id: str = ""
     consulta_id: Optional[str] = ""
     odontologo_id: str = ""
@@ -382,7 +382,7 @@ class HistorialClinicoModel(rx.Base):
             return cls()
         
         return cls(
-            id=str(data.get("id", "")),
+            id=str(data.get("id", "")) if data.get("id") else None,
             paciente_id=str(data.get("paciente_id", "")),
             consulta_id=str(data.get("consulta_id", "") if data.get("consulta_id") else ""),
             odontologo_id=str(data.get("odontologo_id", "")),
@@ -481,7 +481,7 @@ class PlanTratamientoModel(rx.Base):
             return cls()
         
         return cls(
-            id=str(data.get("id", "")),
+            id=str(data.get("id", "")) if data.get("id") else None,
             paciente_id=str(data.get("paciente_id", "")),
             odontologo_id=str(data.get("odontologo_id", "")),
             fecha_creacion=str(data.get("fecha_creacion", "")),
@@ -597,7 +597,7 @@ class IntervencionFormModel(rx.Base):
 
 class HistorialMedicoModel(rx.Base):
     """📋 Modelo para historial médico inicial y evolución del paciente"""
-    id: Optional[str] = ""
+    id: Optional[str] = None
     paciente_id: str = ""
     consulta_id: Optional[str] = ""
     intervencion_id: Optional[str] = ""
@@ -645,7 +645,7 @@ class HistorialMedicoModel(rx.Base):
             return cls()
 
         return cls(
-            id=str(data.get("id", "")),
+            id=str(data.get("id", "")) if data.get("id") else None,
             paciente_id=str(data.get("paciente_id", "")),
             consulta_id=str(data.get("consulta_id", "") if data.get("consulta_id") else ""),
             intervencion_id=str(data.get("intervencion_id", "") if data.get("intervencion_id") else ""),

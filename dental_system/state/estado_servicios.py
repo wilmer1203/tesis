@@ -16,6 +16,7 @@ PATRÓN: Substate con get_estado_servicios() en AppState
 import reflex as rx
 from datetime import date, datetime
 from typing import Dict, Any, List, Optional, Union
+from decimal import Decimal
 import logging
 
 # Servicios y modelos
@@ -46,22 +47,33 @@ class EstadoServicios(rx.State,mixin=True):
     # ==========================================
     # 🏥 VARIABLES PRINCIPALES DE SERVICIOS
     # ==========================================
-    
-    # Lista principal de servicios (modelos tipados)
+
+    # ==========================================
+    # 🪟 CONTROL DE MODALES (COMO PERSONAL)
+    # ==========================================
+    modal_crear_servicio_abierto: bool = False
+    modal_editar_servicio_abierto: bool = False
+
+
+    # ==========================================
+    # 📋 DATOS PRINCIPALES
+    # ==========================================
     lista_servicios: List[ServicioModel] = []
     total_servicios: int = 0
-    
-    # Servicio seleccionado para operaciones
-    servicio_seleccionado: ServicioModel = ServicioModel()
+
+    # ==========================================
+    # 🎯 SERVICIO SELECCIONADO (COMO EMPLEADO_SELECCIONADO)
+    # ==========================================
+    servicio_seleccionado: Optional[ServicioModel] = None
     id_servicio_seleccionado: str = ""
-    
-    # Formulario de servicio (datos temporales)
-    formulario_servicio: Dict[str, Any] = {}
-    formulario_servicio_data: ServicioFormModel = ServicioFormModel()
+
+    # ==========================================
+    # 📝 FORMULARIO TIPADO (COMO PERSONAL)
+    # ==========================================
+    formulario_servicio: ServicioFormModel = ServicioFormModel()
     errores_validacion_servicio: Dict[str, str] = {}
     
     # Variables auxiliares para operaciones
-    servicio_para_eliminar: Optional[ServicioModel] = None
     mostrar_solo_activos_servicios: bool = True
     
     # Lista de categorías tipadas
@@ -71,20 +83,17 @@ class EstadoServicios(rx.State,mixin=True):
     # 🏥 CATEGORÍAS Y CLASIFICACIÓN
     # ==========================================
     
-    # Categorías disponibles
+    # Categorías disponibles (basadas en BD real)
     categorias_servicios: List[str] = [
         "Preventiva",
-        "Restaurativa", 
+        "Restaurativa",
         "Endodoncia",
-        "Periodoncia",
-        "Cirugía Oral",
-        "Ortodincia",
+        "Cirugía",
         "Prótesis",
-        "Estética Dental",
+        "Estética",
         "Implantología",
-        "Odontopediatría",
-        "Urgencias",
-        "General"
+        "Diagnóstico",
+        "Consulta"
     ]
     
     # Filtros por categoría
@@ -98,6 +107,12 @@ class EstadoServicios(rx.State,mixin=True):
     
     # Búsqueda principal con throttling
     termino_busqueda_servicios: str = ""
+    
+    # ==========================================
+    # 🪟 ESTADOS DE MODAL
+    # ==========================================
+    modal_servicio_abierto: bool = False
+    modo_modal_servicio: str = "crear"  # crear, editar
     busqueda_activa_servicios: bool = False
     
     # Ordenamiento
@@ -133,6 +148,11 @@ class EstadoServicios(rx.State,mixin=True):
     # ==========================================
     
     @rx.var(cache=True)
+    def opciones_categoria_completas(self) -> List[str]:
+        """🏷️ Lista completa de opciones para select de categorías"""
+        return ["todas"] + self.categorias_servicios
+
+    @rx.var(cache=True)
     def servicios_filtrados_display(self) -> List[ServicioModel]:
         """🔍 Servicios filtrados según criterios actuales"""
         servicios = self.lista_servicios
@@ -157,8 +177,8 @@ class EstadoServicios(rx.State,mixin=True):
         precio_min = self.filtro_rango_precio_servicios.get("min", 0.0)
         precio_max = self.filtro_rango_precio_servicios.get("max", 999999.0)
         servicios = [
-            s for s in servicios 
-            if precio_min <= s.precio_base <= precio_max
+            s for s in servicios
+            if precio_min <= s.precio_base_bs <= precio_max
         ]
         
         return servicios
@@ -232,8 +252,12 @@ class EstadoServicios(rx.State,mixin=True):
                 resultado = [serv for serv in resultado if not serv.activo]
             
             # Filtro por rango de precio
-            if self.filtro_rango_precio != "todos":
-                resultado = self._aplicar_filtro_precio(resultado, self.filtro_rango_precio)
+            # Aplicar filtro de precio usando la variable correcta
+            precio_min = self.filtro_rango_precio_servicios.get("min", 0.0)
+            precio_max = self.filtro_rango_precio_servicios.get("max", 999999.0)
+            if precio_min > 0 or precio_max < 999999.0:
+                resultado = [s for s in resultado
+                           if precio_min <= (s.precio_base or 0) <= precio_max]
             
             # Aplicar ordenamiento
             if self.campo_ordenamiento_servicios == "nombre":
@@ -353,6 +377,34 @@ class EstadoServicios(rx.State,mixin=True):
             return 0.0
     
     # ==========================================
+    # 📝 COMPUTED VARS PARA FORMULARIO
+    # ==========================================
+
+    @rx.var
+    def formulario_precio_usd_value(self) -> str:
+        """📝 Precio USD del formulario de servicio"""
+        if not self.formulario_servicio:
+            return ""
+        valor = str(self.formulario_servicio.precio_base_usd) if self.formulario_servicio.precio_base_usd else ""
+        return valor
+
+    @rx.var
+    def formulario_precio_bs_value(self) -> str:
+        """📝 Precio BS del formulario de servicio"""
+        if not self.formulario_servicio:
+            return ""
+        valor = str(self.formulario_servicio.precio_base_bs) if self.formulario_servicio.precio_base_bs else ""
+        return valor
+
+    @rx.var
+    def formulario_duracion_value(self) -> str:
+        """📝 Duración del formulario de servicio"""
+        if not self.formulario_servicio:
+            return ""
+        valor = str(self.formulario_servicio.duracion_estimada) if self.formulario_servicio.duracion_estimada else ""
+        return valor
+
+    # ==========================================
     # 🔄 MÉTODOS DE CARGA DE DATOS
     # ==========================================
     
@@ -444,9 +496,9 @@ class EstadoServicios(rx.State,mixin=True):
         self.pagina_actual_servicios = 1
         await self.cargar_lista_servicios()
     
-    async def filtrar_por_precio(self, rango: str):
+    async def filtrar_por_precio(self, rango: Dict[str, float]):
         """Filtrar servicios por rango de precio"""
-        self.filtro_rango_precio = rango
+        self.filtro_rango_precio_servicios = rango
         self.pagina_actual_servicios = 1
         await self.cargar_lista_servicios()
     
@@ -502,120 +554,122 @@ class EstadoServicios(rx.State,mixin=True):
     
     async def crear_servicio(self):
         """
-        Crear nuevo servicio avec validations
+        Crear nuevo servicio con validaciones
         Solo accesible por Gerente
         """
-        from dental_system.state.estado_ui import EstadoUI
-        
-        ui_state = self.get_state(EstadoUI)
-        
-        # Verificar permisos usando la propiedad correcta del mixin
+        # Verificar permisos usando la propiedad del mixin
         if not self.rol_usuario == "gerente":
-            ui_state.mostrar_toast_error("Solo el gerente puede crear servicios")
+            self.mostrar_toast("Solo el gerente puede crear servicios", "error")
             return
-        
-        # Validar formulario usando modelo tipado
-        errores = self.formulario_servicio_data.validate_servicio()
+
+        # Validar formulario usando modelo tipado - PATRÓN PERSONAL
+        errores = self.formulario_servicio.validate_form()
         if errores:
-            self.errores_validacion_servicio = {field: errors[0] for field, errors in errores.items()}
+            self.errores_validacion_servicio = {field: errores[field] for field in errores.keys()}
             return
-        
+
         self.cargando_operacion_servicio = True
-        
+
         try:
+            # Configurar contexto del usuario antes de usar servicio
+            servicios_service.set_user_context(self.id_usuario, self.perfil_usuario)
+
             # Crear servicio usando modelo tipado
             nuevo_servicio = await servicios_service.create_service(
-                form_data=self.formulario_servicio_data,
+                servicio_form=self.formulario_servicio,
                 user_id=self.id_usuario,
             )
-            
-            
-            # Agregar a la lista
-            self.lista_servicios.append(nuevo_servicio)
-            self.total_servicios += 1
-            
-            # Limpiar formulario
-            self.limpiar_formulario_servicio()
-            
-            # Cerrar modal y mostrar éxito
-            ui_state.cerrar_modal("modal_servicio")
-            ui_state.mostrar_toast_exito(f"Servicio {nuevo_servicio.nombre} creado exitosamente")
-            
-            logger.info(f"✅ Servicio creado: {nuevo_servicio.nombre}")
-            
+
+            if nuevo_servicio:
+                # Agregar a la lista
+                self.lista_servicios.append(nuevo_servicio)
+                self.total_servicios += 1
+
+                # Limpiar formulario
+                self.limpiar_formulario_servicio()
+
+                # Limpiar y cerrar modal
+                self.limpiar_y_cerrar_modal_crear()
+
+                self.mostrar_toast(f"Servicio '{nuevo_servicio.nombre}' creado exitosamente", "success")
+                logger.info(f"✅ Servicio creado: {nuevo_servicio.nombre}")
+            else:
+                self.mostrar_toast("Error al crear servicio", "error")
+
         except Exception as e:
             logger.error(f"❌ Error creando servicio: {e}")
-            ui_state.mostrar_toast_error("Error al crear servicio")
-            
+            self.mostrar_toast("Error al crear servicio", "error")
+
         finally:
             self.cargando_operacion_servicio = False
     
     async def actualizar_servicio(self):
-        """Actualizar servicio existente"""
-        if not self.servicio_seleccionado or not self.servicio_seleccionado.id:
+        """
+        Actualizar servicio existente con validaciones y manejo de errores
+        """
+        # Verificar que hay un servicio seleccionado
+        if not self.id_servicio_seleccionado:
+            self.mostrar_toast("No hay servicio seleccionado para editar", "error")
             return
-        
-        # Validar formulario usando modelo tipado
-        errores = self.formulario_servicio_data.validate_servicio()
+
+        # Verificar permisos usando la propiedad del mixin
+        if not self.rol_usuario == "gerente":
+            self.mostrar_toast("Solo el gerente puede editar servicios", "error")
+            return
+
+        # Validar formulario
+        errores = self.formulario_servicio.validate_form()
         if errores:
-            self.errores_validacion_servicio = {field: errors[0] for field, errors in errores.items()}
+            self.errores_validacion_servicio = {field: errores[field] for field in errores.keys()}
             return
-        
-        from dental_system.state.estado_auth import EstadoAuth
-        from dental_system.state.estado_ui import EstadoUI
-        
-        auth_state = self.get_state(EstadoAuth)
-        ui_state = self.get_state(EstadoUI)
-        
+            
         self.cargando_operacion_servicio = True
         
         try:
-            # Actualizar servicio usando modelo tipado
+            # Configurar contexto del usuario antes de usar servicio
+            servicios_service.set_user_context(self.id_usuario, self.perfil_usuario)
+
+            # Actualizar usando el servicio
             servicio_actualizado = await servicios_service.update_service(
-                service_id=self.servicio_seleccionado.id,
-                form_data=self.formulario_servicio_data,
-                user_id=self.id_usuario
+                service_id=self.id_servicio_seleccionado,
+                servicio_form=self.formulario_servicio,
             )
             
-            # Actualizar en la lista
-            for i, serv in enumerate(self.lista_servicios):
-                if serv.id == servicio_actualizado.id:
-                    self.lista_servicios[i] = servicio_actualizado
-                    break
-            
-            # Actualizar seleccionado
-            self.servicio_seleccionado = servicio_actualizado
-            
-            # Limpiar y cerrar
-            self.limpiar_formulario_servicio()
-            ui_state.cerrar_modal("modal_servicio")
-            ui_state.mostrar_toast_exito("Servicio actualizado exitosamente")
-            
-            logger.info(f"✅ Servicio actualizado: {servicio_actualizado.nombre}")
-            
+            if servicio_actualizado:
+                # Actualizar en la lista local
+                self.lista_servicios = [
+                    servicio_actualizado if s.id == self.id_servicio_seleccionado 
+                    else s for s in self.lista_servicios
+                ]
+                
+                # Actualizar seleccionado
+                self.servicio_seleccionado = servicio_actualizado
+                
+                # Limpiar y cerrar
+                self.limpiar_y_cerrar_modal_editar()
+                self.mostrar_toast(f"Servicio {servicio_actualizado.nombre} actualizado exitosamente", "success")
+                
+                logger.info(f"✅ Servicio actualizado: {servicio_actualizado.nombre}")
+            else:
+                raise ValueError("No se pudo actualizar el servicio")
+                
         except Exception as e:
             logger.error(f"❌ Error actualizando servicio: {e}")
-            ui_state.mostrar_toast_error("Error al actualizar servicio")
+            self.mostrar_toast(f"Error al actualizar servicio: {str(e)}", "error")
             
         finally:
             self.cargando_operacion_servicio = False
     
     async def activar_desactivar_servicio(self, servicio_id: str, activar: bool):
         """Activar o desactivar servicio (soft delete)"""
-        from dental_system.state.estado_ui import EstadoUI
-        
-        ui_state = self.get_state(EstadoUI)
-        
         # Verificar permisos usando la propiedad correcta del mixin
         if not self.rol_usuario == "gerente":
-            ui_state.mostrar_toast_error("Solo el gerente puede cambiar el estado de servicios")
+            self.mostrar_toast("Solo el gerente puede cambiar el estado de servicios", "error")
             return
         
         try:
-            success = await servicios_service.toggle_service_status(
+            success = await servicios_service.reactivate_service(
                 service_id=servicio_id,
-                activo=activar,
-                user_id=self.id_usuario
             )
             
             if success:
@@ -625,71 +679,69 @@ class EstadoServicios(rx.State,mixin=True):
                         self.lista_servicios[i].activo = activar
                         break
                 
+                # Obtener el nombre del servicio para el mensaje
+                servicio = next((s for s in self.lista_servicios if s.id == servicio_id), None)
+                nombre_servicio = servicio.nombre if servicio else "servicio"
+                
                 accion = "activado" if activar else "desactivado"
-                ui_state.mostrar_toast_exito(f"Servicio {accion} exitosamente")
+                self.mostrar_toast(f"Servicio {nombre_servicio} {accion} exitosamente", "success")
+                
+                # Log del cambio
+                logger.info(f"✅ Servicio {nombre_servicio} {accion}")
+                
+            else:
+                raise ValueError(f"No se pudo cambiar el estado del servicio {servicio_id}")
                 
         except Exception as e:
             logger.error(f"❌ Error cambiando estado servicio: {e}")
-            ui_state.mostrar_toast_error("Error al cambiar estado del servicio")
+            self.mostrar_toast("Error al cambiar estado del servicio", "error")
+            
+        finally:
+            # Refrescar la lista para asegurar consistencia
+            await self.cargar_lista_servicios()
+
     
     # ==========================================
     # 📝 GESTIÓN DE FORMULARIOS
     # ==========================================
     
     def cargar_servicio_en_formulario(self, servicio: ServicioModel):
-        """Cargar datos de servicio en el formulario para edición"""
+        """Cargar datos de servicio en el formulario para edición - PATRÓN PERSONAL"""
         self.servicio_seleccionado = servicio
         self.id_servicio_seleccionado = servicio.id
-        
-        # Cargar en modelo tipado usando factory method
-        self.formulario_servicio_data = ServicioFormModel.from_servicio_model(servicio)
-        
-        # Mantener formulario Dict para backward compatibility temporal
-        self.formulario_servicio = {
-            "codigo": servicio.codigo,
-            "nombre": servicio.nombre,
-            "descripcion": servicio.descripcion or "",
-            "categoria": servicio.categoria or "",
-            "precio_base": str(servicio.precio_base) if servicio.precio_base else "",
-            "precio_minimo": str(servicio.precio_minimo) if servicio.precio_minimo else "",
-            "precio_maximo": str(servicio.precio_maximo) if servicio.precio_maximo else "",
-            "duracion_estimada": str(servicio.duracion_estimada) if servicio.duracion_estimada else "",
-            "requiere_consulta_previa": str(servicio.requiere_consulta_previa),
-            "requiere_autorizacion": str(servicio.requiere_autorizacion),
-            "material_incluido": servicio.material_incluido or "",
-            "instrucciones_pre": servicio.instrucciones_pre or "",
-            "instrucciones_post": servicio.instrucciones_post or "",
-            "observaciones": servicio.observaciones or ""
-        }
-        
+
+        # Cargar en modelo tipado (IGUAL QUE PERSONAL)
+        self.formulario_servicio = ServicioFormModel.from_servicio_model(servicio)
+
         # Limpiar errores
         self.errores_validacion_servicio = {}
     
     def limpiar_formulario_servicio(self):
-        """Limpiar todos los datos del formulario"""
-        self.formulario_servicio = {}
-        self.formulario_servicio_data = ServicioFormModel()  # Limpiar modelo tipado
+        """Limpiar todos los datos del formulario - PATRÓN PERSONAL"""
+        self.formulario_servicio = ServicioFormModel()
         self.errores_validacion_servicio = {}
-        self.servicio_seleccionado = ServicioModel()
+        self.servicio_seleccionado = None
         self.id_servicio_seleccionado = ""
     
     def actualizar_campo_formulario_servicio(self, campo: str, valor: str):
-        """Actualizar campo específico del formulario"""
+        """Actualizar campo específico del formulario - PATRÓN PERSONAL"""
         if not self.formulario_servicio:
-            self.formulario_servicio = {}
-        
-        # Actualizar formulario Dict (backward compatibility)
-        self.formulario_servicio[campo] = valor
-        
-        # Actualizar modelo tipado
-        if hasattr(self.formulario_servicio_data, campo):
-            setattr(self.formulario_servicio_data, campo, valor)
-        
+            self.formulario_servicio = ServicioFormModel()
+
+        # Actualizar modelo tipado directamente
+        if hasattr(self.formulario_servicio, campo):
+            setattr(self.formulario_servicio, campo, valor)
+
         # Limpiar error específico del campo
         if campo in self.errores_validacion_servicio:
             del self.errores_validacion_servicio[campo]
     
     
+    # ==========================================
+    # 🪟 CONTROL DE MODALES
+    # ==========================================
+
+
     # ==========================================
     # 📄 MÉTODOS DE PAGINACIÓN
     # ==========================================
@@ -756,7 +808,112 @@ class EstadoServicios(rx.State,mixin=True):
         await self.cargar_lista_servicios()
         await self.cargar_estadisticas_servicios()
         logger.info("🔄 Datos de servicios refrescados")
-    
+
+    # ==========================================
+    # 🪟 MÉTODOS DE MODAL Y UI
+    # ==========================================
+
+    def limpiar_y_cerrar_modal_crear(self):
+        """Limpiar y cerrar modal de crear servicio"""
+        self.modal_crear_servicio_abierto = False
+        self.limpiar_formulario_servicio()
+        logger.info("Modal crear servicio cerrado y limpiado")
+
+    def limpiar_y_cerrar_modal_editar(self):
+        """Limpiar y cerrar modal de editar servicio"""
+        self.modal_editar_servicio_abierto = False
+        self.limpiar_formulario_servicio()
+        self.servicio_seleccionado = ServicioModel()
+        self.id_servicio_seleccionado = ""
+        logger.info("Modal editar servicio cerrado y limpiado")
+
+    @rx.event
+    def limpiar_y_cerrar_modal_crear_servicio(self):
+        """Limpiar y cerrar modal de crear servicio"""
+        self.modal_crear_servicio_abierto = False
+        self.modal_editar_servicio_abierto = False
+        self.limpiar_formulario_servicio()
+        self.servicio_seleccionado = ServicioModel()
+        self.id_servicio_seleccionado = ""
+        logger.info("Modal crear servicio cerrado y limpiado")
+
+    @rx.event
+    async def abrir_modal_crear_servicio(self):
+        """🆕 Abrir modal para crear nuevo servicio"""
+        # Verificar permisos
+        if not self.rol_usuario == "gerente":
+            from dental_system.state.estado_ui import EstadoUI
+            ui_state = self.get_state(EstadoUI)
+            await ui_state.mostrar_toast_error("Solo el gerente puede crear servicios")
+            return
+
+        # Limpiar formulario
+        self.limpiar_formulario_servicio()
+        self.servicio_seleccionado = ServicioModel()
+        self.id_servicio_seleccionado = ""
+
+        # Abrir modal directamente
+        self.modal_crear_servicio_abierto = True
+        logger.info("🆕 Modal crear servicio abierto")
+
+
+    @rx.event
+    async def seleccionar_y_abrir_modal_servicio(self, servicio_id: str = ""):
+        """
+        📱 Seleccionar servicio y abrir modal - Crear o Editar según ID - PATRÓN PERSONAL
+
+        Args:
+            servicio_id: Si está vacío → Crear, Si tiene valor → Editar
+        """
+        try:
+            if servicio_id:
+                # Modo editar: buscar el servicio en la lista
+                servicio = next(
+                    (s for s in self.lista_servicios if s.id == servicio_id),
+                    None
+                )
+
+                if not servicio:
+                    return
+
+                # Guardar selección
+                self.id_servicio_seleccionado = servicio_id
+                self.servicio_seleccionado = servicio
+
+                # Cargar datos en formulario (IGUAL QUE PERSONAL)
+                self.cargar_servicio_en_formulario(servicio)
+
+                # Limpiar errores previos
+                self.errores_validacion_servicio = {}
+
+                # Abrir modal editar (IGUAL QUE PERSONAL)
+                self.abrir_modal_servicio("editar")
+                logger.info(f"📝 Modal editar servicio abierto: {servicio_id}")
+            else:
+                # Modo crear: limpiar selección y abrir modal
+                self.servicio_seleccionado = ServicioModel()
+                self.id_servicio_seleccionado = ""
+                self.limpiar_formulario_servicio()
+                # Abrir modal crear
+                self.abrir_modal_servicio("crear")
+                logger.info("✅ Modal crear servicio abierto")
+
+        except Exception as e:
+            logger.error(f"Error abriendo modal servicio: {e}")
+
+
+
+    @rx.event
+    async def set_mostrar_solo_activos_servicios(self, mostrar_activos: bool):
+        """👁️ Cambiar filtro de mostrar solo activos"""
+        self.mostrar_solo_activos_servicios = mostrar_activos
+        if mostrar_activos:
+            self.filtro_estado_servicio = "activos"
+        else:
+            self.filtro_estado_servicio = "todos"
+        logger.info(f"👁️ Filtro solo activos: {mostrar_activos}")
+
+
     # ==========================================
     # 📊 MÉTODOS DE ANÁLISIS Y REPORTES
     # ==========================================
@@ -843,10 +1000,8 @@ class EstadoServicios(rx.State,mixin=True):
         self.total_servicios = 0
         self.servicio_seleccionado = ServicioModel()
         self.id_servicio_seleccionado = ""
-        self.formulario_servicio = {}
-        self.formulario_servicio_data = ServicioFormModel()
+        self.formulario_servicio = ServicioFormModel()
         self.errores_validacion_servicio = {}
-        self.servicio_para_eliminar = None
         self.mostrar_solo_activos_servicios = True
         self.lista_categorias_servicios = []
         
@@ -868,4 +1023,5 @@ class EstadoServicios(rx.State,mixin=True):
         self.cargando_operacion_servicio = False
         
         logger.info("🧹 Datos de servicios limpiados")
+
 

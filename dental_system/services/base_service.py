@@ -31,15 +31,6 @@ class BaseService:
         """Establece el contexto del usuario actual"""
         self.current_user_id = user_id
         self.current_user_profile = user_profile
-        
-        # 🔍 DEBUG: Verificar qué está recibiendo
-        print(f"🔍 BaseService.set_user_context recibió:")
-        print(f"   user_id: {user_id}")
-        print(f"   user_profile tipo: {type(user_profile)}")
-        print(f"   user_profile keys: {list(user_profile.keys()) if user_profile else 'VACIÓ'}")
-        if user_profile and 'rol' in user_profile:
-            print(f"   rol en perfil: {user_profile['rol']}")
-        
         user_role = self._extract_user_role()
     
     def _extract_user_role(self) -> str:
@@ -110,15 +101,15 @@ class BaseService:
             # CORREGIDO: Usar método mejorado de extracción
             permisos = self._extract_user_permissions()
             user_role = self._extract_user_role()
-            
+
             if not permisos:
                 return False
-            
+
             module_permisos = permisos.get(module, [])
             has_permission = action in module_permisos
-            
+
             # Permiso verificado
-            
+
             return has_permission
             
         except Exception as e:

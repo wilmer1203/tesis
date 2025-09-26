@@ -37,9 +37,9 @@ async def poblar_consultas_hoy():
             
         pacientes = [p["id"] for p in pacientes_result.data]
         
-        # Obtener administradores
-        admin_result = supabase.table("personal").select("id").eq("tipo_personal", "Administrador").execute()
-        admin_id = admin_result.data[0]["id"] if admin_result.data else None
+        # Obtener administradores (usuario_id, no personal_id)
+        admin_result = supabase.table("personal").select("usuario_id").eq("tipo_personal", "Administrador").execute()
+        admin_id = admin_result.data[0]["usuario_id"] if admin_result.data else None
         
         print(f"👨‍⚕️ Odontólogos disponibles: {len(odontologos)}")
         print(f"👥 Pacientes disponibles: {len(pacientes)}")

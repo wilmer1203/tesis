@@ -177,7 +177,129 @@ class PagosService(BaseService):
         except Exception as e:
             self.handle_error("Error creando pago", e)
             raise ValueError(f"Error inesperado: {str(e)}")
-    
+
+    async def create_dual_payment(self, form_data: Dict[str, str], user_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Crear pago con sistema dual USD/BS
+
+        Args:
+            form_data: Datos del formulario dual
+            user_id: ID del usuario que crea
+
+        form_data esperado:
+        {
+            "paciente_id": "...",
+            "monto_total_usd": "100.00",
+            "pago_usd": "50.00",
+            "pago_bs": "1825.00",
+            "tasa_cambio_del_dia": "36.50",
+            "concepto": "Consulta general",
+            "metodo_pago_usd": "efectivo",
+            "metodo_pago_bs": "transferencia",
+            "referencia_usd": "",
+            "referencia_bs": "TRF123456"
+        }
+
+        Returns:
+            Pago creado o None si hay error
+        """
+        try:
+            logger.info("Creando pago dual USD/BS")
+
+            # Verificar permisos
+            self.require_permission("pagos", "crear")
+
+            # Validar campos requeridos del sistema dual
+            required_fields = ["paciente_id", "monto_total_usd", "concepto", "tasa_cambio_del_dia"]
+            missing_fields = self.validate_required_fields(form_data, required_fields)
+
+            if missing_fields:
+                error_msg = self.format_error_message("Campos requeridos faltantes", missing_fields)
+                raise ValueError(error_msg)
+
+            # Procesar montos duales
+            try:
+                monto_total_usd = Decimal(str(form_data["monto_total_usd"]))
+                pago_usd = Decimal(str(form_data.get("pago_usd", "0")))
+                pago_bs = Decimal(str(form_data.get("pago_bs", "0")))
+                tasa_cambio = Decimal(str(form_data["tasa_cambio_del_dia"]))
+                descuento_usd = Decimal(str(form_data.get("descuento_usd", "0")))
+            except (ValueError, TypeError) as e:
+                raise ValueError(f"Formato de monto inválido: {e}")
+
+            # Validaciones de negocio
+            if monto_total_usd <= 0:
+                raise ValueError("El monto total debe ser mayor a cero")
+
+            if tasa_cambio <= 0:
+                raise ValueError("La tasa de cambio debe ser mayor a cero")
+
+            if pago_usd < 0 or pago_bs < 0:
+                raise ValueError("Los pagos no pueden ser negativos")
+
+            # Validar que al menos haya un pago
+            if pago_usd <= 0 and pago_bs <= 0:
+                raise ValueError("Debe especificar al menos un monto de pago")
+
+            # Construir array de métodos de pago
+            metodos_pago = []
+
+            if pago_usd > 0:
+                metodos_pago.append({
+                    "tipo": form_data.get("metodo_pago_usd", "efectivo"),
+                    "moneda": "USD",
+                    "monto": float(pago_usd),
+                    "referencia": form_data.get("referencia_usd", "").strip() or None
+                })
+
+            if pago_bs > 0:
+                metodos_pago.append({
+                    "tipo": form_data.get("metodo_pago_bs", "efectivo"),
+                    "moneda": "BS",
+                    "monto": float(pago_bs),
+                    "referencia": form_data.get("referencia_bs", "").strip() or None
+                })
+
+            # Crear pago usando tabla especializada
+            result = self.table.create_dual_payment(
+                paciente_id=form_data["paciente_id"],
+                monto_total_usd=monto_total_usd,
+                pago_usd=pago_usd,
+                pago_bs=pago_bs,
+                tasa_cambio=tasa_cambio,
+                concepto=form_data["concepto"].strip(),
+                procesado_por=user_id,
+                metodos_pago=metodos_pago,
+                consulta_id=form_data.get("consulta_id") if form_data.get("consulta_id") else None,
+                descuento_usd=descuento_usd,
+                motivo_descuento=form_data.get("motivo_descuento", "").strip() or None,
+                autorizado_por=form_data.get("autorizado_por") if form_data.get("autorizado_por") else None,
+                observaciones=form_data.get("observaciones", "").strip() or None
+            )
+
+            if result:
+                logger.info(f"✅ Pago dual creado: ${pago_usd} USD + {pago_bs} BS (Recibo: {result.get('numero_recibo', '???')})")
+
+                # 🗑️ INVALIDAR CACHE - pago dual afecta estadísticas financieras
+                try:
+                    invalidate_after_payment_operation()
+                except Exception as cache_error:
+                    logger.warning(f"Error invalidando cache tras crear pago dual: {cache_error}")
+
+                return result
+            else:
+                raise ValueError("Error creando pago dual en la base de datos")
+
+        except PermissionError:
+            logger.warning("Usuario sin permisos para crear pagos duales")
+            raise
+        except ValueError as e:
+            logger.warning(f"Error de validación en pago dual: {e}")
+            raise
+        except Exception as e:
+            self.handle_error("Error creando pago dual", e)
+            raise ValueError(f"Error inesperado: {str(e)}")
+
     async def update_payment(self, payment_id: str, form_data: Dict[str, str]) -> Optional[Dict[str, Any]]:
         """
         Actualiza un pago existente (limitado a ciertos campos)
@@ -463,6 +585,153 @@ class PagosService(BaseService):
                 "pendientes": {"cantidad": 0, "monto_total": 0},
                 "metodos_populares": {}
             }
+
+    async def get_currency_stats(self) -> Dict[str, Any]:
+        """
+        Estadísticas duales USD/BS para dashboard
+
+        Returns:
+            Estadísticas completas con ambas monedas
+        """
+        try:
+            # Verificar permisos
+            self.require_permission("pagos", "leer")
+
+            # Resumen del día actual con moneda dual
+            today_summary = self.table.get_currency_summary()
+
+            # Obtener pagos pendientes
+            pending_payments = self.table.get_pending_payments()
+
+            # Tasa promedio de la semana para comparación
+            from datetime import timedelta
+            week_ago = date.today() - timedelta(days=7)
+            week_payments = self.table.get_payments_by_date_range(week_ago, date.today())
+
+            tasas_semana = []
+            for pago in week_payments:
+                tasa = pago.get("tasa_cambio_bs_usd", 0)
+                if tasa > 0:
+                    tasas_semana.append(tasa)
+
+            tasa_promedio_semana = round(sum(tasas_semana) / len(tasas_semana), 2) if tasas_semana else 36.50
+
+            # Calcular saldos pendientes duales
+            total_pendiente_usd = sum(p.get("saldo_pendiente_usd", p.get("saldo_pendiente", 0)) for p in pending_payments)
+            total_pendiente_bs = sum(p.get("saldo_pendiente_bs", 0) for p in pending_payments)
+
+            stats = {
+                "hoy": {
+                    "total_recaudado_usd": today_summary.get("total_recaudado_usd", 0),
+                    "total_recaudado_bs": today_summary.get("total_recaudado_bs", 0),
+                    "total_pagos": today_summary.get("total_pagos", 0),
+                    "pagos_completados": today_summary.get("pagos_completados", 0),
+                    "pagos_pendientes": today_summary.get("pagos_pendientes", 0),
+                    "tasa_promedio": today_summary.get("tasa_promedio", 36.50),
+                },
+                "pendientes": {
+                    "cantidad": len(pending_payments),
+                    "monto_total_usd": total_pendiente_usd,
+                    "monto_total_bs": total_pendiente_bs
+                },
+                "distribucion_pagos": {
+                    "pagos_mixtos": today_summary.get("pagos_mixtos", 0),
+                    "pagos_solo_usd": today_summary.get("pagos_solo_usd", 0),
+                    "pagos_solo_bs": today_summary.get("pagos_solo_bs", 0)
+                },
+                "tendencias": {
+                    "tasa_promedio_semana": tasa_promedio_semana,
+                    "variacion_tasa": round(today_summary.get("tasa_promedio", 36.50) - tasa_promedio_semana, 2),
+                    "preferencia_moneda": "USD" if today_summary.get("pagos_solo_usd", 0) > today_summary.get("pagos_solo_bs", 0) else "BS"
+                }
+            }
+
+            logger.info(f"Estadísticas duales generadas: ${stats['hoy']['total_recaudado_usd']} USD + {stats['hoy']['total_recaudado_bs']} BS")
+            return stats
+
+        except Exception as e:
+            self.handle_error("Error obteniendo estadísticas de moneda dual", e)
+            return {
+                "hoy": {"total_recaudado_usd": 0, "total_recaudado_bs": 0, "total_pagos": 0, "pagos_completados": 0, "tasa_promedio": 36.50},
+                "pendientes": {"cantidad": 0, "monto_total_usd": 0, "monto_total_bs": 0},
+                "distribucion_pagos": {"pagos_mixtos": 0, "pagos_solo_usd": 0, "pagos_solo_bs": 0},
+                "tendencias": {"tasa_promedio_semana": 36.50, "variacion_tasa": 0, "preferencia_moneda": "USD"}
+            }
+
+    async def get_all_payments(self, estado: str = "todos") -> List[PagoModel]:
+        """
+        Obtiene todos los pagos (método requerido por estado_pagos)
+
+        Args:
+            estado: Filtro por estado (todos, pendiente, completado, anulado)
+
+        Returns:
+            Lista de pagos como modelos tipados
+        """
+        try:
+            # Verificar permisos
+            if not self.check_permission("pagos", "leer"):
+                raise PermissionError("Sin permisos para acceder a pagos")
+
+            # Usar método filtrado para obtener todos los pagos
+            estado_filtro = None if estado == "todos" else estado
+            return await self.get_filtered_payments(estado=estado_filtro)
+
+        except Exception as e:
+            self.handle_error("Error obteniendo todos los pagos", e)
+            return []
+
+    async def get_consultas_pendientes_pago(self) -> List[Dict[str, Any]]:
+        """
+        🏥 Obtener consultas completadas pendientes de facturación
+
+        Returns:
+            Lista de consultas con información para facturación
+        """
+        try:
+            # Verificar permisos
+            self.require_permission("pagos", "leer")
+
+            # Query especializada para consultas pendientes de pago
+            consultas_pendientes = self.table.get_consultas_pendientes_facturacion()
+
+            # Procesar y enriquecer datos para la UI
+            consultas_procesadas = []
+
+            for consulta in consultas_pendientes:
+                consulta_data = {
+                    "consulta_id": consulta.get("id"),
+                    "numero_consulta": consulta.get("numero_consulta", "CONS-000"),
+                    "paciente_id": consulta.get("paciente_id"),
+                    "paciente_nombre": f"{consulta.get('paciente_nombre', '')} {consulta.get('paciente_apellido', '')}".strip(),
+                    "paciente_documento": consulta.get("paciente_documento", ""),
+                    "odontologo_id": consulta.get("primer_odontologo_id"),
+                    "odontologo_nombre": consulta.get("odontologo_nombre", "Dr. Sistema"),
+                    "fecha_consulta": consulta.get("fecha_llegada", ""),
+                    "servicios_realizados": consulta.get("servicios_detalle", []),
+                    "servicios_count": consulta.get("servicios_count", 0),
+                    "total_usd": float(consulta.get("total_usd", 0.0)),
+                    "total_bs": float(consulta.get("total_bs", 0.0)),
+                    "concepto": f"Consulta {consulta.get('numero_consulta', 'CONS-000')} - {consulta.get('servicios_count', 0)} servicios",
+                    "estado_consulta": consulta.get("estado", "completada"),
+                    "dias_pendiente": consulta.get("dias_pendiente", 0),
+                    "prioridad": "alta" if consulta.get("dias_pendiente", 0) > 7 else "normal"
+                }
+                consultas_procesadas.append(consulta_data)
+
+            # Ordenar por fecha más reciente primero
+            consultas_procesadas.sort(
+                key=lambda x: x.get("fecha_consulta", ""),
+                reverse=True
+            )
+
+            logger.info(f"✅ {len(consultas_procesadas)} consultas pendientes de pago obtenidas")
+            return consultas_procesadas
+
+        except Exception as e:
+            self.handle_error("Error obteniendo consultas pendientes de pago", e)
+            return []
+
 
 # Instancia única para importar
 pagos_service = PagosService()

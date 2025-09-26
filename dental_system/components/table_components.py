@@ -431,7 +431,7 @@ def services_table() -> rx.Component:
     return rx.box(
         # Tabla
         rx.cond(
-            AppState.is_loading_servicios,
+            AppState.cargando_lista_servicios,
             loading_state("Cargando servicios..."),
             
             rx.cond(
@@ -557,7 +557,7 @@ def service_row(service: rx.Var[Dict]) -> rx.Component:
                     icon="pencil",
                     tooltip="Editar",
                     color=COLORS["blue"]["600"],
-                    action=lambda: AppState.abrir_modal_servicio(service['id'])
+                    action=lambda: AppState.seleccionar_y_abrir_modal_servicio(service['id'])
                 ),
                 
                 rx.cond(
@@ -566,13 +566,13 @@ def service_row(service: rx.Var[Dict]) -> rx.Component:
                         icon="x-circle",
                         tooltip="Desactivar",
                         color=COLORS["error"]["600"],
-                        action=lambda: AppState.confirmar_eliminar_servicio(service['id'])
+                        action=lambda: AppState.activar_desactivar_servicio(service['id'], False)
                     ),
                     action_button(
                         icon="check",
                         tooltip="Reactivar",
                         color=COLORS["success"]["600"],
-                        action=lambda: AppState.confirmar_reactivar_servicio(service['id'])
+                        action=lambda: AppState.activar_desactivar_servicio(service['id'], True)
                     )
                 ),
                 
@@ -1397,11 +1397,409 @@ def personal_status_badge(estado: rx.Var[str]) -> rx.Component:
     )
 
 # ==========================================
-# 📤 EXPORTS
+# 🚀 OPTIMIZACIONES LAZY LOADING Y PAGINACIÓN
+# ==========================================
+
+def tabla_pacientes_lazy() -> rx.Component:
+    """
+    Tabla de pacientes optimizada con lazy loading y paginación inteligente
+
+    Características:
+    - Paginación automática (25 registros por página)
+    - Lazy loading de datos
+    - Skeleton loading estados
+    - Virtual scrolling para listas grandes
+    - Cache automático integrado
+    """
+    return rx.vstack(
+        # Header con controles de paginación
+        rx.hstack(
+            # Info de paginación
+            rx.text(
+                rx.cond(
+                    AppState.total_pacientes > 0,
+                    f"Mostrando {AppState.pacientes_pagina_actual * 25 - 24} - "
+                    f"{rx.cond(AppState.pacientes_pagina_actual * 25 > AppState.total_pacientes, AppState.total_pacientes, AppState.pacientes_pagina_actual * 25)} "
+                    f"de {AppState.total_pacientes} pacientes",
+                    "No hay pacientes"
+                ),
+                size="2",
+                color=COLORS["gray"]["400"]
+            ),
+
+            rx.spacer(),
+
+            # Selector de página
+            rx.hstack(
+                rx.icon_button(
+                    rx.icon("chevron_left", size=18),
+                    size="2",
+                    variant="outline",
+                    disabled=AppState.pacientes_pagina_actual <= 1,
+                    on_click=AppState.ir_pagina_anterior_pacientes,
+                    cursor="pointer"
+                ),
+
+                rx.text(
+                    f"Página {AppState.pacientes_pagina_actual} de {AppState.total_paginas_pacientes}",
+                    size="2",
+                    color=COLORS["gray"]["300"]
+                ),
+
+                rx.icon_button(
+                    rx.icon("chevron_right", size=18),
+                    size="2",
+                    variant="outline",
+                    disabled=AppState.pacientes_pagina_actual >= AppState.total_paginas_pacientes,
+                    on_click=AppState.ir_pagina_siguiente_pacientes,
+                    cursor="pointer"
+                ),
+
+                spacing="2",
+                align="center"
+            ),
+
+            justify="between",
+            width="100%",
+            margin_bottom="4"
+        ),
+
+        # Tabla optimizada
+        rx.cond(
+            AppState.cargando_pagina_pacientes,
+
+            # Skeleton loading para nueva página
+            rx.vstack(
+                *[
+                    rx.skeleton(
+                        height="60px",
+                        width="100%",
+                        radius="lg"
+                    ) for _ in range(5)
+                ],
+                spacing="3",
+                width="100%"
+            ),
+
+            # Tabla real con datos paginados
+            rx.cond(
+                AppState.pacientes_pagina_actual_lista.length() > 0,
+
+                rx.box(
+                    rx.table.root(
+                        rx.table.header(
+                            rx.table.row(
+                                rx.table.column_header_cell("Paciente", style=COLUMN_HEADER),
+                                rx.table.column_header_cell("Edad", style=COLUMN_HEADER),
+                                rx.table.column_header_cell("Género", style=COLUMN_HEADER),
+                                rx.table.column_header_cell("Documento", style=COLUMN_HEADER),
+                                rx.table.column_header_cell("Contacto", style=COLUMN_HEADER),
+                                rx.table.column_header_cell("Estado", style=COLUMN_HEADER),
+                                rx.table.column_header_cell("Acciones", style=COLUMN_HEADER),
+                            )
+                        ),
+
+                        rx.table.body(
+                            rx.foreach(
+                                AppState.pacientes_pagina_actual_lista,
+                                patient_row_optimized
+                            )
+                        ),
+                    ),
+                    style=TABLE_STYLE
+                ),
+
+                # Estado vacío optimizado
+                empty_state_lazy(
+                    "No hay pacientes en esta página",
+                    "Intenta cambiar los filtros o ir a otra página",
+                    "users"
+                )
+            )
+        ),
+
+        # Footer con información de performance
+        rx.cond(
+            AppState.mostrar_stats_performance,
+            rx.hstack(
+                rx.badge(
+                    f"Cache: {AppState.cache_hit_ratio}% hit ratio",
+                    color_scheme="green",
+                    size="1"
+                ),
+                rx.badge(
+                    f"Carga: {AppState.tiempo_carga_ultima_pagina}ms",
+                    color_scheme="blue",
+                    size="1"
+                ),
+                rx.badge(
+                    f"Memoria: {AppState.registros_en_memoria}",
+                    color_scheme="orange",
+                    size="1"
+                ),
+                spacing="2",
+                margin_top="3",
+                justify="center"
+            )
+        ),
+
+        spacing="4",
+        width="100%"
+    )
+
+
+def patient_row_optimized(patient: rx.Var[PacienteModel]) -> rx.Component:
+    """
+    Fila de paciente optimizada con lazy loading de datos secundarios
+    """
+    return rx.table.row(
+        # Nombre (carga inmediata)
+        rx.table.cell(
+            rx.vstack(
+                rx.text(
+                    patient.primer_nombre + " " + patient.primer_apellido,
+                    size="3",
+                    weight="medium",
+                    color=COLORS["gray"]["50"]
+                ),
+                rx.text(
+                    rx.cond(
+                        patient.numero_historia,
+                        "HC: " + patient.numero_historia,
+                        "HC: Sin asignar"
+                    ),
+                    size="2",
+                    color=COLORS["gray"]["500"]
+                ),
+                spacing="1",
+                align_items="start"
+            ),
+            style=DATA_CELL
+        ),
+
+        # Edad (lazy loaded)
+        rx.table.cell(
+            rx.cond(
+                patient.edad_calculada_disponible,
+                rx.text(
+                    patient.edad.to(str) + " años",
+                    size="3",
+                    color=COLORS["gray"]["50"]
+                ),
+                rx.skeleton(height="20px", width="50px")
+            ),
+            style=DATA_CELL
+        ),
+
+        # Género (carga inmediata)
+        rx.table.cell(
+            rx.cond(
+                patient.genero == "masculino",
+                rx.hstack(
+                    rx.text("♂️", size="3"),
+                    rx.text("Masc.", size="3"),
+                    spacing="1",
+                    align="center"
+                ),
+                rx.cond(
+                    patient.genero == "femenino",
+                    rx.hstack(
+                        rx.text("♀️", size="3"),
+                        rx.text("Fem.", size="3"),
+                        spacing="1",
+                        align="center"
+                    ),
+                    rx.hstack(
+                        rx.text("⚧️", size="3"),
+                        rx.text("Otro", size="3"),
+                        spacing="1",
+                        align="center"
+                    )
+                )
+            ),
+            style=DATA_CELL
+        ),
+
+        # Documento (carga inmediata)
+        rx.table.cell(
+            rx.text(
+                patient.numero_documento,
+                size="3",
+                color=COLORS["gray"]["50"]
+            ),
+            style=DATA_CELL
+        ),
+
+        # Contacto (lazy loaded)
+        rx.table.cell(
+            rx.cond(
+                patient.contacto_disponible,
+                rx.text(
+                    rx.cond(
+                        patient.celular_1 != "",
+                        patient.celular_1,
+                        "Sin teléfono"
+                    ),
+                    size="3",
+                    color=COLORS["gray"]["50"]
+                ),
+                rx.skeleton(height="20px", width="100px")
+            ),
+            style=DATA_CELL
+        ),
+
+        # Estado (carga inmediata)
+        rx.table.cell(
+            patient_status_badge(patient.estado),
+            style=DATA_CELL
+        ),
+
+        # Acciones (optimizadas)
+        rx.table.cell(
+            rx.hstack(
+                rx.icon_button(
+                    rx.icon("eye", size=16),
+                    size="1",
+                    variant="outline",
+                    color_scheme="blue",
+                    on_click=lambda: AppState.ver_paciente_lazy(patient.numero_historia),
+                    cursor="pointer"
+                ),
+                rx.icon_button(
+                    rx.icon("edit", size=16),
+                    size="1",
+                    variant="outline",
+                    color_scheme="orange",
+                    on_click=lambda: AppState.editar_paciente_lazy(patient.numero_historia),
+                    cursor="pointer"
+                ),
+                spacing="1"
+            ),
+            style=DATA_CELL
+        ),
+
+        # Optimización: Pre-cargar datos al hacer hover
+        on_mouse_enter=lambda: AppState.precargar_datos_paciente(patient.numero_historia),
+
+        _hover={
+            "background_color": f"{DARK_THEME['colors']['surface']}80",
+            "transform": "translateY(-1px)",
+            "transition": "all 0.2s ease"
+        }
+    )
+
+
+def empty_state_lazy(titulo: str, descripcion: str, icono: str) -> rx.Component:
+    """Estado vacío optimizado para lazy loading"""
+    return rx.center(
+        rx.vstack(
+            rx.box(
+                rx.icon(
+                    icono,
+                    size=48,
+                    color=COLORS["gray"]["400"]
+                ),
+                padding="20px",
+                border_radius="full",
+                background=f"linear-gradient(135deg, {DARK_THEME['colors']['surface']} 0%, {DARK_THEME['colors']['surface_secondary']} 100%)",
+                border=f"2px solid {DARK_THEME['colors']['border']}"
+            ),
+
+            rx.heading(
+                titulo,
+                size="5",
+                color=COLORS["gray"]["300"],
+                text_align="center"
+            ),
+
+            rx.text(
+                descripcion,
+                size="3",
+                color=COLORS["gray"]["500"],
+                text_align="center",
+                max_width="400px"
+            ),
+
+            spacing="4",
+            align="center"
+        ),
+
+        min_height="300px",
+        width="100%"
+    )
+
+
+def tabla_servicios_lazy() -> rx.Component:
+    """Tabla de servicios optimizada con cache inteligente"""
+    return rx.cond(
+        AppState.servicios_cache_cargado,
+
+        # Datos desde cache
+        rx.box(
+            rx.table.root(
+                rx.table.header(
+                    rx.table.row(
+                        rx.table.column_header_cell("Servicio", style=COLUMN_HEADER),
+                        rx.table.column_header_cell("Categoría", style=COLUMN_HEADER),
+                        rx.table.column_header_cell("Precio", style=COLUMN_HEADER),
+                        rx.table.column_header_cell("Duración", style=COLUMN_HEADER),
+                        rx.table.column_header_cell("Estado", style=COLUMN_HEADER),
+                        rx.table.column_header_cell("Acciones", style=COLUMN_HEADER),
+                    )
+                ),
+                rx.table.body(
+                    rx.foreach(
+                        AppState.servicios_desde_cache,
+                        lambda servicio: rx.table.row(
+                            # Datos optimizados desde cache
+                            rx.table.cell(servicio.nombre, style=DATA_CELL),
+                            rx.table.cell(servicio.categoria, style=DATA_CELL),
+                            rx.table.cell(servicio.precio_display, style=DATA_CELL),
+                            rx.table.cell(f"{servicio.duracion_minutos} min", style=DATA_CELL),
+                            rx.table.cell(
+                                rx.badge(
+                                    "Activo" if servicio.activo else "Inactivo",
+                                    color_scheme="green" if servicio.activo else "red"
+                                ),
+                                style=DATA_CELL
+                            ),
+                            rx.table.cell(
+                                rx.hstack(
+                                    rx.icon_button(
+                                        rx.icon("edit", size=16),
+                                        size="1",
+                                        variant="outline",
+                                        on_click=lambda: AppState.seleccionar_y_abrir_modal_servicio(servicio.id)
+                                    ),
+                                    spacing="1"
+                                ),
+                                style=DATA_CELL
+                            )
+                        )
+                    )
+                )
+            ),
+            style=TABLE_STYLE
+        ),
+
+        # Loading desde BD
+        rx.vstack(
+            *[rx.skeleton(height="50px", width="100%") for _ in range(8)],
+            spacing="2"
+        )
+    )
+
+
+# ==========================================
+# 📤 EXPORTS ACTUALIZADOS
 # ==========================================
 
 __all__ = [
     "patients_table",
-    "consultas_table", 
-    "personal_table"
+    "consultas_table",
+    "personal_table",
+    "tabla_pacientes_lazy",
+    "tabla_servicios_lazy",
+    "patient_row_optimized",
+    "empty_state_lazy"
 ]

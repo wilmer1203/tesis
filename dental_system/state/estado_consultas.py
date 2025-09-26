@@ -400,20 +400,17 @@ class EstadoConsultas(rx.State,mixin=True):
             
             # Usar formulario tipado si no se proporciona datos
             if datos_formulario is None:
-                print(f"🔍 [DEBUG] Usando formulario tipado: {self.formulario_consulta_data}")
                 # Validar formulario tipado
                 errores = self.formulario_consulta_data.validate_form()
-                print(f"🔍 [DEBUG] Errores de validación: {errores}")
                 if errores:
                     self.errores_validacion_consulta = errores
                     if hasattr(self, 'mostrar_toast'):
                         errores_texto = ", ".join([f"{campo}: {msgs}" for campo, msgs in errores.items()])
                         self.mostrar_toast(f"Complete los campos obligatorios: {errores_texto}", "error")
                     return
-                
+
                 # Convertir a dict para compatibilidad con servicio
                 datos_formulario = self.formulario_consulta_data.to_dict()
-                print(f"🔍 [DEBUG] Datos formulario convertidos: {datos_formulario}")
             else:
                 # Validar datos Dict legacy
                 errores = self._validar_formulario_consulta_legacy(datos_formulario)
@@ -437,14 +434,7 @@ class EstadoConsultas(rx.State,mixin=True):
             )
             
             # En lugar de actualizar listas locales, recargar desde BD con JOINs correctos
-            print(f"🔄 [DEBUG] Recargando consultas después de crear...")
             await self.cargar_consultas_hoy()  # Esto trae los nombres de pacientes
-            
-            # Debug: Verificar que tenemos nombres de pacientes
-            if self.consultas_hoy:
-                ultima_consulta = self.consultas_hoy[-1]  # Última consulta creada
-                print(f"🔍 [DEBUG] Última consulta creada - ID: {ultima_consulta.id}")
-                print(f"🔍 [DEBUG] Nombre paciente: '{ultima_consulta.paciente_nombre}'")
             
             # Actualizar sistema de turnos
             self._actualizar_turnos_por_odontologo()
@@ -500,21 +490,24 @@ class EstadoConsultas(rx.State,mixin=True):
                 raise ValueError("El odontólogo ya tiene una consulta en curso")
             
             # Actualizar estado a en_atencion (compatible con esquema v4.1)
-            datos_actualizacion = {
-                "estado": "en_atencion",
-                "hora_inicio": datetime.now().time().isoformat(),
-                "fecha_llegada": datetime.now().isoformat()
-            }
-            
+            from dental_system.models.consultas_models import ConsultaFormModel
+
+            # Crear modelo tipado desde diccionario
+            datos_modelo = ConsultaFormModel(
+                estado="en_atencion",
+                hora_inicio=datetime.now().time().isoformat(),
+                fecha_llegada=datetime.now().isoformat()
+            )
+
             # Establecer contexto de usuario en el servicio
             consultas_service.set_user_context(
                 user_id=self.id_usuario,
                 user_profile=self.perfil_usuario
             )
-            
+
             consulta_actualizada = await consultas_service.update_consultation(
                 id_consulta,
-                datos_actualizacion
+                datos_modelo
             )
             
             # Actualizar listas locales
@@ -1209,12 +1202,20 @@ class EstadoConsultas(rx.State,mixin=True):
         """📋 CARGAR LISTA COMPLETA DE CONSULTAS - COORDINACIÓN CON APPSTATE"""
         try:
             self.cargando_lista_consultas = True
-            
+
             # Establecer contexto de usuario para el servicio
             consultas_service.set_user_context(self.id_usuario, self.perfil_usuario)
-            
+
+            # Cargar consultas según el rol del usuario
+            odontologo_id = None
+            if self.rol_usuario == "odontologo" and self.id_personal:
+                odontologo_id = self.id_personal
+                print(f"🦷 Cargando consultas para odontólogo: {odontologo_id}")
+            else:
+                print(f"👥 Cargando todas las consultas (rol: {self.rol_usuario})")
+
             # Cargar consultas de hoy desde el servicio
-            consultas_data = await consultas_service.get_today_consultations()
+            consultas_data = await consultas_service.get_today_consultations(odontologo_id=odontologo_id)
             
             # Convertir a modelos tipados con validación
             self.lista_consultas = []
@@ -1459,12 +1460,6 @@ class EstadoConsultas(rx.State,mixin=True):
             self.consulta_seleccionada = consulta
             self.id_consulta_seleccionada = consulta.id
             
-            # Debug para ver qué datos tenemos
-            print(f"[DEBUG] Cargando consulta {consulta.id}")
-            print(f"[DEBUG] paciente_id: {consulta.paciente_id}")
-            print(f"[DEBUG] paciente_nombre: {consulta.paciente_nombre}")
-            print(f"[DEBUG] motivo_consulta: {consulta.motivo_consulta}")
-            
             # Cargar datos en el modelo tipado (patrón igual que personal)
             self.formulario_consulta_data = ConsultaFormModel(
                 paciente_id=consulta.paciente_id or "",
@@ -1615,28 +1610,16 @@ class EstadoConsultas(rx.State,mixin=True):
     async def guardar_consulta_modal(self):
         """💾 Guardar consulta desde formulario modal usando formulario tipado"""
         try:
-            print(f"🔍 [DEBUG] ======= INICIANDO GUARDAR CONSULTA =======")
-            print(f"🔍 [DEBUG] formulario_consulta_data.paciente_id: '{self.formulario_consulta_data.paciente_id}'")
-            print(f"🔍 [DEBUG] formulario_consulta_data.primer_odontologo_id: '{self.formulario_consulta_data.primer_odontologo_id}'")
-            print(f"🔍 [DEBUG] formulario_consulta_data.motivo_consulta: '{self.formulario_consulta_data.motivo_consulta}'")
-            print(f"🔍 [DEBUG] formulario_consulta_data.tipo_consulta: '{self.formulario_consulta_data.tipo_consulta}'")
-            print(f"🔍 [DEBUG] formulario_consulta_data.prioridad: '{self.formulario_consulta_data.prioridad}'")
-            
             # Validar campos obligatorios usando formulario tipado
             if not self.formulario_consulta_data.paciente_id:
-                print(f"🚨 [DEBUG] ERROR: Paciente no válido")
                 if hasattr(self, 'mostrar_toast'):
                     self.mostrar_toast("Complete los campos obligatorios: Paciente requerido", "error")
                 return
-                
+
             if not self.formulario_consulta_data.primer_odontologo_id:
-                print(f"🚨 [DEBUG] ERROR: Odontólogo no seleccionado")
                 if hasattr(self, 'mostrar_toast'):
                     self.mostrar_toast("Complete los campos obligatorios: Odontólogo requerido", "error")
                 return
-            
-            print(f"✅ [DEBUG] Validación exitosa, continuando...")
-            print(f"💾 [DEBUG] Usando formulario tipado directo: {self.formulario_consulta_data}")
             
             # Establecer contexto de usuario en el servicio
             consultas_service.set_user_context(
@@ -1652,7 +1635,6 @@ class EstadoConsultas(rx.State,mixin=True):
                 await self.crear_consulta()
                 
                 # Forzar segunda recarga para asegurar nombres de pacientes visibles
-                print("🔄 [DEBUG] Recarga adicional en guardar_consulta_modal...")
                 await self.cargar_consultas_hoy()
                 
                 # Limpiar formulario tras éxito
@@ -1972,7 +1954,6 @@ class EstadoConsultas(rx.State,mixin=True):
         
         # ✅ ACTUALIZAR TAMBIÉN EL FORMULARIO TIPADO
         self.set_formulario_consulta_field("primer_odontologo_id", value)
-        print(f"🔍 [DEBUG] Actualizando formulario tipado - primer_odontologo_id: {value}")
     
     @rx.event
     def set_consulta_form_busqueda_paciente(self, value: str):
@@ -2017,7 +1998,6 @@ class EstadoConsultas(rx.State,mixin=True):
                 self.set_formulario_consulta_field("paciente_nombre", paciente.nombre_completo)
                 
                 print(f"👤 Paciente seleccionado: {paciente.nombre_completo}")
-                print(f"🔍 [DEBUG] Actualizando formulario tipado - paciente_id: {paciente.id}")
                 break
     
     @rx.event

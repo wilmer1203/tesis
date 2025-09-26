@@ -41,8 +41,8 @@ class OdontologiaAvanzadoService:
         """📊 Cargar catálogo completo FDI (32 dientes)"""
         try:
             response = self.supabase.table("dientes").select(
-                "*, numero_fdi, nombre_diente, cuadrante, tipo_diente, coordenadas_svg, superficies_disponibles"
-            ).order("numero_fdi").execute()
+                "*, numero_diente, nombre_diente, cuadrante, tipo_diente, coordenadas_svg, superficies_disponibles"
+            ).order("numero_diente").execute()
             
             if response.data:
                 return [DienteModel.from_dict(diente) for diente in response.data]
@@ -85,7 +85,7 @@ class OdontologiaAvanzadoService:
     async def obtener_diente_por_fdi(self, numero_fdi: int) -> Optional[DienteModel]:
         """🔍 Obtener información detallada de un diente FDI específico"""
         try:
-            response = self.supabase.table("dientes").select("*").eq("numero_fdi", numero_fdi).single().execute()
+            response = self.supabase.table("dientes").select("*").eq("numero_diente", numero_fdi).single().execute()
             
             if response.data:
                 return DienteModel.from_dict(response.data)

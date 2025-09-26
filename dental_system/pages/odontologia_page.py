@@ -5,8 +5,10 @@ import reflex as rx
 from dental_system.state.app_state import AppState
 from dental_system.components.common import page_header, secondary_button
 from dental_system.components.odontologia.consulta_card import (
-    lista_consultas_asignadas, 
+    lista_consultas_asignadas,
     lista_consultas_disponibles,
+    lista_consultas_compactas,
+    estadisticas_cola_odontologo,
     seccion_header
 )
 from dental_system.styles.themes import (
@@ -93,12 +95,12 @@ def accesos_rapidos_odontologicos() -> rx.Component:
         
         # Pacientes urgentes
         rx.cond(
-            AppState.estadisticas_dashboard_optimizadas["pacientes_urgentes"] > 0,
+            AppState.estadisticas_odontologo_tiempo_real["pacientes_urgentes"] > 0,
             rx.button(
                 rx.hstack(
                     rx.icon("triangle-alert", size=18),
                     rx.text(
-                        f"URGENTES ({AppState.estadisticas_dashboard_optimizadas['pacientes_urgentes']})",
+                        f"URGENTES ({AppState.estadisticas_odontologo_tiempo_real['pacientes_urgentes']})",
                         font_weight="700"
                     ),
                     spacing="2"
@@ -125,93 +127,87 @@ def accesos_rapidos_odontologicos() -> rx.Component:
         wrap="wrap"
     )
 
-def mini_stats_medicas() -> rx.Component:
-    """📊 Mini estadísticas médicas compactas"""
-    return rx.hstack(
-        # Pacientes en espera
-        rx.box(
-            rx.vstack(
-                rx.text(
-                    AppState.estadisticas_dashboard_optimizadas["pacientes_asignados"],
-                    font_size="24px",
-                    font_weight="800",
-                    color=COLORS["blue"]["500"]
-                ),
-                rx.text(
-                    "En Espera",
-                    font_size="12px",
-                    color=DARK_THEME["colors"]["text_secondary"]
-                ),
-                spacing="1",
-                align="center"
-            ),
-            style={
-                "background": DARK_THEME["colors"]["surface"],
-                "border": f"1px solid {DARK_THEME['colors']['border']}",
-                "border_radius": RADIUS["lg"],
-                "padding": "12px",
-                "text_align": "center",
-                "min_width": "80px"
-            }
+def stat_card_odontologo(titulo: str, valor: str, color: str = "blue") -> rx.Component:
+    """📊 Tarjeta de estadística simple para odontólogo"""
+    color_map = {
+        "blue": COLORS["blue"]["500"],
+        "yellow": COLORS["warning"]["500"],  # Usar warning como amarillo
+        "green": COLORS["success"]["500"],
+        "red": COLORS["error"]["500"],
+        "primary": COLORS["primary"]["500"]
+    }
+
+    return rx.box(
+        rx.vstack(
+            rx.text(titulo, size="2", color=DARK_THEME["colors"]["text_secondary"]),
+            rx.text(valor, size="4", weight="bold", color=DARK_THEME["colors"]["text_primary"]),
+            spacing="1",
+            align="center"
         ),
-        
-        # Disponibles hoy
-        rx.box(
-            rx.vstack(
-                rx.text(
-                    AppState.estadisticas_dashboard_optimizadas["pacientes_disponibles"],
-                    font_size="24px",
-                    font_weight="800",
-                    color=COLORS["success"]["300"]
-                ),
-                rx.text(
-                    "Disponibles",
-                    font_size="12px",
-                    color=DARK_THEME["colors"]["text_secondary"]
-                ),
-                spacing="1",
-                align="center"
-            ),
-            style={
-                "background": DARK_THEME["colors"]["surface"],
-                "border": f"1px solid {DARK_THEME['colors']['border']}",
-                "border_radius": RADIUS["lg"],
-                "padding": "12px",
-                "text_align": "center",
-                "min_width": "80px"
+        style={
+            "background": DARK_THEME["colors"]["surface"],
+            "border": f"1px solid {DARK_THEME['colors']['border']}",
+            "border_radius": RADIUS["lg"],
+            "padding": SPACING["4"],
+            "backdrop_filter": "blur(10px)",
+            "min_width": "100px",
+            "border_left": f"4px solid {color_map.get(color, COLORS['blue']['500'])}",
+            "transition": ANIMATIONS["easing"]["smooth"],
+            "_hover": {
+                "transform": "translateY(-2px)",
+                "box_shadow": f"0 4px 12px {color_map.get(color, COLORS['blue']['500'])}20"
             }
+        }
+    )
+
+def estadisticas_odontologo_superiores() -> rx.Component:
+    """📊 Tarjetas de estadísticas superiores para odontólogo"""
+    return rx.grid(
+        # 1. Consultas del día
+        stat_card_odontologo(
+            "Hoy",
+            AppState.estadisticas_odontologo_tiempo_real["pacientes_asignados"].to_string(),
+            "blue"
         ),
-        
-        # Tiempo promedio
-        rx.box(
-            rx.vstack(
-                rx.text(
-                    "25m",  # Esto vendría del state
-                    font_size="24px",
-                    font_weight="800",
-                    color=COLORS["warning"]["300"]
-                ),
-                rx.text(
-                    "Promedio",
-                    font_size="12px",
-                    color=DARK_THEME["colors"]["text_secondary"]
-                ),
-                spacing="1",
-                align="center"
-            ),
-            style={
-                "background": DARK_THEME["colors"]["surface"],
-                "border": f"1px solid {DARK_THEME['colors']['border']}",
-                "border_radius": RADIUS["lg"],
-                "padding": "12px",
-                "text_align": "center",
-                "min_width": "80px"
-            }
+
+        # 2. En espera
+        stat_card_odontologo(
+            "En Espera",
+            AppState.estadisticas_odontologo_tiempo_real["consultas_programadas"].to_string(),
+            "yellow"
         ),
-        
+
+        # 3. Completadas hoy
+        stat_card_odontologo(
+            "Completadas",
+            AppState.estadisticas_odontologo_tiempo_real["consultas_completadas"].to_string(),
+            "green"
+        ),
+
+        # 4. Entre odontólogos (derivados)
+        stat_card_odontologo(
+            "Derivados",
+            AppState.estadisticas_odontologo_tiempo_real["pacientes_disponibles"].to_string(),
+            "primary"
+        ),
+
+        # 5. En progreso
+        stat_card_odontologo(
+            "En Progreso",
+            AppState.estadisticas_odontologo_tiempo_real["consultas_en_progreso"].to_string(),
+            "red"
+        ),
+
+        # 6. Urgentes
+        # stat_card_odontologo(
+        #     "Urgentes",
+        #     AppState.estadisticas_odontologo_tiempo_real["pacientes_urgentes"].to_string(),
+        #     "blue"
+        # ),
+
+        columns="6",
         spacing="3",
-        justify="center",
-        wrap="wrap"
+        width="100%"
     )
 
 # ==========================================
@@ -347,7 +343,7 @@ def barra_busqueda_y_filtros() -> rx.Component:
             
             # Indicador de resultados
             rx.text(
-                f"📊 {AppState.estadisticas_dashboard_optimizadas['pacientes_asignados'] } pacientes hoy",
+                f"📊 {AppState.estadisticas_odontologo_tiempo_real['pacientes_asignados'] } pacientes hoy",
                 font_size="14px",
                 color=DARK_THEME["colors"]["text_secondary"],
                 font_weight="500"
@@ -408,7 +404,17 @@ def odontologia_page() -> rx.Component:
             width="100%"
         ),
 
-        
+        # Estadísticas superiores del odontólogo
+        rx.box(
+            estadisticas_odontologo_superiores(),
+            style=dark_crystal_card(
+                color=COLORS["primary"]["500"],
+                hover_lift="2px",
+                padding=SPACING["4"]
+            ),
+            width="100%"
+        ),
+
         # Barra de búsqueda y filtros con tema oscuro
         rx.box(
             barra_busqueda_y_filtros(),
@@ -423,25 +429,33 @@ def odontologia_page() -> rx.Component:
         # Layout principal de dos columnas 50/50
         rx.hstack(
             # ==========================================
-            # COLUMNA IZQUIERDA: MIS CONSULTAS ASIGNADAS (50%)
+            # COLUMNA IZQUIERDA: MIS CONSULTAS COMPACTAS (50%)
             # ==========================================
             rx.box(
                 rx.vstack(
-                    # Header de sección prioritaria
-                    seccion_header(
-                        titulo="🩺 Mis Consultas Prioritarias",
-                        cantidad=AppState.estadisticas_dashboard_optimizadas["pacientes_asignados"],
-                        icono="🦷",
-                        color="blue"
+                    # Header mejorado con estadísticas integradas
+                    rx.vstack(
+                        seccion_header(
+                            titulo="🩺 Mi Cola de Atención",
+                            cantidad=AppState.estadisticas_odontologo_tiempo_real["pacientes_asignados"],
+                            icono="🦷",
+                            color="blue"
+                        ),
+
+                        # Estadísticas mini como en página de consultas
+                        estadisticas_cola_odontologo(),
+
+                        spacing="3",
+                        width="100%"
                     ),
-                    
-                    # Contenido scrolleable
+
+                    # Lista compacta scrolleable
                     rx.box(
-                        lista_consultas_asignadas(),
+                        lista_consultas_compactas(),
                         style=medical_scrollable_content()
                     ),
-                    
-                    spacing="0",
+
+                    spacing="4",
                     height="100%"
                 ),
                 style=medical_crystal_card(COLORS["blue"]["500"]),
@@ -456,7 +470,7 @@ def odontologia_page() -> rx.Component:
                     # Header de sección
                     seccion_header(
                         titulo="📋 Pacientes Disponibles",
-                        cantidad=AppState.estadisticas_dashboard_optimizadas["pacientes_disponibles"],
+                        cantidad=AppState.estadisticas_odontologo_tiempo_real["pacientes_disponibles"],
                         icono="🔄",
                         color="success"
                     ),
@@ -531,6 +545,36 @@ def odontologia_page() -> rx.Component:
             width="100%"
         ),
         
+        # CSS personalizado para animaciones
+        rx.html(
+            """
+            <style>
+                @keyframes pulse {
+                    0%, 100% { transform: scale(1); opacity: 1; }
+                    50% { transform: scale(1.05); opacity: 0.9; }
+                }
+
+                @keyframes slideInUp {
+                    from { transform: translateY(20px); opacity: 0; }
+                    to { transform: translateY(0); opacity: 1; }
+                }
+
+                @keyframes glow {
+                    0%, 100% { box-shadow: 0 0 5px rgba(0, 188, 212, 0.3); }
+                    50% { box-shadow: 0 0 20px rgba(0, 188, 212, 0.6); }
+                }
+
+                .slide-in {
+                    animation: slideInUp 0.3s ease-out;
+                }
+
+                .glow-effect:hover {
+                    animation: glow 2s infinite;
+                }
+            </style>
+            """
+        ),
+
         # Loading overlay global
         rx.cond(
             AppState.cargando_pacientes_asignados,
@@ -540,7 +584,7 @@ def odontologia_page() -> rx.Component:
                     rx.text(
                         "Actualizando datos de odontología...",
                         font_size="14px",
-                        color=COLORS["gray"]["600"]
+                        color=DARK_THEME["colors"]["text_secondary"]
                     ),
                     spacing="3",
                     align_items="center"
@@ -560,5 +604,10 @@ def odontologia_page() -> rx.Component:
         padding="6",
         width="100%",
         min_height="100vh",
-        style=dark_page_background()
+        style=dark_page_background(),
+        on_mount=[
+            AppState.cargar_pacientes_asignados,
+            AppState.cargar_consultas_disponibles_otros,
+            AppState.cargar_estadisticas_dia
+        ]
     )

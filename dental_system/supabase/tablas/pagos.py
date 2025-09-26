@@ -85,7 +85,99 @@ class PaymentsTable(BaseTable):
         
         logger.info(f"Creando pago para paciente {paciente_id}: ${monto_pagado}")
         return self.create(data)
-    
+
+    @handle_supabase_error
+    def create_dual_payment(self,
+                           paciente_id: str,
+                           monto_total_usd: Decimal,
+                           pago_usd: Decimal,
+                           pago_bs: Decimal,
+                           tasa_cambio: Decimal,
+                           concepto: str,
+                           procesado_por: str,
+                           metodos_pago: List[Dict[str, Any]],
+                           consulta_id: Optional[str] = None,
+                           descuento_usd: Decimal = Decimal('0'),
+                           motivo_descuento: Optional[str] = None,
+                           autorizado_por: Optional[str] = None,
+                           observaciones: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Crear pago con sistema dual USD/BS simplificado
+
+        Args:
+            paciente_id: ID del paciente
+            monto_total_usd: Monto total en USD (base)
+            pago_usd: Cantidad pagada en USD
+            pago_bs: Cantidad pagada en BS
+            tasa_cambio: Tasa de conversión BS/USD del día
+            concepto: Concepto del pago
+            procesado_por: ID del usuario que procesa
+            metodos_pago: Lista de métodos de pago [{"tipo": "efectivo_usd", "monto": 100, "referencia": ""}, ...]
+            consulta_id: ID de la consulta relacionada (opcional)
+            descuento_usd: Descuento aplicado en USD
+            motivo_descuento: Motivo del descuento
+            autorizado_por: ID del usuario que autoriza
+            observaciones: Observaciones adicionales
+
+        Returns:
+            Pago creado con cálculos automáticos duales
+        """
+
+        # 🧮 CÁLCULOS AUTOMÁTICOS DUALES
+        monto_total_bs = float(monto_total_usd) * float(tasa_cambio)
+
+        # Convertir pago BS a USD para calcular total pagado
+        pago_bs_to_usd = float(pago_bs) / float(tasa_cambio) if tasa_cambio > 0 else 0
+        total_pagado_usd = float(pago_usd) + pago_bs_to_usd
+
+        # Calcular saldos pendientes
+        saldo_pendiente_usd = max(0, float(monto_total_usd) - float(descuento_usd) - total_pagado_usd)
+        saldo_pendiente_bs = saldo_pendiente_usd * float(tasa_cambio)
+
+        # Determinar estado automático
+        estado_pago = "completado" if saldo_pendiente_usd <= 0.01 else "pendiente"
+
+        data = {
+            # 💰 CAMPOS DUALES USD/BS
+            "monto_total_usd": float(monto_total_usd),
+            "monto_total_bs": monto_total_bs,
+            "monto_pagado_usd": float(pago_usd),
+            "monto_pagado_bs": float(pago_bs),
+            "saldo_pendiente_usd": saldo_pendiente_usd,
+            "saldo_pendiente_bs": saldo_pendiente_bs,
+            "tasa_cambio_bs_usd": float(tasa_cambio),
+
+            # 🎛️ MÉTODOS DE PAGO MÚLTIPLES (JSONB)
+            "metodos_pago": metodos_pago,
+
+            # 📋 CAMPOS TRADICIONALES (BACKWARD COMPATIBILITY)
+            "monto_total": float(monto_total_usd),  # Alias USD
+            "monto_pagado": total_pagado_usd,       # Total pagado en USD equivalente
+            "saldo_pendiente": saldo_pendiente_usd, # Saldo en USD
+            "metodo_pago": metodos_pago[0].get("tipo", "efectivo") if metodos_pago else "efectivo",
+
+            # 📊 INFORMACIÓN BÁSICA
+            "paciente_id": paciente_id,
+            "concepto": concepto,
+            "procesado_por": procesado_por,
+            "estado_pago": estado_pago,
+            "descuento_aplicado": float(descuento_usd),
+            "impuestos": 0.0  # No aplica en este sistema
+        }
+
+        # Agregar campos opcionales
+        if consulta_id:
+            data["consulta_id"] = consulta_id
+        if motivo_descuento and descuento_usd > 0:
+            data["motivo_descuento"] = motivo_descuento
+        if autorizado_por:
+            data["autorizado_por"] = autorizado_por
+        if observaciones:
+            data["observaciones"] = observaciones
+
+        logger.info(f"Creando pago dual: ${pago_usd} USD + {pago_bs} BS (Tasa: {tasa_cambio}) para paciente {paciente_id}")
+        return self.create(data)
+
     @handle_supabase_error
     def get_by_recibo(self, numero_recibo: str) -> Optional[Dict[str, Any]]:
         """
@@ -166,7 +258,7 @@ class PaymentsTable(BaseTable):
         """
         query = self.table.select("""
             *,
-            pacientes(nombre_completo, numero_historia, telefono)
+            pacientes(primer_nombre, primer_apellido, numero_historia, celular_1)
         """).eq("estado_pago", "pendiente")
         
         if paciente_id:
@@ -201,7 +293,7 @@ class PaymentsTable(BaseTable):
         
         query = self.table.select("""
             *,
-            pacientes(nombre_completo, numero_historia)
+            pacientes(primer_nombre, primer_apellido, numero_historia)
         """).gte("fecha_pago", fecha_inicio_dt.isoformat()
         ).lte("fecha_pago", fecha_fin_dt.isoformat())
         
@@ -405,7 +497,189 @@ class PaymentsTable(BaseTable):
         
         return balance
 
+    @handle_supabase_error
+    def get_currency_summary(self, fecha: Optional[date] = None) -> Dict[str, Any]:
+        """
+        Resumen financiero dual USD/BS para estadísticas
 
-# Instancia única para importar  
+        Args:
+            fecha: Fecha a consultar (por defecto hoy)
+
+        Returns:
+            Resumen con totales por moneda y estadísticas de uso
+        """
+        if not fecha:
+            fecha = date.today()
+
+        pagos_dia = self.get_payments_by_date_range(fecha, fecha)
+
+        resumen = {
+            "fecha": fecha.isoformat(),
+            "total_recaudado_usd": 0.0,
+            "total_recaudado_bs": 0.0,
+            "total_pendiente_usd": 0.0,
+            "total_pendiente_bs": 0.0,
+            "tasa_promedio": 0.0,
+            "pagos_mixtos": 0,
+            "pagos_solo_usd": 0,
+            "pagos_solo_bs": 0,
+            "total_pagos": len(pagos_dia),
+            "pagos_completados": 0,
+            "pagos_pendientes": 0
+        }
+
+        tasas = []
+        for pago in pagos_dia:
+            # Usar campos duales si están disponibles, sino fallback a campos legacy
+            pagado_usd = pago.get("monto_pagado_usd", pago.get("monto_pagado", 0))
+            pagado_bs = pago.get("monto_pagado_bs", 0)
+            pendiente_usd = pago.get("saldo_pendiente_usd", pago.get("saldo_pendiente", 0))
+            pendiente_bs = pago.get("saldo_pendiente_bs", 0)
+            tasa = pago.get("tasa_cambio_bs_usd", 0)
+
+            # Totales de recaudación (solo completados)
+            if pago.get("estado_pago") == "completado":
+                resumen["total_recaudado_usd"] += pagado_usd
+                resumen["total_recaudado_bs"] += pagado_bs
+                resumen["pagos_completados"] += 1
+            elif pago.get("estado_pago") == "pendiente":
+                resumen["pagos_pendientes"] += 1
+
+            # Totales pendientes
+            resumen["total_pendiente_usd"] += pendiente_usd
+            resumen["total_pendiente_bs"] += pendiente_bs
+
+            # Clasificar tipo de pago
+            if pagado_usd > 0 and pagado_bs > 0:
+                resumen["pagos_mixtos"] += 1
+            elif pagado_usd > 0:
+                resumen["pagos_solo_usd"] += 1
+            elif pagado_bs > 0:
+                resumen["pagos_solo_bs"] += 1
+
+            # Acumular tasas para promedio
+            if tasa > 0:
+                tasas.append(tasa)
+
+        # Calcular tasa promedio
+        resumen["tasa_promedio"] = round(sum(tasas) / len(tasas), 2) if tasas else 36.50
+
+        logger.info(f"Resumen dual currency generado: ${resumen['total_recaudado_usd']} USD + {resumen['total_recaudado_bs']} BS")
+        return resumen
+
+    @handle_supabase_error
+    def get_consultas_pendientes_facturacion(self) -> List[Dict[str, Any]]:
+        """
+        🏥 Obtener consultas completadas pendientes de facturación
+
+        Returns:
+            Lista de consultas con pagos pendientes e información relacionada
+        """
+        try:
+            # Query compleja para obtener consultas completadas con pagos pendientes
+            query = self.client.table("consultas").select("""
+                id,
+                numero_consulta,
+                paciente_id,
+                primer_odontologo_id,
+                fecha_llegada,
+                estado,
+                pacientes!inner(primer_nombre, primer_apellido, numero_documento),
+                personal!primer_odontologo_id(primer_nombre, primer_apellido),
+                intervenciones(
+                    id,
+                    total_usd,
+                    total_bs,
+                    procedimiento_realizado,
+                    intervenciones_servicios(
+                        cantidad,
+                        servicios(nombre)
+                    )
+                ),
+                pagos!inner(
+                    id,
+                    estado_pago,
+                    monto_total_usd,
+                    monto_total_bs,
+                    saldo_pendiente_usd,
+                    saldo_pendiente_bs
+                )
+            """).eq("estado", "completada").eq("pagos.estado_pago", "pendiente")
+
+            response = query.execute()
+
+            if not response.data:
+                logger.info("No hay consultas pendientes de facturación")
+                return []
+
+            consultas_procesadas = []
+
+            for consulta in response.data:
+                # Calcular totales de intervenciones
+                total_usd = sum(float(i.get("total_usd", 0)) for i in consulta.get("intervenciones", []))
+                total_bs = sum(float(i.get("total_bs", 0)) for i in consulta.get("intervenciones", []))
+
+                # Contar servicios realizados
+                servicios_count = 0
+                servicios_detalle = []
+                for intervencion in consulta.get("intervenciones", []):
+                    for is_item in intervencion.get("intervenciones_servicios", []):
+                        servicios_count += is_item.get("cantidad", 1)
+                        servicios_detalle.append({
+                            "nombre": is_item.get("servicios", {}).get("nombre", "Servicio"),
+                            "cantidad": is_item.get("cantidad", 1)
+                        })
+
+                # Información del paciente
+                paciente = consulta.get("pacientes", {})
+                paciente_nombre = f"{paciente.get('primer_nombre', '')} {paciente.get('primer_apellido', '')}".strip()
+
+                # Información del odontólogo
+                odontologo = consulta.get("personal", {})
+                odontologo_nombre = f"Dr. {odontologo.get('primer_nombre', '')} {odontologo.get('primer_apellido', '')}".strip()
+
+                # Calcular días pendientes
+                from datetime import datetime, date
+                fecha_consulta = consulta.get("fecha_llegada")
+                dias_pendiente = 0
+                if fecha_consulta:
+                    try:
+                        if isinstance(fecha_consulta, str):
+                            fecha_obj = datetime.fromisoformat(fecha_consulta.replace('Z', '+00:00')).date()
+                        else:
+                            fecha_obj = fecha_consulta
+                        dias_pendiente = (date.today() - fecha_obj).days
+                    except:
+                        dias_pendiente = 0
+
+                consulta_data = {
+                    "id": consulta["id"],
+                    "numero_consulta": consulta.get("numero_consulta", "CONS-000"),
+                    "paciente_id": consulta["paciente_id"],
+                    "paciente_nombre": paciente_nombre,
+                    "paciente_apellido": paciente.get("primer_apellido", ""),
+                    "paciente_documento": paciente.get("numero_documento", ""),
+                    "primer_odontologo_id": consulta["primer_odontologo_id"],
+                    "odontologo_nombre": odontologo_nombre,
+                    "fecha_llegada": consulta.get("fecha_llegada", ""),
+                    "estado": consulta.get("estado", "completada"),
+                    "total_usd": total_usd,
+                    "total_bs": total_bs,
+                    "servicios_count": servicios_count,
+                    "servicios_detalle": servicios_detalle,
+                    "dias_pendiente": dias_pendiente
+                }
+
+                consultas_procesadas.append(consulta_data)
+
+            logger.info(f"✅ {len(consultas_procesadas)} consultas pendientes de facturación obtenidas")
+            return consultas_procesadas
+
+        except Exception as e:
+            logger.error(f"❌ Error obteniendo consultas pendientes: {str(e)}")
+            return []
+
+
+# Instancia única para importar
 payments_table = PaymentsTable()
 pagos_table = payments_table  # Alias para consistencia

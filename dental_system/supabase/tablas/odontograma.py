@@ -82,7 +82,7 @@ class OdontogramsTable(BaseTable):
         """
         response = self.table.select("*").eq(
             "paciente_id", paciente_id
-        ).eq("activo", True).execute()
+        ).eq("es_version_actual", True).execute()
         
         return response.data[0] if response.data else None
     
