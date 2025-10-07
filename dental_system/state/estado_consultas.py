@@ -1159,10 +1159,22 @@ class EstadoConsultas(rx.State,mixin=True):
         return ""
     
     def _buscar_consulta_por_id(self, id_consulta: str) -> Optional[ConsultaModel]:
-        """🔍 Buscar consulta por ID en listas locales"""
+        """🔍 Buscar consulta por ID en TODAS las listas disponibles
+
+        Con mixin=True, busca en:
+        - lista_consultas: Todas las consultas del día
+        - consultas_asignadas: Consultas asignadas al odontólogo actual
+        """
+        # Buscar en lista_consultas
         for consulta in self.lista_consultas:
             if consulta.id == id_consulta:
                 return consulta
+
+        # Con mixin=True, también buscar en consultas_asignadas
+        for consulta in self.consultas_asignadas:
+            if consulta.id == id_consulta:
+                return consulta
+
         return None
     
     def _actualizar_consulta_en_listas(self, id_consulta: str, consulta_actualizada: ConsultaModel):

@@ -82,9 +82,9 @@ class EstadoOdontologia(rx.State, mixin=True):
     # ==========================================
     # 📋 HISTORIAL CLÍNICO DEL PACIENTE ACTUAL
     # ==========================================
-    
-    # Historial médico completo del paciente seleccionado (modelo tipado)
-    historial_paciente_actual: List[CondicionDienteModel] = []
+
+    # NOTA: historial_paciente_actual está definido más abajo como List[ConsultaModel]
+    # para mantener consistencia con el tipo de datos esperado
     intervenciones_anteriores: List[IntervencionModel] = []
     ultima_consulta_info: Optional[ConsultaModel] = None
     tiene_historial_cargado: bool = False
@@ -739,46 +739,44 @@ class EstadoOdontologia(rx.State, mixin=True):
     
     async def cargar_historial_paciente(self, paciente_id: str):
         """
-        📋 Cargar historial clínico completo del paciente actual
-        
+        📋 Marcar historial como disponible
+
+        Con mixin=True, el historial ya está disponible desde otros estados:
+        - self.lista_consultas → Consultas del paciente (EstadoConsultas)
+        - self.intervenciones_paciente → Intervenciones odontológicas
+        - self.consulta_actual → Consulta en atención actual
+
         Args:
-            paciente_id: ID del paciente del cual cargar historial
+            paciente_id: ID del paciente
         """
         if not paciente_id:
             logger.warning("ID de paciente no proporcionado para cargar historial")
             return
-        
-        self.tiene_historial_cargado = False
-        
+
         try:
-            # Establecer contexto de usuario antes de usar el servicio
-            odontologia_service.set_user_context(self.id_usuario, self.perfil_usuario)
-            
-            # Obtener historial médico
-            historial_data = await odontologia_service.get_historial_paciente_completo(paciente_id)
-            
-            # ⚠️ TEMP FIX: Métodos no implementados - comentar para evitar errores
-            # intervenciones_data = await odontologia_service.get_intervenciones_anteriores_paciente(paciente_id)
-            # ultima_consulta_data = await odontologia_service.get_ultima_consulta_paciente(paciente_id)
-            intervenciones_data = []  # Datos vacíos temporalmente
-            ultima_consulta_data = {}
-            
-            # Convertir a modelos tipados
-            self.historial_paciente_actual = [
-                CondicionDienteModel.from_dict(item) for item in (historial_data or [])
-                if isinstance(item, dict)
+            # Filtrar consultas del paciente actual desde lista_consultas (mixin)
+            consultas_paciente = [
+                c for c in self.lista_consultas
+                if c.paciente_id == paciente_id
             ]
-            self.intervenciones_anteriores = intervenciones_data or []
-            self.ultima_consulta_info = ConsultaModel.from_dict(ultima_consulta_data) if ultima_consulta_data else None
+
+            # Asignar a historial_paciente_actual (ya es List[ConsultaModel])
+            self.historial_paciente_actual = consultas_paciente
+
+            # Las intervenciones ya están en self.intervenciones_paciente
+            # (cargadas en cargar_odontograma_paciente_actual)
+
+            # Marcar como cargado
             self.tiene_historial_cargado = True
-            
-            logger.info(f"✅ Historial cargado para paciente {paciente_id}: {len(historial_data)} entradas")
-            
+
+            logger.info(f"✅ Historial disponible para paciente {paciente_id}")
+            logger.info(f"   - {len(self.historial_paciente_actual)} consultas")
+            logger.info(f"   - {len(self.intervenciones_paciente)} intervenciones")
+
         except Exception as e:
-            logger.error(f"❌ Error cargando historial del paciente {paciente_id}: {e}")
+            logger.error(f"❌ Error preparando historial del paciente {paciente_id}: {e}")
             self.historial_paciente_actual = []
-            self.intervenciones_anteriores = []
-            self.ultima_consulta_info = None
+            self.tiene_historial_cargado = False
 
     # ==========================================
     # 🚀 MÉTODOS V3.0 - FASE 1: CACHE INTELIGENTE
