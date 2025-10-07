@@ -45,7 +45,6 @@ from .panel_intervenciones_previas import (
 from .odontograma_status_bar_v3 import (
     odontograma_status_bar_v3,
     odontograma_cache_indicator,
-    odontograma_changes_counter,
     odontograma_stats_panel,
     odontograma_action_buttons
 )
@@ -127,7 +126,6 @@ __all__ = [
     # V3.0 Status Bar & Controls
     "odontograma_status_bar_v3",
     "odontograma_cache_indicator",
-    "odontograma_changes_counter",
     "odontograma_stats_panel",
     "odontograma_action_buttons",
 

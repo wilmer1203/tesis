@@ -5,7 +5,7 @@ import reflex as rx
 from typing import Dict, Optional, Any
 from dental_system.state.app_state import AppState
 from dental_system.models.odontologia_models import DienteModel, CondicionDienteModel
-from dental_system.services.odontograma_service import odontograma_service
+# REFACTOR FASE 4: odontograma_service eliminado - usar odontologia_service si necesario
 from dental_system.styles.themes import COLORS, DARK_THEME, RADIUS, SPACING, SHADOWS, ANIMATIONS
 
 # ==========================================

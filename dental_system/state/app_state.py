@@ -31,7 +31,7 @@ from .estado_odontologia import EstadoOdontologia
 from .estado_servicios import EstadoServicios
 from .estado_pagos import EstadoPagos
 from .estado_intervencion_servicios import EstadoIntervencionServicios
-from .estado_odontograma_avanzado import EstadoOdontogramaAvanzado
+# REFACTOR FASE 4: estado_odontograma_avanzado eliminado - funcionalidad en EstadoOdontologia
 
 # ✅ MODELOS TIPADOS PARA COMPUTED VARS
 from dental_system.models import (

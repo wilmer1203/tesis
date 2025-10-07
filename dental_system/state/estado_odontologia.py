@@ -21,7 +21,7 @@ import logging
 # Servicios y modelos
 from dental_system.services.odontologia_service import odontologia_service
 from dental_system.services.servicios_service import servicios_service
-from dental_system.state.estado_odontograma_avanzado import EstadoOdontogramaAvanzado
+# REFACTOR FASE 4: EstadoOdontogramaAvanzado eliminado - funcionalidad integrada aquí
 from dental_system.state.estado_ui import EstadoUI
 from dental_system.models import (
     PacienteModel,
@@ -1369,52 +1369,7 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado, mixin=True):
     # ==========================================
     # 🦷 GESTIÓN DE CONSULTAS E INTERVENCIONES
     # ==========================================
-    
-    async def iniciar_consulta(self, consulta_id: str):
-        """
-        Iniciar consulta (programada → en_progreso)
-        """
-        
-        try:
-            # Cambiar estado de consulta
-            consulta_actualizada = await odontologia_service.iniciar_consulta(consulta_id)
-            
-            # Actualizar en la lista
-            for i, consulta in enumerate(self.consultas_asignadas):
-                if consulta.id == consulta_id:
-                    self.consultas_asignadas[i] = consulta_actualizada
-                    break
-            
-            # Establecer como consulta actual
-            self.consulta_actual = consulta_actualizada
-            
-            self.mostrar_toast_exito("Consulta iniciada")
-            logger.info(f"✅ Consulta iniciada: {consulta_id}")
-            
-        except Exception as e:
-            logger.error(f"❌ Error iniciando consulta: {e}")
-            self.mostrar_toast_error("Error al iniciar consulta")
-    
-    async def completar_consulta(self, consulta_id: str):
-        """
-        Completar consulta (en_progreso → completada)
-        """
 
-        try:
-            consulta_actualizada = await odontologia_service.completar_consulta(consulta_id)
-            
-            # Actualizar en la lista
-            for i, consulta in enumerate(self.consultas_asignadas):
-                if consulta.id == consulta_id:
-                    self.consultas_asignadas[i] = consulta_actualizada
-                    break
-            
-            self.mostrar_toast_exito("Consulta completada")
-            logger.info(f"✅ Consulta completada: {consulta_id}")
-            
-        except Exception as e:
-            logger.error(f"❌ Error completando consulta: {e}")
-            self.mostrar_toast_error("Error al completar consulta")
     
     def navegar_a_intervencion(self, paciente: PacienteModel, consulta: ConsultaModel):
         """

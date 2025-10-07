@@ -58,7 +58,7 @@ def odontograma_status_bar_v3() -> rx.Component:
                     rx.hstack(
                         rx.icon("circle-alert", size=16, color="orange"),
                         rx.text(
-                            f"{EstadoOdontologia.contador_cambios_pendientes} cambios sin guardar",
+                            f"cambios sin guardar",
                             size="2",
                             weight="medium",
                             color="orange"
@@ -75,16 +75,16 @@ def odontograma_status_bar_v3() -> rx.Component:
                 ),
 
                 # Auto-guardado activo
-                rx.cond(
-                    EstadoOdontologia.auto_guardado_activo,
-                    rx.hstack(
-                        rx.icon("clock", size=14, color="blue"),
-                        rx.text("Auto-guardado: ON", size="1", color="blue"),
-                        spacing="1",
-                        align="center"
-                    ),
-                    rx.fragment()
-                ),
+                # rx.cond(
+                #     EstadoOdontologia.auto_guardado_activo,
+                #     rx.hstack(
+                #         rx.icon("clock", size=14, color="blue"),
+                #         rx.text("Auto-guardado: ON", size="1", color="blue"),
+                #         spacing="1",
+                #         align="center"
+                #     ),
+                #     rx.fragment()
+                # ),
 
                 spacing="4",
                 align="center"
@@ -128,19 +128,19 @@ def odontograma_status_bar_v3() -> rx.Component:
                 # ),
 
                 # WORKAROUND TEMPORAL: Mensaje de estado
-                rx.cond(
-                    EstadoOdontologia.auto_guardado_activo,
-                    rx.badge(
-                        "Auto-guardado activo",
-                        color_scheme="green",
-                        size="2"
-                    ),
-                    rx.badge(
-                        "Guardado manual deshabilitado",
-                        color_scheme="gray",
-                        size="2"
-                    ),
-                ),
+                # rx.cond(
+                #     EstadoOdontologia.auto_guardado_activo,
+                #     rx.badge(
+                #         "Auto-guardado activo",
+                #         color_scheme="green",
+                #         size="2"
+                #     ),
+                #     rx.badge(
+                #         "Guardado manual deshabilitado",
+                #         color_scheme="gray",
+                #         size="2"
+                #     ),
+                # ),
 
                 spacing="2",
                 align="center"
@@ -192,23 +192,6 @@ def odontograma_cache_indicator() -> rx.Component:
     )
 
 
-def odontograma_changes_counter() -> rx.Component:
-    """
-    📝 CONTADOR DE CAMBIOS PENDIENTES
-
-    Muestra el número de cambios pendientes de guardar
-    """
-    return rx.cond(
-        EstadoOdontologia.contador_cambios_pendientes > 0,
-        rx.badge(
-            rx.icon("edit", size=12),
-            f"{EstadoOdontologia.contador_cambios_pendientes}",
-            color_scheme="orange",
-            variant="solid",
-            size="1"
-        ),
-        rx.fragment()
-    )
 
 
 def odontograma_stats_panel() -> rx.Component:
@@ -253,12 +236,12 @@ def odontograma_stats_panel() -> rx.Component:
                         justify="between",
                         width="100%"
                     ),
-                    rx.text(
-                        f"{EstadoOdontologia.contador_cambios_pendientes}",
-                        size="6",
-                        weight="bold",
-                        color="orange"
-                    ),
+                    # rx.text(
+                    #     f"{EstadoOdontologia.contador_cambios_pendientes}",
+                    #     size="6",
+                    #     weight="bold",
+                    #     color="orange"
+                    # ),
                     align="start",
                     spacing="2",
                     width="100%"
@@ -275,16 +258,16 @@ def odontograma_stats_panel() -> rx.Component:
                         justify="between",
                         width="100%"
                     ),
-                    rx.text(
-                        rx.cond(
-                            len(EstadoOdontologia.odontograma_cache) > 0,
-                            "Activo",
-                            "Vacío"
-                        ),
-                        size="6",
-                        weight="bold",
-                        color="green"
-                    ),
+                    # rx.text(
+                    #     rx.cond(
+                    #         len(EstadoOdontologia.odontograma_cache) > 0,
+                    #         "Activo",
+                    #         "Vacío"
+                    #     ),
+                    #     size="6",
+                    #     weight="bold",
+                    #     color="green"
+                    # ),
                     align="start",
                     spacing="2",
                     width="100%"
@@ -301,16 +284,16 @@ def odontograma_stats_panel() -> rx.Component:
                         justify="between",
                         width="100%"
                     ),
-                    rx.text(
-                        rx.cond(
-                            EstadoOdontologia.auto_guardado_activo,
-                            "Activo",
-                            "Inactivo"
-                        ),
-                        size="6",
-                        weight="bold",
-                        color="purple"
-                    ),
+                    # rx.text(
+                    #     rx.cond(
+                    #         EstadoOdontologia.auto_guardado_activo,
+                    #         "Activo",
+                    #         "Inactivo"
+                    #     ),
+                    #     size="6",
+                    #     weight="bold",
+                    #     color="purple"
+                    # ),
                     align="start",
                     spacing="2",
                     width="100%"
@@ -382,7 +365,7 @@ def odontograma_action_buttons() -> rx.Component:
         rx.button(
             rx.icon("x", size=18),
             "Descartar",
-            on_click=EstadoOdontologia.descartar_cambios_pendientes,
+            # on_click=EstadoOdontologia.descartar_cambios_pendientes,
             disabled=~EstadoOdontologia.cambios_sin_guardar,
             size="3",
             variant="soft",
@@ -393,9 +376,9 @@ def odontograma_action_buttons() -> rx.Component:
         rx.button(
             rx.icon("refresh-cw", size=18),
             "Recargar",
-            on_click=lambda: EstadoOdontologia.invalidar_cache_odontograma(
-                EstadoOdontologia.paciente_actual.id
-            ),
+            # on_click=lambda: EstadoOdontologia.invalidar_cache_odontograma(
+            #     EstadoOdontologia.paciente_actual.id
+            # ),
             size="3",
             variant="ghost"
         ),
