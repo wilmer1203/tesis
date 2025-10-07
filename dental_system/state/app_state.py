@@ -167,9 +167,10 @@ class AppState(EstadoIntervencionServicios,EstadoServicios,EstadoPagos,EstadoCon
             elif self.rol_usuario == "odontologo":
                 # Odontólogo: Solo datos odontológicos, pacientes y servicios
                 datos_especificos = [
+                    self.cargar_servicios_basico(),
+                    self.cargar_lista_consultas(),
                     self.cargar_pacientes_asignados(),
                     self.cargar_consultas_disponibles_otros(),
-                    self.cargar_servicios_disponibles(),
                     self.cargar_estadisticas_dia(),
                 ]
             elif self.rol_usuario == "asistente":
@@ -805,97 +806,97 @@ class AppState(EstadoIntervencionServicios,EstadoServicios,EstadoPagos,EstadoCon
         except Exception as e:
             self.mostrar_toast(f"Error navegando a pagos: {str(e)}", "error")
     
-    async def establecer_contexto_odontologia(self, consulta: ConsultaModel):
-        """🦷 Establecer contexto para módulo de odontología"""
-        try:
-            print(f"🔍 DEBUG - Estableciendo contexto para consulta ID: {consulta.id}")
-            print(f"🔍 DEBUG - Paciente ID en consulta: {consulta.paciente_id}")
-            print(f"🔍 DEBUG - Total pacientes en lista: {len(self.lista_pacientes)}")
+    # async def establecer_contexto_odontologia(self, consulta: ConsultaModel):
+    #     """🦷 Establecer contexto para módulo de odontología"""
+    #     try:
+    #         print(f"🔍 DEBUG - Estableciendo contexto para consulta ID: {consulta.id}")
+    #         print(f"🔍 DEBUG - Paciente ID en consulta: {consulta.paciente_id}")
+    #         print(f"🔍 DEBUG - Total pacientes en lista: {len(self.lista_pacientes)}")
             
-            # Establecer contexto usando acceso directo via mixins
-            # EstadoOdontologia está incluido como mixin, usar nombres correctos
-            self.consulta_actual = consulta
+    #         # Establecer contexto usando acceso directo via mixins
+    #         # EstadoOdontologia está incluido como mixin, usar nombres correctos
+    #         self.consulta_actual = consulta
             
-            # Debug: mostrar algunos pacientes disponibles
-            if len(self.lista_pacientes) > 0:
-                print(f"🔍 DEBUG - Primeros 3 pacientes:")
-                for i, p in enumerate(self.lista_pacientes[:3]):
-                    print(f"   [{i}] ID: {p.id}, HC: {p.numero_historia}, Nombre: {p.nombre_completo}")
+    #         # Debug: mostrar algunos pacientes disponibles
+    #         if len(self.lista_pacientes) > 0:
+    #             print(f"🔍 DEBUG - Primeros 3 pacientes:")
+    #             for i, p in enumerate(self.lista_pacientes[:3]):
+    #                 print(f"   [{i}] ID: {p.id}, HC: {p.numero_historia}, Nombre: {p.nombre_completo}")
             
-            # Buscar el paciente completo por ID (no por numero_historia)
-            paciente_encontrado = None
-            for i, paciente in enumerate(self.lista_pacientes):
-                print(f"🔍 DEBUG - Comparando paciente ID '{paciente.id}' con consulta paciente_id '{consulta.paciente_id}'")
-                if paciente.id == consulta.paciente_id:
-                    paciente_encontrado = paciente
-                    print(f"✅ MATCH encontrado en índice {i}")
-                    break
+    #         # Buscar el paciente completo por ID (no por numero_historia)
+    #         paciente_encontrado = None
+    #         for i, paciente in enumerate(self.lista_pacientes):
+    #             print(f"🔍 DEBUG - Comparando paciente ID '{paciente.id}' con consulta paciente_id '{consulta.paciente_id}'")
+    #             if paciente.id == consulta.paciente_id:
+    #                 paciente_encontrado = paciente
+    #                 print(f"✅ MATCH encontrado en índice {i}")
+    #                 break
             
-            if paciente_encontrado:
-                self.paciente_actual = paciente_encontrado
-                print(f"✅ Contexto odontología establecido - Consulta: {consulta.id}")
-                print(f"✅ Paciente actual: {paciente_encontrado.nombre_completo} (ID: {paciente_encontrado.id}, HC: {paciente_encontrado.numero_historia})")
-                print(f"✅ Edad: {paciente_encontrado.edad}, Genero: {paciente_encontrado.genero}")
-                print(f"✅ Alergias: {len(paciente_encontrado.alergias)} items")
-            else:
-                print(f"❌ PACIENTE NO ENCONTRADO para consulta paciente_id: {consulta.paciente_id}")
-                print(f"❌ Verificar si los IDs coinciden exactamente")
+    #         if paciente_encontrado:
+    #             self.paciente_actual = paciente_encontrado
+    #             print(f"✅ Contexto odontología establecido - Consulta: {consulta.id}")
+    #             print(f"✅ Paciente actual: {paciente_encontrado.nombre_completo} (ID: {paciente_encontrado.id}, HC: {paciente_encontrado.numero_historia})")
+    #             print(f"✅ Edad: {paciente_encontrado.edad}, Genero: {paciente_encontrado.genero}")
+    #             print(f"✅ Alergias: {len(paciente_encontrado.alergias)} items")
+    #         else:
+    #             print(f"❌ PACIENTE NO ENCONTRADO para consulta paciente_id: {consulta.paciente_id}")
+    #             print(f"❌ Verificar si los IDs coinciden exactamente")
                 
-                # Intentar cargar el paciente directamente desde la base de datos
-                print(f"🔍 Intentando cargar paciente directamente desde BD usando servicio...")
-                try:
-                    from dental_system.services.pacientes_service import pacientes_service
+    #             # Intentar cargar el paciente directamente desde la base de datos
+    #             print(f"🔍 Intentando cargar paciente directamente desde BD usando servicio...")
+    #             try:
+    #                 from dental_system.services.pacientes_service import pacientes_service
                     
-                    # Establecer contexto de usuario para permisos
-                    pacientes_service.set_user_context(self.id_usuario, self.perfil_usuario)
+    #                 # Establecer contexto de usuario para permisos
+    #                 pacientes_service.set_user_context(self.id_usuario, self.perfil_usuario)
                     
-                    # Usar método sincrónico del servicio
-                    paciente_desde_bd = pacientes_service.get_patient_by_id_sync(consulta.paciente_id)
-                    if paciente_desde_bd:
-                        self.paciente_actual = paciente_desde_bd
-                        print(f"✅ PACIENTE CARGADO DESDE BD VIA SERVICIO: {paciente_desde_bd.nombre_completo}")
-                        # También agregar a la lista para futuras búsquedas
-                        self.lista_pacientes.append(paciente_desde_bd)
-                    else:
-                        print(f"❌ PACIENTE NO EXISTE EN BD con ID: {consulta.paciente_id}")
+    #                 # Usar método sincrónico del servicio
+    #                 paciente_desde_bd = pacientes_service.get_patient_by_id_sync(consulta.paciente_id)
+    #                 if paciente_desde_bd:
+    #                     self.paciente_actual = paciente_desde_bd
+    #                     print(f"✅ PACIENTE CARGADO DESDE BD VIA SERVICIO: {paciente_desde_bd.nombre_completo}")
+    #                     # También agregar a la lista para futuras búsquedas
+    #                     self.lista_pacientes.append(paciente_desde_bd)
+    #                 else:
+    #                     print(f"❌ PACIENTE NO EXISTE EN BD con ID: {consulta.paciente_id}")
                         
-                        # Como último recurso, búsqueda por nombre en lista actual
-                        print(f"🔍 Última opción: búsqueda backup por nombre del paciente...")
-                        if hasattr(consulta, 'paciente_nombre') and consulta.paciente_nombre:
-                            for i, paciente in enumerate(self.lista_pacientes):
-                                if consulta.paciente_nombre.strip().lower() in paciente.nombre_completo.strip().lower():
-                                    print(f"🔍 POSIBLE MATCH por nombre: '{paciente.nombre_completo}' vs '{consulta.paciente_nombre}'")
-                                    self.paciente_actual = paciente
-                                    print(f"⚠️ USANDO MATCH POR NOMBRE como último recurso")
-                                    break
-                except Exception as e:
-                    print(f"❌ Error cargando paciente desde BD: {e}")
-                    # Backup por nombre si falla la carga desde BD
-                    if hasattr(consulta, 'paciente_nombre') and consulta.paciente_nombre:
-                        for i, paciente in enumerate(self.lista_pacientes):
-                            if consulta.paciente_nombre.strip().lower() in paciente.nombre_completo.strip().lower():
-                                print(f"🔍 FALLBACK - MATCH por nombre: '{paciente.nombre_completo}' vs '{consulta.paciente_nombre}'")
-                                self.paciente_actual = paciente
-                                print(f"⚠️ USANDO FALLBACK POR NOMBRE")
-                                break
+    #                     # Como último recurso, búsqueda por nombre en lista actual
+    #                     print(f"🔍 Última opción: búsqueda backup por nombre del paciente...")
+    #                     if hasattr(consulta, 'paciente_nombre') and consulta.paciente_nombre:
+    #                         for i, paciente in enumerate(self.lista_pacientes):
+    #                             if consulta.paciente_nombre.strip().lower() in paciente.nombre_completo.strip().lower():
+    #                                 print(f"🔍 POSIBLE MATCH por nombre: '{paciente.nombre_completo}' vs '{consulta.paciente_nombre}'")
+    #                                 self.paciente_actual = paciente
+    #                                 print(f"⚠️ USANDO MATCH POR NOMBRE como último recurso")
+    #                                 break
+    #             except Exception as e:
+    #                 print(f"❌ Error cargando paciente desde BD: {e}")
+    #                 # Backup por nombre si falla la carga desde BD
+    #                 if hasattr(consulta, 'paciente_nombre') and consulta.paciente_nombre:
+    #                     for i, paciente in enumerate(self.lista_pacientes):
+    #                         if consulta.paciente_nombre.strip().lower() in paciente.nombre_completo.strip().lower():
+    #                             print(f"🔍 FALLBACK - MATCH por nombre: '{paciente.nombre_completo}' vs '{consulta.paciente_nombre}'")
+    #                             self.paciente_actual = paciente
+    #                             print(f"⚠️ USANDO FALLBACK POR NOMBRE")
+    #                             break
 
-            # ✅ CAMBIO CRÍTICO: Cambiar estado de consulta de "en_espera" a "en_atencion"
-            if consulta.estado in ["en_espera", "programada"]:
-                try:
-                    print(f"🔄 Cambiando estado de consulta: {consulta.estado} → en_atencion")
-                    # Usar el método existente para cambiar estado (sin segundo parámetro)
-                    await self.iniciar_atencion_consulta(consulta.id)
-                    print(f"✅ Estado cambiado exitosamente: {consulta.estado} → en_atencion")
-                except Exception as estado_error:
-                    print(f"❌ Error cambiando estado de consulta: {estado_error}")
-                    # Continuar aunque falle el cambio de estado - el contexto ya está establecido
-            else:
-                print(f"ℹ️ Consulta ya en estado: {consulta.estado}, no se cambia estado")
+    #         # ✅ CAMBIO CRÍTICO: Cambiar estado de consulta de "en_espera" a "en_atencion"
+    #         if consulta.estado in ["en_espera", "programada"]:
+    #             try:
+    #                 print(f"🔄 Cambiando estado de consulta: {consulta.estado} → en_atencion")
+    #                 # Usar el método existente para cambiar estado (sin segundo parámetro)
+    #                 await self.iniciar_atencion_consulta(consulta.id)
+    #                 print(f"✅ Estado cambiado exitosamente: {consulta.estado} → en_atencion")
+    #             except Exception as estado_error:
+    #                 print(f"❌ Error cambiando estado de consulta: {estado_error}")
+    #                 # Continuar aunque falle el cambio de estado - el contexto ya está establecido
+    #         else:
+    #             print(f"ℹ️ Consulta ya en estado: {consulta.estado}, no se cambia estado")
 
-        except Exception as e:
-            print(f"❌ Error estableciendo contexto odontología: {e}")
-            import traceback
-            traceback.print_exc()
+    #     except Exception as e:
+    #         print(f"❌ Error estableciendo contexto odontología: {e}")
+    #         import traceback
+    #         traceback.print_exc()
     
     def establecer_contexto_pagos(self, consulta: ConsultaModel):
         """💳 Establecer contexto para módulo de pagos"""

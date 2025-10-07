@@ -430,27 +430,9 @@ def intervencion_page_v2() -> rx.Component:
 
             
         ),
-         # TODO V3.0: Modales temporalmente deshabilitados
-        # Motivo: UntypedVarError durante compilación - requiere debug de tipos
-        # 🚀 FASE 4: Modal de Historial de Versiones (CORREGIDO por UI specialist)
-        # modal_historial_odontograma(),
-
-        # 🛡️ FASE 5: Modal de Validación Médica (CORREGIDO por UI specialist)
-        # modal_validacion_odontograma(),
 
         # 🆕 NUEVA ESTRUCTURA - MODALES
         modal_add_intervention(),
         modal_change_condition(),
 
-        # 🚀 V4.0: Cargar servicios disponibles al montar la página
-        on_mount=[
-            AppState.cargar_servicios_disponibles,
-        ],
-
-        # 🛑 Cleanup al salir: detener auto-guardado y guardar cambios pendientes
-        # on_unmount=[
-        #     AppState.detener_auto_guardado,
-        #     # Guardar cambios pendientes si existen antes de salir
-        #     lambda: AppState.guardar_cambios_batch() if AppState.cambios_sin_guardar else None
-        # ]
     )

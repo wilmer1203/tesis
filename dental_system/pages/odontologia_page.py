@@ -605,9 +605,4 @@ def odontologia_page() -> rx.Component:
         width="100%",
         min_height="100vh",
         style=dark_page_background(),
-        on_mount=[
-            AppState.cargar_pacientes_asignados,
-            AppState.cargar_consultas_disponibles_otros,
-            AppState.cargar_estadisticas_dia
-        ]
     )
