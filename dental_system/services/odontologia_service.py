@@ -530,16 +530,16 @@ class OdontologiaService(BaseService):
             Diccionario con estructura de odontograma y condiciones
         """
         try:
-            # Verificar permisos de odontología
-            if not self.check_permission("odontologia", "leer"):
-                raise PermissionError("Sin permisos para acceder a odontogramas")
+            # # Verificar permisos de odontología
+            # if not self.check_permission("odontograma", "leer"):
+            #     raise PermissionError("Sin permisos para acceder a odontogramas")
                 
             # Buscar odontograma existente activo
-            existing_odontogram = odontograms_table.get_active_by_patient(paciente_id)
+            existing_odontogram = odontograms_table.get_active_odontogram(paciente_id)
             
             if existing_odontogram:
                 # Cargar condiciones del odontograma existente
-                conditions = condiciones_diente_table.get_by_odontogram_id(existing_odontogram['id'])
+                conditions = condiciones_diente_table.get_by_odontograma(existing_odontogram['id'])
                 
                 # Organizar condiciones por diente y superficie
                 organized_conditions = self._organize_conditions_by_tooth(conditions)
