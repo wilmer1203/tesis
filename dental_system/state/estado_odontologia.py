@@ -932,70 +932,7 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado, mixin=True):
 
         return es_valido
 
-    async def cargar_odontograma_paciente_optimizado(self):
-        """
-        🚀 FASE 1.1: Carga optimizada con cache inteligente
-
-        Flujo:
-        1. Verifica cache válido → usa cache
-        2. Cache inválido → carga desde BD y actualiza cache
-        3. Muestra feedback visual durante carga
-        """
-        import time
-
-        # Validar que hay paciente actual con ID
-        if not hasattr(self, 'paciente_actual') or not self.paciente_actual:
-            logger.warning("⚠️ No hay paciente actual para cargar odontograma")
-            return
-
-        paciente_id = getattr(self.paciente_actual, 'id', None)
-        if not paciente_id:
-            logger.warning("⚠️ Paciente actual sin ID")
-            return
-
-        # Verificar cache
-        if self._es_cache_valido(paciente_id):
-            logger.info(f"✅ Usando cache para paciente {paciente_id}")
-            self.condiciones_por_diente = self.odontograma_cache[paciente_id].copy()
-            self.cambios_sin_guardar = False
-            return
-
-        # Cargar desde BD con indicador visual
-        self.odontograma_cargando = True
-        self.odontograma_error = ""
-
-        try:
-            # Establecer contexto
-            odontologia_service.set_user_context(self.id_usuario, self.perfil_usuario)
-
-            # Obtener o crear odontograma del paciente
-            resultado = await odontologia_service.get_or_create_patient_odontogram(
-                paciente_id,
-                self.id_personal
-            )
-
-            if resultado:
-                # Actualizar estado con condiciones cargadas
-                condiciones = resultado.get("conditions", {})
-                self.condiciones_por_diente = condiciones.copy()
-
-                # Actualizar cache
-                self.odontograma_cache[paciente_id] = condiciones.copy()
-                self.odontograma_cache_timestamp[paciente_id] = time.time()
-
-                self.cambios_sin_guardar = False
-
-                logger.info(f"✅ Odontograma cargado desde BD y cacheado: {len(condiciones)} dientes con condiciones")
-            else:
-                logger.warning(f"⚠️ No se pudo obtener odontograma para paciente {paciente_id}")
-                self.odontograma_error = "No se pudo cargar el odontograma"
-
-        except Exception as e:
-            logger.error(f"❌ Error cargando odontograma: {e}")
-            self.odontograma_error = f"Error: {str(e)}"
-
-        finally:
-            self.odontograma_cargando = False
+    # REFACTOR FASE 2: cargar_odontograma_paciente_optimizado() eliminada - usar cargar_odontograma_paciente_actual()
 
     def invalidar_cache_odontograma(self, paciente_id: Optional[str] = None):
         """
@@ -1589,51 +1526,7 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado, mixin=True):
     # 📝 GESTIÓN DEL FORMULARIO DE INTERVENCIÓN
     # ==========================================
     
-    async def crear_intervencion(self):
-        """
-        Crear nueva intervención odontológica
-        """
-        if not self.validar_formulario_intervencion():
-            return
-
-        self.creando_intervencion = True
-        
-        try:
-            # Preparar datos para crear intervención usando modelo tipado
-            datos_intervencion = self.formulario_intervencion.to_dict()
-            datos_intervencion.update({
-                "consulta_id": self.consulta_actual.id,
-                "paciente_id": self.paciente_actual.id,
-                "odontologo_id": self.id_personal
-            })
-            
-            # Crear intervención
-            nueva_intervencion = await odontologia_service.create_intervencion(
-                form_data=datos_intervencion,
-                user_id=self.perfil_usuario.get("id") if self.perfil_usuario else ""
-            )
-            
-            # Limpiar formulario
-            self.limpiar_formulario_intervencion()
-            
-            # Navegar de vuelta
-            self.en_formulario_intervencion = False
-            ui_state.navegar_a("odontologia")
-            
-            # Mostrar éxito
-            ui_state.mostrar_toast_exito("Intervención creada exitosamente")
-            
-            # Recargar consultas
-            await self.cargar_pacientes_asignados()
-            
-            logger.info(f"✅ Intervención creada: {nueva_intervencion.id}")
-            
-        except Exception as e:
-            logger.error(f"❌ Error creando intervención: {e}")
-            ui_state.mostrar_toast_error("Error al crear intervención")
-            
-        finally:
-            self.creando_intervencion = False
+    # REFACTOR FASE 2: crear_intervencion() legacy eliminada - usar guardar_intervencion_completa()
     
     def seleccionar_servicio(self, servicio_id: str):
         """Seleccionar servicio para la intervención con auto-actualización de precio"""
@@ -1908,103 +1801,14 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado, mixin=True):
     # ==========================================
     
     @rx.event
-    async def seleccionar_diente_unificado(
-        self,
-        numero_diente: int,
-        modo: str = "simple",
-        superficie: str = "",
-        cargar_historial: bool = False,
-        cargar_estadisticas: bool = False
-    ):
-        """
-        🦷 FUNCIÓN UNIFICADA PARA SELECCIÓN DE DIENTES
-
-        Esta función reemplaza a todas las funciones de selección individuales:
-        - seleccionar_diente_simple() -> modo="simple"
-        - seleccionar_diente_svg() -> modo="svg"
-        - seleccionar_diente() -> modo="principal"
-        - seleccionar_diente_superficie() -> modo="superficie" + superficie
-        - seleccionar_diente_para_historial() -> modo="historial" + cargar_historial=True
-        - seleccionar_diente_profesional() -> modo="profesional" + cargar_historial=True + cargar_estadisticas=True
-
-        Args:
-            numero_diente: Número FDI del diente (11-48)
-            modo: Tipo de selección ("simple", "svg", "principal", "superficie", "historial", "profesional")
-            superficie: Nombre de la superficie (solo para modo="superficie")
-            cargar_historial: Si cargar historial del diente desde BD
-            cargar_estadisticas: Si cargar estadísticas del paciente
-        """
-        try:
-            # Validar número de diente FDI
-            todos_los_dientes = self.cuadrante_1 + self.cuadrante_2 + self.cuadrante_3 + self.cuadrante_4
-            if numero_diente not in todos_los_dientes:
-                logger.warning(f"⚠️ Número de diente inválido: {numero_diente}")
-                return
-
-            # Selección básica común a todos los modos
-            self.diente_seleccionado = numero_diente
-
-            # Lógica específica por modo
-            if modo == "simple":
-                # Si estamos en modo edición, agregar a dientes afectados del formulario
-                if self.modo_odontograma == "edicion":
-                    self.agregar_diente_afectado(numero_diente)
-                # También actualizar la lista visual de dientes seleccionados
-                self.actualizar_lista_dientes_seleccionados()
-
-            elif modo == "svg":
-                # Solo selección básica (ya hecha arriba)
-                pass
-
-            elif modo == "principal":
-                # En modo edición, agregar a lista de dientes afectados para intervención
-                if self.modo_odontograma == "edicion":
-                    self.agregar_diente_afectado(numero_diente)
-                    self.actualizar_lista_dientes_seleccionados()
-                logger.info(f"🦷 Diente {numero_diente} seleccionado (modo principal)")
-
-            elif modo == "superficie":
-                # Validar superficie si se proporciona
-                superficies_validas = ["oclusal", "mesial", "distal", "vestibular", "lingual", "palatino"]
-                if superficie and superficie not in superficies_validas:
-                    logger.warning(f"⚠️ Superficie inválida: {superficie}")
-                    return
-                # Establecer superficie seleccionada
-                if superficie:
-                    self.superficie_seleccionada = superficie
-                logger.info(f"🦷 Diente {numero_diente} superficie {superficie} seleccionada")
-
-            elif modo == "historial":
-                cargar_historial = True
-
-            elif modo == "profesional":
-                cargar_historial = True
-                cargar_estadisticas = True
-
-            # Cargar historial si se solicita
-            if cargar_historial:
-                await self.cargar_historial_diente_especifico(numero_diente)
-
-            # Cargar estadísticas si se solicita
-            if cargar_estadisticas:
-                if not hasattr(self, 'estadisticas_paciente_bd') or not self.estadisticas_paciente_bd:
-                    await self.obtener_estadisticas_paciente_bd_async()
-
-            logger.info(f"✅ Diente {numero_diente} seleccionado exitosamente (modo: {modo})")
-
-        except Exception as e:
-            logger.error(f"❌ Error seleccionando diente {numero_diente}: {e}")
-
     # ==========================================
-    # 🔄 FUNCIONES DE RETROCOMPATIBILIDAD
+    # 🔄 SELECCIÓN DE DIENTES - FUNCIONES LEGACY ELIMINADAS
     # ==========================================
-    # Estas funciones mantienen la compatibilidad con el código existente
-    # y redirigen a la función unificada
-
-    @rx.event
-    def seleccionar_diente_simple(self, numero_diente: int):
-        """🔄 FUNCIÓN DE RETROCOMPATIBILIDAD - Usar seleccionar_diente_unificado()"""
-        return self.seleccionar_diente_unificado(numero_diente, modo="simple")
+    # REFACTOR FASE 2: Eliminadas funciones duplicadas de selección de dientes
+    # - seleccionar_diente_unificado (86 líneas)
+    # - seleccionar_diente_simple (retrocompatibilidad)
+    #
+    # AHORA USA: select_tooth() en línea ~4311 (función V4 activa)
     
     def actualizar_lista_dientes_seleccionados(self):
         """Actualizar la lista visual de dientes seleccionados para la UI"""
@@ -2196,10 +2000,7 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado, mixin=True):
     # REFACTOR: Funciones eliminadas (editor_superficie, historial_superficie, planificador_tratamiento, notas_diente)
     # Ahora se usa tooth_detail_sidebar con tabs especializados
     
-    @rx.event
-    def seleccionar_diente_svg(self, numero_diente: int):
-        """🔄 FUNCIÓN DE RETROCOMPATIBILIDAD - Usar seleccionar_diente_unificado()"""
-        return self.seleccionar_diente_unificado(numero_diente, modo="svg")
+    # REFACTOR FASE 2: seleccionar_diente_svg() eliminada - usar select_tooth()
     
     # ==========================================
     # 🔄 SISTEMA VERSIONADO ODONTOGRAMA - OBSOLETO
@@ -2779,10 +2580,7 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado, mixin=True):
     #     """🔄 FUNCIÓN DE RETROCOMPATIBILIDAD - Usar seleccionar_diente_unificado()"""
     #     await self.seleccionar_diente_unificado(numero_diente, modo="superficie", superficie=nombre_superficie)
 
-    @rx.event
-    async def seleccionar_diente(self, numero_diente: int):
-        """🔄 FUNCIÓN DE RETROCOMPATIBILIDAD - Usar seleccionar_diente_unificado()"""
-        await self.seleccionar_diente_unificado(numero_diente, modo="principal")
+    # REFACTOR FASE 2: seleccionar_diente() eliminada - usar select_tooth()
 
     @rx.event
     # ==========================================
@@ -2898,22 +2696,7 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado, mixin=True):
         except Exception as e:
             print(f"❌ Error limpiando odontograma: {e}")
 
-    async def cargar_odontograma_ejemplo(self):
-        """📋 Cargar datos de ejemplo para pruebas"""
-        try:
-            # Datos de ejemplo con algunas condiciones
-            ejemplo = {
-                11: {"oclusal": "caries", "mesial": "sano", "distal": "sano", "vestibular": "sano", "lingual": "sano"},
-                12: {"oclusal": "obturado", "mesial": "sano", "distal": "sano", "vestibular": "sano", "lingual": "sano"},
-                21: {"oclusal": "corona", "mesial": "sano", "distal": "sano", "vestibular": "sano", "lingual": "sano"},
-                31: {"oclusal": "caries", "mesial": "caries", "distal": "sano", "vestibular": "sano", "lingual": "sano"},
-                46: {"oclusal": "endodoncia", "mesial": "sano", "distal": "sano", "vestibular": "sano", "lingual": "sano"}
-            }
-
-            self.condiciones_por_diente = ejemplo
-            print("📋 Odontograma de ejemplo cargado")
-        except Exception as e:
-            print(f"❌ Error cargando ejemplo: {e}")
+    # REFACTOR FASE 2: cargar_odontograma_ejemplo() eliminada - usar datos reales de BD
 
     # ==========================================
     # 🆕 MÉTODOS V2.0 ODONTOGRAMA INTERACTIVO
@@ -3099,9 +2882,7 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado, mixin=True):
         except Exception as e:
             logger.error(f"❌ Error seleccionando todos los dientes: {e}")
 
-    async def seleccionar_diente_para_historial(self, numero_diente: int):
-        """🔄 FUNCIÓN DE RETROCOMPATIBILIDAD - Usar seleccionar_diente_unificado()"""
-        await self.seleccionar_diente_unificado(numero_diente, modo="historial", cargar_historial=True)
+    # REFACTOR FASE 2: seleccionar_diente_para_historial() eliminada - usar select_tooth() + cargar_historial_diente_especifico()
 
     async def cargar_historial_diente_especifico(self, numero_diente: int):
         """📊 Cargar historial real de intervenciones en un diente específico"""
@@ -3258,10 +3039,7 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado, mixin=True):
                 "costo_total_tratamientos": 0.0
             }
 
-    @rx.event
-    async def seleccionar_diente_profesional(self, numero_diente: int):
-        """🔄 FUNCIÓN DE RETROCOMPATIBILIDAD - Usar seleccionar_diente_unificado()"""
-        await self.seleccionar_diente_unificado(numero_diente, modo="profesional", cargar_historial=True, cargar_estadisticas=True)
+    # REFACTOR FASE 2: seleccionar_diente_profesional() eliminada - usar select_tooth()
 
     # Variable para almacenar estadísticas de BD
     estadisticas_paciente_bd: dict = {}  # Cambió de Dict[str, Any]
@@ -3358,29 +3136,7 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado, mixin=True):
         self.recomendaciones_paciente = texto
     
     # Acciones principales
-    async def guardar_intervencion_completa(self):
-        """💾 Guardar intervención completa"""
-        try:
-            self.is_guardando_intervencion = True
-            
-            # Aquí iría la lógica de guardado real
-            # Por ahora simulo el proceso
-            
-            logger.info("🔄 Iniciando guardado de intervención completa...")
-            
-            # Simular delay de guardado
-            import asyncio
-            await asyncio.sleep(1)
-            
-            logger.info("✅ Intervención guardada exitosamente")
-            
-            # Limpiar formulario después del guardado
-            await self.limpiar_formulario_intervencion_completo()
-            
-        except Exception as e:
-            logger.error(f"❌ Error guardando intervención: {e}")
-        finally:
-            self.is_guardando_intervencion = False
+    # REFACTOR FASE 2: guardar_intervencion_completa() stub eliminada - versión real en línea ~4426
     
     async def guardar_borrador_intervencion(self):
         """💾 Guardar como borrador"""
