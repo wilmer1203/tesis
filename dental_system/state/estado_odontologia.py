@@ -21,7 +21,6 @@ import logging
 # Servicios y modelos
 from dental_system.services.odontologia_service import odontologia_service
 from dental_system.services.servicios_service import servicios_service
-# REFACTOR FASE 4: EstadoOdontogramaAvanzado eliminado - funcionalidad integrada aquí
 from dental_system.state.estado_ui import EstadoUI
 from dental_system.models import (
     PacienteModel,
@@ -37,7 +36,7 @@ from dental_system.models import (
 
 logger = logging.getLogger(__name__)
 
-class EstadoOdontologia(EstadoOdontogramaAvanzado, mixin=True):
+class EstadoOdontologia(rx.State, mixin=True):
     """
     🦷 ESTADO ESPECIALIZADO EN MÓDULO ODONTOLÓGICO
     
@@ -135,18 +134,6 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado, mixin=True):
 
     # Lista de servicios aplicados con sus dientes específicos
     servicios_intervencion: List[Dict[str, Any]] = []
-    # Estructura: {
-    #   "servicio_id": "uuid",
-    #   "nombre_servicio": "Obturación",
-    #   "codigo": "OB001",
-    #   "dientes": [11, 12],
-    #   "cantidad": 1,
-    #   "precio_unitario_bs": 50.00,
-    #   "precio_unitario_usd": 10.00,
-    #   "precio_total_bs": 50.00,
-    #   "precio_total_usd": 10.00,
-    #   "observaciones": ""
-    # }
 
     # Totales calculados automáticamente
     total_bs_intervencion: float = 0.0
@@ -294,23 +281,8 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado, mixin=True):
         "giroversion": {"color": "#FF8C00", "descripcion": "Diente rotado", "simbolo": "G"}
     }
 
-    # ==========================================
-    # 🚀 VARIABLES V3.0 - FASE 1: CACHE INTELIGENTE
-    # ==========================================
-
-    # Cache de odontogramas por paciente_id
-    # REFACTOR FASE 3: Variables cache V3 eliminadas (odontograma_cache, odontograma_cache_timestamp, odontograma_cache_ttl)
-
     # Control de carga lazy de historial
     historial_cargado_por_diente: Dict[int, bool] = {}
-
-    # REFACTOR FASE 3: Variables V3 batch/auto-guardado eliminadas
-    # - cambios_pendientes_buffer, ultimo_guardado_timestamp, intervalo_auto_guardado
-    # - auto_guardado_activo, contador_cambios_pendientes
-
-    # ==========================================
-    # 📜 VARIABLES V3.0 - FASE 4: HISTORIAL TIMELINE
-    # ==========================================
 
     # Historial completo de versiones del odontograma
     historial_versiones_odontograma: List[Dict[str, Any]] = []  # Necesario para rx.foreach
@@ -553,58 +525,7 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado, mixin=True):
             return "Sin turno"
         except Exception:
             return "Sin turno"
-    
-    @rx.var(cache=True)
-    def estadisticas_del_dia_computed(self) -> OdontologoStatsModel:
-        """Estadísticas computadas del día para el odontólogo"""
-        try:
-            # Combinar estadísticas del servicio con cálculos locales
-            stats_data = {
-                "consultas_hoy": len(self.consultas_asignadas),
-                "pacientes_asignados": len(self.pacientes_asignados),
-                "consultas_pendientes_hoy": len(self.consultas_por_estado.get("programada", [])),
-                "intervenciones_mes": len(self.consultas_por_estado.get("completada", [])),
-                "tratamientos_pendientes": len(self.consultas_por_estado.get("en_progreso", [])),
-            }
-            # Usar estadísticas base del servicio si están disponibles
-            if hasattr(self.estadisticas_dia, 'ingresos_generados_mes'):
-                stats_data.update({
-                    "ingresos_generados_mes": self.estadisticas_dia.ingresos_generados_mes,
-                    "promedio_tiempo_consulta": self.estadisticas_dia.promedio_tiempo_consulta,
-                    "consultas_semana": self.estadisticas_dia.consultas_semana,
-                    "consultas_mes": self.estadisticas_dia.consultas_mes
-                })
-            
-            return OdontologoStatsModel.from_dict(stats_data)
-        except Exception:
-            return OdontologoStatsModel()
-    
-    @rx.var(cache=True)
-    def dientes_afectados_texto(self) -> str:
-        """Texto descriptivo de dientes afectados en intervención"""
-        try:
-            # Obtener dientes desde el formulario tipado
-            if isinstance(self.formulario_intervencion.dientes_afectados, str):
-                if self.formulario_intervencion.dientes_afectados.strip():
-                    dientes = [int(x.strip()) for x in self.formulario_intervencion.dientes_afectados.split(",") if x.strip().isdigit()]
-                else:
-                    dientes = []
-            else:
-                dientes = self.formulario_intervencion.dientes_afectados or []
-            
-            if not dientes:
-                return "Ningún diente seleccionado"
-            
-            if len(dientes) == 1:
-                return f"Diente {dientes[0]}"
-            elif len(dientes) <= 3:
-                return f"Dientes {', '.join(map(str, dientes))}"
-            else:
-                return f"{len(dientes)} dientes seleccionados"
-                
-        except Exception:
-            return "Error en selección"
-    
+
     # ==========================================
     # 🔄 MÉTODOS DE CARGA DE DATOS
     # ==========================================
@@ -662,65 +583,34 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado, mixin=True):
         finally:
             self.cargando_pacientes_asignados = False
     
-    async def cargar_servicios_disponibles(self):
-        """Cargar catálogo de servicios odontológicos"""
-        self.cargando_servicios = True
+    # async def cargar_servicios_disponibles(self):
+    #     """Cargar catálogo de servicios odontológicos"""
+    #     self.cargando_servicios = True
 
-        try:
-            # Establecer contexto de usuario antes de usar el servicio
-            servicios_service.set_user_context(self.id_usuario, self.perfil_usuario)
+    #     try:
+    #         # Establecer contexto de usuario antes de usar el servicio
+    #         servicios_service.set_user_context(self.id_usuario, self.perfil_usuario)
 
-            # Usar servicios_service para obtener catálogo
-            servicios_data = await servicios_service.get_filtered_services(activos_only=True)
-            self.servicios_disponibles = servicios_data
+    #         # Usar servicios_service para obtener catálogo
+    #         servicios_data = await servicios_service.get_filtered_services(activos_only=True)
+    #         self.servicios_disponibles = servicios_data
 
-            # Agrupar por categoría
-            self.servicios_por_categoria = self.servicios_por_categoria_computed
+    #         # Agrupar por categoría
+    #         self.servicios_por_categoria = self.servicios_por_categoria_computed
 
-            logger.info(f"✅ Servicios disponibles cargados: {len(servicios_data)}")
+    #         logger.info(f"✅ Servicios disponibles cargados: {len(servicios_data)}")
 
-            # DEBUG: Mostrar primeros 3 servicios para verificar que tienen ID
-            if servicios_data:
-                for i, servicio in enumerate(servicios_data[:3]):
-                    logger.debug(f"  Servicio {i+1}: {servicio.nombre} (ID: {servicio.id})")
+    #         # DEBUG: Mostrar primeros 3 servicios para verificar que tienen ID
+    #         if servicios_data:
+    #             for i, servicio in enumerate(servicios_data[:3]):
+    #                 logger.debug(f"  Servicio {i+1}: {servicio.nombre} (ID: {servicio.id})")
 
-        except Exception as e:
-            logger.error(f"❌ Error cargando servicios: {e}")
+    #     except Exception as e:
+    #         logger.error(f"❌ Error cargando servicios: {e}")
 
-        finally:
-            self.cargando_servicios = False
+    #     finally:
+    #         self.cargando_servicios = False
     
-    async def cargar_intervenciones_consulta_actual(self):
-        """
-        📋 CARGAR INTERVENCIONES PREVIAS DE LA CONSULTA ACTUAL
-
-        Carga todas las intervenciones registradas para la consulta actual,
-        útil para ver qué otros odontólogos ya atendieron al paciente.
-        """
-        if not self.consulta_actual or not self.consulta_actual.id:
-            logger.warning("No hay consulta actual para cargar intervenciones")
-            return
-
-        try:
-            from dental_system.services.odontologia_service import odontologia_service
-
-            # Establecer contexto de usuario
-            odontologia_service.set_user_context(self.id_usuario, self.perfil_usuario)
-
-            # TODO: Cargar intervenciones de esta consulta
-            # NOTA: Método get_intervenciones_by_consulta no implementado aún
-            # intervenciones_data = await odontologia_service.get_intervenciones_by_consulta(
-            #     self.consulta_actual.id
-            # )
-
-            # Actualizar lista de intervenciones anteriores (vacía por ahora)
-            self.intervenciones_anteriores = []
-
-            logger.info(f"✅ Intervenciones previas: función pendiente de implementar")
-
-        except Exception as e:
-            logger.error(f"❌ Error cargando intervenciones de consulta: {e}")
-            self.intervenciones_anteriores = []
 
     async def cargar_odontograma_paciente(self, paciente_id: str):
         """Cargar odontograma del paciente actual usando el estado avanzado"""
@@ -1340,9 +1230,6 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado, mixin=True):
 
                 # Cargar odontograma (última versión con cambios previos)
                 await self.cargar_odontograma_paciente_actual()
-
-                # Cargar intervenciones previas de otros odontólogos
-                await self.cargar_intervenciones_consulta_actual()
 
                 # Establecer flag de formulario activo
                 self.en_formulario_intervencion = True
@@ -1990,7 +1877,6 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado, mixin=True):
     async def refrescar_datos_odontologia(self):
         """Refrescar todos los datos del módulo"""
         await self.cargar_pacientes_asignados()
-        await self.cargar_servicios_disponibles()
         logger.info("🔄 Datos de odontología refrescados")
     
     def limpiar_estado_navegacion(self):
@@ -2162,9 +2048,6 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado, mixin=True):
 
             # 5. Cargar odontograma del paciente (última versión)
             await self.cargar_odontograma_paciente_actual()
-
-            # 6. Cargar intervenciones previas de esta consulta
-            await self.cargar_intervenciones_consulta_actual()
 
             # 7. Cargar historial del paciente
             await self.cargar_historial_paciente(paciente_id)
@@ -4702,8 +4585,8 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado, mixin=True):
     @rx.var(cache=True)
     def get_available_services_names(self) -> List[str]:
         """📋 Lista de nombres de servicios para select"""
-        if hasattr(self, 'lista_servicios') and self.lista_servicios:
-            return [s.get("nombre", "") for s in self.lista_servicios if s.get("nombre")]
+        if self.servicios_disponibles:
+            return [s.nombre for s in self.servicios_disponibles if s.nombre]
         return []
 
     @rx.var(cache=True)
@@ -4712,9 +4595,9 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado, mixin=True):
         if not self.selected_service_name:
             return 0.0
 
-        for service in self.lista_servicios:
-            if service.get("nombre") == self.selected_service_name:
-                return service.get("precio_base_bs", 0.0)
+        for service in self.servicios_disponibles:
+            if service.nombre == self.selected_service_name:
+                return float(service.precio_base_bs) if service.precio_base_bs else 0.0
         return 0.0
 
     @rx.var(cache=True)
@@ -4723,9 +4606,9 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado, mixin=True):
         if not self.selected_service_name:
             return 0.0
 
-        for service in self.lista_servicios:
-            if service.get("nombre") == self.selected_service_name:
-                return service.get("precio_base_usd", 0.0)
+        for service in self.servicios_disponibles:
+            if service.nombre == self.selected_service_name:
+                return float(service.precio_base_usd) if service.precio_base_usd else 0.0
         return 0.0
 
     # ==========================================
