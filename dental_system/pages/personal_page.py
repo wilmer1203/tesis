@@ -47,7 +47,7 @@ def delete_personal_confirmation_modal() -> rx.Component:
             # Header con icono de advertencia
             rx.vstack(
                 rx.box(
-                    rx.icon("alert-triangle", size=48, color=COLORS["error"]["500"]),
+                    rx.icon("triangle-alert", size=48, color=COLORS["error"]["500"]),
                     padding=SPACING["4"],
                     border_radius=RADIUS["full"],
                     background=COLORS["error"]["50"]
@@ -300,7 +300,7 @@ def modern_alerts() -> rx.Component:
             AppState.mensaje_modal_confirmacion != "",
             rx.box(
                 rx.hstack(
-                    rx.icon("check-circle", size=20, color=COLORS["success"]["500"]),
+                    rx.icon("circle-check", size=20, color=COLORS["success"]["500"]),
                     rx.text(
                         AppState.mensaje_modal_confirmacion,
                         color=COLORS["success"]["700"],
@@ -325,7 +325,7 @@ def modern_alerts() -> rx.Component:
             AppState.mensaje_modal_alerta != "",
             rx.box(
                 rx.hstack(
-                    rx.icon("alert-circle", size=20, color=COLORS["error"]["500"]),
+                    rx.icon("circle-alert", size=20, color=COLORS["error"]["500"]),
                     rx.text(
                         AppState.mensaje_modal_alerta,
                         color=COLORS["error"]["700"],

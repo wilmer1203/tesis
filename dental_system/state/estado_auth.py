@@ -196,11 +196,13 @@ class EstadoAuth(rx.State, mixin=True):
         self.error_login = ""
         
         # Invalidar cache completo al logout
-        try:
-            CacheInvalidationHooks.force_refresh_all_dashboard_cache()
-            print("🗑️ Cache invalidado al cerrar sesión")
-        except Exception as e:
-            print(f"⚠️ Error invalidando cache al logout: {e}")
+        # NOTA: La invalidación automática se maneja por los decoradores en services
+        # No es necesario forzar invalidación manual aquí
+        # try:
+        #     CacheInvalidationHooks.force_refresh_all_dashboard_cache()
+        #     print("🗑️ Cache invalidado al cerrar sesión")
+        # except Exception as e:
+        #     print(f"⚠️ Error invalidando cache al logout: {e}")
         
         print("✅ Sesión cerrada correctamente")
         return rx.redirect("/login")

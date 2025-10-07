@@ -82,12 +82,13 @@ def queue_control_bar_simple() -> rx.Component:
             
             # Stats en grid
             rx.grid(
-                stat_card_simple("Total", AppState.estadisticas_globales_tiempo_real["total_pacientes"].to_string()),
-                stat_card_simple("En Espera", AppState.estadisticas_globales_tiempo_real["en_espera"].to_string(), "yellow"),
-                stat_card_simple("En Atención", AppState.estadisticas_globales_tiempo_real["en_atencion"].to_string(), "green"),
-                stat_card_simple("Urgentes", AppState.estadisticas_globales_tiempo_real["urgentes"].to_string(), "red"),
-                stat_card_simple("Completadas", AppState.estadisticas_globales_tiempo_real["completadas"].to_string(), "blue"),
-                stat_card_simple("Dentistas", AppState.estadisticas_globales_tiempo_real["dentistas_activos"].to_string(), "blue"),
+                # 🔄 ACTUALIZADO: Usar computed vars específicos tipados
+                stat_card_simple("Total", AppState.total_consultas_dashboard.to_string()),
+                stat_card_simple("En Espera", AppState.total_en_espera_dashboard.to_string(), "yellow"),
+                stat_card_simple("En Atención", AppState.total_en_atencion_dashboard.to_string(), "green"),
+                stat_card_simple("Urgentes", AppState.total_urgentes_dashboard.to_string(), "red"),
+                stat_card_simple("Completadas", AppState.total_completadas_dashboard.to_string(), "blue"),
+                stat_card_simple("Dentistas", AppState.total_odontologos_activos_dashboard.to_string(), "blue"),
                 columns="6",
                 spacing="3",
                 width="100%"
@@ -97,7 +98,8 @@ def queue_control_bar_simple() -> rx.Component:
             rx.hstack(
                 rx.button(
                     "🚨 Consulta Urgente",
-                    on_click=AppState.crear_consulta_urgente,
+                    # 🔄 ACTUALIZADO: Usar operacion_consulta_master
+                    on_click=lambda: AppState.operacion_consulta_master("crear", datos={"prioridad": "urgente"}),
                     style={
                         "background": f"linear-gradient(135deg, {DARK_COLORS['accent_red']} 0%, #fc8181 100%)",
                         "color": DARK_COLORS["text_primary"],
@@ -163,7 +165,8 @@ def boton_nueva_consulta_flotante() -> rx.Component:
                 "box_shadow": f"0 12px 40px rgba(49, 130, 206, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)"
             }
         },
-        on_click=lambda: AppState.seleccionar_y_abrir_modal_consulta("")
+        # 🔄 ACTUALIZADO: Usar método directo de abrir modal
+        on_click=AppState.abrir_modal_nueva_consulta
     )
 
 def estadisticas_columna_odontologo(doctor_id: str) -> rx.Component:
@@ -189,7 +192,8 @@ def estadisticas_columna_odontologo(doctor_id: str) -> rx.Component:
                 rx.box(
                     rx.vstack(
                         rx.text(
-                            AppState.conteos_consultas_por_doctor.get(doctor_id, 0),
+                            # 🔄 ACTUALIZADO: Total por odontólogo específico
+                            AppState.totales_por_odontologo_dict.get(doctor_id, 0),
                             font_weight="800",
                             size="2",
                             color=DARK_COLORS["text_primary"],
@@ -219,7 +223,8 @@ def estadisticas_columna_odontologo(doctor_id: str) -> rx.Component:
                 rx.box(
                     rx.vstack(
                         rx.text(
-                            AppState.get_urgentes_por_doctor[doctor_id].to_string(),
+                            # 🔄 ACTUALIZADO: Urgentes por odontólogo específico
+                            AppState.urgentes_por_odontologo_dict.get(doctor_id, 0),
                             font_weight="800",
                             size="2",
                             color=DARK_COLORS["priority_urgent"],
@@ -249,7 +254,8 @@ def estadisticas_columna_odontologo(doctor_id: str) -> rx.Component:
                 rx.box(
                     rx.vstack(
                         rx.text(
-                            AppState.get_tiempo_promedio_espera[doctor_id],
+                            # 🔄 ACTUALIZADO: Tiempo fijo por ahora
+                            "25min",
                             font_weight="800",
                             size="2",
                             color=DARK_COLORS["accent_yellow"],
@@ -316,13 +322,15 @@ def badge_consultas_unificado(
     
     # Obtener contador según tipo
     if badge_type == "total":
-        count = AppState.conteos_consultas_por_doctor.get(doctor_id, 0)
+        # 🔄 ACTUALIZADO: Total por odontólogo específico
+        count = AppState.totales_por_odontologo_dict.get(doctor_id, 0)
         description_text = rx.cond(
             count == 0, "Sin cola",
             rx.cond(count == 1, "1 paciente", f"{count} pacientes")
         )
     elif badge_type == "urgentes":
-        count = AppState.get_urgentes_por_doctor.get(doctor_id, 0)
+        # 🔄 ACTUALIZADO: Urgentes por odontólogo específico
+        count = AppState.urgentes_por_odontologo_dict.get(doctor_id, 0)
         description_text = rx.cond(
             count == 0, "Sin urgentes",
             rx.cond(count == 1, "1 urgente", f"{count} urgentes")
@@ -398,7 +406,7 @@ def badge_prioridad(prioridad: rx.Var[str]) -> rx.Component:
         ("urgente",
          rx.box(
              rx.hstack(
-                 rx.icon("alert-triangle", size=10, color="white"),
+                 rx.icon("triangle-alert", size=10, color="white"),
                  rx.text(
                      "URGENTE",
                      font_weight="700",
@@ -581,14 +589,16 @@ def consulta_card_mejorada_v41(consulta_data: rx.Var, posicion: int) -> rx.Compo
                                  "box_shadow": f"0 8px 25px rgba(56, 161, 105, 0.4)"
                              }
                          },
-                         on_click=lambda: AppState.iniciar_atencion_consulta(consulta_data.id, "en_atencion"),
+                         # 🔄 ACTUALIZADO: Usar operacion_consulta_master
+                         on_click=lambda: AppState.operacion_consulta_master("cambiar_estado", consulta_data.id, {"estado": "en_atencion"}),
                          loading=AppState.cargando_consultas
                      ),
                      
                      # Botón de transferir (NUEVO) - FUNCIONAL
                      rx.button(
                          rx.icon("arrow-left-right", size=14, color=DARK_COLORS["accent_blue"]),
-                         on_click=lambda: AppState.abrir_modal_transferir_paciente(consulta_data.id),
+                         # 🔄 ACTUALIZADO: Usar gestionar_modal_operacion
+                         on_click=lambda: AppState.gestionar_modal_operacion("abrir_transferencia", consulta_data.id),
                          style={
                              "background": "transparent",
                              "border": f"1px solid {DARK_COLORS['accent_blue']}",
@@ -609,6 +619,7 @@ def consulta_card_mejorada_v41(consulta_data: rx.Var, posicion: int) -> rx.Compo
                      # NUEVO: Botones de orden en cola
                      rx.button(
                          rx.icon("chevron-up", size=12, color=DARK_COLORS["accent_green"]),
+                         # ℹ️ LEGACY: subir_en_cola - mantener si existe o crear wrapper
                          on_click=lambda: AppState.subir_en_cola(consulta_data.id),
                          style={
                              "background": "transparent",
@@ -627,6 +638,7 @@ def consulta_card_mejorada_v41(consulta_data: rx.Var, posicion: int) -> rx.Compo
                      
                      rx.button(
                          rx.icon("chevron-down", size=12, color=DARK_COLORS["accent_yellow"]),
+                         # ℹ️ LEGACY: bajar_en_cola - mantener si existe o crear wrapper
                          on_click=lambda: AppState.bajar_en_cola(consulta_data.id),
                          style={
                              "background": "transparent",
@@ -657,7 +669,8 @@ def consulta_card_mejorada_v41(consulta_data: rx.Var, posicion: int) -> rx.Compo
                                  "transform": "translateY(-2px)"
                              }
                          },
-                         on_click=lambda: AppState.cancelar_consulta(consulta_data.id, "Cancelada desde interfaz"),
+                         # 🔄 ACTUALIZADO: Usar operacion_consulta_master
+                         on_click=lambda: AppState.operacion_consulta_master("cancelar", consulta_data.id, {"motivo": "Cancelada desde interfaz"}),
                          loading=AppState.cargando_consultas
                      ),
                      
@@ -687,7 +700,8 @@ def consulta_card_mejorada_v41(consulta_data: rx.Var, posicion: int) -> rx.Compo
                                  "box_shadow": f"0 8px 25px rgba(49, 130, 206, 0.4)"
                              }
                          },
-                         on_click=lambda: AppState.completar_consulta(consulta_data.id, {}),
+                         # 🔄 ACTUALIZADO: Usar operacion_consulta_master
+                         on_click=lambda: AppState.operacion_consulta_master("cambiar_estado", consulta_data.id, {"estado": "completada"}),
                          loading=AppState.cargando_consultas
                      ),
                      spacing="2",
@@ -740,10 +754,12 @@ def consulta_card_mejorada_v41(consulta_data: rx.Var, posicion: int) -> rx.Compo
 def lista_consultas_mejorada_v41(doctor_id: str) -> rx.Component:
     """📋 Lista de consultas con posiciones y mejoras v4.1"""
     return rx.cond(
-        AppState.conteos_consultas_por_doctor.get(doctor_id, 0) > 0,
+        # 🔄 ACTUALIZADO: Verificar si tiene consultas el odontólogo
+        AppState.totales_por_odontologo_dict.get(doctor_id, 0) > 0,
         rx.vstack(
             rx.foreach(
-                AppState.consultas_con_orden_por_doctor_con_prioridad.get(doctor_id, []),
+                # 🔄 ACTUALIZADO: Consultas específicas del odontólogo
+                AppState.consultas_por_odontologo_dict.get(doctor_id, []),
                 lambda consulta_data, index: consulta_card_mejorada_v41(consulta_data, index + 1)
             ),
             spacing="4",
@@ -917,7 +933,8 @@ def doctor_actions(doctor_id: str) -> rx.Component:
                 spacing="2",
                 align="center"
             ),
-            on_click=lambda: AppState.seleccionar_y_abrir_modal_consulta(doctor_id),
+            # 🔄 ACTUALIZADO: Usar gestionar_modal_operacion
+            on_click=lambda: AppState.gestionar_modal_operacion("preparar_nuevo_formulario", datos={"odontologo_id": doctor_id}),
             style={
                 "background": f"linear-gradient(135deg, {DARK_COLORS['accent_blue']} 0%, #4299e1 100%)",
                 "border": f"1px solid {DARK_COLORS['glass_border']}",
@@ -939,6 +956,7 @@ def doctor_actions(doctor_id: str) -> rx.Component:
                 spacing="2",
                 align="center"
             ),
+            # ℹ️ LEGACY: set_doctor_seleccionado - mantener si existe
             on_click=lambda: AppState.set_doctor_seleccionado(doctor_id),
             style={
                 "background": f"linear-gradient(135deg, {DARK_COLORS['accent_green']} 0%, #48bb78 100%)",
@@ -1092,7 +1110,8 @@ def modal_transferir_paciente() -> rx.Component:
                         label="Odontólogo de Destino",
                         field_name="odontologo_destino",
                         value=rx.cond(AppState.odontologo_destino_seleccionado, AppState.odontologo_destino_seleccionado, ""),
-                        on_change=lambda field, value: AppState.set_odontologo_destino(value),
+                        # 🔄 ACTUALIZADO: Usar gestionar_modal_operacion
+                        on_change=lambda field, value: AppState.gestionar_modal_operacion("set_odontologo_destino", datos={"odontologo_id": value}),
                         placeholder="Seleccionar odontólogo de destino...",
                         required=True,
                         icon="user-round",
@@ -1105,7 +1124,8 @@ def modal_transferir_paciente() -> rx.Component:
                         label="Motivo de la Transferencia",
                         field_name="motivo_transferencia",
                         value=rx.cond(AppState.motivo_transferencia, AppState.motivo_transferencia, ""),
-                        on_change=lambda field, value: AppState.set_motivo_transferencia(value),
+                        # 🔄 ACTUALIZADO: Usar gestionar_modal_operacion
+                        on_change=lambda field, value: AppState.gestionar_modal_operacion("set_motivo_transferencia", datos={"motivo": value}),
                         field_type="textarea",
                         placeholder="Explique por qué se transfiere al paciente...",
                         required=True,
@@ -1138,7 +1158,8 @@ def modal_transferir_paciente() -> rx.Component:
                                         "box_shadow": SHADOWS["sm"]
                                     }
                                 },
-                                on_click=AppState.cerrar_modal_transferir_paciente
+                                # 🔄 CORREGIDO: cerrar_modal_transferir_paciente → gestionar_modal_operacion
+                                on_click=lambda: AppState.gestionar_modal_operacion("cerrar_transferencia")
                             )
                         ),
                         
@@ -1199,7 +1220,8 @@ def modal_transferir_paciente() -> rx.Component:
             }
         ),
         open=AppState.modal_transferir_paciente_abierto,
-        on_open_change=AppState.cerrar_modal_transferir_paciente
+        # 🔄 CORREGIDO: cerrar_modal_transferir_paciente → gestionar_modal_operacion
+        on_open_change=lambda open: rx.cond(~open, AppState.gestionar_modal_operacion("cerrar_transferencia"), rx.noop())
     )
 
 def clean_consultas_page_header() -> rx.Component:

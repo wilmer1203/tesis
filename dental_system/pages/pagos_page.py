@@ -232,7 +232,7 @@ def consultas_pendientes_lista() -> rx.Component:
                 ),
                 rx.center(
                     rx.vstack(
-                        rx.icon("check-circle", size=32, color=PAGOS_COLORS["success"]),
+                        rx.icon("circle-check", size=32, color=PAGOS_COLORS["success"]),
                         rx.text(
                             "No hay consultas pendientes de pago",
                             size="4",

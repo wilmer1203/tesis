@@ -1919,3 +1919,303 @@ For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/St
 2025-09-26 04:38:30 | INFO     | dental_system.services.consultas_service | update_consultation:269 | Actualizando consulta: 1d320574-7d76-4c40-be41-5ed578f299fe
 2025-09-26 04:38:30 | ERROR    | dental_system.services.base_service | handle_error:153 | Error actualizando consulta: Errores de validación: {'paciente_id': ['Paciente es requerido'], 'primer_odontologo_id': ['Odontólogo principal es requerido'], 'motivo_consulta': ['Motivo de consulta es requerido']}
 2025-09-26 04:38:30 | ERROR    | dental_system.state.estado_consultas | iniciar_atencion_consulta:527 | Error iniciando consulta: Error inesperado: Errores de validación: {'paciente_id': ['Paciente es requerido'], 'primer_odontologo_id': ['Odontólogo principal es requerido'], 'motivo_consulta': ['Motivo de consulta es requerido']}
+2025-09-26 04:54:19 | INFO     | dental_system.state.estado_intervencion_servicios | _crear_servicios_ejemplo:182 | 📋 Usando servicios de ejemplo: 5 servicios
+2025-09-26 04:54:19 | WARNING  | dental_system.state.estado_intervencion_servicios | servicios_para_selector:128 | ⚠️ Usando servicios de ejemplo: 5 servicios
+2025-09-26 05:10:26 | INFO     | dental_system.state.estado_intervencion_servicios | _crear_servicios_ejemplo:182 | 📋 Usando servicios de ejemplo: 5 servicios
+2025-09-26 05:10:26 | WARNING  | dental_system.state.estado_intervencion_servicios | servicios_para_selector:128 | ⚠️ Usando servicios de ejemplo: 5 servicios
+2025-09-26 05:14:46 | INFO     | dental_system.state.estado_intervencion_servicios | _crear_servicios_ejemplo:182 | 📋 Usando servicios de ejemplo: 5 servicios
+2025-09-26 05:14:46 | WARNING  | dental_system.state.estado_intervencion_servicios | servicios_para_selector:128 | ⚠️ Usando servicios de ejemplo: 5 servicios
+2025-09-26 05:15:34 | INFO     | dental_system.state.estado_intervencion_servicios | _crear_servicios_ejemplo:182 | 📋 Usando servicios de ejemplo: 5 servicios
+2025-09-26 05:15:34 | WARNING  | dental_system.state.estado_intervencion_servicios | servicios_para_selector:128 | ⚠️ Usando servicios de ejemplo: 5 servicios
+2025-09-26 05:17:50 | INFO     | dental_system.state.estado_intervencion_servicios | _crear_servicios_ejemplo:182 | 📋 Usando servicios de ejemplo: 5 servicios
+2025-09-26 05:17:50 | WARNING  | dental_system.state.estado_intervencion_servicios | servicios_para_selector:128 | ⚠️ Usando servicios de ejemplo: 5 servicios
+2025-09-26 05:21:25 | INFO     | dental_system.state.estado_intervencion_servicios | _crear_servicios_ejemplo:182 | 📋 Usando servicios de ejemplo: 5 servicios
+2025-09-26 05:21:25 | WARNING  | dental_system.state.estado_intervencion_servicios | servicios_para_selector:128 | ⚠️ Usando servicios de ejemplo: 5 servicios
+2025-09-26 05:24:00 | INFO     | dental_system.state.estado_intervencion_servicios | _crear_servicios_ejemplo:182 | 📋 Usando servicios de ejemplo: 5 servicios
+2025-09-26 05:24:00 | WARNING  | dental_system.state.estado_intervencion_servicios | servicios_para_selector:128 | ⚠️ Usando servicios de ejemplo: 5 servicios
+2025-09-26 05:30:45 | INFO     | dental_system.state.estado_intervencion_servicios | _crear_servicios_ejemplo:182 | 📋 Usando servicios de ejemplo: 5 servicios
+2025-09-26 05:30:45 | WARNING  | dental_system.state.estado_intervencion_servicios | servicios_para_selector:128 | ⚠️ Usando servicios de ejemplo: 5 servicios
+2025-09-26 05:35:04 | INFO     | dental_system.state.estado_intervencion_servicios | _crear_servicios_ejemplo:182 | 📋 Usando servicios de ejemplo: 5 servicios
+2025-09-26 05:35:04 | WARNING  | dental_system.state.estado_intervencion_servicios | servicios_para_selector:128 | ⚠️ Usando servicios de ejemplo: 5 servicios
+2025-09-26 09:04:51 | INFO     | dental_system.state.estado_intervencion_servicios | _crear_servicios_ejemplo:182 | 📋 Usando servicios de ejemplo: 5 servicios
+2025-09-26 09:04:51 | WARNING  | dental_system.state.estado_intervencion_servicios | servicios_para_selector:128 | ⚠️ Usando servicios de ejemplo: 5 servicios
+2025-09-26 09:05:53 | INFO     | dental_system.state.estado_intervencion_servicios | _crear_servicios_ejemplo:182 | 📋 Usando servicios de ejemplo: 5 servicios
+2025-09-26 09:05:53 | WARNING  | dental_system.state.estado_intervencion_servicios | servicios_para_selector:128 | ⚠️ Usando servicios de ejemplo: 5 servicios
+2025-09-26 09:51:45 | INFO     | dental_system.state.estado_intervencion_servicios | _crear_servicios_ejemplo:182 | 📋 Usando servicios de ejemplo: 5 servicios
+2025-09-26 09:51:45 | WARNING  | dental_system.state.estado_intervencion_servicios | servicios_para_selector:128 | ⚠️ Usando servicios de ejemplo: 5 servicios
+2025-09-26 09:52:00 | INFO     | dental_system.state.estado_intervencion_servicios | _crear_servicios_ejemplo:182 | 📋 Usando servicios de ejemplo: 5 servicios
+2025-09-26 09:52:00 | WARNING  | dental_system.state.estado_intervencion_servicios | servicios_para_selector:128 | ⚠️ Usando servicios de ejemplo: 5 servicios
+2025-09-26 09:52:09 | INFO     | dental_system.supabase.auth | sign_in:71 | 🔐 Autenticando usuario: gerente@odontomara.com
+2025-09-26 09:52:09 | INFO     | dental_system.supabase.auth | sign_in:84 | ✅ Autenticación con Supabase exitosa para: gerente@odontomara.com
+2025-09-26 09:52:09 | INFO     | dental_system.supabase.auth | sign_in:87 | 🔍 Buscando usuario en BD con auth_user_id: 8046caa1-add0-4391-a048-d47e3aedf637
+2025-09-26 09:52:09 | INFO     | dental_system.supabase.tablas.usuarios | get_by_auth_id:255 | Buscando usuario con auth_user_id: 8046caa1-add0-4391-a048-d47e3aedf637
+2025-09-26 09:52:09 | INFO     | dental_system.supabase.tablas.usuarios | get_by_auth_id:258 | Usuario encontrado: True
+2025-09-26 09:52:09 | INFO     | dental_system.supabase.auth | sign_in:94 | ✅ Usuario encontrado en BD: gerente@odontomara.com
+2025-09-26 09:52:09 | INFO     | dental_system.supabase.auth | sign_in:97 | 📋 Obteniendo información básica del usuario: 25356728-1a6e-4cb4-b466-b2b9a31e11ca
+2025-09-26 09:52:09 | INFO     | dental_system.supabase.tablas.usuarios | get_user_basic_info:264 | Obteniendo info básica del usuario: 25356728-1a6e-4cb4-b466-b2b9a31e11ca
+2025-09-26 09:52:09 | INFO     | dental_system.supabase.tablas.base | get_by_id:69 | Obteniendo registro 25356728-1a6e-4cb4-b466-b2b9a31e11ca de usuarios
+2025-09-26 09:52:09 | INFO     | dental_system.supabase.tablas.usuarios | get_user_basic_info:279 | Usuario con rol obtenido: gerente@odontomara.com - gerente
+2025-09-26 09:52:09 | INFO     | dental_system.supabase.auth | sign_in:104 | ✅ Información del usuario obtenida - Rol: gerente
+2025-09-26 09:52:09 | INFO     | dental_system.supabase.auth | sign_in:107 | ⏰ Actualizando último acceso para: 25356728-1a6e-4cb4-b466-b2b9a31e11ca
+2025-09-26 09:52:10 | INFO     | dental_system.supabase.auth | sign_in:110 | 🎉 Inicio de sesión completado exitosamente para: gerente@odontomara.com
+2025-09-26 09:52:10 | INFO     | dental_system.services.dashboard_service | get_dashboard_stats:54 | 🚀 Obteniendo stats optimizadas para rol: gerente
+2025-09-26 09:52:10 | INFO     | dental_system.supabase.tablas.personal | get_filtered_personal:139 | ✅ Personal obtenido desde vista: 11 registros
+2025-09-26 09:52:10 | INFO     | dental_system.state.estado_personal | cargar_lista_personal:321 | ✅ Lista personal cargada: 11 empleados
+2025-09-26 09:52:10 | INFO     | dental_system.supabase.tablas.personal | get_filtered_personal:139 | ✅ Personal obtenido desde vista: 11 registros
+2025-09-26 09:52:10 | INFO     | dental_system.services.personal_service | get_personal_stats:543 | ✅ Estadísticas personal calculadas: {'total': 11, 'activos': 11, 'odontologos': 8, 'administradores': 1, 'asistentes': 1, 'gerentes': 1}
+2025-09-26 09:52:10 | INFO     | dental_system.state.estado_personal | cargar_estadisticas_personal:358 | ✅ Estadísticas de personal actualizadas
+2025-09-26 09:52:10 | INFO     | dental_system.services.consultas_service | get_today_consultations:43 | Obteniendo consultas del día
+2025-09-26 09:52:10 | INFO     | dental_system.supabase.tablas.consultas | get_vista_consultas_dia:527 | Obteniendo consultas del día 2025-09-26 usando vista optimizada
+2025-09-26 09:52:10 | INFO     | dental_system.supabase.tablas.consultas | get_vista_consultas_dia:540 | Vista no disponible, usando query optimizada manual
+2025-09-26 09:52:10 | INFO     | dental_system.services.consultas_service | get_today_consultations:76 | ✅ Consultas del día obtenidas: 20 registros
+2025-09-26 09:52:10 | INFO     | dental_system.state.estado_consultas | cargar_lista_consultas:1305 | ✅ 20 consultas cargadas
+2025-09-26 09:52:10 | INFO     | dental_system.services.servicios_service | get_filtered_services:71 | ✅ Servicios obtenidos: 11 registros
+2025-09-26 09:52:10 | INFO     | dental_system.state.estado_servicios | cargar_servicios_basico:968 | ✅ 11 servicios cargados
+2025-09-26 09:52:10 | INFO     | dental_system.supabase.tablas.pagos | get_consultas_pendientes_facturacion:612 | No hay consultas pendientes de facturación
+2025-09-26 09:52:10 | INFO     | dental_system.services.pagos_service | get_consultas_pendientes_pago:728 | ✅ 0 consultas pendientes de pago obtenidas
+2025-09-26 09:52:10 | INFO     | dental_system.state.estado_pagos | cargar_consultas_pendientes_pago:932 | 📭 No hay consultas pendientes de pago
+2025-09-26 09:52:10 | INFO     | dental_system.supabase.tablas.pagos | get_currency_summary:567 | Resumen dual currency generado: $0.0 USD + 0.0 BS
+2025-09-26 09:52:10 | INFO     | dental_system.services.pagos_service | get_currency_stats:649 | Estadísticas duales generadas: $0.0 USD + 0.0 BS
+2025-09-26 09:52:10 | INFO     | dental_system.state.estado_pagos | cargar_estadisticas_duales:760 | 📊 Estadísticas duales cargadas exitosamente
+2025-09-26 09:52:10 | INFO     | dental_system.state.estado_intervencion_servicios | servicios_para_selector:124 | ✅ Usando lista_servicios: 11 servicios activos
+2025-09-26 09:52:12 | WARNING  | dental_system.state.estado_odontologia | cargar_pacientes_asignados:473 | Usuario no autorizado para ver pacientes asignados
+2025-09-26 09:52:12 | WARNING  | dental_system.state.estado_odontologia | cargar_consultas_disponibles_otros:623 | Usuario no autorizado para ver consultas disponibles
+2025-09-26 09:52:12 | WARNING  | dental_system.state.estado_odontologia | cargar_historial_paciente:678 | ID de paciente no proporcionado para cargar historial
+2025-09-26 09:52:12 | INFO     | dental_system.state.estado_odontologia | set_active_intervention_tab:1823 | Navegando a tab: intervencion
+2025-09-26 09:52:12 | INFO     | dental_system.state.estado_intervencion_servicios | cargar_servicios_para_intervencion:237 | ✅ Reutilizando servicios del catálogo: 11 activos
+2025-09-26 09:52:12 | WARNING  | dental_system.state.estado_odontologia | cargar_pacientes_asignados:473 | Usuario no autorizado para ver pacientes asignados
+2025-09-26 09:52:12 | WARNING  | dental_system.state.estado_odontologia | cargar_consultas_disponibles_otros:623 | Usuario no autorizado para ver consultas disponibles
+2025-09-26 09:52:12 | WARNING  | dental_system.state.estado_odontologia | cargar_historial_paciente:678 | ID de paciente no proporcionado para cargar historial
+2025-09-26 09:52:12 | INFO     | dental_system.state.estado_odontologia | set_active_intervention_tab:1823 | Navegando a tab: intervencion
+2025-09-26 09:52:12 | INFO     | dental_system.state.estado_intervencion_servicios | cargar_servicios_para_intervencion:237 | ✅ Reutilizando servicios del catálogo: 11 activos
+2025-09-26 09:55:30 | INFO     | dental_system.state.estado_intervencion_servicios | _crear_servicios_ejemplo:182 | 📋 Usando servicios de ejemplo: 5 servicios
+2025-09-26 09:55:30 | WARNING  | dental_system.state.estado_intervencion_servicios | servicios_para_selector:128 | ⚠️ Usando servicios de ejemplo: 5 servicios
+2025-09-26 09:55:39 | INFO     | dental_system.state.estado_intervencion_servicios | _crear_servicios_ejemplo:182 | 📋 Usando servicios de ejemplo: 5 servicios
+2025-09-26 09:55:39 | WARNING  | dental_system.state.estado_intervencion_servicios | servicios_para_selector:128 | ⚠️ Usando servicios de ejemplo: 5 servicios
+2025-09-26 09:55:53 | INFO     | dental_system.supabase.auth | sign_in:71 | 🔐 Autenticando usuario: gerente@odontomara.com
+2025-09-26 09:55:53 | INFO     | dental_system.supabase.auth | sign_in:84 | ✅ Autenticación con Supabase exitosa para: gerente@odontomara.com
+2025-09-26 09:55:53 | INFO     | dental_system.supabase.auth | sign_in:87 | 🔍 Buscando usuario en BD con auth_user_id: 8046caa1-add0-4391-a048-d47e3aedf637
+2025-09-26 09:55:53 | INFO     | dental_system.supabase.tablas.usuarios | get_by_auth_id:255 | Buscando usuario con auth_user_id: 8046caa1-add0-4391-a048-d47e3aedf637
+2025-09-26 09:55:53 | INFO     | dental_system.supabase.tablas.usuarios | get_by_auth_id:258 | Usuario encontrado: True
+2025-09-26 09:55:53 | INFO     | dental_system.supabase.auth | sign_in:94 | ✅ Usuario encontrado en BD: gerente@odontomara.com
+2025-09-26 09:55:53 | INFO     | dental_system.supabase.auth | sign_in:97 | 📋 Obteniendo información básica del usuario: 25356728-1a6e-4cb4-b466-b2b9a31e11ca
+2025-09-26 09:55:53 | INFO     | dental_system.supabase.tablas.usuarios | get_user_basic_info:264 | Obteniendo info básica del usuario: 25356728-1a6e-4cb4-b466-b2b9a31e11ca
+2025-09-26 09:55:53 | INFO     | dental_system.supabase.tablas.base | get_by_id:69 | Obteniendo registro 25356728-1a6e-4cb4-b466-b2b9a31e11ca de usuarios
+2025-09-26 09:55:53 | INFO     | dental_system.supabase.tablas.usuarios | get_user_basic_info:279 | Usuario con rol obtenido: gerente@odontomara.com - gerente
+2025-09-26 09:55:53 | INFO     | dental_system.supabase.auth | sign_in:104 | ✅ Información del usuario obtenida - Rol: gerente
+2025-09-26 09:55:53 | INFO     | dental_system.supabase.auth | sign_in:107 | ⏰ Actualizando último acceso para: 25356728-1a6e-4cb4-b466-b2b9a31e11ca
+2025-09-26 09:55:53 | INFO     | dental_system.supabase.auth | sign_in:110 | 🎉 Inicio de sesión completado exitosamente para: gerente@odontomara.com
+2025-09-26 09:55:53 | INFO     | dental_system.services.dashboard_service | get_dashboard_stats:54 | 🚀 Obteniendo stats optimizadas para rol: gerente
+2025-09-26 09:55:53 | INFO     | dental_system.supabase.tablas.personal | get_filtered_personal:139 | ✅ Personal obtenido desde vista: 11 registros
+2025-09-26 09:55:54 | INFO     | dental_system.state.estado_personal | cargar_lista_personal:321 | ✅ Lista personal cargada: 11 empleados
+2025-09-26 09:55:54 | INFO     | dental_system.supabase.tablas.personal | get_filtered_personal:139 | ✅ Personal obtenido desde vista: 11 registros
+2025-09-26 09:55:54 | INFO     | dental_system.services.personal_service | get_personal_stats:543 | ✅ Estadísticas personal calculadas: {'total': 11, 'activos': 11, 'odontologos': 8, 'administradores': 1, 'asistentes': 1, 'gerentes': 1}
+2025-09-26 09:55:54 | INFO     | dental_system.state.estado_personal | cargar_estadisticas_personal:358 | ✅ Estadísticas de personal actualizadas
+2025-09-26 09:55:54 | INFO     | dental_system.services.consultas_service | get_today_consultations:43 | Obteniendo consultas del día
+2025-09-26 09:55:54 | INFO     | dental_system.supabase.tablas.consultas | get_vista_consultas_dia:527 | Obteniendo consultas del día 2025-09-26 usando vista optimizada
+2025-09-26 09:55:54 | INFO     | dental_system.supabase.tablas.consultas | get_vista_consultas_dia:540 | Vista no disponible, usando query optimizada manual
+2025-09-26 09:55:54 | INFO     | dental_system.services.consultas_service | get_today_consultations:76 | ✅ Consultas del día obtenidas: 20 registros
+2025-09-26 09:55:54 | INFO     | dental_system.state.estado_consultas | cargar_lista_consultas:1331 | ✅ 20 consultas cargadas
+2025-09-26 09:55:54 | INFO     | dental_system.services.servicios_service | get_filtered_services:71 | ✅ Servicios obtenidos: 11 registros
+2025-09-26 09:55:54 | INFO     | dental_system.state.estado_servicios | cargar_servicios_basico:968 | ✅ 11 servicios cargados
+2025-09-26 09:55:54 | INFO     | dental_system.supabase.tablas.pagos | get_consultas_pendientes_facturacion:612 | No hay consultas pendientes de facturación
+2025-09-26 09:55:54 | INFO     | dental_system.services.pagos_service | get_consultas_pendientes_pago:728 | ✅ 0 consultas pendientes de pago obtenidas
+2025-09-26 09:55:54 | INFO     | dental_system.state.estado_pagos | cargar_consultas_pendientes_pago:932 | 📭 No hay consultas pendientes de pago
+2025-09-26 09:55:54 | INFO     | dental_system.supabase.tablas.pagos | get_currency_summary:567 | Resumen dual currency generado: $0.0 USD + 0.0 BS
+2025-09-26 09:55:54 | INFO     | dental_system.services.pagos_service | get_currency_stats:649 | Estadísticas duales generadas: $0.0 USD + 0.0 BS
+2025-09-26 09:55:54 | INFO     | dental_system.state.estado_pagos | cargar_estadisticas_duales:760 | 📊 Estadísticas duales cargadas exitosamente
+2025-09-26 09:55:54 | INFO     | dental_system.state.estado_intervencion_servicios | servicios_para_selector:124 | ✅ Usando lista_servicios: 11 servicios activos
+2025-09-26 09:55:54 | WARNING  | dental_system.state.estado_odontologia | cargar_pacientes_asignados:473 | Usuario no autorizado para ver pacientes asignados
+2025-09-26 09:55:54 | WARNING  | dental_system.state.estado_odontologia | cargar_consultas_disponibles_otros:623 | Usuario no autorizado para ver consultas disponibles
+2025-09-26 09:55:54 | WARNING  | dental_system.state.estado_odontologia | cargar_historial_paciente:678 | ID de paciente no proporcionado para cargar historial
+2025-09-26 09:55:54 | INFO     | dental_system.state.estado_odontologia | set_active_intervention_tab:1823 | Navegando a tab: intervencion
+2025-09-26 09:55:54 | INFO     | dental_system.state.estado_intervencion_servicios | cargar_servicios_para_intervencion:237 | ✅ Reutilizando servicios del catálogo: 11 activos
+2025-09-26 09:55:54 | WARNING  | dental_system.state.estado_odontologia | cargar_pacientes_asignados:473 | Usuario no autorizado para ver pacientes asignados
+2025-09-26 09:55:54 | WARNING  | dental_system.state.estado_odontologia | cargar_consultas_disponibles_otros:623 | Usuario no autorizado para ver consultas disponibles
+2025-09-26 09:55:54 | WARNING  | dental_system.state.estado_odontologia | cargar_historial_paciente:678 | ID de paciente no proporcionado para cargar historial
+2025-09-26 09:55:54 | INFO     | dental_system.state.estado_odontologia | set_active_intervention_tab:1823 | Navegando a tab: intervencion
+2025-09-26 09:55:54 | INFO     | dental_system.state.estado_intervencion_servicios | cargar_servicios_para_intervencion:237 | ✅ Reutilizando servicios del catálogo: 11 activos
+2025-09-26 09:56:17 | INFO     | dental_system.state.estado_consultas | subir_en_cola:2226 | ⬆️ Subiendo en cola: e6f87a3f-ac90-452b-a000-1ca4b428ac66
+2025-09-26 09:56:17 | INFO     | dental_system.services.consultas_service | intercambiar_orden_cola:1042 | 🔄 Intercambiando orden en cola: e6f87a3f-ac90-452b-a000-1ca4b428ac66 de 2 a 1
+2025-09-26 09:56:17 | INFO     | dental_system.services.consultas_service | get_today_consultations:43 | Obteniendo consultas del día
+2025-09-26 09:56:17 | INFO     | dental_system.supabase.tablas.consultas | get_vista_consultas_dia:527 | Obteniendo consultas del día 2025-09-26 usando vista optimizada
+2025-09-26 09:56:17 | INFO     | dental_system.supabase.tablas.consultas | get_vista_consultas_dia:540 | Vista no disponible, usando query optimizada manual
+2025-09-26 09:56:17 | INFO     | dental_system.services.consultas_service | get_today_consultations:76 | ✅ Consultas del día obtenidas: 3 registros
+2025-09-26 09:56:17 | INFO     | dental_system.supabase.tablas.base | update:128 | Actualizando registro e6f87a3f-ac90-452b-a000-1ca4b428ac66 en consultas
+2025-09-26 09:56:17 | INFO     | dental_system.supabase.tablas.base | update:128 | Actualizando registro aa1fd531-6dac-47bc-80a2-a2f8f4f29342 en consultas
+2025-09-26 09:56:17 | INFO     | dental_system.services.consultas_service | intercambiar_orden_cola:1126 | ✅ Intercambio exitoso: Victoria Valentina Ruiz Díaz ↔ Fernando Francisco Martín López
+2025-09-26 09:56:17 | INFO     | dental_system.services.consultas_service | get_today_consultations:43 | Obteniendo consultas del día
+2025-09-26 09:56:17 | INFO     | dental_system.supabase.tablas.consultas | get_vista_consultas_dia:527 | Obteniendo consultas del día 2025-09-26 usando vista optimizada
+2025-09-26 09:56:17 | INFO     | dental_system.supabase.tablas.consultas | get_vista_consultas_dia:540 | Vista no disponible, usando query optimizada manual
+2025-09-26 09:56:17 | INFO     | dental_system.services.consultas_service | get_today_consultations:76 | ✅ Consultas del día obtenidas: 20 registros
+2025-09-26 09:56:17 | ERROR    | dental_system.state.estado_consultas | cargar_consultas_hoy:486 | Error cargando consultas: 'AppState' object has no attribute 'consultas_completadas_hoy'
+2025-09-26 09:56:17 | INFO     | dental_system.state.estado_consultas | subir_en_cola:2265 | ✅ Paciente movido de posición 2 a 1
+2025-09-26 09:56:27 | INFO     | dental_system.state.estado_consultas | subir_en_cola:2226 | ⬆️ Subiendo en cola: e6f87a3f-ac90-452b-a000-1ca4b428ac66
+2025-09-26 09:56:33 | INFO     | dental_system.state.estado_consultas | refrescar_tiempo_real:2165 | 🔄 Refrescando datos en tiempo real...
+2025-09-26 09:56:33 | INFO     | dental_system.services.consultas_service | get_today_consultations:43 | Obteniendo consultas del día
+2025-09-26 09:56:33 | INFO     | dental_system.supabase.tablas.consultas | get_vista_consultas_dia:527 | Obteniendo consultas del día 2025-09-26 usando vista optimizada
+2025-09-26 09:56:33 | INFO     | dental_system.supabase.tablas.consultas | get_vista_consultas_dia:540 | Vista no disponible, usando query optimizada manual
+2025-09-26 09:56:33 | INFO     | dental_system.services.consultas_service | get_today_consultations:76 | ✅ Consultas del día obtenidas: 20 registros
+2025-09-26 09:56:33 | ERROR    | dental_system.state.estado_consultas | cargar_consultas_hoy:486 | Error cargando consultas: 'AppState' object has no attribute 'consultas_completadas_hoy'
+2025-09-26 09:56:39 | WARNING  | dental_system.state.estado_odontologia | cargar_pacientes_asignados:473 | Usuario no autorizado para ver pacientes asignados
+2025-09-26 09:56:39 | WARNING  | dental_system.state.estado_odontologia | cargar_consultas_disponibles_otros:623 | Usuario no autorizado para ver consultas disponibles
+2025-09-26 09:56:40 | WARNING  | dental_system.state.estado_odontologia | cargar_historial_paciente:678 | ID de paciente no proporcionado para cargar historial
+2025-09-26 09:56:41 | INFO     | dental_system.state.estado_odontologia | set_active_intervention_tab:1823 | Navegando a tab: intervencion
+2025-09-26 09:56:41 | INFO     | dental_system.state.estado_intervencion_servicios | cargar_servicios_para_intervencion:237 | ✅ Reutilizando servicios del catálogo: 11 activos
+2025-09-26 09:56:42 | WARNING  | dental_system.state.estado_odontologia | cargar_pacientes_asignados:473 | Usuario no autorizado para ver pacientes asignados
+2025-09-26 09:56:42 | WARNING  | dental_system.state.estado_odontologia | cargar_consultas_disponibles_otros:623 | Usuario no autorizado para ver consultas disponibles
+2025-09-26 09:56:42 | WARNING  | dental_system.state.estado_odontologia | cargar_historial_paciente:678 | ID de paciente no proporcionado para cargar historial
+2025-09-26 09:56:42 | INFO     | dental_system.state.estado_odontologia | set_active_intervention_tab:1823 | Navegando a tab: intervencion
+2025-09-26 09:56:43 | INFO     | dental_system.state.estado_intervencion_servicios | cargar_servicios_para_intervencion:237 | ✅ Reutilizando servicios del catálogo: 11 activos
+2025-09-26 09:57:36 | INFO     | dental_system.state.estado_consultas | gestionar_modal_operacion:1949 | 🔄 Modal transferencia abierto: aa1fd531-6dac-47bc-80a2-a2f8f4f29342
+2025-09-26 09:57:46 | INFO     | dental_system.services.consultas_service | transferir_consulta:408 | Transfiriendo consulta aa1fd531-6dac-47bc-80a2-a2f8f4f29342 a odontólogo f110064a-846e-4e12-af1c-92ab081d3b94
+2025-09-26 09:57:46 | INFO     | dental_system.supabase.tablas.base | get_by_id:69 | Obteniendo registro aa1fd531-6dac-47bc-80a2-a2f8f4f29342 de consultas
+2025-09-26 09:57:46 | INFO     | dental_system.supabase.tablas.base | update:128 | Actualizando registro aa1fd531-6dac-47bc-80a2-a2f8f4f29342 en consultas
+2025-09-26 09:57:46 | INFO     | dental_system.services.consultas_service | transferir_consulta:434 | ✅ Consulta aa1fd531-6dac-47bc-80a2-a2f8f4f29342 transferida exitosamente
+2025-09-26 09:57:46 | ERROR    | dental_system.state.estado_consultas | cambiar_odontologo_consulta:2101 | ❌ Error cambiando odontólogo: 'AppState' object has no attribute '_invalidar_cache_consultas'
+2025-09-26 09:57:46 | ERROR    | dental_system.state.estado_consultas | ejecutar_transferencia_paciente:2036 | ❌ Error ejecutando transferencia: 'AppState' object has no attribute 'cerrar_modal_transferir_paciente'
+2025-09-26 09:58:58 | WARNING  | dental_system.state.estado_odontologia | cargar_pacientes_asignados:473 | Usuario no autorizado para ver pacientes asignados
+2025-09-26 09:58:59 | WARNING  | dental_system.state.estado_odontologia | cargar_consultas_disponibles_otros:623 | Usuario no autorizado para ver consultas disponibles
+2025-09-26 09:58:59 | WARNING  | dental_system.state.estado_odontologia | cargar_historial_paciente:678 | ID de paciente no proporcionado para cargar historial
+2025-09-26 09:59:00 | INFO     | dental_system.state.estado_odontologia | set_active_intervention_tab:1823 | Navegando a tab: intervencion
+2025-09-26 09:59:00 | INFO     | dental_system.state.estado_intervencion_servicios | cargar_servicios_para_intervencion:237 | ✅ Reutilizando servicios del catálogo: 11 activos
+2025-09-26 09:59:01 | WARNING  | dental_system.state.estado_odontologia | cargar_pacientes_asignados:473 | Usuario no autorizado para ver pacientes asignados
+2025-09-26 09:59:01 | WARNING  | dental_system.state.estado_odontologia | cargar_consultas_disponibles_otros:623 | Usuario no autorizado para ver consultas disponibles
+2025-09-26 09:59:01 | WARNING  | dental_system.state.estado_odontologia | cargar_historial_paciente:678 | ID de paciente no proporcionado para cargar historial
+2025-09-26 09:59:02 | INFO     | dental_system.state.estado_odontologia | set_active_intervention_tab:1823 | Navegando a tab: intervencion
+2025-09-26 09:59:02 | INFO     | dental_system.state.estado_intervencion_servicios | cargar_servicios_para_intervencion:237 | ✅ Reutilizando servicios del catálogo: 11 activos
+2025-09-26 09:59:03 | INFO     | dental_system.state.estado_consultas | refrescar_tiempo_real:2165 | 🔄 Refrescando datos en tiempo real...
+2025-09-26 09:59:03 | INFO     | dental_system.services.consultas_service | get_today_consultations:43 | Obteniendo consultas del día
+2025-09-26 09:59:03 | INFO     | dental_system.supabase.tablas.consultas | get_vista_consultas_dia:527 | Obteniendo consultas del día 2025-09-26 usando vista optimizada
+2025-09-26 09:59:03 | INFO     | dental_system.supabase.tablas.consultas | get_vista_consultas_dia:540 | Vista no disponible, usando query optimizada manual
+2025-09-26 09:59:03 | INFO     | dental_system.services.consultas_service | get_today_consultations:76 | ✅ Consultas del día obtenidas: 20 registros
+2025-09-26 09:59:03 | ERROR    | dental_system.state.estado_consultas | cargar_consultas_hoy:486 | Error cargando consultas: 'AppState' object has no attribute 'consultas_completadas_hoy'
+2025-09-26 10:00:25 | INFO     | dental_system.state.estado_intervencion_servicios | _crear_servicios_ejemplo:182 | 📋 Usando servicios de ejemplo: 5 servicios
+2025-09-26 10:00:25 | WARNING  | dental_system.state.estado_intervencion_servicios | servicios_para_selector:128 | ⚠️ Usando servicios de ejemplo: 5 servicios
+2025-09-26 10:03:03 | INFO     | dental_system.state.estado_intervencion_servicios | _crear_servicios_ejemplo:182 | 📋 Usando servicios de ejemplo: 5 servicios
+2025-09-26 10:03:03 | WARNING  | dental_system.state.estado_intervencion_servicios | servicios_para_selector:128 | ⚠️ Usando servicios de ejemplo: 5 servicios
+2025-09-26 10:03:22 | INFO     | dental_system.state.estado_intervencion_servicios | _crear_servicios_ejemplo:182 | 📋 Usando servicios de ejemplo: 5 servicios
+2025-09-26 10:03:22 | WARNING  | dental_system.state.estado_intervencion_servicios | servicios_para_selector:128 | ⚠️ Usando servicios de ejemplo: 5 servicios
+2025-09-26 10:03:27 | INFO     | dental_system.supabase.auth | sign_in:71 | 🔐 Autenticando usuario: gerente@odontomara.com
+2025-09-26 10:03:28 | INFO     | dental_system.supabase.auth | sign_in:84 | ✅ Autenticación con Supabase exitosa para: gerente@odontomara.com
+2025-09-26 10:03:28 | INFO     | dental_system.supabase.auth | sign_in:87 | 🔍 Buscando usuario en BD con auth_user_id: 8046caa1-add0-4391-a048-d47e3aedf637
+2025-09-26 10:03:28 | INFO     | dental_system.supabase.tablas.usuarios | get_by_auth_id:255 | Buscando usuario con auth_user_id: 8046caa1-add0-4391-a048-d47e3aedf637
+2025-09-26 10:03:28 | INFO     | dental_system.supabase.tablas.usuarios | get_by_auth_id:258 | Usuario encontrado: True
+2025-09-26 10:03:28 | INFO     | dental_system.supabase.auth | sign_in:94 | ✅ Usuario encontrado en BD: gerente@odontomara.com
+2025-09-26 10:03:28 | INFO     | dental_system.supabase.auth | sign_in:97 | 📋 Obteniendo información básica del usuario: 25356728-1a6e-4cb4-b466-b2b9a31e11ca
+2025-09-26 10:03:28 | INFO     | dental_system.supabase.tablas.usuarios | get_user_basic_info:264 | Obteniendo info básica del usuario: 25356728-1a6e-4cb4-b466-b2b9a31e11ca
+2025-09-26 10:03:28 | INFO     | dental_system.supabase.tablas.base | get_by_id:69 | Obteniendo registro 25356728-1a6e-4cb4-b466-b2b9a31e11ca de usuarios
+2025-09-26 10:03:28 | INFO     | dental_system.supabase.tablas.usuarios | get_user_basic_info:279 | Usuario con rol obtenido: gerente@odontomara.com - gerente
+2025-09-26 10:03:28 | INFO     | dental_system.supabase.auth | sign_in:104 | ✅ Información del usuario obtenida - Rol: gerente
+2025-09-26 10:03:28 | INFO     | dental_system.supabase.auth | sign_in:107 | ⏰ Actualizando último acceso para: 25356728-1a6e-4cb4-b466-b2b9a31e11ca
+2025-09-26 10:03:28 | INFO     | dental_system.supabase.auth | sign_in:110 | 🎉 Inicio de sesión completado exitosamente para: gerente@odontomara.com
+2025-09-26 10:03:28 | INFO     | dental_system.services.dashboard_service | get_dashboard_stats:54 | 🚀 Obteniendo stats optimizadas para rol: gerente
+2025-09-26 10:03:28 | INFO     | dental_system.supabase.tablas.personal | get_filtered_personal:139 | ✅ Personal obtenido desde vista: 11 registros
+2025-09-26 10:03:28 | INFO     | dental_system.state.estado_personal | cargar_lista_personal:321 | ✅ Lista personal cargada: 11 empleados
+2025-09-26 10:03:28 | INFO     | dental_system.supabase.tablas.personal | get_filtered_personal:139 | ✅ Personal obtenido desde vista: 11 registros
+2025-09-26 10:03:28 | INFO     | dental_system.services.personal_service | get_personal_stats:543 | ✅ Estadísticas personal calculadas: {'total': 11, 'activos': 11, 'odontologos': 8, 'administradores': 1, 'asistentes': 1, 'gerentes': 1}
+2025-09-26 10:03:28 | INFO     | dental_system.state.estado_personal | cargar_estadisticas_personal:358 | ✅ Estadísticas de personal actualizadas
+2025-09-26 10:03:28 | INFO     | dental_system.services.consultas_service | get_today_consultations:43 | Obteniendo consultas del día
+2025-09-26 10:03:28 | INFO     | dental_system.supabase.tablas.consultas | get_vista_consultas_dia:527 | Obteniendo consultas del día 2025-09-26 usando vista optimizada
+2025-09-26 10:03:28 | INFO     | dental_system.supabase.tablas.consultas | get_vista_consultas_dia:540 | Vista no disponible, usando query optimizada manual
+2025-09-26 10:03:28 | INFO     | dental_system.services.consultas_service | get_today_consultations:76 | ✅ Consultas del día obtenidas: 20 registros
+2025-09-26 10:03:28 | INFO     | dental_system.state.estado_consultas | cargar_lista_consultas:1357 | ✅ 20 consultas cargadas
+2025-09-26 10:03:28 | INFO     | dental_system.services.servicios_service | get_filtered_services:71 | ✅ Servicios obtenidos: 11 registros
+2025-09-26 10:03:28 | INFO     | dental_system.state.estado_servicios | cargar_servicios_basico:968 | ✅ 11 servicios cargados
+2025-09-26 10:03:28 | INFO     | dental_system.supabase.tablas.pagos | get_consultas_pendientes_facturacion:612 | No hay consultas pendientes de facturación
+2025-09-26 10:03:28 | INFO     | dental_system.services.pagos_service | get_consultas_pendientes_pago:728 | ✅ 0 consultas pendientes de pago obtenidas
+2025-09-26 10:03:28 | INFO     | dental_system.state.estado_pagos | cargar_consultas_pendientes_pago:932 | 📭 No hay consultas pendientes de pago
+2025-09-26 10:03:28 | INFO     | dental_system.supabase.tablas.pagos | get_currency_summary:567 | Resumen dual currency generado: $0.0 USD + 0.0 BS
+2025-09-26 10:03:28 | INFO     | dental_system.services.pagos_service | get_currency_stats:649 | Estadísticas duales generadas: $0.0 USD + 0.0 BS
+2025-09-26 10:03:29 | INFO     | dental_system.state.estado_pagos | cargar_estadisticas_duales:760 | 📊 Estadísticas duales cargadas exitosamente
+2025-09-26 10:03:29 | INFO     | dental_system.state.estado_intervencion_servicios | servicios_para_selector:124 | ✅ Usando lista_servicios: 11 servicios activos
+2025-09-26 10:03:29 | WARNING  | dental_system.state.estado_odontologia | cargar_pacientes_asignados:473 | Usuario no autorizado para ver pacientes asignados
+2025-09-26 10:03:29 | WARNING  | dental_system.state.estado_odontologia | cargar_consultas_disponibles_otros:623 | Usuario no autorizado para ver consultas disponibles
+2025-09-26 10:03:29 | WARNING  | dental_system.state.estado_odontologia | cargar_historial_paciente:678 | ID de paciente no proporcionado para cargar historial
+2025-09-26 10:03:29 | INFO     | dental_system.state.estado_odontologia | set_active_intervention_tab:1823 | Navegando a tab: intervencion
+2025-09-26 10:03:29 | INFO     | dental_system.state.estado_intervencion_servicios | cargar_servicios_para_intervencion:237 | ✅ Reutilizando servicios del catálogo: 11 activos
+2025-09-26 10:03:29 | WARNING  | dental_system.state.estado_odontologia | cargar_pacientes_asignados:473 | Usuario no autorizado para ver pacientes asignados
+2025-09-26 10:03:29 | WARNING  | dental_system.state.estado_odontologia | cargar_consultas_disponibles_otros:623 | Usuario no autorizado para ver consultas disponibles
+2025-09-26 10:03:29 | WARNING  | dental_system.state.estado_odontologia | cargar_historial_paciente:678 | ID de paciente no proporcionado para cargar historial
+2025-09-26 10:03:29 | INFO     | dental_system.state.estado_odontologia | set_active_intervention_tab:1823 | Navegando a tab: intervencion
+2025-09-26 10:03:29 | INFO     | dental_system.state.estado_intervencion_servicios | cargar_servicios_para_intervencion:237 | ✅ Reutilizando servicios del catálogo: 11 activos
+2025-09-26 10:03:41 | INFO     | dental_system.state.estado_consultas | gestionar_modal_operacion:1975 | 🔄 Modal transferencia abierto: 1d320574-7d76-4c40-be41-5ed578f299fe
+2025-09-26 10:03:50 | INFO     | dental_system.services.consultas_service | transferir_consulta:408 | Transfiriendo consulta 1d320574-7d76-4c40-be41-5ed578f299fe a odontólogo 1d86dfab-5420-499b-bd2e-11aeb4c9f9a7
+2025-09-26 10:03:50 | INFO     | dental_system.supabase.tablas.base | get_by_id:69 | Obteniendo registro 1d320574-7d76-4c40-be41-5ed578f299fe de consultas
+2025-09-26 10:03:50 | INFO     | dental_system.supabase.tablas.base | update:128 | Actualizando registro 1d320574-7d76-4c40-be41-5ed578f299fe en consultas
+2025-09-26 10:03:50 | INFO     | dental_system.services.consultas_service | transferir_consulta:434 | ✅ Consulta 1d320574-7d76-4c40-be41-5ed578f299fe transferida exitosamente
+2025-09-26 10:03:50 | INFO     | dental_system.state.estado_consultas | _invalidar_cache_consultas:321 | 💾 Cache invalidado automáticamente por computed vars
+2025-09-26 10:03:50 | ERROR    | dental_system.state.estado_consultas | cambiar_odontologo_consulta:2127 | ❌ Error cambiando odontólogo: The state variable 'cache_consultas_odontologo' has not been defined in 'AppState'. All state variables must be declared before they can be set.
+2025-09-26 10:03:50 | INFO     | dental_system.state.estado_consultas | cerrar_modal_transferir_paciente:326 | ❌ Cerrando modal transferir paciente
+2025-09-26 10:03:50 | INFO     | dental_system.state.estado_consultas | ejecutar_transferencia_paciente:2059 | ✅ Paciente transferido exitosamente
+2025-09-26 10:03:58 | WARNING  | dental_system.state.estado_odontologia | cargar_pacientes_asignados:473 | Usuario no autorizado para ver pacientes asignados
+2025-09-26 10:03:59 | WARNING  | dental_system.state.estado_odontologia | cargar_consultas_disponibles_otros:623 | Usuario no autorizado para ver consultas disponibles
+2025-09-26 10:03:59 | WARNING  | dental_system.state.estado_odontologia | cargar_historial_paciente:678 | ID de paciente no proporcionado para cargar historial
+2025-09-26 10:03:59 | INFO     | dental_system.state.estado_odontologia | set_active_intervention_tab:1823 | Navegando a tab: intervencion
+2025-09-26 10:03:59 | INFO     | dental_system.state.estado_intervencion_servicios | cargar_servicios_para_intervencion:237 | ✅ Reutilizando servicios del catálogo: 11 activos
+2025-09-26 10:04:00 | WARNING  | dental_system.state.estado_odontologia | cargar_pacientes_asignados:473 | Usuario no autorizado para ver pacientes asignados
+2025-09-26 10:04:00 | WARNING  | dental_system.state.estado_odontologia | cargar_consultas_disponibles_otros:623 | Usuario no autorizado para ver consultas disponibles
+2025-09-26 10:04:00 | WARNING  | dental_system.state.estado_odontologia | cargar_historial_paciente:678 | ID de paciente no proporcionado para cargar historial
+2025-09-26 10:04:00 | INFO     | dental_system.state.estado_odontologia | set_active_intervention_tab:1823 | Navegando a tab: intervencion
+2025-09-26 10:04:00 | INFO     | dental_system.state.estado_intervencion_servicios | cargar_servicios_para_intervencion:237 | ✅ Reutilizando servicios del catálogo: 11 activos
+2025-09-26 10:04:02 | INFO     | dental_system.state.estado_consultas | refrescar_tiempo_real:2191 | 🔄 Refrescando datos en tiempo real...
+2025-09-26 10:04:02 | INFO     | dental_system.services.consultas_service | get_today_consultations:43 | Obteniendo consultas del día
+2025-09-26 10:04:02 | INFO     | dental_system.supabase.tablas.consultas | get_vista_consultas_dia:527 | Obteniendo consultas del día 2025-09-26 usando vista optimizada
+2025-09-26 10:04:02 | INFO     | dental_system.supabase.tablas.consultas | get_vista_consultas_dia:540 | Vista no disponible, usando query optimizada manual
+2025-09-26 10:04:02 | INFO     | dental_system.services.consultas_service | get_today_consultations:76 | ✅ Consultas del día obtenidas: 20 registros
+2025-09-26 10:04:02 | ERROR    | dental_system.state.estado_consultas | cargar_consultas_hoy:512 | Error cargando consultas: 'AppState' object has no attribute 'consultas_completadas_hoy'
+2025-09-26 10:04:10 | INFO     | dental_system.state.estado_consultas | abrir_modal_nueva_consulta:333 | ➕ Abriendo modal nueva consulta
+2025-09-26 10:04:15 | INFO     | dental_system.state.estado_consultas | abrir_modal_nueva_consulta:333 | ➕ Abriendo modal nueva consulta
+2025-09-26 10:04:16 | INFO     | dental_system.state.estado_consultas | abrir_modal_nueva_consulta:333 | ➕ Abriendo modal nueva consulta
+2025-09-26 10:04:16 | INFO     | dental_system.state.estado_consultas | abrir_modal_nueva_consulta:333 | ➕ Abriendo modal nueva consulta
+2025-09-26 10:04:19 | INFO     | dental_system.state.estado_consultas | abrir_modal_nueva_consulta:333 | ➕ Abriendo modal nueva consulta
+2025-09-26 10:04:20 | INFO     | dental_system.state.estado_consultas | abrir_modal_nueva_consulta:333 | ➕ Abriendo modal nueva consulta
+2025-09-26 10:09:31 | INFO     | dental_system.state.estado_intervencion_servicios | _crear_servicios_ejemplo:182 | 📋 Usando servicios de ejemplo: 5 servicios
+2025-09-26 10:09:31 | WARNING  | dental_system.state.estado_intervencion_servicios | servicios_para_selector:128 | ⚠️ Usando servicios de ejemplo: 5 servicios
+2025-09-26 10:09:36 | INFO     | dental_system.state.estado_intervencion_servicios | _crear_servicios_ejemplo:182 | 📋 Usando servicios de ejemplo: 5 servicios
+2025-09-26 10:09:36 | WARNING  | dental_system.state.estado_intervencion_servicios | servicios_para_selector:128 | ⚠️ Usando servicios de ejemplo: 5 servicios
+2025-09-26 10:09:49 | INFO     | dental_system.supabase.auth | sign_in:71 | 🔐 Autenticando usuario: gerente@odontomara.com
+2025-09-26 10:09:49 | INFO     | dental_system.supabase.auth | sign_in:84 | ✅ Autenticación con Supabase exitosa para: gerente@odontomara.com
+2025-09-26 10:09:49 | INFO     | dental_system.supabase.auth | sign_in:87 | 🔍 Buscando usuario en BD con auth_user_id: 8046caa1-add0-4391-a048-d47e3aedf637
+2025-09-26 10:09:49 | INFO     | dental_system.supabase.tablas.usuarios | get_by_auth_id:255 | Buscando usuario con auth_user_id: 8046caa1-add0-4391-a048-d47e3aedf637
+2025-09-26 10:09:50 | INFO     | dental_system.supabase.tablas.usuarios | get_by_auth_id:258 | Usuario encontrado: True
+2025-09-26 10:09:50 | INFO     | dental_system.supabase.auth | sign_in:94 | ✅ Usuario encontrado en BD: gerente@odontomara.com
+2025-09-26 10:09:50 | INFO     | dental_system.supabase.auth | sign_in:97 | 📋 Obteniendo información básica del usuario: 25356728-1a6e-4cb4-b466-b2b9a31e11ca
+2025-09-26 10:09:50 | INFO     | dental_system.supabase.tablas.usuarios | get_user_basic_info:264 | Obteniendo info básica del usuario: 25356728-1a6e-4cb4-b466-b2b9a31e11ca
+2025-09-26 10:09:50 | INFO     | dental_system.supabase.tablas.base | get_by_id:69 | Obteniendo registro 25356728-1a6e-4cb4-b466-b2b9a31e11ca de usuarios
+2025-09-26 10:09:50 | INFO     | dental_system.supabase.tablas.usuarios | get_user_basic_info:279 | Usuario con rol obtenido: gerente@odontomara.com - gerente
+2025-09-26 10:09:50 | INFO     | dental_system.supabase.auth | sign_in:104 | ✅ Información del usuario obtenida - Rol: gerente
+2025-09-26 10:09:50 | INFO     | dental_system.supabase.auth | sign_in:107 | ⏰ Actualizando último acceso para: 25356728-1a6e-4cb4-b466-b2b9a31e11ca
+2025-09-26 10:09:50 | INFO     | dental_system.supabase.auth | sign_in:110 | 🎉 Inicio de sesión completado exitosamente para: gerente@odontomara.com
+2025-09-26 10:09:50 | INFO     | dental_system.services.dashboard_service | get_dashboard_stats:54 | 🚀 Obteniendo stats optimizadas para rol: gerente
+2025-09-26 10:09:50 | INFO     | dental_system.supabase.tablas.personal | get_filtered_personal:139 | ✅ Personal obtenido desde vista: 11 registros
+2025-09-26 10:09:50 | INFO     | dental_system.state.estado_personal | cargar_lista_personal:321 | ✅ Lista personal cargada: 11 empleados
+2025-09-26 10:09:50 | INFO     | dental_system.supabase.tablas.personal | get_filtered_personal:139 | ✅ Personal obtenido desde vista: 11 registros
+2025-09-26 10:09:50 | INFO     | dental_system.services.personal_service | get_personal_stats:543 | ✅ Estadísticas personal calculadas: {'total': 11, 'activos': 11, 'odontologos': 8, 'administradores': 1, 'asistentes': 1, 'gerentes': 1}
+2025-09-26 10:09:50 | INFO     | dental_system.state.estado_personal | cargar_estadisticas_personal:358 | ✅ Estadísticas de personal actualizadas
+2025-09-26 10:09:50 | INFO     | dental_system.services.consultas_service | get_today_consultations:43 | Obteniendo consultas del día
+2025-09-26 10:09:50 | INFO     | dental_system.supabase.tablas.consultas | get_vista_consultas_dia:527 | Obteniendo consultas del día 2025-09-26 usando vista optimizada
+2025-09-26 10:09:50 | INFO     | dental_system.supabase.tablas.consultas | get_vista_consultas_dia:540 | Vista no disponible, usando query optimizada manual
+2025-09-26 10:09:50 | INFO     | dental_system.services.consultas_service | get_today_consultations:76 | ✅ Consultas del día obtenidas: 20 registros
+2025-09-26 10:09:50 | INFO     | dental_system.state.estado_consultas | cargar_lista_consultas:1359 | ✅ 20 consultas cargadas
+2025-09-26 10:09:50 | INFO     | dental_system.services.servicios_service | get_filtered_services:71 | ✅ Servicios obtenidos: 11 registros
+2025-09-26 10:09:50 | INFO     | dental_system.state.estado_servicios | cargar_servicios_basico:968 | ✅ 11 servicios cargados
+2025-09-26 10:09:50 | INFO     | dental_system.supabase.tablas.pagos | get_consultas_pendientes_facturacion:612 | No hay consultas pendientes de facturación
+2025-09-26 10:09:50 | INFO     | dental_system.services.pagos_service | get_consultas_pendientes_pago:728 | ✅ 0 consultas pendientes de pago obtenidas
+2025-09-26 10:09:50 | INFO     | dental_system.state.estado_pagos | cargar_consultas_pendientes_pago:932 | 📭 No hay consultas pendientes de pago
+2025-09-26 10:09:50 | INFO     | dental_system.supabase.tablas.pagos | get_currency_summary:567 | Resumen dual currency generado: $0.0 USD + 0.0 BS
+2025-09-26 10:09:50 | INFO     | dental_system.services.pagos_service | get_currency_stats:649 | Estadísticas duales generadas: $0.0 USD + 0.0 BS
+2025-09-26 10:09:50 | INFO     | dental_system.state.estado_pagos | cargar_estadisticas_duales:760 | 📊 Estadísticas duales cargadas exitosamente
+2025-09-26 10:09:50 | INFO     | dental_system.state.estado_intervencion_servicios | servicios_para_selector:124 | ✅ Usando lista_servicios: 11 servicios activos
+2025-09-26 10:09:51 | WARNING  | dental_system.state.estado_odontologia | cargar_pacientes_asignados:473 | Usuario no autorizado para ver pacientes asignados
+2025-09-26 10:09:51 | WARNING  | dental_system.state.estado_odontologia | cargar_consultas_disponibles_otros:623 | Usuario no autorizado para ver consultas disponibles
+2025-09-26 10:09:51 | WARNING  | dental_system.state.estado_odontologia | cargar_historial_paciente:678 | ID de paciente no proporcionado para cargar historial
+2025-09-26 10:09:51 | INFO     | dental_system.state.estado_odontologia | set_active_intervention_tab:1823 | Navegando a tab: intervencion
+2025-09-26 10:09:51 | INFO     | dental_system.state.estado_intervencion_servicios | cargar_servicios_para_intervencion:237 | ✅ Reutilizando servicios del catálogo: 11 activos
+2025-09-26 10:09:51 | WARNING  | dental_system.state.estado_odontologia | cargar_pacientes_asignados:473 | Usuario no autorizado para ver pacientes asignados
+2025-09-26 10:09:51 | WARNING  | dental_system.state.estado_odontologia | cargar_consultas_disponibles_otros:623 | Usuario no autorizado para ver consultas disponibles
+2025-09-26 10:09:51 | WARNING  | dental_system.state.estado_odontologia | cargar_historial_paciente:678 | ID de paciente no proporcionado para cargar historial
+2025-09-26 10:09:51 | INFO     | dental_system.state.estado_odontologia | set_active_intervention_tab:1823 | Navegando a tab: intervencion
+2025-09-26 10:09:51 | INFO     | dental_system.state.estado_intervencion_servicios | cargar_servicios_para_intervencion:237 | ✅ Reutilizando servicios del catálogo: 11 activos
+2025-09-26 10:09:57 | INFO     | dental_system.state.estado_consultas | abrir_modal_nueva_consulta:333 | ➕ Abriendo modal nueva consulta
+2025-09-26 10:09:57 | INFO     | dental_system.state.estado_consultas | abrir_modal_nueva_consulta:339 | ✅ Modal nueva consulta activado

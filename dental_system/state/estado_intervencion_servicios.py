@@ -755,6 +755,62 @@ class EstadoIntervencionServicios(rx.State, mixin=True):
             logger.error(f"Error cambiando estado de consulta: {str(e)}")
 
     @rx.event
+    async def derivar_paciente_a_otro_odontologo(self):
+        """
+        🔄 DERIVAR PACIENTE A OTRO ODONTÓLOGO
+
+        Flujo para terminar la intervención del odontólogo actual
+        y dejar el paciente disponible para otro odontólogo:
+
+        1. Valida que haya una consulta e intervención activa
+        2. Guarda la intervención actual (si hay servicios)
+        3. Cambia estado de consulta a "entre_odontologos"
+        4. Navega de vuelta a lista de pacientes
+
+        Este método permite el flujo de múltiples odontólogos por consulta.
+        """
+        try:
+            # Validar que hay consulta actual
+            if not hasattr(self, 'consulta_actual') or not self.consulta_actual.id:
+                logger.warning("❌ No hay consulta actual para derivar")
+                return
+
+            # Validar que hay servicios para guardar (opcional, puede derivar sin servicios)
+            if hasattr(self, 'servicios_en_intervencion') and len(self.servicios_en_intervencion) > 0:
+                logger.info(f"💾 Guardando intervención antes de derivar ({len(self.servicios_en_intervencion)} servicios)")
+
+                # Guardar la intervención actual
+                await self.finalizar_consulta_completa()
+
+                # Esperar un momento para que se complete el guardado
+                import asyncio
+                await asyncio.sleep(0.5)
+
+            # Cambiar estado de consulta a "entre_odontologos"
+            await self._cambiar_estado_consulta_entre_odontologos()
+
+            logger.info(f"✅ Paciente {self.paciente_actual.nombre_completo} derivado exitosamente")
+            
+            # Limpiar estado actual
+            from dental_system.models import PacienteModel, ConsultaModel
+            self.paciente_actual = PacienteModel()
+            self.consulta_actual = ConsultaModel()
+            self.servicios_en_intervencion = []
+
+            # Navegar de vuelta a página de odontología
+            self.navigate_to(
+                "odontologia",
+                "Atención Odontológica",
+                "Dashboard de pacientes por orden de llegada"
+            )
+
+            logger.info(f"🔙 Navegación completada")
+
+        except Exception as e:
+            logger.error(f"❌ Error derivando paciente: {str(e)}")
+
+
+    @rx.event
     async def finalizar_consulta_completa(self):
         """💾 Finalizar consulta creando intervención + servicios"""
         try:

@@ -12,6 +12,8 @@ from dental_system.pages.servicios_page import servicios_page
 from dental_system.pages.pagos_page import pagos_page
 from dental_system.pages.odontologia_page import odontologia_page
 from dental_system.pages.intervencion_page import intervencion_page_v2
+# from dental_system.pages.odontograma_test_page import odontograma_test_page
+# from dental_system.pages.odontograma_professional_page import odontograma_professional_page
 from dental_system.pages.login import login_page
 from dental_system.components.common import sidebar
 from dental_system.utils.route_guard import (
@@ -242,10 +244,12 @@ def create_app() -> rx.App:
     
     # 🎯 RUTAS ESPECÍFICAS POR ROL - COMO QUERÍAS
     # app.add_page(index_page, route="/")           # Redirige según rol
-    app.add_page(login_page, route="/login")      # Login público
-    app.add_page(boss_page, route="/boss")        # Gerente
-    app.add_page(admin_page, route="/admin")      # Administrador  
-    app.add_page(dentist_page, route="/dentist")  # Odontólogo
+    app.add_page(login_page, route="/login")                    # Login público
+    # app.add_page(odontograma_test_page, route="/odontograma-test")  # 🦷 Prueba Odontograma V2.0
+    # app.add_page(odontograma_professional_page, route="/odontograma-clinico")  # 🏥 Odontograma Profesional V3.0
+    app.add_page(boss_page, route="/boss")                    # Gerente
+    app.add_page(admin_page, route="/admin")                  # Administrador
+    app.add_page(dentist_page, route="/dentist")              # Odontólogo
  
     return app
 

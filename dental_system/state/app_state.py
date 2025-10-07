@@ -32,7 +32,6 @@ from .estado_servicios import EstadoServicios
 from .estado_pagos import EstadoPagos
 from .estado_intervencion_servicios import EstadoIntervencionServicios
 from .estado_odontograma_avanzado import EstadoOdontogramaAvanzado
-from .estado_odontograma_interactivo import EstadoOdontogramaInteractivo
 
 # ✅ MODELOS TIPADOS PARA COMPUTED VARS
 from dental_system.models import (
@@ -57,11 +56,11 @@ from dental_system.models import (
 
 logger = logging.getLogger(__name__)
 
-class AppState(EstadoIntervencionServicios,EstadoServicios,EstadoPagos,EstadoConsultas,EstadoOdontologia,EstadoPersonal,EstadoAuth, EstadoPacientes,EstadoUI,EstadoOdontogramaInteractivo, rx.State):
+class AppState(EstadoIntervencionServicios,EstadoServicios,EstadoPagos,EstadoConsultas,EstadoOdontologia,EstadoPersonal,EstadoAuth, EstadoPacientes,EstadoUI, rx.State):
     """Incluye AdvancedFDIState como mixin - se integra automáticamente"""
     """
     🎯 APPSTATE DEFINITIVO CON MIXINS
-    
+
     Hereda de todos los substates como mixins:
     - AdvancedFDIState: Odontograma FDI interactivo avanzado
     - EstadoAuth: Autenticación y permisos
@@ -72,7 +71,14 @@ class AppState(EstadoIntervencionServicios,EstadoServicios,EstadoPagos,EstadoCon
     - EstadoServicios: Catálogo de servicios
     - EstadoOdontologia: Módulo dental
     """
-    
+
+    # ==========================================
+    # 🦷 VARIABLES ESPECÍFICAS DEL APPSTATE
+    # ==========================================
+
+    # Tab activo en página de intervención odontológica
+    active_intervention_tab: str = "intervencion"
+
     # ==========================================
     # 📊 EVENT HANDLERS BÁSICOS PARA COMPATIBILIDAD
     # ==========================================
@@ -230,7 +236,81 @@ class AppState(EstadoIntervencionServicios,EstadoServicios,EstadoPagos,EstadoCon
         """📋 Ver historial completo de una consulta"""
         print(f"📋 Viendo historial completo: {consulta_id}")
         # TODO: Modal con historial detallado
-    
+
+    # ==========================================
+    # 🦷 ODONTOGRAMA V2.0 - MÉTODOS DE INTEGRACIÓN
+    # ==========================================
+
+    @rx.event
+    async def cargar_odontograma_paciente(self, paciente_id: str):
+        """🦷 Cargar odontograma interactivo del paciente actual"""
+        if not paciente_id:
+            print("⚠️ No se puede cargar odontograma sin ID de paciente")
+            return
+
+        try:
+            print(f"🦷 Cargando odontograma para paciente: {paciente_id}")
+
+            # Obtener estado odontología
+            estado_odontologia = self.get_estado_odontologia()
+
+            # Establecer paciente actual si no está establecido
+            if not estado_odontologia.paciente_actual.id:
+                # Buscar paciente en la lista cargada
+                paciente = next(
+                    (p for p in estado_odontologia.pacientes_asignados if p.id == paciente_id),
+                    None
+                )
+                if paciente:
+                    estado_odontologia.paciente_actual = paciente
+
+            # Cargar odontograma con datos reales
+            await estado_odontologia.cargar_odontograma_paciente_actual()
+
+            print(f"✅ Odontograma cargado para paciente {paciente_id}")
+
+        except Exception as e:
+            print(f"❌ Error cargando odontograma: {str(e)}")
+
+    @rx.event
+    def set_active_intervention_tab(self, tab_name: str):
+        """🔄 Establecer tab activo en página de intervención"""
+        self.active_intervention_tab = tab_name
+        print(f"🔄 Tab de intervención activo: {tab_name}")
+
+    # ==========================================
+    # 📜 ODONTOGRAMA V3.0 - HELPERS FASE 4 Y 5
+    # ==========================================
+
+    def abrir_modal_historial(self):
+        """🗂️ FASE 4: Abrir modal de historial de odontograma"""
+        odonto_state = self.get_state(EstadoOdontologia)
+        return odonto_state.abrir_modal_historial()
+
+    def cerrar_modal_historial(self):
+        """❌ FASE 4: Cerrar modal de historial de odontograma"""
+        odonto_state = self.get_state(EstadoOdontologia)
+        odonto_state.cerrar_modal_historial()
+
+    def cerrar_modal_validacion(self):
+        """❌ FASE 5: Cerrar modal de validación médica"""
+        odonto_state = self.get_state(EstadoOdontologia)
+        odonto_state.cerrar_modal_validacion()
+
+    async def forzar_guardado_con_warnings(self):
+        """⚠️ FASE 5: Forzar guardado aceptando warnings"""
+        odonto_state = self.get_state(EstadoOdontologia)
+        # Cerrar modal de validación
+        odonto_state.cerrar_modal_validacion()
+        # Guardar cambios ignorando warnings
+        await odonto_state.guardar_cambios_batch(forzar=True)
+
+    # Computed vars para acceso directo a variables de validación
+    # IMPORTANTE: No usar get_state() en computed vars (no puede ser async)
+    # Con mixin=True, las variables están directamente disponibles en self
+    # Ya no son necesarios estos computed vars porque están en el state directamente
+    # Se acceden como: AppState.validacion_errores directamente desde componentes
+
     # ==========================================
     # 📝 VARIABLES PARA MODAL NUEVA CONSULTA FASE 1
     # ==========================================
@@ -629,58 +709,62 @@ class AppState(EstadoIntervencionServicios,EstadoServicios,EstadoPagos,EstadoCon
     
     @rx.event
     async def navegar_a_odontologia_consulta(self, consulta_id: str):
-        """🦷 Navegar al módulo de odontología con consulta específica"""
+        """
+        🦷 NAVEGAR A MÓDULO DE ODONTOLOGÍA CON CONSULTA ESPECÍFICA
+
+        Delega al método especializado seleccionar_paciente_consulta() que:
+        1. Busca y carga paciente + consulta
+        2. Cambia estado de consulta a "en_atencion"
+        3. Carga odontograma última versión
+        4. Carga intervenciones previas
+        5. Navega a página de intervención
+
+        Args:
+            consulta_id: ID de la consulta a atender
+        """
         try:
-            print(f"🔍 DEBUG - navegar_a_odontologia_consulta llamado con ID: {consulta_id}")
-            
+            logger.info(f"🦷 Iniciando navegación a odontología con consulta: {consulta_id}")
+
             if not consulta_id:
                 self.mostrar_toast("ID de consulta requerido", "error")
                 return
-            
-            print(f"🔍 DEBUG - Total consultas en lista_consultas: {len(self.lista_consultas)}")
-            print(f"🔍 DEBUG - Total consultas en consultas_asignadas: {len(self.consultas_asignadas)}")
-            
-            # Acceso directo a propiedades via mixins (sin get_state)
-            # Buscar la consulta en la lista del mixin EstadoConsultas
+
+            # Buscar la consulta en ambas listas
             consulta_encontrada = None
-            for i, consulta in enumerate(self.lista_consultas):  # Acceso directo via mixin
-                print(f"🔍 DEBUG - Comparando consulta [{i}] ID: '{consulta.id}' con '{consulta_id}'")
+
+            # Buscar en lista_consultas (EstadoConsultas)
+            for consulta in self.lista_consultas:
                 if consulta.id == consulta_id:
                     consulta_encontrada = consulta
-                    print(f"✅ CONSULTA ENCONTRADA en lista_consultas índice {i}")
                     break
-            
-            # También buscar en consultas asignadas del módulo odontología
+
+            # Buscar en consultas_asignadas (EstadoOdontologia)
             if not consulta_encontrada:
-                for i, consulta in enumerate(self.consultas_asignadas):  # Acceso directo via mixin EstadoOdontologia
-                    print(f"🔍 DEBUG - Comparando consulta asignada [{i}] ID: '{consulta.id}' con '{consulta_id}'")
+                for consulta in self.consultas_asignadas:
                     if consulta.id == consulta_id:
                         consulta_encontrada = consulta
-                        print(f"✅ CONSULTA ENCONTRADA en consultas_asignadas índice {i}")
                         break
-            
-            if consulta_encontrada:
-                print(f"✅ CONSULTA ENCONTRADA - Procesando...")
-                print(f"   Paciente ID: {consulta_encontrada.paciente_id}")
-                print(f"   Paciente Nombre: {getattr(consulta_encontrada, 'paciente_nombre', 'NO_DEFINIDO')}")
-                
-                # Establecer contexto para odontología
-                print(f"🔍 DEBUG - Llamando establecer_contexto_odontologia...")
-                await self.establecer_contexto_odontologia(consulta_encontrada)
-                
-                # Cambiar página
-                self.current_page = "intervencion"
-                self.titulo_pagina = "Atención Odontológica"
-                self.subtitulo_pagina = f"Paciente: {getattr(consulta_encontrada, 'paciente_nombre', 'Sin nombre')}"
-                
-                self.mostrar_toast("Navegando a módulo de odontología", "info")
-                print(f"✅ NAVEGACIÓN COMPLETADA")
-            else:
-                print(f"❌ CONSULTA NO ENCONTRADA para ID: {consulta_id}")
+
+            if not consulta_encontrada:
+                logger.warning(f"❌ Consulta no encontrada: {consulta_id}")
                 self.mostrar_toast("Consulta no encontrada", "error")
-                
+                return
+
+            # Obtener paciente_id de la consulta
+            paciente_id = consulta_encontrada.paciente_id
+
+            if not paciente_id:
+                logger.error(f"❌ Consulta sin paciente_id: {consulta_id}")
+                self.mostrar_toast("Consulta sin paciente asociado", "error")
+                return
+
+            # Usar el método especializado que maneja todo el flujo
+            await self.seleccionar_paciente_consulta(paciente_id, consulta_id)
+
+            logger.info(f"✅ Navegación completada exitosamente")
+
         except Exception as e:
-            print(f"❌ Error navegando a odontología: {str(e)}")
+            logger.error(f"❌ Error navegando a odontología: {str(e)}")
             import traceback
             traceback.print_exc()
             self.mostrar_toast(f"Error navegando a odontología: {str(e)}", "error")

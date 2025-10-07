@@ -200,22 +200,44 @@ class PacienteModel(rx.Base):
         """Propiedad para mostrar condiciones médicas como string"""
         return ", ".join(self.condiciones_medicas) if self.condiciones_medicas else "Sin condiciones reportadas"
 
-    @property 
+    @property
     def contacto_emergencia_display(self) -> str:
         """Propiedad para mostrar contacto de emergencia"""
         if not self.contacto_emergencia or not isinstance(self.contacto_emergencia, dict):
             return "Sin contacto emergencia"
-        
+
         nombre = self.contacto_emergencia.get("nombre", "")
         telefono = self.contacto_emergencia.get("telefono", "")
         relacion = self.contacto_emergencia.get("relacion", "")
-        
+
         if nombre and telefono:
             return f"{nombre} ({relacion}) - {telefono}" if relacion else f"{nombre} - {telefono}"
         elif nombre:
             return f"{nombre} ({relacion})" if relacion else nombre
         else:
             return "Sin contacto emergencia"
+
+    @property
+    def tiene_alertas_medicas(self) -> bool:
+        """🚨 Verificar si el paciente tiene alertas médicas importantes"""
+        return bool(
+            self.alergias or
+            self.medicamentos_actuales or
+            self.condiciones_medicas
+        )
+
+    @property
+    def alergias_medicamentos(self) -> str:
+        """💊 Concatenar alergias y medicamentos para mostrar en alertas"""
+        alertas = []
+        if self.alergias:
+            alertas.append(f"Alergias: {', '.join(self.alergias)}")
+        if self.medicamentos_actuales:
+            alertas.append(f"Medicamentos: {', '.join(self.medicamentos_actuales)}")
+        if self.condiciones_medicas:
+            alertas.append(f"Condiciones: {', '.join(self.condiciones_medicas)}")
+
+        return " | ".join(alertas) if alertas else None
 
     def matches_search(self, search_term: str) -> bool:
         """Verificar si el paciente coincide con el término de búsqueda"""

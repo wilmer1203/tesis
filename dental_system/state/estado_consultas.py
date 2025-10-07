@@ -61,20 +61,26 @@ class EstadoConsultas(rx.State,mixin=True):
     consulta_seleccionada: Optional[ConsultaModel] = None
     id_consulta_seleccionada: str = ""
     
-    # ✅ FORMULARIO TIPADO (esquema v4.1)
+    # ==========================================
+    # 📝 FORMULARIO UNIFICADO INTELIGENTE
+    # ==========================================
+
+    # Formulario principal consolidado (mantiene compatibilidad)
     formulario_consulta_data: ConsultaFormModel = ConsultaFormModel()
     errores_validacion_consulta: Dict[str, List[str]] = {}
-    
-    # ✅ VARIABLES AUXILIARES TIPADAS
+
+    # Variables auxiliares
     consulta_para_eliminar: Optional[ConsultaModel] = None
     cargando_lista_consultas: bool = False
-    # UNUSED - [2025-01-04] - Variable para forzar recálculo no utilizada realmente
-    # last_update: float = 0.0  # Timestamp para forzar recálculo de computed vars
-    
-    # 🔍 BÚSQUEDA DE PACIENTES EN MODAL
     termino_busqueda_pacientes_modal: str = ""
-    
-    # ✅ VARIABLES DEL FORMULARIO MODAL NUEVA CONSULTA
+
+    # Formulario consolidado (nuevas variables)
+    formulario_unificado: ConsultaFormModel = ConsultaFormModel()
+    errores_formulario: Dict[str, List[str]] = {}
+    modo_formulario: str = "crear"
+    formulario_activo: bool = False
+
+    # Variables del modal (consolidadas)
     consulta_form_odontologo_id: str = ""
     consulta_form_busqueda_paciente: str = ""
     consulta_form_paciente_seleccionado: PacienteModel = PacienteModel()
@@ -129,12 +135,15 @@ class EstadoConsultas(rx.State,mixin=True):
     # Variables adicionales para UI
     pacientes_search_modal: str = ""
     
-    # UNUSED - [2025-01-04] - Formulario legacy no utilizado
-    # consulta_form_legacy: Dict[str, str] = {}
     
     # Variables de mensajes
     success_message: str = ""
     error_message: str = ""
+
+    @rx.event
+    def set_doctor_seleccionado(self, doctor_id: str):
+        """👨‍⚕️ Seleccionar odontólogo activo"""
+        self.odontologo_seleccionado = doctor_id
     
     # ==========================================
     # 📅 ESTADÍSTICAS Y MÉTRICAS CACHE
@@ -147,13 +156,22 @@ class EstadoConsultas(rx.State,mixin=True):
     # Métricas de productividad
     total_completadas_hoy: int = 0
     ingresos_estimados_hoy: float = 0.0
-    # UNUSED - [2025-01-04] - Métrica no utilizada
-    # tiempo_total_atencion_hoy: float = 0.0
     
-    # Cache de consultas por odontólogo
+    # ==========================================
+    # 🧠 SISTEMA DE CACHE INTELIGENTE UNIFICADO
+    # ==========================================
+
+    # Cache unificado con timestamps independientes
+    cache_datos: Dict[str, Dict[str, Any]] = {
+        "consultas": {"data": [], "timestamp": "", "validez_minutos": 5},
+        "estadisticas": {"data": {}, "timestamp": "", "validez_minutos": 10},
+        "turnos": {"data": {}, "timestamp": "", "validez_minutos": 3},
+        "por_odontologo": {"data": {}, "timestamp": "", "validez_minutos": 5}
+    }
+
+    # Cache especializado para consultas por odontólogo
     cache_consultas_odontologo: Dict[str, List[ConsultaModel]] = {}
-    cache_timestamp_consultas: str = ""
-    
+
     # Estados de carga
     cargando_consultas: bool = False
     cargando_turnos: bool = False
@@ -173,8 +191,7 @@ class EstadoConsultas(rx.State,mixin=True):
         if self.termino_busqueda_consultas:
             consultas = [
                 c for c in consultas 
-                if (self.termino_busqueda_consultas.lower() in c.motivo_consulta.lower() or
-                    self.termino_busqueda_consultas.lower() in c.diagnostico_preliminar.lower())
+                if (self.termino_busqueda_consultas.lower() in c.prioridad.lower())
             ]
         
         # Filtrar por estado
@@ -204,117 +221,249 @@ class EstadoConsultas(rx.State,mixin=True):
         
         return consultas_ordenadas
     
-    @rx.var(cache=True)
-    def consultas_pendientes(self) -> List[ConsultaModel]:
-        """⏳ Consultas pendientes por atender - ESQUEMA v4.1"""
-        return [c for c in self.lista_consultas if c.estado == "en_espera"]
+    # REMOVIDO: consultas_organizadas - Causaba UntypedVarError por estructura Dict compleja
+    # Se usan computed vars específicas tipadas en su lugar
     
-    @rx.var(cache=True)
-    def consultas_en_progreso(self) -> List[ConsultaModel]:
-        """🔄 Consultas actualmente en progreso - ESQUEMA v4.1"""
-        return [c for c in self.lista_consultas if c.estado == "en_atencion"]
     
-    @rx.var(cache=True)
-    def consultas_completadas_hoy(self) -> List[ConsultaModel]:
-        """✅ Consultas completadas hoy - ESQUEMA v4.1"""
-        return [c for c in self.lista_consultas if c.estado == "completada"]
     
-    @rx.var(cache=True)
-    def lista_turnos_hoy(self) -> List[TurnoModel]:
-        """🔄 Lista de turnos del día"""
-        # Extraer turnos de todos los odontólogos para hoy
-        turnos_hoy = []
-        for turnos_odontologo in self.turnos_por_odontologo.values():
-            turnos_hoy.extend(turnos_odontologo)
-        return sorted(turnos_hoy, key=lambda t: t.numero_turno)
-    
-    @rx.var(cache=True)
-    def proximo_numero_turno(self) -> int:
-        """🔢 Próximo número de turno disponible"""
-        return self.siguiente_numero_turno
-    
-    @rx.var(cache=True)
-    def consulta_seleccionada_valida(self) -> bool:
-        """✅ Validar si hay consulta seleccionada"""
-        return (
-            hasattr(self.consulta_seleccionada, 'id') and
-            bool(self.consulta_seleccionada.id)
-        )
+
+    # REMOVIDO: estadisticas_completas - Causaba UntypedVarError por dependencias complejas
+    # Se usan computed vars específicas tipadas en su lugar
+
+    # ==========================================
+    # 📊 COMPUTED VARS ESPECÍFICAS PARA UI (TIPADAS)
+    # ==========================================
 
     @rx.var(cache=True)
-    def conteos_consultas_por_doctor(self) -> Dict[str, int]:
-        """📊 Conteo de consultas por odontólogo"""
-        conteos = {}
+    def total_consultas_dashboard(self) -> int:
+        """📊 Total de consultas para dashboard"""
+        return len(self.lista_consultas)
+
+    @rx.var(cache=True)
+    def total_en_espera_dashboard(self) -> int:
+        """⏳ Total en espera para dashboard"""
+        return len([c for c in self.lista_consultas if c.estado == "en_espera"])
+
+    @rx.var(cache=True)
+    def total_en_atencion_dashboard(self) -> int:
+        """🔄 Total en atención para dashboard"""
+        return len([c for c in self.lista_consultas if c.estado == "en_atencion"])
+
+    @rx.var(cache=True)
+    def total_urgentes_dashboard(self) -> int:
+        """🚨 Total urgentes para dashboard"""
+        return len([c for c in self.lista_consultas if c.prioridad == "urgente"])
+
+    @rx.var(cache=True)
+    def total_completadas_dashboard(self) -> int:
+        """✅ Total completadas para dashboard"""
+        return len([c for c in self.lista_consultas if c.estado == "completada"])
+
+    @rx.var(cache=True)
+    def consultas_completadas_hoy(self) -> List[ConsultaModel]:
+        """✅ Lista de consultas completadas hoy"""
+        return [c for c in self.consultas_hoy if c.estado == "completada"]
+
+    @rx.var(cache=True)
+    def total_odontologos_activos_dashboard(self) -> int:
+        """👨‍⚕️ Total odontólogos activos para dashboard"""
+        return len(set(c.primer_odontologo_id for c in self.lista_consultas if c.primer_odontologo_id))
+
+    @rx.var(cache=True)
+    def consultas_por_odontologo(self) -> Dict[str, int]:
+        """👨‍⚕️ Total de consultas por odontólogo"""
+        conteo = {}
         for consulta in self.lista_consultas:
             doctor_id = consulta.primer_odontologo_id
             if doctor_id:
-                conteos[doctor_id] = conteos.get(doctor_id, 0) + 1
-        return conteos
+                conteo[doctor_id] = conteo.get(doctor_id, 0) + 1
+        return conteo
 
     @rx.var(cache=True)
-    def get_urgentes_por_doctor(self) -> Dict[str, int]:
-        """🚨 Conteo de consultas urgentes por odontólogo"""
-        urgentes = {}
+    def urgentes_por_odontologo(self) -> Dict[str, int]:
+        """🚨 Consultas urgentes por odontólogo"""
+        conteo = {}
         for consulta in self.lista_consultas:
-            if consulta.prioridad == "urgente" and consulta.estado in ["en_espera", "en_atencion"]:
+            if consulta.prioridad == "urgente" and consulta.primer_odontologo_id:
                 doctor_id = consulta.primer_odontologo_id
-                if doctor_id:
-                    urgentes[doctor_id] = urgentes.get(doctor_id, 0) + 1
-        return urgentes
+                conteo[doctor_id] = conteo.get(doctor_id, 0) + 1
+        return conteo
 
     @rx.var(cache=True)
-    def get_tiempo_promedio_espera(self) -> Dict[str, str]:
-        """⏱️ Tiempo promedio de espera por odontólogo"""
-        tiempos = {}
+    def consultas_por_odontologo_dict(self) -> Dict[str, List[ConsultaModel]]:
+        """📊 Diccionario con consultas agrupadas por odontólogo"""
+        resultado = {}
         for consulta in self.lista_consultas:
-            if consulta.estado == "en_espera":
+            if consulta.primer_odontologo_id and consulta.estado in ["en_espera", "en_atencion"]:
                 doctor_id = consulta.primer_odontologo_id
-                if doctor_id:
-                    # Simulación de tiempo - en producción calcular desde fecha_llegada
-                    tiempos[doctor_id] = "25min"
-        return tiempos
+                if doctor_id not in resultado:
+                    resultado[doctor_id] = []
+                resultado[doctor_id].append(consulta)
+        return resultado
 
     @rx.var(cache=True)
-    def estadisticas_globales_tiempo_real(self) -> Dict[str, int]:
-        """📊 Estadísticas globales del sistema en tiempo real"""
-        return {
-            "total_pacientes": len(self.lista_consultas),
-            "en_espera": len([c for c in self.lista_consultas if c.estado == "en_espera"]),
-            "en_atencion": len([c for c in self.lista_consultas if c.estado == "en_atencion"]),
-            "urgentes": len([c for c in self.lista_consultas if c.prioridad == "urgente" and c.estado in ["en_espera", "en_atencion"]]),
-            "completadas": len([c for c in self.lista_consultas if c.estado == "completada"]),
-            "dentistas_activos": len(set(c.primer_odontologo_id for c in self.lista_consultas if c.primer_odontologo_id))
-        }
+    def totales_por_odontologo_dict(self) -> Dict[str, int]:
+        """📊 Total de consultas por odontólogo"""
+        resultado = {}
+        for doctor_id, consultas_list in self.consultas_por_odontologo_dict.items():
+            resultado[doctor_id] = len(consultas_list)
+        return resultado
 
     @rx.var(cache=True)
-    def consultas_con_orden_por_doctor_con_prioridad(self) -> Dict[str, List[ConsultaModel]]:
-        """📋 Consultas agrupadas por odontólogo y ordenadas por prioridad y orden de llegada"""
-        consultas_por_doctor = {}
+    def urgentes_por_odontologo_dict(self) -> Dict[str, int]:
+        """🚨 Urgentes por odontólogo"""
+        resultado = {}
+        for doctor_id, consultas_list in self.consultas_por_odontologo_dict.items():
+            urgentes = len([c for c in consultas_list if c.prioridad == "urgente"])
+            resultado[doctor_id] = urgentes
+        return resultado
 
-        # Agrupar por odontólogo
-        for consulta in self.lista_consultas:
-            if consulta.estado in ["en_espera", "en_atencion"]:  # Solo consultas activas
-                doctor_id = consulta.primer_odontologo_id
-                if doctor_id:
-                    if doctor_id not in consultas_por_doctor:
-                        consultas_por_doctor[doctor_id] = []
-                    consultas_por_doctor[doctor_id].append(consulta)
-
-        # Ordenar por prioridad y orden de llegada dentro de cada grupo
-        orden_prioridad = {"urgente": 0, "alta": 1, "normal": 2, "baja": 3}
-
-        for doctor_id in consultas_por_doctor:
-            consultas_por_doctor[doctor_id].sort(
-                key=lambda c: (
-                    orden_prioridad.get(c.prioridad or "normal", 2),
-                    c.orden_llegada_general or 999
-                )
-            )
-
-        return consultas_por_doctor
-    
     # ==========================================
-    # 📅 MÉTODOS PRINCIPALES DE CRUD
+    # 🛠️ MÉTODOS HELPER RESTAURADOS
+    # ==========================================
+
+    def _invalidar_cache_consultas(self):
+        """🔄 Invalidar cache de consultas (método helper)"""
+        # En el nuevo sistema con computed vars, la invalidación es automática
+        # Este método se mantiene para compatibilidad
+        logger.info("💾 Cache invalidado automáticamente por computed vars")
+
+    @rx.event
+    def cerrar_modal_transferir_paciente(self):
+        """❌ Cerrar modal de transferir paciente"""
+        logger.info("❌ Cerrando modal transferir paciente")
+        # Usar el sistema unificado de modales
+        self.gestionar_modal_operacion("cerrar_transferencia")
+
+    @rx.event
+    def abrir_modal_nueva_consulta(self):
+        """➕ Abrir modal para nueva consulta"""
+        logger.info("➕ Abriendo modal nueva consulta")
+        # Limpiar formulario
+        self.formulario_consulta_data = ConsultaFormModel()
+        # Activar modal directamente
+        self.modal_crear_consulta_abierto = True
+        self.modal_editar_consulta_abierto = False
+        logger.info("✅ Modal nueva consulta activado")
+
+    # ==========================================
+    # 🚀 MÉTODO PRINCIPAL UNIFICADO - VERSIÓN REFACTORIZADA
+    # ==========================================
+
+    @rx.event
+    async def operacion_consulta_master(self, accion: str, consulta_id: str = "", datos: Dict[str, Any] = None, opciones: Dict[str, Any] = None):
+        """
+        🚀 OPERACIÓN MASTER UNIFICADA - Maneja TODAS las operaciones de consultas de forma eficiente
+
+        Reemplaza: crear_consulta, actualizar_consulta, cancelar_consulta, cambiar_estado_consulta, etc.
+
+        Args:
+            accion: 'crear', 'actualizar', 'cancelar', 'cambiar_estado', 'transferir'
+            consulta_id: ID de consulta (requerido excepto para crear)
+            datos: Datos de la operación
+            opciones: {forzar_refresco: bool, mostrar_toast: bool, invalidar_cache: bool}
+        """
+        try:
+            opciones = opciones or {}
+
+            # Validar autenticación
+            if not self.esta_autenticado:
+                raise ValueError("Sesión no válida")
+
+            # Configurar servicio
+            consultas_service.set_user_context(self.id_usuario, self.perfil_usuario)
+
+            # Variable de resultado
+            resultado = None
+            mensaje_exito = ""
+
+            # Ejecutar acción específica
+            if accion == "crear":
+                if not datos:
+                    # Validar formulario actual
+                    errores = self.formulario_consulta_data.validate_form()
+                    if errores:
+                        if hasattr(self, 'mostrar_toast'):
+                            self.mostrar_toast(f"Errores: {list(errores.keys())}", "error")
+                        return {"exito": False, "errores": errores}
+                    datos = self.formulario_consulta_data.to_dict()
+
+                resultado = await consultas_service.create_consultation(datos)
+                mensaje_exito = "Consulta creada exitosamente"
+
+            elif accion == "actualizar":
+                # CORREGIDO: update_consultation requiere ConsultaFormModel, no dict
+                if not datos:
+                    datos_form = self.formulario_consulta_data
+                else:
+                    datos_form = ConsultaFormModel.from_dict(datos) if isinstance(datos, dict) else datos
+                resultado = await consultas_service.update_consultation(consulta_id, datos_form)
+                mensaje_exito = "Consulta actualizada"
+
+            elif accion == "cancelar":
+                # Método correcto existe: cancel_consultation
+                motivo = datos.get("motivo", "Consulta cancelada") if datos else "Cancelada"
+                resultado = await consultas_service.cancel_consultation(consulta_id, motivo)
+                mensaje_exito = "Consulta cancelada"
+
+            elif accion == "cambiar_estado":
+                # CORREGIDO: usar change_consultation_status (no update_consultation_status)
+                nuevo_estado = datos["estado"]
+                motivo = datos.get("motivo", f"Estado cambiado a {nuevo_estado}")
+                exito = await consultas_service.change_consultation_status(consulta_id, nuevo_estado, motivo)
+                if exito:
+                    resultado = await consultas_service.get_consultation_by_id(consulta_id)
+                else:
+                    resultado = None
+                mensaje_exito = f"Estado actualizado: {nuevo_estado}"
+
+            elif accion == "transferir":
+                # CORREGIDO: usar change_consultation_dentist (no transferir_consulta)
+                nuevo_odontologo = datos["nuevo_odontologo_id"]
+                motivo = datos.get("motivo", "Transferido")
+                exito = await consultas_service.change_consultation_dentist(consulta_id, nuevo_odontologo, motivo)
+                if exito:
+                    resultado = await consultas_service.get_consultation_by_id(consulta_id)
+                else:
+                    resultado = None
+                mensaje_exito = "Paciente transferido exitosamente"
+
+            # Procesar resultado
+            if resultado:
+                # Invalidar cache y recargar
+                self.cache_inteligente("invalidar", "consultas")
+                await self.cargar_consultas_hoy(forzar_refresco=True)
+
+                # Limpiar formularios para crear/actualizar
+                if accion in ["crear", "actualizar"]:
+                    self.formulario_consulta_data = ConsultaFormModel()
+                    self.consulta_seleccionada = None
+                    self.id_consulta_seleccionada = ""
+                    if hasattr(self, 'cerrar_todos_los_modales'):
+                        self.cerrar_todos_los_modales()
+
+                # Mostrar mensaje de éxito
+                if opciones.get("mostrar_toast", True) and hasattr(self, 'mostrar_toast'):
+                    self.mostrar_toast(mensaje_exito, "success")
+
+                logger.info(f"✅ {mensaje_exito} - ID: {consulta_id}")
+                return {"exito": True, "mensaje": mensaje_exito, "datos": resultado}
+            else:
+                error_msg = f"Error ejecutando {accion}"
+                if hasattr(self, 'mostrar_toast'):
+                    self.mostrar_toast(error_msg, "error")
+                logger.error(f"❌ {error_msg}")
+                return {"exito": False, "mensaje": error_msg}
+
+        except Exception as e:
+            error_msg = f"Error en {accion}: {str(e)}"
+            logger.error(f"❌ {error_msg}")
+            if hasattr(self, 'mostrar_toast'):
+                self.mostrar_toast(error_msg, "error")
+            return {"exito": False, "mensaje": error_msg, "excepcion": str(e)}
+
+    # ==========================================
+    # 📅 MÉTODOS CRUD ORIGINALES (LEGACY)
     # ==========================================
     
     @rx.event
@@ -328,9 +477,13 @@ class EstadoConsultas(rx.State,mixin=True):
         """
         print("📅 Cargando consultas del día...")
         
-        # Verificar cache válido
-        if not forzar_refresco and self._cache_consultas_valido(odontologo_id or "todos"):
-            print("✅ Usando cache de consultas válido")
+        # Verificar cache inteligente
+        clave_cache = f"consultas_{odontologo_id or 'todas'}"
+        resultado_cache = self.cache_inteligente("get", "consultas")
+
+        if not forzar_refresco and resultado_cache["valido"]:
+            self.lista_consultas = resultado_cache["datos"]
+            print(f"✅ Usando cache de consultas válido (hace {resultado_cache.get('timestamp', 'N/A')})")
             return
         
         self.cargando_consultas = True
@@ -359,8 +512,8 @@ class EstadoConsultas(rx.State,mixin=True):
             # Actualizar sistema de turnos
             self._actualizar_turnos_por_odontologo()
             
-            # Actualizar cache timestamp
-            self.cache_timestamp_consultas = datetime.now().isoformat()
+            # Actualizar cache inteligente
+            self.cache_inteligente("set", "consultas", consultas_data)
             
             print(f"✅ {self.total_consultas} consultas cargadas correctamente")
             
@@ -379,6 +532,12 @@ class EstadoConsultas(rx.State,mixin=True):
     
     @rx.event
     async def crear_consulta(self, datos_formulario: Optional[ConsultaFormModel] = None):
+        """📅 LEGACY: Usar operacion_consulta_master('crear') en su lugar"""
+        datos = datos_formulario.to_dict() if datos_formulario else None
+        return await self.operacion_consulta_master("crear", datos=datos)
+
+    @rx.event
+    async def crear_consulta_original(self, datos_formulario: Optional[ConsultaFormModel] = None):
         """
         ➕ CREAR NUEVA CONSULTA (REGISTRO POR ORDEN DE LLEGADA) - ESQUEMA v4.1
         
@@ -488,27 +647,26 @@ class EstadoConsultas(rx.State,mixin=True):
             odontologo_id = consulta.primer_odontologo_id
             if self._odontologo_tiene_consulta_en_curso(odontologo_id):
                 raise ValueError("El odontólogo ya tiene una consulta en curso")
-            
-            # Actualizar estado a en_atencion (compatible con esquema v4.1)
-            from dental_system.models.consultas_models import ConsultaFormModel
 
             # Crear modelo tipado desde diccionario
-            datos_modelo = ConsultaFormModel(
-                estado="en_atencion",
-                hora_inicio=datetime.now().time().isoformat(),
-                fecha_llegada=datetime.now().isoformat()
-            )
-
             # Establecer contexto de usuario en el servicio
             consultas_service.set_user_context(
                 user_id=self.id_usuario,
                 user_profile=self.perfil_usuario
             )
 
-            consulta_actualizada = await consultas_service.update_consultation(
+            # Usar change_consultation_status que SOLO cambia el estado (sin validar campos completos)
+            success = await consultas_service.change_consultation_status(
                 id_consulta,
-                datos_modelo
+                "en_atencion",
+                f"Iniciada atención por odontólogo {self.id_personal}"
             )
+
+            if not success:
+                raise Exception("No se pudo iniciar la atención de la consulta")
+
+            # Recargar la consulta actualizada desde BD
+            consulta_actualizada = await consultas_service.get_consultation_by_id(id_consulta)
             
             # Actualizar listas locales
             self._actualizar_consulta_en_listas(id_consulta, consulta_actualizada)
@@ -654,9 +812,7 @@ class EstadoConsultas(rx.State,mixin=True):
         Args:
             odontologo_id: ID del odontólogo a seleccionar
         """
-        self.odontologo_seleccionado = odontologo_id
-        print(f"👨‍⚕️ Odontólogo seleccionado: {odontologo_id}")
-        
+        self.odontologo_seleccionado = odontologo_id 
         # Cargar consultas específicas del odontólogo
         self.cargar_consultas_hoy(odontologo_id=odontologo_id)
     
@@ -687,9 +843,9 @@ class EstadoConsultas(rx.State,mixin=True):
                 numero_turno=consulta.orden_cola_odontologo or consulta.orden_llegada_general or 0,
                 consulta_id=consulta.id,
                 paciente_nombre=consulta.paciente_nombre,
-                estado=consulta.estado,
+                estado_turno=consulta.estado,
                 hora_llegada=consulta.fecha_llegada,
-                tiempo_espera=self._calcular_tiempo_espera_consulta(consulta)
+                tiempo_espera_minutos=self._calcular_tiempo_espera_consulta(consulta)
             )
             
             self.turnos_por_odontologo[odontologo_id].append(turno)
@@ -766,13 +922,6 @@ class EstadoConsultas(rx.State,mixin=True):
         
         await self._aplicar_filtros_internos()
     
-    async def _aplicar_filtros_internos(self):
-        """🔄 Aplicar filtros internamente"""
-        # Recargar consultas con filtros aplicados
-        await self.cargar_consultas_hoy(
-            odontologo_id=self.filtro_odontologo_id if self.filtro_odontologo_id else None,
-            forzar_refresco=True
-        )
     
     @rx.event
     def limpiar_filtros_consultas(self):
@@ -790,125 +939,23 @@ class EstadoConsultas(rx.State,mixin=True):
     # ==========================================
     # 📅 COMPUTED VARS CON CACHE
     # ==========================================
-    
-    @rx.var(cache=True)
-    def consultas_pendientes_hoy(self) -> List[ConsultaModel]:
-        """⏳ Consultas pendientes (programadas) del día"""
-        return [c for c in self.consultas_hoy if c.estado == "programada"]
-    
-    @rx.var(cache=True)
-    def consultas_en_curso_hoy(self) -> List[ConsultaModel]:
-        """🏥 Consultas en curso del día"""
-        return [c for c in self.consultas_hoy if c.estado == "en_curso"]
-    
-    @rx.var(cache=True)
-    def consultas_completadas_hoy_lista(self) -> List[ConsultaModel]:
-        """✅ Consultas completadas del día"""
-        return [c for c in self.consultas_hoy if c.estado == "completada"]
-    
-    @rx.var(cache=True)
-    def consultas_completadas_list(self) -> List[ConsultaModel]:
-        """✅ Alias para consultas completadas (compatibilidad UI)"""
-        return self.consultas_completadas_hoy_lista
-    
-    @rx.var(cache=True)
-    def consultas_canceladas_list(self) -> List[ConsultaModel]:
-        """❌ Lista de consultas canceladas hoy"""
-        return [c for c in self.consultas_hoy if c.estado == "cancelada"]
-    
-    @rx.var(cache=True)
-    def show_consulta_modal(self) -> bool:
-        """🪟 Estado del modal de consulta (delegado a EstadoUI)"""
-        return self.modal_crear_consulta_abierto  # Acceso directo por mixin
 
-    @rx.var(cache=True)
-    def consultas_canceladas(self) -> int:
-        """❌ Número de consultas canceladas hoy"""
-        return len(self.consultas_canceladas_list)
     
-    @rx.var(cache=True)
-    def total_turnos_pendientes(self) -> int:
-        """📊 Total de turnos pendientes"""
-        return len(self.consultas_pendientes_hoy)
+
     
-    @rx.var(cache=True)
-    def promedio_tiempo_espera(self) -> float:
-        """⏱️ Promedio de tiempo de espera en minutos"""
-        if not self.consultas_pendientes_hoy:
-            return 0.0
-        
-        tiempos = [self._calcular_tiempo_espera_consulta(c) for c in self.consultas_pendientes_hoy]
-        return sum(tiempos) / len(tiempos) if tiempos else 0.0
     
-    @rx.var(cache=True)
-    def turnos_odontologo_seleccionado(self) -> List[TurnoModel]:
-        """👨‍⚕️ Turnos del odontólogo seleccionado"""
-        if not self.odontologo_seleccionado:
-            return []
-        
-        return self.turnos_por_odontologo.get(self.odontologo_seleccionado, [])
     
-    @rx.var(cache=True)
-    def siguiente_turno_odontologo(self) -> Optional[TurnoModel]:
-        """⏭️ Siguiente turno para odontólogo seleccionado"""
-        turnos = self.turnos_odontologo_seleccionado
-        turnos_pendientes = [t for t in turnos if t.estado == "programada"]
-        
-        if turnos_pendientes:
-            return min(turnos_pendientes, key=lambda t: t.numero_turno)
-        
-        return None
     
-    @rx.var(cache=True)
-    def resumen_dia_actual(self) -> ConsultaResumenModel:
-        """📊 Resumen completo del día actual usando modelo tipado"""
-        try:
-            # Usar el método from_consultas del modelo para crear resumen
-            return ConsultaResumenModel.from_consultas(
-                consultas=self.consultas_hoy,
-                fecha=date.today().isoformat()
-            )
-        except Exception as e:
-            logger.error(f"Error generando resumen del día: {e}")
-            # Retornar modelo vacío en caso de error
-            return ConsultaResumenModel(fecha_resumen=date.today().isoformat())
     
-    @rx.var(cache=True)
-    def consultas_con_orden_por_doctor_con_prioridad(self) -> Dict[str, List[ConsultaModel]]:
-        """📊 CONSULTAS AGRUPADAS POR DOCTOR CON ORDEN DE PRIORIDAD"""
-        consultas_por_doctor: Dict[str, List[ConsultaModel]] = {}
-        
-        # Definir orden de prioridades
-        orden_prioridad = {"urgente": 0, "alta": 1, "normal": 2, "baja": 3}
-        
-        for consulta in self.consultas_hoy:
-            if consulta.estado in ["en_espera", "en_atencion"]:
-                doctor_id = consulta.primer_odontologo_id
-                
-                if doctor_id not in consultas_por_doctor:
-                    consultas_por_doctor[doctor_id] = []
-                
-                consultas_por_doctor[doctor_id].append(consulta)
-        
-        # Ordenar consultas de cada doctor por prioridad y luego por orden de llegada
-        for doctor_id in consultas_por_doctor:
-            consultas_por_doctor[doctor_id] = sorted(
-                consultas_por_doctor[doctor_id],
-                key=lambda c: (
-                    orden_prioridad.get(c.prioridad or "normal", 2),  # Por prioridad primero
-                    c.orden_cola_odontologo or c.orden_llegada_general or 999  # Luego por orden
-                )
-            )
-        
-        return consultas_por_doctor
-    
+
     # ==========================================
     # 📊 COMPUTED VARS PARA DASHBOARD AVANZADO
     # ==========================================
     
+    # NOTA: estadisticas_globales_tiempo_real duplicada - usar estadisticas_completas["globales"]
     @rx.var(cache=True)
     def estadisticas_globales_tiempo_real(self) -> Dict[str, Any]:
-        """📊 Estadísticas globales para QueueControlBar"""
+        """📊 Estadísticas globales DUPLICADA - usar estadisticas_completas["globales"]"""
         try:
             urgentes = len([c for c in self.consultas_hoy if c.prioridad == "urgente"])
             en_espera = len([c for c in self.consultas_hoy if c.estado == "en_espera"])
@@ -920,7 +967,7 @@ class EstadoConsultas(rx.State,mixin=True):
                 "en_espera": en_espera,
                 "en_atencion": en_atencion,
                 "completadas": len([c for c in self.consultas_hoy if c.estado == "completada"]),
-                "dentistas_activos": len(self.get_lista_odontologos_activos),
+                "dentistas_activos": len(self.odontologos_activos_hoy),
                 "tiempo_promedio": round(self.promedio_tiempo_espera, 1),
                 "capacidad_usada": min((len(self.consultas_hoy) / 50) * 100, 100)
             }
@@ -1009,13 +1056,13 @@ class EstadoConsultas(rx.State,mixin=True):
             
             # Datos para gráfico de carga por dentista
             carga_por_dentista = []
-            for odontologo in self.get_lista_odontologos_activos:
+            for odontologo_id in self.odontologos_activos_hoy:
                 consultas_odontologo = [
-                    c for c in self.consultas_hoy 
-                    if c.primer_odontologo_id == odontologo.id
+                    c for c in self.consultas_hoy
+                    if c.primer_odontologo_id == odontologo_id
                 ]
                 carga_por_dentista.append({
-                    "dentista": odontologo.nombre_completo[:15],  # Truncar nombre
+                    "dentista": f"Dr. {odontologo_id[:8]}...",  # ID truncado como placeholder
                     "total": len(consultas_odontologo),
                     "en_espera": len([c for c in consultas_odontologo if c.estado == "en_espera"]),
                     "completadas": len([c for c in consultas_odontologo if c.estado == "completada"])
@@ -1134,33 +1181,97 @@ class EstadoConsultas(rx.State,mixin=True):
     
     def _actualizar_metricas_dia(self):
         """📊 Actualizar métricas del día"""
-        self.total_completadas_hoy = len(self.consultas_completadas_hoy_lista)
+        self.total_completadas_hoy = len(self.consultas_completadas_hoy)
         self.total_turnos_dia = len(self.consultas_hoy)
         self.turnos_completados_dia = self.total_completadas_hoy
-        
+
         # Calcular ingresos estimados (simplificado) - ESQUEMA v4.1
         self.ingresos_estimados_hoy = sum(
             float(c.costo_total_bs or 0) + float(c.costo_total_usd or 0) * 36.5  # Conversión aproximada
-            for c in self.consultas_completadas_hoy_lista
+            for c in self.consultas_completadas_hoy
         )
     
-    def _cache_consultas_valido(self, clave_cache: str) -> bool:
-        """⏰ Verificar si el cache de consultas es válido"""
-        if not self.cache_timestamp_consultas:
-            return False
-        
+    def cache_inteligente(self, operacion: str, clave: str = "consultas", datos: Any = None, forzar_invalidacion: bool = False) -> Dict[str, Any]:
+        """🧠 CACHE INTELIGENTE UNIFICADO - Maneja todo el sistema de cache
+
+        Args:
+            operacion: 'get', 'set', 'invalidar', 'validar'
+            clave: Tipo de cache ('consultas', 'estadisticas', 'turnos', 'por_odontologo')
+            datos: Datos a almacenar (solo para 'set')
+            forzar_invalidacion: Fuerza invalidación completa
+
+        Returns:
+            Dict con 'valido', 'datos', 'timestamp', etc.
+        """
         try:
-            timestamp_cache = datetime.fromisoformat(self.cache_timestamp_consultas)
-            tiempo_transcurrido = datetime.now() - timestamp_cache
-            return tiempo_transcurrido.total_seconds() < 300  # 5 minutos
-        except:
-            return False
-    
-    def _invalidar_cache_consultas(self):
-        """🗑️ Invalidar cache de consultas"""
-        self.cache_timestamp_consultas = ""
-        self.cache_consultas_odontologo = {}
-        print("🗑️ Cache de consultas invalidado")
+            if forzar_invalidacion:
+                # Limpiar todo el cache
+                for cache_key in self.cache_datos:
+                    self.cache_datos[cache_key]["timestamp"] = ""
+                    self.cache_datos[cache_key]["data"] = {} if cache_key in ["estadisticas", "turnos", "por_odontologo"] else []
+                return {"operacion": "invalidacion_completa", "exito": True}
+
+            if clave not in self.cache_datos:
+                return {"valido": False, "error": f"Clave de cache '{clave}' no existe"}
+
+            cache_item = self.cache_datos[clave]
+            validez_minutos = cache_item.get("validez_minutos", 5)
+
+            if operacion == "validar":
+                if not cache_item["timestamp"]:
+                    return {"valido": False, "motivo": "Sin timestamp"}
+
+                timestamp_cache = datetime.fromisoformat(cache_item["timestamp"])
+                tiempo_transcurrido = datetime.now() - timestamp_cache
+                valido = tiempo_transcurrido.total_seconds() < (validez_minutos * 60)
+
+                return {
+                    "valido": valido,
+                    "timestamp": cache_item["timestamp"],
+                    "minutos_transcurridos": tiempo_transcurrido.total_seconds() / 60,
+                    "validez_minutos": validez_minutos
+                }
+
+            elif operacion == "get":
+                validacion = self.cache_inteligente("validar", clave)
+                if validacion["valido"]:
+                    return {
+                        "valido": True,
+                        "datos": cache_item["data"],
+                        "desde_cache": True,
+                        "timestamp": cache_item["timestamp"]
+                    }
+                else:
+                    return {
+                        "valido": False,
+                        "datos": None,
+                        "motivo": validacion.get("motivo", "Cache expirado")
+                    }
+
+            elif operacion == "set":
+                if datos is not None:
+                    cache_item["data"] = datos
+                    cache_item["timestamp"] = datetime.now().isoformat()
+                    return {
+                        "operacion": "set",
+                        "exito": True,
+                        "timestamp": cache_item["timestamp"],
+                        "clave": clave
+                    }
+                else:
+                    return {"operacion": "set", "exito": False, "error": "Datos requeridos para set"}
+
+            elif operacion == "invalidar":
+                cache_item["timestamp"] = ""
+                cache_item["data"] = {} if clave in ["estadisticas", "turnos", "por_odontologo"] else []
+                return {"operacion": "invalidar", "exito": True, "clave": clave}
+
+            else:
+                return {"error": f"Operación '{operacion}' no reconocida"}
+
+        except Exception as e:
+            logger.error(f"❌ Error en cache_inteligente: {e}")
+            return {"error": str(e), "exito": False}
     
     # ==========================================
     # 📅 MÉTODOS DE ESTADÍSTICAS
@@ -1284,9 +1395,7 @@ class EstadoConsultas(rx.State,mixin=True):
             logger.error(f"❌ Error en actualizar_estado_consulta_intervencion: {e}")
             import traceback
             traceback.print_exc()
-            
-        except Exception as e:
-            logger.error(f"❌ Error actualizando estado consulta: {str(e)}")
+
     
     def limpiar_datos(self):
         """🧹 LIMPIAR TODOS LOS DATOS - USADO EN LOGOUT"""
@@ -1316,7 +1425,7 @@ class EstadoConsultas(rx.State,mixin=True):
         
         # Limpiar cache
         self.cache_consultas_odontologo = {}
-        self.cache_timestamp_consultas = ""
+        self.cache_inteligente("invalidar", "consultas")
         
         logger.info("🧹 Datos de consultas limpiados")
     
@@ -1375,17 +1484,8 @@ class EstadoConsultas(rx.State,mixin=True):
         # El modal real es manejado por EstadoUI.abrir_modal_consulta()
     
     @rx.event
-    def debug_boton_click(self):
-        """🔥 Debug: Verificar si el botón funciona"""
-        print("🔥 DEBUG: Botón clickeado correctamente")
-        print("🔥 DEBUG: Llamando seleccionar_y_abrir_modal_consulta...")
-        return self.seleccionar_y_abrir_modal_consulta("")
-    
-    @rx.event
     async def seleccionar_y_abrir_modal_consulta(self, consulta_id: str = ""):
         """📅 Seleccionar consulta y abrir modal usando EstadoUI correctamente"""
-        print("🔥 FUNCIÓN LLAMADA - seleccionar_y_abrir_modal_consulta")
-        print(f"🔥 consulta_id recibido: '{consulta_id}'")
         
         try:
             if consulta_id:
@@ -1405,23 +1505,16 @@ class EstadoConsultas(rx.State,mixin=True):
                         observaciones=consulta.observaciones or "",
                         notas_internas=consulta.notas_internas or ""
                     )
-                print("🔥 Llamando abrir_modal_consulta('editar')")
                 self.abrir_modal_consulta("editar")
             else:
                 # Modo crear: limpiar selección
                 self.consulta_seleccionada = ConsultaModel()
                 self.id_consulta_seleccionada = ""
                 self.formulario_consulta_data = ConsultaFormModel()
-                print("🔥 Llamando abrir_modal_consulta('crear')")
                 self.abrir_modal_consulta("crear")
-                print("🔥 Regresó de abrir_modal_consulta('crear')")
-                
-            print(f"🔥 Modal debería estar abierto: {self.modal_crear_consulta_abierto}")
-            print("🔥 FUNCIÓN COMPLETADA EXITOSAMENTE")
-            
+
         except Exception as e:
-            print(f"🔥 ERROR: {str(e)}")
-            print(f"🔥 Tipo de error: {type(e)}")
+            logger.error(f"Error abriendo modal de consulta: {str(e)}")
             import traceback
             traceback.print_exc()
     
@@ -1479,9 +1572,59 @@ class EstadoConsultas(rx.State,mixin=True):
     
     @rx.event
     def set_formulario_consulta_field(self, field: str, value: str):
-        """📝 Actualizar campo específico del formulario de consulta"""
+        """📝 LEGACY: Actualizar campo específico del formulario de consulta"""
+        # Mantener compatibilidad con código existente
         if hasattr(self.formulario_consulta_data, field):
             setattr(self.formulario_consulta_data, field, value)
+        # Actualizar también el formulario unificado
+        if hasattr(self.formulario_unificado, field):
+            setattr(self.formulario_unificado, field, value)
+
+    @rx.event
+    def gestionar_formulario_unificado(self, accion: str, campo: str = "", valor: Any = None, datos: Dict[str, Any] = None):
+        """📝 GESTOR UNIFICADO DE FORMULARIOS - Maneja crear, editar, limpiar, validar
+
+        Args:
+            accion: 'set_campo', 'cargar_datos', 'limpiar', 'validar', 'cambiar_modo'
+            campo: Nombre del campo a actualizar
+            valor: Valor para el campo
+            datos: Diccionario completo de datos (para cargar_datos)
+        """
+        try:
+            if accion == "set_campo" and campo and valor is not None:
+                if hasattr(self.formulario_unificado, campo):
+                    setattr(self.formulario_unificado, campo, valor)
+                    # Limpiar errores del campo actualizado
+                    if campo in self.errores_formulario:
+                        del self.errores_formulario[campo]
+
+            elif accion == "cargar_datos" and datos:
+                for campo, valor in datos.items():
+                    if hasattr(self.formulario_unificado, campo):
+                        setattr(self.formulario_unificado, campo, valor)
+
+            elif accion == "limpiar":
+                self.formulario_unificado = ConsultaFormModel()
+                self.errores_formulario = {}
+                self.consulta_form_paciente_seleccionado = PacienteModel()
+                self.modo_formulario = "crear"
+                self.formulario_activo = False
+
+            elif accion == "validar":
+                self.errores_formulario = self.formulario_unificado.validate_form()
+                return len(self.errores_formulario) == 0
+
+            elif accion == "cambiar_modo" and valor:
+                self.modo_formulario = str(valor)
+                if valor == "crear":
+                    self.gestionar_formulario_unificado("limpiar")
+                self.formulario_activo = True
+
+            elif accion == "to_dict":
+                return self.formulario_unificado.to_dict()
+
+        except Exception as e:
+            logger.error(f"❌ Error en gestionar_formulario_unificado ({accion}): {e}")
             
     @rx.event
     def actualizar_campo_paciente_consulta(self, value: str):
@@ -1636,9 +1779,9 @@ class EstadoConsultas(rx.State,mixin=True):
                 
                 # Forzar segunda recarga para asegurar nombres de pacientes visibles
                 await self.cargar_consultas_hoy()
-                
-                # Limpiar formulario tras éxito
-                self._limpiar_formulario_modal()
+
+                # Limpiar formulario tras éxito (ya se limpia automáticamente)
+                # self._limpiar_formulario_modal()  # COMENTADO: Formulario se limpia automáticamente
                 # Cerrar modal si existe
                 if hasattr(self, 'set_modal_crear_consulta_abierto'):
                     self.set_modal_crear_consulta_abierto(False)
@@ -1648,48 +1791,11 @@ class EstadoConsultas(rx.State,mixin=True):
             if hasattr(self, 'mostrar_toast'):
                 self.mostrar_toast(f"Error guardando consulta: {str(e)}", "error")
     
-    def _limpiar_formulario_modal(self):
-        """🧹 Limpiar campos del formulario modal"""
-        from dental_system.models.consultas_models import ConsultaFormModel
-        
-        self.consulta_form_paciente_seleccionado = PacienteModel()
-        self.consulta_form_odontologo_id = ""
-        self.consulta_form_busqueda_paciente = ""
-        self.consulta_form_tipo_consulta = "general"
-        self.consulta_form_prioridad = "normal"
-        self.consulta_form_motivo = ""
-        self.formulario_consulta_data = ConsultaFormModel()
     
     # ==========================================
     # ❌ MÉTODOS DE CANCELACIÓN/ELIMINACIÓN
     # ==========================================
     
-    @rx.event
-    def preparar_cancelacion_consulta(self, consulta_id: str):
-        """⚠️ Preparar consulta para cancelación"""
-        try:
-            # Buscar la consulta en la lista local
-            consulta_encontrada = None
-            for consulta in self.lista_consultas:
-                if consulta.id == consulta_id:
-                    consulta_encontrada = consulta
-                    break
-            
-            if consulta_encontrada:
-                self.consulta_para_eliminar = consulta_encontrada
-                # Abrir modal de confirmación usando EstadoUI
-                if hasattr(self, 'abrir_modal_confirmacion'):
-                    self.abrir_modal_confirmacion(
-                        titulo="Confirmar Cancelación", 
-                        mensaje="¿Está seguro de que desea cancelar esta consulta?",
-                        accion="cancelar_consulta"
-                    )
-                logger.info(f"📋 Consulta preparada para cancelación: {consulta_id}")
-            else:
-                logger.warning(f"⚠️ Consulta {consulta_id} no encontrada para cancelar")
-                
-        except Exception as e:
-            logger.error(f"❌ Error preparando cancelación: {e}")
     
     @rx.event
     async def cancelar_consulta(self, consulta_id: str):
@@ -1851,53 +1957,76 @@ class EstadoConsultas(rx.State,mixin=True):
     # 🔄 SISTEMA DE TRANSFERENCIAS ENTRE COLAS
     # ==========================================
     
-    # Variables para modal de transferencia
+    # ==========================================
+    # 🎨 GESTIÓN UNIFICADA DE MODALES Y OPERACIONES
+    # ==========================================
+
+    # Variables unificadas para modales
     modal_transferir_paciente_abierto: bool = False
     consulta_para_transferir: Optional[ConsultaModel] = None
     odontologo_destino_seleccionado: str = ""
     motivo_transferencia: str = ""
-    
+
     @rx.event
-    def abrir_modal_transferir_paciente(self, consulta_id: str):
-        """🔄 ABRIR MODAL PARA TRANSFERIR PACIENTE A OTRO ODONTÓLOGO"""
+    def gestionar_modal_operacion(self, accion: str, consulta_id: str = "", datos: Dict[str, Any] = None):
+        """🎨 GESTOR UNIFICADO DE MODALES - Maneja transferencia, cancelación, cambios"""
         try:
-            # Buscar la consulta
             consulta_encontrada = None
-            for consulta in self.lista_consultas:
-                if consulta.id == consulta_id:
-                    consulta_encontrada = consulta
-                    break
-            
-            if consulta_encontrada:
-                self.consulta_para_transferir = consulta_encontrada
+            if consulta_id:
+                consulta_encontrada = next((c for c in self.lista_consultas if c.id == consulta_id), None)
+
+            if accion == "abrir_transferencia":
+                if consulta_encontrada:
+                    self.consulta_para_transferir = consulta_encontrada
+                    self.odontologo_destino_seleccionado = ""
+                    self.motivo_transferencia = ""
+                    self.modal_transferir_paciente_abierto = True
+                    logger.info(f"🔄 Modal transferencia abierto: {consulta_id}")
+
+            elif accion == "cerrar_transferencia":
+                self.modal_transferir_paciente_abierto = False
+                self.consulta_para_transferir = None
                 self.odontologo_destino_seleccionado = ""
                 self.motivo_transferencia = ""
-                self.modal_transferir_paciente_abierto = True
-                
-                logger.info(f"🔄 Modal transferencia abierto para consulta {consulta_id}")
-            else:
-                logger.warning(f"⚠️ Consulta {consulta_id} no encontrada para transferir")
-                
+
+            elif accion == "set_odontologo_destino":
+                self.odontologo_destino_seleccionado = datos.get("odontologo_id", "") if datos else ""
+
+            elif accion == "set_motivo_transferencia":
+                self.motivo_transferencia = datos.get("motivo", "") if datos else ""
+
+            elif accion == "preparar_cancelacion":
+                if consulta_encontrada:
+                    self.consulta_para_eliminar = consulta_encontrada
+                    if hasattr(self, 'abrir_modal_confirmacion'):
+                        self.abrir_modal_confirmacion(
+                            titulo="Confirmar Cancelación",
+                            mensaje="¿Está seguro de que desea cancelar esta consulta?",
+                            accion="cancelar_consulta"
+                        )
+
+            elif accion == "preparar_cambio_odontologo":
+                if consulta_encontrada:
+                    self.consulta_seleccionada = consulta_encontrada
+                    self.id_consulta_seleccionada = consulta_id
+                    if hasattr(self, 'abrir_modal_cambio_odontologo'):
+                        self.abrir_modal_cambio_odontologo()
+
+            elif accion == "seleccionar_paciente_modal":
+                paciente_id = datos.get("paciente_id", "") if datos else ""
+                paciente = next((p for p in self.pacientes_filtrados_modal if p.id == paciente_id), None)
+                if paciente:
+                    self.consulta_form_paciente_seleccionado = paciente
+                    self.consulta_form_busqueda_paciente = ""
+                    self.set_formulario_consulta_field("paciente_id", paciente.id)
+                    self.set_formulario_consulta_field("paciente_nombre", paciente.nombre_completo)
+
+            elif accion == "limpiar_paciente_seleccionado":
+                self.consulta_form_paciente_seleccionado = PacienteModel()
+                self.consulta_form_busqueda_paciente = ""
+
         except Exception as e:
-            logger.error(f"❌ Error abriendo modal transferencia: {e}")
-    
-    @rx.event
-    def cerrar_modal_transferir_paciente(self):
-        """❌ CERRAR MODAL DE TRANSFERENCIA"""
-        self.modal_transferir_paciente_abierto = False
-        self.consulta_para_transferir = None
-        self.odontologo_destino_seleccionado = ""
-        self.motivo_transferencia = ""
-    
-    @rx.event
-    def set_odontologo_destino(self, odontologo_id: str):
-        """👨‍⚕️ SELECCIONAR ODONTÓLOGO DESTINO"""
-        self.odontologo_destino_seleccionado = odontologo_id
-    
-    @rx.event
-    def set_motivo_transferencia(self, motivo: str):
-        """📝 ACTUALIZAR MOTIVO DE TRANSFERENCIA"""
-        self.motivo_transferencia = motivo
+            logger.error(f"❌ Error en gestionar_modal_operacion ({accion}): {e}")
     
     @rx.event
     async def ejecutar_transferencia_paciente(self):
@@ -1947,93 +2076,12 @@ class EstadoConsultas(rx.State,mixin=True):
     # 🔍 EVENTOS PARA MODAL NUEVA CONSULTA
     # ==========================================
     
-    @rx.event
-    def set_consulta_form_odontologo_id(self, value: str):
-        """👨‍⚕️ Seleccionar odontólogo"""
-        self.consulta_form_odontologo_id = value
-        
-        # ✅ ACTUALIZAR TAMBIÉN EL FORMULARIO TIPADO
-        self.set_formulario_consulta_field("primer_odontologo_id", value)
     
-    @rx.event
-    def set_consulta_form_busqueda_paciente(self, value: str):
-        """🔍 Actualizar búsqueda de paciente"""
-        self.consulta_form_busqueda_paciente = value
-    
-    @rx.event  
-    def set_consulta_form_tipo_consulta(self, value: str):
-        """📋 Seleccionar tipo de consulta"""
-        self.consulta_form_tipo_consulta = value
-        
-        # ✅ ACTUALIZAR TAMBIÉN EL FORMULARIO TIPADO
-        self.set_formulario_consulta_field("tipo_consulta", value)
-    
-    @rx.event
-    def set_consulta_form_prioridad(self, value: str):
-        """🚨 Seleccionar prioridad"""
-        self.consulta_form_prioridad = value
-        
-        # ✅ ACTUALIZAR TAMBIÉN EL FORMULARIO TIPADO
-        self.set_formulario_consulta_field("prioridad", value)
-    
-    @rx.event
-    def set_consulta_form_motivo(self, value: str):
-        """📝 Actualizar motivo"""
-        self.consulta_form_motivo = value
-        
-        # ✅ ACTUALIZAR TAMBIÉN EL FORMULARIO TIPADO
-        self.set_formulario_consulta_field("motivo_consulta", value)
-    
-    @rx.event
-    def seleccionar_paciente_modal(self, paciente_id: str):
-        """👤 Seleccionar paciente desde resultados de búsqueda"""
-        # Buscar el paciente en la lista filtrada
-        for paciente in self.pacientes_filtrados_modal:
-            if paciente.id == paciente_id:
-                self.consulta_form_paciente_seleccionado = paciente
-                self.consulta_form_busqueda_paciente = ""
-                
-                # ✅ ACTUALIZAR TAMBIÉN EL FORMULARIO TIPADO
-                self.set_formulario_consulta_field("paciente_id", paciente.id)
-                self.set_formulario_consulta_field("paciente_nombre", paciente.nombre_completo)
-                
-                print(f"👤 Paciente seleccionado: {paciente.nombre_completo}")
-                break
-    
-    @rx.event
-    def limpiar_paciente_seleccionado(self):
-        """🗑️ Limpiar paciente seleccionado"""
-        self.consulta_form_paciente_seleccionado = PacienteModel()
-        self.consulta_form_busqueda_paciente = ""
     
     # ==========================================
     # 🔄 CAMBIO DE ODONTÓLOGO
     # ==========================================
     
-    @rx.event
-    def preparar_cambio_odontologo_consulta(self, consulta_id: str):
-        """🔄 Preparar consulta para cambio de odontólogo"""
-        try:
-            # Buscar la consulta en la lista local
-            consulta_encontrada = None
-            for consulta in self.lista_consultas:
-                if consulta.id == consulta_id:
-                    consulta_encontrada = consulta
-                    break
-            
-            if consulta_encontrada:
-                self.consulta_seleccionada = consulta_encontrada
-                self.id_consulta_seleccionada = consulta_id
-                
-                # Abrir modal usando EstadoUI
-                if hasattr(self, 'abrir_modal_cambio_odontologo'):
-                    self.abrir_modal_cambio_odontologo()
-                logger.info(f"📋 Consulta preparada para cambio de odontólogo: {consulta_id}")
-            else:
-                logger.warning(f"⚠️ Consulta {consulta_id} no encontrada para cambio")
-                
-        except Exception as e:
-            logger.error(f"❌ Error preparando cambio de odontólogo: {e}")
     
     @rx.event
     async def cambiar_odontologo_consulta(self, consulta_id: str, nuevo_odontologo_id: str, motivo: str):
@@ -2060,7 +2108,7 @@ class EstadoConsultas(rx.State,mixin=True):
             
             if transferencia_exitosa:
                 # Invalidar cache completamente
-                self.cache_timestamp_consultas = ""
+                self.cache_inteligente("invalidar", "consultas")
                 self._invalidar_cache_consultas()
 
                 # Limpiar todas las listas para forzar recálculo

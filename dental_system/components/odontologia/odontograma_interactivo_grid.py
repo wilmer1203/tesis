@@ -7,11 +7,114 @@ import reflex as rx
 # Imports del sistema
 from dental_system.models.odontograma_avanzado_models import DienteInteractivoModel
 from dental_system.state.app_state import AppState
-from dental_system.components.odontologia.diente_interactivo import (
-    diente_interactivo,
-    selector_condiciones_cara
+from dental_system.components.odontologia.interactive_tooth import (
+    interactive_tooth
+)
+from dental_system.components.odontologia.condition_selector_modal import (
+    condition_selector_modal
 )
 from dental_system.styles.themes import COLORS, DARK_THEME, SHADOWS
+
+
+def odontograma_status_bar() -> rx.Component:
+    """
+    🚦 Barra de estado del odontograma V2.0 con feedback visual
+
+    Muestra estado de carga, guardado, errores y cambios pendientes
+    """
+    return rx.box(
+        rx.hstack(
+            # Información del paciente
+            rx.hstack(
+                rx.icon(tag="user", size=20, color=COLORS["primary"]["400"]),
+                rx.text(
+                    f"Paciente: {AppState.paciente_actual.primer_nombre} {AppState.paciente_actual.primer_apellido}",
+                    weight="medium",
+                    color=DARK_THEME["colors"]["text_primary"]
+                ),
+                spacing="2",
+                align="center"
+            ),
+
+            rx.spacer(),
+
+            # Estado del odontograma con animaciones
+            rx.cond(
+                AppState.odontograma_cargando,
+                rx.hstack(
+                    rx.spinner(size="2", color=COLORS["primary"]["400"]),
+                    rx.text(
+                        "Cargando odontograma...",
+                        color=COLORS["primary"]["400"],
+                        weight="medium"
+                    ),
+                    spacing="2",
+                    align="center"
+                ),
+                rx.cond(
+                    AppState.odontograma_guardando,
+                    rx.hstack(
+                        rx.spinner(size="2", color=COLORS["success"]["400"]),
+                        rx.text(
+                            "Guardando cambios...",
+                            color=COLORS["success"]["400"],
+                            weight="medium"
+                        ),
+                        spacing="2",
+                        align="center"
+                    ),
+                    rx.cond(
+                        AppState.odontograma_error != "",
+                        rx.hstack(
+                            rx.icon(tag="circle-alert", size=16, color=COLORS["error"]["400"]),
+                            rx.text(
+                                AppState.odontograma_error,
+                                color=COLORS["error"]["400"],
+                                weight="medium"
+                            ),
+                            spacing="2",
+                            align="center"
+                        ),
+                        rx.cond(
+                            AppState.cambios_sin_guardar,
+                            rx.hstack(
+                                rx.icon(tag="clock", size=16, color=COLORS["warning"]["400"]),
+                                rx.text(
+                                    "Cambios sin guardar",
+                                    color=COLORS["warning"]["400"],
+                                    weight="medium"
+                                ),
+                                spacing="2",
+                                align="center"
+                            ),
+                            rx.hstack(
+                                rx.icon(tag="circle-check", size=16, color=COLORS["success"]["400"]),
+                                rx.text(
+                                    "Sincronizado",
+                                    color=COLORS["success"]["400"],
+                                    weight="medium"
+                                ),
+                                spacing="2",
+                                align="center"
+                            )
+                        )
+                    )
+                )
+            ),
+
+            spacing="4",
+            align="center",
+            width="100%"
+        ),
+
+        # Estilo de la barra
+        padding="3",
+        background=f"linear-gradient(90deg, {DARK_THEME['colors']['surface']} 0%, {DARK_THEME['colors']['surface_secondary']} 100%)",
+        border_radius="12px",
+        border=f"1px solid {DARK_THEME['colors']['border']}",
+        margin_bottom="4",
+        width="100%"
+    )
 
 
 def odontograma_interactivo_grid() -> rx.Component:
@@ -29,9 +132,9 @@ def odontograma_interactivo_grid() -> rx.Component:
     """
     return rx.vstack(
         # =============================================
-        # HEADER CON CONTROLES Y ESTADÍSTICAS
+        # BARRA DE ESTADO DEL ODONTOGRAMA V2.0
         # =============================================
-        header_odontograma(),
+        odontograma_status_bar(),
 
         # =============================================
         # FILTROS Y CONTROLES
@@ -58,7 +161,7 @@ def odontograma_interactivo_grid() -> rx.Component:
                         margin_bottom="3"
                     ),
 
-                    # Cuadrantes superiores
+                    # Cuadrantes superiores mejorados
                     rx.hstack(
                         # Cuadrante 1 (Superior Derecho): 18-11
                         cuadrante_dientes(
@@ -67,12 +170,21 @@ def odontograma_interactivo_grid() -> rx.Component:
                             orden_reverso=True
                         ),
 
-                        # Separador central
-                        rx.divider(
-                            orientation="vertical",
-                            height="200px",
-                            border_color=DARK_THEME["colors"]["border"],
-                            border_width="2px"
+                        # Separador central mejorado
+                        rx.box(
+                            rx.divider(
+                                orientation="vertical",
+                                height="280px",
+                                border_color=f"{COLORS['primary']['400']}60",
+                                border_width="3px"
+                            ),
+                            style={
+                                "display": "flex",
+                                "align_items": "center",
+                                "justify_content": "center",
+                                "padding": "0 20px",
+                                "position": "relative"
+                            }
                         ),
 
                         # Cuadrante 2 (Superior Izquierdo): 21-28
@@ -82,24 +194,42 @@ def odontograma_interactivo_grid() -> rx.Component:
                             orden_reverso=False
                         ),
 
-                        spacing="6",
+                        spacing="4",
                         justify="center",
-                        align="start"
+                        align="center",
+                        width="100%"
                     ),
 
                     spacing="4"
                 ),
 
                 # ===============================
-                # SEPARADOR HORIZONTAL
+                # SEPARADOR HORIZONTAL MEJORADO
                 # ===============================
                 rx.center(
-                    rx.divider(
-                        width="90%",
-                        border_color=DARK_THEME["colors"]["border"],
-                        border_width="2px",
-                        margin_y="6"
-                    )
+                    rx.box(
+                        rx.divider(
+                            width="60%",
+                            border_color=f"{COLORS['primary']['400']}60",
+                            border_width="3px",
+                            margin_y="8"
+                        ),
+                        # Línea cruzada central
+                        rx.box(
+                            style={
+                                "position": "absolute",
+                                "top": "50%",
+                                "left": "50%",
+                                "transform": "translate(-50%, -50%)",
+                                "width": "3px",
+                                "height": "40px",
+                                "background": f"{COLORS['primary']['400']}60",
+                                "border_radius": "2px"
+                            }
+                        ),
+                        style={"position": "relative", "width": "100%"}
+                    ),
+                    margin_y="8"
                 ),
 
                 # ===============================
@@ -117,7 +247,7 @@ def odontograma_interactivo_grid() -> rx.Component:
                         margin_bottom="3"
                     ),
 
-                    # Cuadrantes inferiores
+                    # Cuadrantes inferiores mejorados
                     rx.hstack(
                         # Cuadrante 4 (Inferior Derecho): 48-41
                         cuadrante_dientes(
@@ -126,12 +256,21 @@ def odontograma_interactivo_grid() -> rx.Component:
                             orden_reverso=True
                         ),
 
-                        # Separador central
-                        rx.divider(
-                            orientation="vertical",
-                            height="200px",
-                            border_color=DARK_THEME["colors"]["border"],
-                            border_width="2px"
+                        # Separador central mejorado
+                        rx.box(
+                            rx.divider(
+                                orientation="vertical",
+                                height="280px",
+                                border_color=f"{COLORS['primary']['400']}60",
+                                border_width="3px"
+                            ),
+                            style={
+                                "display": "flex",
+                                "align_items": "center",
+                                "justify_content": "center",
+                                "padding": "0 20px",
+                                "position": "relative"
+                            }
                         ),
 
                         # Cuadrante 3 (Inferior Izquierdo): 31-38
@@ -141,9 +280,10 @@ def odontograma_interactivo_grid() -> rx.Component:
                             orden_reverso=False
                         ),
 
-                        spacing="6",
+                        spacing="4",
                         justify="center",
-                        align="start"
+                        align="center",
+                        width="100%"
                     ),
 
                     spacing="4"
@@ -164,21 +304,9 @@ def odontograma_interactivo_grid() -> rx.Component:
         ),
 
         # =============================================
-        # SELECTOR DE CONDICIONES (FLOTANTE)
+        # MODAL SELECTOR DE CONDICIONES V2.0
         # =============================================
-        rx.box(
-            selector_condiciones_cara(),
-            position="fixed",
-            top="50%",
-            left="50%",
-            transform="translate(-50%, -50%)",
-            z_index="1000",
-            display=rx.cond(
-                AppState.show_selector_condiciones,
-                "block",
-                "none"
-            )
-        ),
+        condition_selector_modal(),
 
         # =============================================
         # LEYENDA Y AYUDA
@@ -320,7 +448,7 @@ def controles_odontograma() -> rx.Component:
 
 def cuadrante_dientes(titulo: str, cuadrante_key: str, orden_reverso: bool = False) -> rx.Component:
     """
-    Cuadrante individual con 8 dientes
+    Cuadrante individual con 8 dientes V2.0 - Alineación mejorada
 
     Args:
         titulo: Título del cuadrante
@@ -328,34 +456,54 @@ def cuadrante_dientes(titulo: str, cuadrante_key: str, orden_reverso: bool = Fal
         orden_reverso: Si mostrar en orden reverso
 
     Returns:
-        Componente del cuadrante
+        Componente del cuadrante con mejor alineación
     """
-    return rx.vstack(
-        # Título del cuadrante
+    return rx.box(
+        # Título del cuadrante mejorado
         rx.center(
-            rx.text(
+            rx.badge(
                 titulo,
                 size="2",
-                weight="medium",
-                color=COLORS["gray"]["300"]
+                variant="soft",
+                color_scheme="blue" if "Sup" in titulo else "orange",
+                style={
+                    "font_weight": "semibold",
+                    "padding": "8px 16px",
+                    "border_radius": "12px"
+                }
             ),
-            margin_bottom="2"
+            margin_bottom="4"
         ),
 
-        # Grid de dientes del cuadrante usando computed var
-        rx.hstack(
-            rx.foreach(
-                AppState.dientes_por_cuadrante[cuadrante_key],
-                lambda diente: diente_interactivo(diente)
+        # Grid mejorado de dientes del cuadrante
+        rx.box(
+            rx.grid(
+                rx.foreach(
+                    AppState.dientes_por_cuadrante[cuadrante_key],
+                    lambda tooth_num: interactive_tooth(tooth_num)
+                ),
+                columns="4",  # 4 columnas para mejor distribución
+                gap="12px",   # Espaciado uniforme entre dientes
+                width="100%",
+                justify_content="center",
+                align_items="center"
             ),
-            spacing="2",
-            justify="center",
-            wrap="wrap"
+            style={
+                "background": f"linear-gradient(135deg, {DARK_THEME['colors']['surface']} 0%, {DARK_THEME['colors']['surface_secondary']} 100%)",
+                "border_radius": "16px",
+                "padding": "20px",
+                "border": f"1px solid {DARK_THEME['colors']['border']}",
+                "box_shadow": "inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 2px 8px rgba(0, 0, 0, 0.1)"
+            }
         ),
 
-        spacing="2",
-        align="center",
-        min_width="600px"
+        width="100%",
+        max_width="400px",  # Ancho máximo para mantener proporciones
+        style={
+            "display": "flex",
+            "flex_direction": "column",
+            "align_items": "center"
+        }
     )
 
 
@@ -486,8 +634,8 @@ def odontograma_principal_con_estados() -> rx.Component:
         odontograma_loading_state(),
 
         rx.cond(
-            AppState.error_mensaje != "",
-            odontograma_error_state(AppState.error_mensaje),
+            AppState.error_message != "",
+            odontograma_error_state( AppState.error_message),
 
             # ✅ CONTENIDO PRINCIPAL: Odontograma completo del paciente
             odontograma_interactivo_grid()

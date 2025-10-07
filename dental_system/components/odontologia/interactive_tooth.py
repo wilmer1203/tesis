@@ -160,28 +160,32 @@ CONDITION_CATEGORIES = {
 
 # Dimensiones y estilo del diente
 TOOTH_STYLE = {
-    "width": "60px",
-    "height": "60px",
+    "width": "80px",                   # Aumentado de 60px a 80px para mejor visibilidad
+    "height": "80px",                  # Aumentado de 60px a 80px para mejor visibilidad
     "border_radius": RADIUS["xl"],
     "position": "relative",
     "cursor": "pointer",
-    "transition": "all 0.2s ease",
+    "transition": "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
     "display": "flex",
     "align_items": "center",
     "justify_content": "center",
-    "font_size": "12px",
+    "font_size": "14px",               # Aumentado para mejor legibilidad
     "font_weight": "bold",
     "color": DARK_THEME["colors"]["text_primary"],
     "border": f"2px solid {DARK_THEME['colors']['primary']}",
-    "background": DARK_THEME["colors"]["surface_secondary"]
+    "background": f"linear-gradient(145deg, {DARK_THEME['colors']['surface_elevated']} 0%, {DARK_THEME['colors']['surface_secondary']} 100%)",
+    "box_shadow": f"{SHADOWS['md']}, inset 0 1px 0 rgba(255, 255, 255, 0.1)",
+    "margin": "4px"                    # Espaciado uniforme entre dientes
 }
 
 # Estilo cuando el diente está seleccionado
 TOOTH_SELECTED_STYLE = {
     **TOOTH_STYLE,
     "border": f"3px solid {COLORS['primary']['500']}",
-    "box_shadow": f"0 0 20px {COLORS['primary']['500']}40",
-    "transform": "scale(1.05)"
+    "box_shadow": f"0 0 20px {COLORS['primary']['500']}40, 0 8px 25px rgba(0, 0, 0, 0.15)",
+    "transform": "scale(1.08)",
+    "z_index": "10",
+    "background": f"linear-gradient(145deg, {COLORS['primary']['900']}20 0%, {DARK_THEME['colors']['surface_elevated']} 100%)"
 }
 
 # Posicionamiento anatómico de las 5 superficies
@@ -320,19 +324,14 @@ def tooth_surface_optimized(tooth_number: int, surface_name: str) -> rx.Componen
         rx.box(
             style={
                 **surface_style,
-                "background": rx.color_mode_cond(
-                    # Usar la computed var optimizada para obtener el color
-                    rx.match(
-                        AppState.dientes_estados[tooth_number].get(surface_name, "sano"),
-                        *[(cond, color) for cond, color in CONDITION_COLORS.items()],
-                        CONDITION_COLORS["sano"]  # Valor por defecto
-                    )
+                "background": get_condition_color(
+                    AppState.condiciones_por_diente.get(tooth_number, {}).get(surface_name, "sano")
                 ),
                 "border": rx.cond(
                     AppState.diente_seleccionado == tooth_number,
                     f"2px solid {COLORS['primary']['500']}",
                     rx.cond(
-                        AppState.diente_tiene_cambios(tooth_number),
+                        AppState.cambios_sin_guardar,
                         f"2px solid {COLORS['warning']['500']}",
                         f"1px solid {DARK_THEME['colors']['border']}"
                     )
@@ -340,8 +339,7 @@ def tooth_surface_optimized(tooth_number: int, surface_name: str) -> rx.Componen
                 "cursor": "pointer",
                 "transition": "all 0.2s ease",
                 "opacity": rx.cond(
-                    (AppState.diente_seleccionado == tooth_number) | 
-                    AppState.diente_tiene_cambios(tooth_number),
+                    (AppState.diente_seleccionado == tooth_number) | AppState.cambios_sin_guardar,
                     "1.0",
                     "0.8"
                 ),
@@ -351,13 +349,13 @@ def tooth_surface_optimized(tooth_number: int, surface_name: str) -> rx.Componen
                     "2"
                 ),
                 "box_shadow": rx.cond(
-                    AppState.diente_tiene_cambios(tooth_number),
+                    AppState.cambios_sin_guardar,
                     f"0 0 8px {COLORS['warning']['500']}40",
                     "none"
                 )
             },
-            # Event handler optimizado - usar el método optimizado del estado
-            on_click=AppState.seleccionar_diente(tooth_number),
+            # Event handler V2.0 - incluye superficie específica
+            on_click=lambda: AppState.seleccionar_diente_superficie(tooth_number, surface_name),
             
             # Hover effects mejorados
             _hover={
@@ -366,7 +364,7 @@ def tooth_surface_optimized(tooth_number: int, surface_name: str) -> rx.Componen
                 "z_index": "4"
             }
         ),
-        content=f"{surface_name.title()}: {AppState.dientes_estados[tooth_number].get(surface_name, 'sano')}"
+        content=f"{surface_name.title()}: Click para editar"
     )
 
 # ==========================================
@@ -658,8 +656,23 @@ def get_tooth_type_name(tooth_number: int) -> str:
 # ==========================================
 
 def get_condition_color(condition: str) -> str:
-    """Obtener color hexadecimal para una condición específica"""
-    return CONDITION_COLORS.get(condition, CONDITION_COLORS["sano"])
+    """Obtener color hexadecimal para una condición específica - Compatible V2.0"""
+    # Usar los colores definidos en el estado V2.0
+    condition_colors = {
+        "sano": "#90EE90",
+        "caries": "#FF0000",
+        "obturado": "#C0C0C0",
+        "endodoncia": "#FFD700",
+        "corona": "#4169E1",
+        "puente": "#800080",
+        "extraccion": "#8B0000",
+        "ausente": "#FFFFFF",
+        "fractura": "#FF6347",
+        "implante": "#32CD32",
+        "protesis": "#DA70D6",
+        "giroversion": "#FF8C00"
+    }
+    return condition_colors.get(condition, "#90EE90")
 
 def get_condition_name(condition: str) -> str:
     """Obtener nombre legible para una condición"""
