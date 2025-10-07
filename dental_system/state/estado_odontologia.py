@@ -1329,9 +1329,8 @@ class EstadoOdontologia(rx.State, mixin=True):
                 
                 # Alertar si el precio es muy alto (más de $500)
                 if precio_base > 500:
-                    from dental_system.state.estado_ui import EstadoUI
-                    ui_state = self.get_state(EstadoUI)
-                    ui_state.mostrar_toast(f"Precio alto detectado: ${precio_base:,.2f} - Verificar", "warning")
+                    # Con mixin=True, mostrar_toast está disponible directamente
+                    self.mostrar_toast(f"Precio alto detectado: ${precio_base:,.2f} - Verificar", "warning")
                 
                 # Proceder con selección normal
                 self.seleccionar_servicio(servicio_id)
@@ -1349,17 +1348,15 @@ class EstadoOdontologia(rx.State, mixin=True):
                 
             precio = float(precio_str)
             precio_base = float(self.precio_servicio_base or 0)
-            
-            from dental_system.state.estado_ui import EstadoUI
-            ui_state = self.get_state(EstadoUI)
-            
+
+            # Con mixin=True, mostrar_toast está disponible directamente
             # Precio muy alto
             if precio_base > 0 and precio > (precio_base * 3):
-                ui_state.mostrar_toast(f"Precio alto: {precio/precio_base:.1f}x el precio base", "warning")
-            
+                self.mostrar_toast(f"Precio alto: {precio/precio_base:.1f}x el precio base", "warning")
+
             # Precio muy bajo
             elif precio_base > 0 and precio < (precio_base * 0.5):
-                ui_state.mostrar_toast(f"Precio bajo: Verificar descuento", "info")
+                self.mostrar_toast(f"Precio bajo: Verificar descuento", "info")
                 
         except ValueError:
             # Error de formato, se maneja en las validaciones principales
@@ -1868,9 +1865,8 @@ class EstadoOdontologia(rx.State, mixin=True):
         logger.error(f"{contexto}: {str(error)}")
         
         try:
-            from dental_system.state.estado_ui import EstadoUI
-            ui_state = self.get_state(EstadoUI)
-            ui_state.mostrar_toast_error(f"Error: {contexto}")
+            # Con mixin=True, mostrar_toast_error está disponible directamente
+            self.mostrar_toast_error(f"Error: {contexto}")
         except Exception:
             pass
     
@@ -2038,8 +2034,7 @@ class EstadoOdontologia(rx.State, mixin=True):
 
             # 4. Cambiar estado de consulta a "en_atencion" si está "en_espera"
             if consulta_encontrada.estado in ["en_espera", "programada"]:
-                from dental_system.state.estado_consultas import EstadoConsultas
-                estado_consultas = self.get_state(EstadoConsultas)
+                # Con mixin=True, acceso directo a métodos de EstadoConsultas
                 await self.iniciar_atencion_consulta(
                     consulta_id,
                     estado_objetivo="en_atencion"
@@ -2057,8 +2052,7 @@ class EstadoOdontologia(rx.State, mixin=True):
             self.modo_formulario = "crear"
 
             # 9. Navegar a página de intervención
-            from dental_system.state.estado_ui import EstadoUI
-            ui_state = self.get_state(EstadoUI)
+            # Con mixin=True, navigate_to está disponible directamente
             self.navigate_to(
                 "intervencion",
                 f"Atención Odontológica - {paciente_encontrado.nombre_completo}",
@@ -2069,9 +2063,6 @@ class EstadoOdontologia(rx.State, mixin=True):
 
         except Exception as e:
             logger.error(f"❌ Error en seleccionar_paciente_consulta: {str(e)}")
-            from dental_system.state.estado_ui import EstadoUI
-            ui_state = self.get_state(EstadoUI)
-           
             self.mostrar_toast_error("Error al seleccionar paciente")
     
     @rx.event
