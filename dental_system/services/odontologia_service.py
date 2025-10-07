@@ -521,30 +521,45 @@ class OdontologiaService(BaseService):
     async def get_or_create_patient_odontogram(self, paciente_id: str, odontologo_id: str) -> Dict[str, Any]:
         """
         🔄 Obtener o crear odontograma del paciente para interacción
-        
+
+        FLUJO SIMPLIFICADO:
+        1. Buscar odontograma activo del paciente
+        2. Si existe → cargar condiciones y retornar
+        3. Si NO existe → crear odontograma + condiciones iniciales "sano"
+
         Args:
-            paciente_id: ID del paciente
-            odontologo_id: ID del odontólogo que creará/accederá
-            
+            paciente_id: ID del paciente (numero_historia)
+            odontologo_id: ID del odontólogo que accede/crea
+
         Returns:
-            Diccionario con estructura de odontograma y condiciones
+            {
+                "id": str,                           # ID del odontograma
+                "conditions": Dict[int, Dict[str, str]],  # {diente: {superficie: condicion}}
+                "version": int,                      # Versión del odontograma
+                "is_new": bool                       # True si se acaba de crear
+            }
         """
         try:
-            # # Verificar permisos de odontología
-            # if not self.check_permission("odontograma", "leer"):
-            #     raise PermissionError("Sin permisos para acceder a odontogramas")
-                
-            # Buscar odontograma existente activo
+            logger.info(f"📋 Buscando odontograma para paciente {paciente_id}")
+
+            # PASO 1: Buscar odontograma activo existente
             existing_odontogram = odontograms_table.get_active_odontogram(paciente_id)
-            
+
             if existing_odontogram:
-                # Cargar condiciones del odontograma existente
+                logger.info(f"✅ Odontograma existente encontrado: {existing_odontogram['id']}")
+
+                # PASO 2A: Cargar condiciones del odontograma (sin JOIN complejo)
                 conditions = condiciones_diente_table.get_by_odontograma(existing_odontogram['id'])
-                
-                # Organizar condiciones por diente y superficie
-                organized_conditions = self._organize_conditions_by_tooth(conditions)
-                
-                logger.info(f"✅ Odontograma existente cargado para paciente {paciente_id}")
+
+                # Si tiene condiciones, organizarlas
+                if conditions:
+                    organized_conditions = self._organize_conditions_by_tooth(conditions)
+                    logger.info(f"✅ Cargadas {len(conditions)} condiciones del odontograma")
+                else:
+                    # Odontograma existe pero sin condiciones → inicializar
+                    logger.warning(f"⚠️ Odontograma sin condiciones, inicializando...")
+                    organized_conditions = self._create_initial_tooth_conditions(existing_odontogram['id'])
+
                 return {
                     "id": existing_odontogram['id'],
                     "conditions": organized_conditions,
@@ -552,31 +567,31 @@ class OdontologiaService(BaseService):
                     "is_new": False
                 }
             else:
-                # Crear nuevo odontograma con condiciones "sano" por defecto
-                new_odontogram_data = {
-                    "paciente_id": paciente_id,
-                    "odontologo_id": odontologo_id,
-                    "tipo_odontograma": "adulto",
-                    "activo": True,
-                    "notas_generales": "",
-                    "template_usado": "universal"
-                }
-                
-                new_odontogram = odontograms_table.create(new_odontogram_data)
-                
-                # Crear condiciones iniciales "sano" para todos los 32 dientes
+                # PASO 2B: Crear nuevo odontograma desde cero
+                logger.info(f"📝 Creando nuevo odontograma para paciente {paciente_id}")
+
+                new_odontogram = odontograms_table.create_odontogram(
+                    paciente_id=paciente_id,
+                    odontologo_id=odontologo_id,
+                    tipo_odontograma="adulto",
+                    notas_generales="Odontograma inicial",
+                    template_usado="fdi_32_adulto"
+                )
+
+                # Crear condiciones iniciales "sano" (32 dientes × 5 superficies)
                 initial_conditions = self._create_initial_tooth_conditions(new_odontogram['id'])
-                
-                logger.info(f"✅ Nuevo odontograma creado para paciente {paciente_id}")
+
+                logger.info(f"✅ Nuevo odontograma creado: {new_odontogram['id']} con 160 condiciones")
                 return {
                     "id": new_odontogram['id'],
                     "conditions": initial_conditions,
                     "version": 1,
                     "is_new": True
                 }
-                
+
         except Exception as e:
-            logger.error(f"❌ Error obteniendo/creando odontograma: {str(e)}")
+            logger.error(f"❌ Error en get_or_create_patient_odontogram: {str(e)}")
+            logger.exception(e)  # Log completo del stack trace
             raise ValueError(f"Error de odontograma: {str(e)}")
 
     async def save_odontogram_conditions(self, odontogram_id: str, conditions_changes: Dict[int, Dict[str, str]]) -> bool:

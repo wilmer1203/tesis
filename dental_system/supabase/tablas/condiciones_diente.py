@@ -70,19 +70,19 @@ class CondicionesDienteTable(BaseTable):
     def get_by_odontograma(self, odontograma_id: str) -> List[Dict[str, Any]]:
         """
         Obtiene todas las condiciones de un odontograma
-        
+
         Args:
             odontograma_id: ID del odontograma
-            
+
         Returns:
             Lista de condiciones del odontograma
         """
         logger.info(f"Obteniendo condiciones del odontograma {odontograma_id}")
         query = self.table.select("""
             *,
-            dientes(numero_diente, nombre_diente, tipo_diente, ubicacion)
+            dientes(numero_diente, nombre, tipo_diente, ubicacion)
         """).eq("odontograma_id", odontograma_id).eq("estado", "actual").order("fecha_registro", desc=True)
-        
+
         response = query.execute()
         return response.data or []
     
