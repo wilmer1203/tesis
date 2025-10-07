@@ -1921,3 +1921,5 @@ For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/St
 2025-09-26 04:38:30 | ERROR    | dental_system.state.estado_consultas | iniciar_atencion_consulta:527 | Error iniciando consulta: Error inesperado: Errores de validación: {'paciente_id': ['Paciente es requerido'], 'primer_odontologo_id': ['Odontólogo principal es requerido'], 'motivo_consulta': ['Motivo de consulta es requerido']}
 2025-10-07 06:51:14 | INFO     | dental_system.state.estado_intervencion_servicios | _crear_servicios_ejemplo:182 | 📋 Usando servicios de ejemplo: 5 servicios
 2025-10-07 06:51:14 | WARNING  | dental_system.state.estado_intervencion_servicios | servicios_para_selector:128 | ⚠️ Usando servicios de ejemplo: 5 servicios
+2025-10-07 06:52:11 | INFO     | dental_system.state.estado_intervencion_servicios | _crear_servicios_ejemplo:182 | 📋 Usando servicios de ejemplo: 5 servicios
+2025-10-07 06:52:11 | WARNING  | dental_system.state.estado_intervencion_servicios | servicios_para_selector:128 | ⚠️ Usando servicios de ejemplo: 5 servicios
