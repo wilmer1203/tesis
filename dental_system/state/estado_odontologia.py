@@ -21,7 +21,7 @@ import logging
 # Servicios y modelos
 from dental_system.services.odontologia_service import odontologia_service
 from dental_system.services.servicios_service import servicios_service
-from dental_system.state.estado_odontograma_avanzado import EstadoOdontogramaAvanzado
+# REFACTOR FASE 4: EstadoOdontogramaAvanzado eliminado - funcionalidad integrada aquí
 from dental_system.state.estado_ui import EstadoUI
 from dental_system.models import (
     PacienteModel,
@@ -37,7 +37,7 @@ from dental_system.models import (
 
 logger = logging.getLogger(__name__)
 
-class EstadoOdontologia(EstadoOdontogramaAvanzado):
+class EstadoOdontologia(EstadoOdontogramaAvanzado, mixin=True):
     """
     🦷 ESTADO ESPECIALIZADO EN MÓDULO ODONTOLÓGICO
     
@@ -114,47 +114,91 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado):
     
     # Variables auxiliares para el formulario
     precio_servicio_base: float = 0.0  # Precio base del servicio seleccionado
-    
+
     # ==========================================
-    # 📊 COMPUTED VARS OPTIMIZADAS PARA ODONTOGRAMA
+    # 🌟 VARIABLES V4.0 - NUEVO DISEÑO PROFESIONAL
     # ==========================================
-    
-    # Los métodos surface_condition_optimized, tooth_has_changes_optimized y
-    # selected_tooth_info_optimized han sido reemplazados por la funcionalidad
-    # proporcionada por EstadoOdontogramaAvanzado
-    
-    @rx.var(cache=True)
-    def surface_condition_optimized(self) -> Dict[str, str]:
-        """⚡ Proxy al estado del odontograma avanzado"""
-        result: Dict[str, str] = {}
-        for numero_fdi, estado in self.dientes_estados.items():
-            for superficie in ["oclusal", "mesial", "distal", "vestibular", "lingual"]:
-                key = f"{numero_fdi}_{superficie}"
-                result[key] = estado.get("codigo", "SAO")
-        return result
-        
-    @rx.var(cache=True)
-    def selected_tooth_info_optimized(self) -> Dict[str, Any]:
-        """⚡ Info del diente seleccionado usando el estado avanzado"""
-        if not self.diente_seleccionado:
-            return {"tooth": None, "surfaces": {}, "pending": {}, "quadrant": 0}
-            
-        # Obtener información del diente del catálogo
-        diente_info = next(
-            (d for d in self.dientes_catalogo if d["numero_fdi"] == self.diente_seleccionado),
-            None
-        )
-        
-        if not diente_info:
-            return {"tooth": None, "surfaces": {}, "pending": {}, "quadrant": 0}
-            
-        return {
-            "tooth": self.diente_seleccionado,
-            "surfaces": self.dientes_estados.get(self.diente_seleccionado, {}),
-            "pending": {},  # No hay cambios pendientes en el nuevo sistema
-            "quadrant": diente_info["cuadrante"],
-            "has_changes": False  # Los cambios son inmediatos en el nuevo sistema
-        }
+
+    # Control del odontograma profesional
+    selected_tooth: Optional[int] = None  # Diente seleccionado en el grid
+    active_sidebar_tab: str = "historial"  # Tab activo del sidebar (historial|info)
+    show_timeline: bool = False  # Mostrar/ocultar timeline de intervenciones
+
+    # Filtros del timeline
+    timeline_filter_dentist: str = "all"  # Filtro por dentista
+    timeline_filter_procedure: str = "all"  # Filtro por procedimiento
+    timeline_filter_period: str = "all"  # Filtro por período (all|7|30|90)
+
+    # ==========================================
+    # 💉 VARIABLES PARA INTERVENCIONES COMPLETAS
+    # ==========================================
+
+    # Lista de servicios aplicados con sus dientes específicos
+    servicios_intervencion: List[Dict[str, Any]] = []
+    # Estructura: {
+    #   "servicio_id": "uuid",
+    #   "nombre_servicio": "Obturación",
+    #   "codigo": "OB001",
+    #   "dientes": [11, 12],
+    #   "cantidad": 1,
+    #   "precio_unitario_bs": 50.00,
+    #   "precio_unitario_usd": 10.00,
+    #   "precio_total_bs": 50.00,
+    #   "precio_total_usd": 10.00,
+    #   "observaciones": ""
+    # }
+
+    # Totales calculados automáticamente
+    total_bs_intervencion: float = 0.0
+    total_usd_intervencion: float = 0.0
+
+    # Versión de odontograma actual (para vincular con intervención)
+    odontograma_version_actual_id: Optional[str] = None
+
+    # Flags de estado para validaciones
+    tiene_cambios_odontograma: bool = False
+    tiene_servicios_seleccionados: bool = False
+
+    # ==========================================
+    # 📋 VARIABLES PARA TIMELINE V4.0
+    # ==========================================
+
+    # Datos de intervenciones del paciente actual
+    intervenciones_paciente: List[Dict[str, Any]] = []
+    # Lista de dentistas que han atendido al paciente
+    dentistas_paciente: List[str] = []
+    # Lista de procedimientos realizados al paciente
+    procedimientos_paciente: List[str] = []
+
+    # ==========================================
+    # 🆕 VARIABLES NUEVA ESTRUCTURA (SIN TABS)
+    # ==========================================
+
+    # Modales
+    show_add_intervention_modal: bool = False
+    show_change_condition_modal: bool = False
+
+    # Formulario intervención completa
+    selected_service_name: str = ""
+    superficie_oclusal_selected: bool = False
+    superficie_mesial_selected: bool = False
+    superficie_distal_selected: bool = False
+    superficie_vestibular_selected: bool = False
+    superficie_lingual_selected: bool = False
+    auto_change_condition: bool = False
+    new_condition_value: str = ""
+    intervention_observations: str = ""
+
+    # Formulario cambio condición rápido
+    quick_surface_selected: str = ""
+    quick_condition_value: str = ""
+
+    # Servicios de consulta actual (temporal, antes de guardar en BD)
+    servicios_consulta_actual: List[Dict[str, Any]] = []
+
+    # ==========================================
+    # 📊 COMPUTED VARS PARA ODONTOGRAMA
+    # ==========================================
     
     @rx.var
     def odontogram_stats_summary(self) -> List[Tuple[str, int]]:
@@ -205,7 +249,7 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado):
     modo_odontograma: str = "edicion"  # visualizacion, edicion - Por defecto en modo edición para intervenciones
 
     # 📚 Variables para historial de dientes (modo consulta)
-    historial_diente_seleccionado: List[Dict[str, Any]] = []  # Historial real del diente
+    historial_diente_seleccionado: List[Dict[str, Any]] = []  # Necesario para rx.foreach
     modal_condicion_abierto: bool = False  # Estado del modal selector de condición
     termino_busqueda_condicion: str = ""  # Búsqueda en modal de condiciones
     categoria_condicion_seleccionada: str = "todas"  # Filtro de categoría de condiciones
@@ -213,13 +257,85 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado):
     # 🎈 Variables del popover contextual
     popover_diente_abierto: bool = False  # Estado del popover del diente
     popover_diente_posicion: Dict[str, float] = {}  # Posición x, y del popover
-    
-    # 📚 Variables del modal de historial flotante
-    modal_historial_completo_abierto: bool = False  # Estado del modal de historial
-    
+
+    # ✨ NUEVAS VARIABLES V2.0 - ODONTOGRAMA INTERACTIVO
+    # ================================================
+
+    # Estado de carga y guardado
+    odontograma_cargando: bool = False
+    odontograma_guardando: bool = False
+    odontograma_error: str = ""
+
+    # Condiciones por diente organizadas (para interactividad)
+    condiciones_por_diente: Dict[int, Dict[str, str]] = {}  # {diente_num: {superficie: condicion}}
+
+    # Modal de selección de condiciones
+    modal_condiciones_abierto: bool = False
+    condicion_seleccionada_temp: str = "sano"  # Condición temporal para aplicar
+
+    # Feedback visual
+    diente_hover: Optional[int] = None
+    superficie_hover: Optional[str] = None
+    cambios_sin_guardar: bool = False
+
+    # Configuración de condiciones disponibles
+    condiciones_disponibles: Dict[str, Dict[str, str]] = {
+        "sano": {"color": "#90EE90", "descripcion": "Diente sano", "simbolo": "✓"},
+        "caries": {"color": "#FF0000", "descripcion": "Caries dental", "simbolo": "C"},
+        "obturado": {"color": "#C0C0C0", "descripcion": "Obturación/empaste", "simbolo": "O"},
+        "endodoncia": {"color": "#FFD700", "descripcion": "Tratamiento de conducto", "simbolo": "E"},
+        "corona": {"color": "#4169E1", "descripcion": "Corona dental", "simbolo": "R"},
+        "puente": {"color": "#800080", "descripcion": "Puente dental", "simbolo": "P"},
+        "extraccion": {"color": "#8B0000", "descripcion": "Para extraer", "simbolo": "X"},
+        "ausente": {"color": "#FFFFFF", "descripcion": "Diente ausente", "simbolo": "-"},
+        "fractura": {"color": "#FF6347", "descripcion": "Fractura dental", "simbolo": "F"},
+        "implante": {"color": "#32CD32", "descripcion": "Implante dental", "simbolo": "I"},
+        "protesis": {"color": "#DA70D6", "descripcion": "Prótesis removible", "simbolo": "PT"},
+        "giroversion": {"color": "#FF8C00", "descripcion": "Diente rotado", "simbolo": "G"}
+    }
+
+    # ==========================================
+    # 🚀 VARIABLES V3.0 - FASE 1: CACHE INTELIGENTE
+    # ==========================================
+
+    # Cache de odontogramas por paciente_id
+    # REFACTOR FASE 3: Variables cache V3 eliminadas (odontograma_cache, odontograma_cache_timestamp, odontograma_cache_ttl)
+
+    # Control de carga lazy de historial
+    historial_cargado_por_diente: Dict[int, bool] = {}
+
+    # REFACTOR FASE 3: Variables V3 batch/auto-guardado eliminadas
+    # - cambios_pendientes_buffer, ultimo_guardado_timestamp, intervalo_auto_guardado
+    # - auto_guardado_activo, contador_cambios_pendientes
+
+    # ==========================================
+    # 📜 VARIABLES V3.0 - FASE 4: HISTORIAL TIMELINE
+    # ==========================================
+
+    # Historial completo de versiones del odontograma
+    historial_versiones_odontograma: List[Dict[str, Any]] = []  # Necesario para rx.foreach
+    total_versiones_historial: int = 0
+    historial_versiones_cargando: bool = False
+
+    # Control de modal de historial completo
+    modal_historial_completo_abierto: bool = False
+
+    # Filtros de historial
+    filtro_odontologo_historial: str = ""
+    filtro_tipo_version: str = "Todas"  # Todas, Solo críticas, Con cambios
+
+    # ==========================================
+    # 🛡️ VARIABLES V3.0 - FASE 5: VALIDACIONES
+    # ==========================================
+
+    # Resultados de validación
+    validacion_errores: List[Dict[str, Any]] = []  # Necesario para rx.foreach
+    validacion_warnings: List[Dict[str, Any]] = []  # Necesario para rx.foreach
+    modal_validacion_abierto: bool = False
+
     # Variables para la selección de condiciones
     selected_condition_to_apply: Optional[str] = None  # Condición seleccionada para aplicar
-    current_surface_condition: Optional[str] = None  # Condición actual de la superficie seleccionada
+    # NOTA: current_surface_condition es un computed var, no variable de estado
     is_applying_condition: bool = False  # Indica si se está aplicando una condición
     
     # Cuadrantes FDI
@@ -236,6 +352,13 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado):
     filtro_estado_consulta: str = "Todos"  # Todos, En Espera, En Atención, Entre Odontólogos, Completada, Cancelada
     filtro_fecha_consulta: str = ""  # Fecha específica o hoy
     mostrar_solo_urgencias: bool = False
+
+    # ==========================================
+    # 🆕 VARIABLES V2.0 ODONTOGRAMA INTERACTIVO
+    # ==========================================
+    modo_edicion_ui: bool = False  # Modo visualización vs edición
+    mostrar_solo_condiciones: bool = False  # Filtro: solo dientes con condiciones
+    mostrar_solo_criticos: bool = False  # Filtro: solo dientes críticos
     
     # Búsqueda de pacientes
     termino_busqueda_pacientes: str = ""
@@ -270,13 +393,13 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado):
     # ==========================================
     
     # Selección de dientes integrada
-    dientes_seleccionados_lista: List[Dict[str, Any]] = []
+    dientes_seleccionados_lista: List[Dict[str, Any]] = []  # Necesario para rx.foreach
     total_dientes_seleccionados: int = 0
     modo_seleccion_multiple: bool = False
     
     # Servicios seleccionados
     servicios_seleccionados: List[str] = []
-    servicios_seleccionados_detalle: List[Dict[str, Any]] = []
+    servicios_seleccionados_detalle: List[Dict[str, Any]] = []  # Necesario para rx.foreach
     total_servicios_seleccionados: int = 0
     filtro_servicios: str = ""
     
@@ -372,6 +495,28 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado):
         except Exception:
             return {"programada": [], "en_progreso": [], "completada": [], "en_espera": [], "en_atencion": [], "entre_odontologos": [], "cancelada": []}
     
+    @rx.var(cache=True)
+    def total_intervenciones_previas_bs(self) -> float:
+        """💰 Total acumulado en BS de intervenciones previas de la consulta"""
+        try:
+            return sum(
+                float(i.costo_total_bs) if i.costo_total_bs else 0.0
+                for i in self.intervenciones_anteriores
+            )
+        except Exception:
+            return 0.0
+
+    @rx.var(cache=True)
+    def total_intervenciones_previas_usd(self) -> float:
+        """💵 Total acumulado en USD de intervenciones previas de la consulta"""
+        try:
+            return sum(
+                float(i.costo_total_usd) if i.costo_total_usd else 0.0
+                for i in self.intervenciones_anteriores
+            )
+        except Exception:
+            return 0.0
+
     @rx.var(cache=True)
     def servicios_por_categoria_computed(self) -> Dict[str, List[ServicioModel]]:
         """Servicios agrupados por categoría"""
@@ -520,26 +665,63 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado):
     async def cargar_servicios_disponibles(self):
         """Cargar catálogo de servicios odontológicos"""
         self.cargando_servicios = True
-        
+
         try:
             # Establecer contexto de usuario antes de usar el servicio
             servicios_service.set_user_context(self.id_usuario, self.perfil_usuario)
-            
+
             # Usar servicios_service para obtener catálogo
             servicios_data = await servicios_service.get_filtered_services(activos_only=True)
             self.servicios_disponibles = servicios_data
-            
+
             # Agrupar por categoría
             self.servicios_por_categoria = self.servicios_por_categoria_computed
-            
+
             logger.info(f"✅ Servicios disponibles cargados: {len(servicios_data)}")
-            
+
+            # DEBUG: Mostrar primeros 3 servicios para verificar que tienen ID
+            if servicios_data:
+                for i, servicio in enumerate(servicios_data[:3]):
+                    logger.debug(f"  Servicio {i+1}: {servicio.nombre} (ID: {servicio.id})")
+
         except Exception as e:
             logger.error(f"❌ Error cargando servicios: {e}")
-            
+
         finally:
             self.cargando_servicios = False
     
+    async def cargar_intervenciones_consulta_actual(self):
+        """
+        📋 CARGAR INTERVENCIONES PREVIAS DE LA CONSULTA ACTUAL
+
+        Carga todas las intervenciones registradas para la consulta actual,
+        útil para ver qué otros odontólogos ya atendieron al paciente.
+        """
+        if not self.consulta_actual or not self.consulta_actual.id:
+            logger.warning("No hay consulta actual para cargar intervenciones")
+            return
+
+        try:
+            from dental_system.services.odontologia_service import odontologia_service
+
+            # Establecer contexto de usuario
+            odontologia_service.set_user_context(self.id_usuario, self.perfil_usuario)
+
+            # TODO: Cargar intervenciones de esta consulta
+            # NOTA: Método get_intervenciones_by_consulta no implementado aún
+            # intervenciones_data = await odontologia_service.get_intervenciones_by_consulta(
+            #     self.consulta_actual.id
+            # )
+
+            # Actualizar lista de intervenciones anteriores (vacía por ahora)
+            self.intervenciones_anteriores = []
+
+            logger.info(f"✅ Intervenciones previas: función pendiente de implementar")
+
+        except Exception as e:
+            logger.error(f"❌ Error cargando intervenciones de consulta: {e}")
+            self.intervenciones_anteriores = []
+
     async def cargar_odontograma_paciente(self, paciente_id: str):
         """Cargar odontograma del paciente actual usando el estado avanzado"""
         try:
@@ -602,9 +784,7 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado):
         print(f"  Cuadrante 4: {self.cuadrante_4}")
 
         # Obtener estado UI para mostrar mensaje
-        from dental_system.state.estado_ui import EstadoUI
-        ui_state = self.get_state(EstadoUI)
-        ui_state.mostrar_toast("Cuadrantes actualizados manualmente", "success")
+        self.mostrar_toast("Cuadrantes actualizados manualmente", "success")
 
     # Los métodos _inicializar_dientes_fdi, _obtener_cuadrante_diente y _obtener_tipo_diente
     # han sido reemplazados por la funcionalidad del catálogo FDI en EstadoOdontogramaAvanzado
@@ -709,109 +889,493 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado):
             self.historial_paciente_actual = []
             self.intervenciones_anteriores = []
             self.ultima_consulta_info = None
-    
+
+    # ==========================================
+    # 🚀 MÉTODOS V3.0 - FASE 1: CACHE INTELIGENTE
+    # ==========================================
+
+    # ==========================================
+    # 🗑️ SISTEMA CACHE V3 - ELIMINADO (Fase 3)
+    # ==========================================
+    # REFACTOR FASE 3: Sistema de cache V3 completo eliminado (~45 líneas)
+    # Funciones eliminadas:
+    # - _es_cache_valido()
+    # - invalidar_cache_odontograma()
+    # Variables eliminadas (ver líneas ~302-304):
+    # - odontograma_cache
+    # - odontograma_cache_timestamp
+    # - odontograma_cache_ttl
+    # Razón: Solo se usaba en cargar_odontograma_paciente_optimizado() (ya eliminada en Fase 2)
+
+    async def cargar_historial_diente_lazy(self, tooth_number: int):
+        """
+        🚀 FASE 1.2: Carga lazy del historial de un diente específico
+
+        Solo carga el historial cuando el usuario hace click en el tab "Historial"
+
+        Args:
+            tooth_number: Número FDI del diente
+        """
+        # Verificar si ya está cargado
+        if self.historial_cargado_por_diente.get(tooth_number, False):
+            logger.info(f"✅ Historial de diente {tooth_number} ya está en cache")
+            return
+
+        self.cargando_odontograma_historial = True
+
+        try:
+            # Establecer contexto
+            odontologia_service.set_user_context(self.id_usuario, self.perfil_usuario)
+
+            # Cargar historial del diente
+            historial = await odontologia_service.get_tooth_condition_history(
+                self.paciente_actual.id,
+                tooth_number
+            )
+
+            # Actualizar estado
+            self.historial_diente_seleccionado = historial or []
+            self.historial_cargado_por_diente[tooth_number] = True
+
+            logger.info(f"✅ Historial de diente {tooth_number} cargado: {len(historial)} entradas")
+
+        except Exception as e:
+            logger.error(f"❌ Error cargando historial de diente {tooth_number}: {e}")
+            self.historial_diente_seleccionado = []
+
+        finally:
+            self.cargando_odontograma_historial = False
+
+    # ==========================================
+    # 📦 MÉTODOS V3.0 - FASE 2: BATCH UPDATES
+    # ==========================================
+
+    def registrar_cambio_diente(self, tooth_number: int, surface: str, condition: str):
+        """
+        📦 FASE 2.1: Registrar cambio en buffer sin guardar inmediatamente
+
+        Los cambios se acumulan en buffer y se guardan en batch cuando:
+        - Usuario hace click en "Guardar cambios"
+        - Pasan 30 segundos (auto-guardado)
+        - Usuario finaliza la intervención
+
+        Args:
+            tooth_number: Número FDI del diente
+            surface: Superficie del diente (oclusal, mesial, etc.)
+            condition: Nueva condición (sano, caries, etc.)
+        """
+        # Inicializar buffer para este diente si no existe
+        if tooth_number not in self.cambios_pendientes_buffer:
+            self.cambios_pendientes_buffer[tooth_number] = {}
+
+        # Registrar cambio en buffer
+        self.cambios_pendientes_buffer[tooth_number][surface] = condition
+
+        # Actualizar visual inmediatamente (optimistic update)
+        if tooth_number not in self.condiciones_por_diente:
+            self.condiciones_por_diente[tooth_number] = {}
+        self.condiciones_por_diente[tooth_number][surface] = condition
+
+        # Marcar como cambios sin guardar
+        self.cambios_sin_guardar = True
+        self.contador_cambios_pendientes = sum(
+            len(surfaces) for surfaces in self.cambios_pendientes_buffer.values()
+        )
+
+        logger.info(f"📝 Cambio registrado en buffer: Diente {tooth_number} {surface} → {condition} ({self.contador_cambios_pendientes} cambios pendientes)")
+
+    # TODO V3.0: Este método necesita refactoring completo para usar @rx.event(background=True)
+    # Por ahora mantenerlo sin decorador para no romper funcionalidad V2.0
+    async def guardar_cambios_batch(self):
+        """
+        💾 FASE 2.1 + FASE 3.3: Guardar con versionado automático
+
+        Proceso completo:
+        1. Detectar si requiere nueva versión
+        2. Crear nueva versión si es necesario
+        3. Guardar cambios en batch
+        4. Limpiar buffer y actualizar UI
+
+        Ventajas:
+        - Reduce queries a BD de N a 1
+        - Versionado automático sin intervención
+        - Mejora rendimiento
+        """
+        import time
+
+        if not self.cambios_pendientes_buffer:
+            logger.info("ℹ️ No hay cambios pendientes para guardar")
+            return
+
+        self.odontograma_guardando = True
+
+        try:
+            # Establecer contexto
+            odontologia_service.set_user_context(self.id_usuario, self.perfil_usuario)
+
+            # Obtener ID del odontograma actual
+            if not self.odontograma_actual or not self.odontograma_actual.id:
+                # Si no existe, obtener o crear
+                resultado = await odontologia_service.get_or_create_patient_odontogram(
+                    self.paciente_actual.id,
+                    self.id_personal
+                )
+                odontogram_id = resultado.get("id")
+            else:
+                odontogram_id = self.odontograma_actual.id
+
+            # 🛡️ FASE 5.2: Validar cambios ANTES de guardar
+            condiciones_anteriores = self.condiciones_por_diente.copy()
+
+            es_valido, errores_validacion, warnings_validacion = odontologia_service.validar_cambios_odontograma(
+                condiciones_anteriores,
+                self.cambios_pendientes_buffer
+            )
+
+            # Si hay errores críticos, bloquear guardado
+            if not es_valido:
+                logger.error(f"❌ Validación falló: {len(errores_validacion)} errores")
+                self.odontograma_error = f"Errores de validación: {len(errores_validacion)}"
+
+                # Guardar errores y warnings para mostrar en modal
+                self.validacion_errores = errores_validacion
+                self.validacion_warnings = warnings_validacion
+                self.modal_validacion_abierto = True
+
+                return  # BLOQUEAR guardado
+
+            # Si hay warnings pero es válido, mostrar pero permitir continuar
+            if len(warnings_validacion) > 0:
+                logger.warning(f"⚠️ {len(warnings_validacion)} advertencias detectadas")
+                self.validacion_warnings = warnings_validacion
+                self.modal_validacion_abierto = True
+                # Continuar con guardado después de mostrar warnings
+
+            # 🚀 FASE 3.3: Detectar si requiere nueva versión
+            requiere_version, cambios_criticos, motivo = await odontologia_service.detectar_cambios_significativos(
+                condiciones_anteriores,
+                self.cambios_pendientes_buffer
+            )
+
+            # 🚀 Si requiere nueva versión, crear antes de guardar
+            if requiere_version:
+                logger.info(f"📚 Creando nueva versión: {motivo}")
+
+                nueva_version = await odontologia_service.crear_nueva_version_odontograma(
+                    odontograma_actual_id=odontogram_id,
+                    paciente_id=self.paciente_actual.id,
+                    odontologo_id=self.id_personal,
+                    intervencion_id=self.intervencion_actual.id if self.intervencion_actual else None,
+                    cambios_criticos=cambios_criticos,
+                    motivo=motivo
+                )
+
+                # Actualizar referencia al odontograma actual
+                odontogram_id = nueva_version["id"]
+                if self.odontograma_actual:
+                    self.odontograma_actual.id = nueva_version["id"]
+                    self.odontograma_actual.version = nueva_version["version"]
+
+                self.mostrar_toast_info(
+                    f"📚 Nueva versión creada: v{nueva_version['version']} - {motivo}"
+                )
+
+            # Guardar todos los cambios en un solo batch
+            contador_antes = self.contador_cambios_pendientes
+            logger.info(f"💾 Guardando {contador_antes} cambios en batch...")
+
+            success = await odontologia_service.save_odontogram_conditions(
+                odontogram_id,
+                self.cambios_pendientes_buffer
+            )
+
+            if success:
+                # Limpiar buffer
+                self.cambios_pendientes_buffer = {}
+                self.cambios_sin_guardar = False
+                self.contador_cambios_pendientes = 0
+                self.ultimo_guardado_timestamp = time.time()
+
+                # REFACTOR FASE 3: invalidar_cache_odontograma eliminado
+
+                logger.info("✅ Cambios guardados exitosamente en batch con versionado")
+
+                self.mostrar_toast_exito(f"✅ {contador_antes} cambios guardados")
+            else:
+                logger.error("❌ Error guardando cambios en batch")
+                self.odontograma_error = "Error al guardar cambios"
+
+        except Exception as e:
+            logger.error(f"❌ Error en guardar_cambios_batch: {e}")
+            self.odontograma_error = f"Error: {str(e)}"
+
+        finally:
+            self.odontograma_guardando = False
+
+    # ==========================================
+    # 🗑️ SISTEMA AUTO-GUARDADO V3 - ELIMINADO (Fase 3)
+    # ==========================================
+    # REFACTOR FASE 3: Sistema de auto-guardado V3 eliminado (~50 líneas)
+    # Funciones eliminadas:
+    # - iniciar_auto_guardado() - Background task auto-guardado cada 30s
+    # - detener_auto_guardado() - Detener background task
+    # - descartar_cambios_pendientes() - Revertir cambios
+    # Variables eliminadas (ver líneas ~260-270):
+    # - auto_guardado_activo
+    # - intervalo_auto_guardado
+    # - ultimo_guardado_timestamp
+    # - cambios_pendientes_buffer
+    # - contador_cambios_pendientes
+    # Razón: Sistema V3 complejo no usado en V4 - V4 usa guardado manual explícito
+
+    # ==========================================
+    # 📜 MÉTODOS V3.0 - FASE 4: HISTORIAL TIMELINE
+    # ==========================================
+    @rx.event(background=True)
+    async def cargar_historial_versiones(self):
+        """
+        📜 FASE 4.3: Cargar historial completo de versiones del odontograma
+
+        Carga todas las versiones del odontograma del paciente actual con:
+        - Información de cada versión
+        - Cambios detectados vs versión anterior
+        - Odontólogo responsable
+        - Fecha y motivo de cada versión
+        """
+        async with self:
+            self.historial_versiones_cargando = True
+            self.historial_versiones_odontograma = []
+            self.total_versiones_historial = 0
+
+        try:
+            # Validar que hay paciente actual con ID
+            if not hasattr(self, 'paciente_actual') or not self.paciente_actual:
+                logger.warning("⚠️ No hay paciente actual para cargar historial")
+                return
+
+            paciente_id = getattr(self.paciente_actual, 'id', None)
+            if not paciente_id:
+                logger.warning("⚠️ Paciente actual sin ID para cargar historial")
+                return
+
+            # Cargar historial completo desde el service
+            odontologia_service.set_user_context(self.id_usuario, self.perfil_usuario)
+            historial = await odontologia_service.get_odontogram_full_history(paciente_id)
+
+            async with self:
+                if historial:
+                    self.historial_versiones_odontograma = historial
+                    self.total_versiones_historial = len(historial)
+                    logger.info(f"✅ Historial cargado: {self.total_versiones_historial} versiones")
+                else:
+                    logger.info("ℹ️ No hay historial de versiones para este paciente")
+
+        except Exception as e:
+            logger.error(f"❌ Error cargando historial de versiones: {e}")
+            async with self:
+                self.odontograma_error = f"Error al cargar historial: {str(e)}"
+
+        finally:
+            async with self:
+                self.historial_versiones_cargando = False
+
+    def abrir_modal_historial(self):
+        """
+        🗂️ FASE 4.4: Abrir modal de historial completo
+
+        Abre el modal flotante y carga el historial de versiones
+        """
+        self.modal_historial_completo_abierto = True
+        # Cargar historial si no está cargado o está desactualizado
+        if self.total_versiones_historial == 0:
+            yield EstadoOdontologia.cargar_historial_versiones
+
+    def cerrar_modal_historial(self):
+        """
+        ❌ Cerrar modal de historial completo
+        """
+        self.modal_historial_completo_abierto = False
+
+    async def ver_detalles_version(self, version_id: str):
+        """
+        👁️ FASE 4.5: Ver detalles de una versión específica
+
+        Carga los detalles completos de una versión seleccionada
+        Args:
+            version_id: ID de la versión a visualizar
+        """
+        logger.info(f"👁️ Viendo detalles de versión: {version_id}")
+        # TODO: Implementar vista detallada de versión específica
+        # Por ahora, solo registrar la acción
+
+    async def comparar_con_anterior(self, version_id: str):
+        """
+        🔄 FASE 4.6: Comparar versión con la anterior
+
+        Muestra una comparación lado a lado de dos versiones
+        Args:
+            version_id: ID de la versión a comparar
+        """
+        logger.info(f"🔄 Comparando versión: {version_id} con anterior")
+        # TODO: Implementar vista comparativa de versiones
+        # Por ahora, solo registrar la acción
+
+    # ==========================================
+    # 🛡️ MÉTODOS V3.0 - FASE 5: VALIDACIONES
+    # ==========================================
+
+    def cerrar_modal_validacion(self):
+        """❌ Cerrar modal de validación"""
+        self.modal_validacion_abierto = False
+        self.validacion_errores = []
+        self.validacion_warnings = []
+
+    def forzar_guardado_con_warnings(self):
+        """
+        ⚠️ FASE 5.3: Forzar guardado a pesar de warnings
+
+        Permite al usuario continuar guardando después de revisar warnings.
+        Solo funciona si NO hay errores críticos.
+        """
+        # Solo cerrar modal si no hay errores críticos
+        # (el guardado continúa automáticamente desde guardar_cambios_batch)
+
+    # ==========================================
+    # 🔧 SETTERS MANUALES PARA FILTROS - FASE 4
+    # ==========================================
+    # NOTA: En Reflex, event handlers ya reciben 'self' implícitamente
+    # Solo necesitamos el parámetro del valor que envía el componente
+
+    def set_filtro_odontologo_historial(self, valor: str):
+        """
+        🔍 Setter para filtro de odontólogo en historial
+
+        Args:
+            valor: Texto de búsqueda para filtrar por odontólogo
+
+        Event: Llamado desde rx.input.on_change (envía 1 arg: el texto)
+        """
+        self.filtro_odontologo_historial = valor
+        logger.info(f"🔍 Filtro odontólogo historial actualizado: '{valor}'")
+
+    def set_filtro_tipo_version(self, valor: str):
+        """
+        🔍 Setter para filtro de tipo de versión
+
+        Args:
+            valor: Tipo de versión ("Todas", "Solo críticas", "Con cambios")
+
+        Event: Llamado desde rx.select.on_change (envía 1 arg: el valor seleccionado)
+        """
+        self.filtro_tipo_version = valor
+        logger.info(f"🔍 Filtro tipo versión actualizado: '{valor}'")
+
     async def tomar_paciente_disponible(self, paciente: PacienteModel, consulta_id: str):
         """
-        🔄 Tomar un paciente disponible de otro odontólogo para nueva intervención
-        
+        🔄 TOMAR PACIENTE DISPONIBLE (EN ESTADO "entre_odontologos")
+
+        Flujo para segundo/tercer odontólogo:
+        1. Cambia estado de consulta: "entre_odontologos" → "en_atencion"
+        2. Registra segundo odontólogo en la consulta
+        3. Carga odontograma con última versión
+        4. Carga intervenciones previas de otros odontólogos
+        5. Navega a página de intervención
+
         Args:
             paciente: Modelo del paciente a tomar
             consulta_id: ID de la consulta asociada
         """
-        # Get UI state
-        ui_state = self.get_state(EstadoUI)
-        
+
+
         try:
-            # Cambiar el estado de la consulta para derivación
-            resultado = await odontologia_service.derivar_paciente_a_odontologo(
+            logger.info(f"🔄 Tomando paciente {paciente.nombre_completo} de otro odontólogo")
+
+            # Validar que la consulta esté en estado "entre_odontologos"
+            consulta_encontrada = next(
+                (c for c in self.consultas_disponibles_otros if c.id == consulta_id),
+                None
+            )
+
+            if not consulta_encontrada:
+                logger.warning(f"❌ Consulta no encontrada: {consulta_id}")
+                self.mostrar_toast_error("Consulta no encontrada")
+                return
+
+            if consulta_encontrada.estado != "entre_odontologos":
+                logger.warning(f"⚠️ Consulta no está en estado 'entre_odontologos': {consulta_encontrada.estado}")
+                # Continuar de todas formas, puede estar en otro estado válido
+
+            # Usar servicio para derivar/asignar paciente
+            from dental_system.services.odontologia_service import odontologia_service
+            odontologia_service.set_user_context(self.id_usuario, self.perfil_usuario)
+
+            resultado = await self.derivar_paciente_a_odontologo(
                 consulta_id=consulta_id,
                 nuevo_odontologo_id=self.id_personal,
-                motivo_derivacion="Requiere intervención adicional"
+                motivo_derivacion="Intervención adicional requerida"
             )
-            
+
             if resultado:
-                # Mover paciente de disponibles a asignados
+                logger.info(f"✅ Paciente {paciente.nombre_completo} asignado exitosamente")
+
+                # Mover paciente de disponibles a asignados (UI local)
                 self.pacientes_disponibles_otros = [
                     p for p in self.pacientes_disponibles_otros if p.id != paciente.id
                 ]
                 self.pacientes_asignados.append(paciente)
-                
+
                 # Actualizar contadores
                 self.total_pacientes_disponibles = len(self.pacientes_disponibles_otros)
                 self.total_pacientes_asignados = len(self.pacientes_asignados)
-                
-                ui_state.mostrar_toast_exito(f"Paciente {paciente.nombre_completo} asignado exitosamente")
-                logger.info(f"✅ Paciente {paciente.nombre_completo} tomado de otro odontólogo")
-                
-                # Recargar solo pacientes asignados para refrescar datos completos
-                await self.cargar_pacientes_asignados()
-                # ✅ NO recargar consultas disponibles - ya actualizado localmente arriba
-            
+
+                # Establecer contexto actual
+                self.paciente_actual = paciente
+                self.consulta_actual = consulta_encontrada
+
+                # Cambiar estado a "en_atencion" para este odontólogo
+                await self.iniciar_atencion_consulta(
+                    consulta_id,
+                    estado_objetivo="en_atencion"
+                )
+
+                # Cargar odontograma (última versión con cambios previos)
+                await self.cargar_odontograma_paciente_actual()
+
+                # Cargar intervenciones previas de otros odontólogos
+                await self.cargar_intervenciones_consulta_actual()
+
+                # Establecer flag de formulario activo
+                self.en_formulario_intervencion = True
+                self.modo_formulario = "crear"
+
+                # Mostrar toast de éxito
+                self.mostrar_toast_exito(f"Paciente {paciente.nombre_completo} asignado - Ver intervenciones previas")
+
+                # Navegar a página de intervención
+                self.navigate_to(
+                    "intervencion",
+                    f"Intervención Adicional - {paciente.nombre_completo}",
+                    f"Consulta #{consulta_encontrada.numero_consulta or 'N/A'}"
+                )
+
+                logger.info(f"🦷 Navegación a intervención completada")
+
         except Exception as e:
             logger.error(f"❌ Error tomando paciente disponible: {e}")
-            ui_state.mostrar_toast_error("Error al tomar paciente")
+            import traceback
+            traceback.print_exc()
+            self.mostrar_toast_error("Error al tomar paciente")
     
     # ==========================================
     # 🦷 GESTIÓN DE CONSULTAS E INTERVENCIONES
     # ==========================================
-    
-    async def iniciar_consulta(self, consulta_id: str):
-        """
-        Iniciar consulta (programada → en_progreso)
-        """
-        from dental_system.state.estado_ui import EstadoUI
-        ui_state = self.get_state(EstadoUI)
-        
-        try:
-            # Cambiar estado de consulta
-            consulta_actualizada = await odontologia_service.iniciar_consulta(consulta_id)
-            
-            # Actualizar en la lista
-            for i, consulta in enumerate(self.consultas_asignadas):
-                if consulta.id == consulta_id:
-                    self.consultas_asignadas[i] = consulta_actualizada
-                    break
-            
-            # Establecer como consulta actual
-            self.consulta_actual = consulta_actualizada
-            
-            ui_state.mostrar_toast_exito("Consulta iniciada")
-            logger.info(f"✅ Consulta iniciada: {consulta_id}")
-            
-        except Exception as e:
-            logger.error(f"❌ Error iniciando consulta: {e}")
-            ui_state.mostrar_toast_error("Error al iniciar consulta")
-    
-    async def completar_consulta(self, consulta_id: str):
-        """
-        Completar consulta (en_progreso → completada)
-        """
-        from dental_system.state.estado_ui import EstadoUI
-        ui_state = self.get_state(EstadoUI)
-        
-        try:
-            consulta_actualizada = await odontologia_service.completar_consulta(consulta_id)
-            
-            # Actualizar en la lista
-            for i, consulta in enumerate(self.consultas_asignadas):
-                if consulta.id == consulta_id:
-                    self.consultas_asignadas[i] = consulta_actualizada
-                    break
-            
-            ui_state.mostrar_toast_exito("Consulta completada")
-            logger.info(f"✅ Consulta completada: {consulta_id}")
-            
-        except Exception as e:
-            logger.error(f"❌ Error completando consulta: {e}")
-            ui_state.mostrar_toast_error("Error al completar consulta")
+
     
     def navegar_a_intervencion(self, paciente: PacienteModel, consulta: ConsultaModel):
         """
         Navegar al formulario de intervención
         """
-        from dental_system.state.estado_ui import EstadoUI
-        ui_state = self.get_state(EstadoUI)
-        
+
         # Establecer paciente y consulta actual
         self.paciente_actual = paciente
         self.consulta_actual = consulta
@@ -824,10 +1388,11 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado):
         self.modo_formulario = "crear"
         
         # Cargar odontograma del paciente
-        self.cargar_odontograma_paciente(paciente.id)
+        
+        # self.cargar_odontograma_paciente(paciente.id)
         
         # Navegar a página de intervención
-        ui_state.navegar_a("intervencion")
+        self.navegar_a("intervencion")
         
         logger.info(f"✅ Navegando a intervención para paciente: {paciente.nombre_completo}")
     
@@ -835,56 +1400,7 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado):
     # 📝 GESTIÓN DEL FORMULARIO DE INTERVENCIÓN
     # ==========================================
     
-    async def crear_intervencion(self):
-        """
-        Crear nueva intervención odontológica
-        """
-        if not self.validar_formulario_intervencion():
-            return
-        
-        # Auth variables available via mixin pattern
-        from dental_system.state.estado_ui import EstadoUI
-
-        ui_state = self.get_state(EstadoUI)
-        
-        self.creando_intervencion = True
-        
-        try:
-            # Preparar datos para crear intervención usando modelo tipado
-            datos_intervencion = self.formulario_intervencion.to_dict()
-            datos_intervencion.update({
-                "consulta_id": self.consulta_actual.id,
-                "paciente_id": self.paciente_actual.id,
-                "odontologo_id": self.id_personal
-            })
-            
-            # Crear intervención
-            nueva_intervencion = await odontologia_service.create_intervencion(
-                form_data=datos_intervencion,
-                user_id=self.perfil_usuario.get("id") if self.perfil_usuario else ""
-            )
-            
-            # Limpiar formulario
-            self.limpiar_formulario_intervencion()
-            
-            # Navegar de vuelta
-            self.en_formulario_intervencion = False
-            ui_state.navegar_a("odontologia")
-            
-            # Mostrar éxito
-            ui_state.mostrar_toast_exito("Intervención creada exitosamente")
-            
-            # Recargar consultas
-            await self.cargar_pacientes_asignados()
-            
-            logger.info(f"✅ Intervención creada: {nueva_intervencion.id}")
-            
-        except Exception as e:
-            logger.error(f"❌ Error creando intervención: {e}")
-            ui_state.mostrar_toast_error("Error al crear intervención")
-            
-        finally:
-            self.creando_intervencion = False
+    # REFACTOR FASE 2: crear_intervencion() legacy eliminada - usar guardar_intervencion_completa()
     
     def seleccionar_servicio(self, servicio_id: str):
         """Seleccionar servicio para la intervención con auto-actualización de precio"""
@@ -906,11 +1422,6 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado):
                 # Mostrar notificación de precio actualizado si hay cambio significativo
                 precio_anterior = float(self.formulario_intervencion.precio_final) if self.formulario_intervencion.precio_final else 0
                 precio_nuevo = servicio.precio_base or 0
-                
-                if abs(precio_anterior - precio_nuevo) > 0.01:
-                    from dental_system.state.estado_ui import EstadoUI
-                    ui_state = self.get_state(EstadoUI)
-                    ui_state.mostrar_toast(f"Precio actualizado: ${precio_nuevo:,.2f}", "info")
                 
                 logger.info(f"✅ Servicio seleccionado: {servicio.nombre} - Precio: ${precio_nuevo}")
                 
@@ -1045,11 +1556,23 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado):
             
             # Limpiar cambios pendientes
             self.cambios_pendientes_odontograma = {}
-            
-            logger.info(f"✅ Cambios del odontograma guardados")
-            
+
+            logger.info(f"✅ Cambios del odontograma guardados en memoria local")
+
+        except PermissionError as e:
+            logger.error(f"❌ Error de permisos: {e}")
+            yield rx.toast.error(
+                "⚠️ Sin Permisos",
+                description=str(e),
+                duration=5000
+            )
         except Exception as e:
             logger.error(f"❌ Error guardando odontograma: {e}")
+            yield rx.toast.error(
+                "Error al guardar",
+                description=str(e),
+                duration=3000
+            )
     
     def actualizar_campo_intervencion(self, campo: str, valor: Any):
         """Actualizar campo del formulario de intervención"""
@@ -1152,16 +1675,14 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado):
     # ==========================================
     
     @rx.event
-    def seleccionar_diente_simple(self, numero_diente: int):
-        """Seleccionar diente en el odontograma (versión simple para el formulario)"""
-        self.diente_seleccionado = numero_diente
-        
-        # Si estamos en modo edición, agregar a dientes afectados del formulario
-        if self.modo_odontograma == "edicion":
-            self.agregar_diente_afectado(numero_diente)
-            
-        # También actualizar la lista visual de dientes seleccionados
-        self.actualizar_lista_dientes_seleccionados()
+    # ==========================================
+    # 🔄 SELECCIÓN DE DIENTES - FUNCIONES LEGACY ELIMINADAS
+    # ==========================================
+    # REFACTOR FASE 2: Eliminadas funciones duplicadas de selección de dientes
+    # - seleccionar_diente_unificado (86 líneas)
+    # - seleccionar_diente_simple (retrocompatibilidad)
+    #
+    # AHORA USA: select_tooth() en línea ~4311 (función V4 activa)
     
     def actualizar_lista_dientes_seleccionados(self):
         """Actualizar la lista visual de dientes seleccionados para la UI"""
@@ -1347,431 +1868,61 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado):
         self.superficie_seleccionada = superficie
         logger.info(f"Superficie seleccionada: {superficie} en diente {self.diente_seleccionado}")
     
-    def abrir_editor_superficie(self):
-        """Abrir modal para editar superficie dental"""
-        # Implementar modal de edición de superficie
-        logger.info(f"Abriendo editor para superficie {self.superficie_seleccionada} en diente {self.diente_seleccionado}")
+    # ==========================================
+    # 📝 FORMULARIO MANUAL LEGACY - ELIMINADO
+    # ==========================================
+    # REFACTOR: Funciones eliminadas (editor_superficie, historial_superficie, planificador_tratamiento, notas_diente)
+    # Ahora se usa tooth_detail_sidebar con tabs especializados
     
-    def mostrar_historial_superficie(self):
-        """Mostrar historial de cambios de la superficie"""
-        logger.info(f"Mostrando historial de superficie {self.superficie_seleccionada} en diente {self.diente_seleccionado}")
-    
-    def abrir_formulario_historial(self):
-        """Abrir formulario para agregar entrada al historial"""
-        logger.info(f"Abriendo formulario de historial para diente {self.diente_seleccionado}")
-    
-    def abrir_planificador_tratamiento(self):
-        """Abrir planificador de tratamientos para el diente"""
-        logger.info(f"Abriendo planificador de tratamiento para diente {self.diente_seleccionado}")
-    
-    
-    def actualizar_notas_diente(self, notas: str):
-        """Actualizar notas clínicas del diente actual"""
-        self.notas_diente_actual = notas
-        logger.info(f"Notas actualizadas para diente {self.diente_seleccionado}")
-    
-    async def guardar_notas_diente(self):
-        """Guardar notas clínicas del diente"""
-        try:
-            if self.diente_seleccionado and self.notas_diente_actual:
-                # Aquí se integraría con el servicio para guardar
-                self.fecha_ultima_nota = datetime.now().strftime("%d/%m/%Y %H:%M")
-                self.autor_ultima_nota = self.nombre_usuario_display or "Usuario"
-                logger.info(f"Notas guardadas para diente {self.diente_seleccionado}")
-                self.mostrar_mensaje_exito("Notas guardadas correctamente")
-        except Exception as e:
-            logger.error(f"Error guardando notas: {e}")
-            self.mostrar_mensaje_error(f"Error al guardar notas: {str(e)}")
-    
-    def seleccionar_diente_svg(self, numero_diente: int):
-        """Seleccionar diente en el odontograma SVG"""
-        self.diente_seleccionado = numero_diente
+    # REFACTOR FASE 2: seleccionar_diente_svg() eliminada - usar select_tooth()
     
     # ==========================================
-    # 🔄 SISTEMA VERSIONADO ODONTOGRAMA
+    # 🔄 SISTEMA VERSIONADO ODONTOGRAMA - OBSOLETO
     # ==========================================
-    
-    # Variables del sistema de versionado
-    version_actual_odontograma: str = "2.1"
-    historial_versiones: List[Dict[str, Any]] = []
-    modal_nueva_version_abierto: bool = False
-    comentario_nueva_version: str = ""
-    cambios_detectados_actual: List[Dict[str, str]] = []
-    
-    # Comparación de versiones
-    modo_comparacion_activo: bool = False
-    version_comparar_a: str = "v2.1 (Actual)"
-    version_comparar_b: str = "v2.0"
-    
-    async def cargar_historial_versiones(self):
-        """Cargar historial completo de versiones del odontograma"""
-        try:
-            # Aquí se integraría con el servicio para cargar historial real
-            self.historial_versiones = [
-                {
-                    "version": "v2.1",
-                    "titulo": "Versión Actual",
-                    "fecha": "15/08/2024 14:30",
-                    "doctor": "Dr. García",
-                    "descripcion": "Obturación diente 16 - superficie oclusal",
-                    "tipo": "current"
-                },
-                {
-                    "version": "v2.0", 
-                    "titulo": "Intervención Anterior",
-                    "fecha": "10/08/2024 10:15",
-                    "doctor": "Dr. García",
-                    "descripcion": "Limpieza dental general",
-                    "tipo": "completed"
-                }
-            ]
-            logger.info("Historial de versiones cargado correctamente")
-        except Exception as e:
-            logger.error(f"Error cargando historial versiones: {e}")
-            self.mostrar_mensaje_error(f"Error al cargar historial: {str(e)}")
-    
-    def detectar_cambios_significativos(self) -> bool:
-        """Detectar si hay cambios significativos que requieren nueva versión"""
-        # Lógica para detectar cambios significativos
-        # Por ejemplo: cambios de estado en más de X dientes, etc.
-        return len(self.cambios_pendientes_odontograma) > 0
-    
-    def abrir_modal_nueva_version(self):
-        """Abrir modal para confirmar nueva versión"""
-        if self.detectar_cambios_significativos():
-            self.modal_nueva_version_abierto = True
-            self.cambios_detectados_actual = [
-                {"diente": "16", "anterior": "Sano", "nuevo": "Obturado", "descripcion": "Nueva obturación con resina compuesta"}
-            ]
-        else:
-            self.mostrar_mensaje_info("No se detectaron cambios significativos")
-    
-    def actualizar_comentario_version(self, comentario: str):
-        """Actualizar comentario de la nueva versión"""
-        self.comentario_nueva_version = comentario
-    
-    async def confirmar_nueva_version(self):
-        """Confirmar y crear nueva versión del odontograma"""
-        try:
-            # Aquí se integraría con el servicio para crear nueva versión
-            nueva_version = f"v{float(self.version_actual_odontograma.replace('v', '')) + 0.1:.1f}"
-            self.version_actual_odontograma = nueva_version
-            
-            # Guardar en historial
-            nueva_entrada = {
-                "version": nueva_version,
-                "titulo": "Nueva Versión",
-                "fecha": datetime.now().strftime("%d/%m/%Y %H:%M"),
-                "doctor": self.nombre_usuario_display or "Usuario",
-                "descripcion": self.comentario_nueva_version,
-                "tipo": "current"
-            }
-            
-            # Mover la versión anterior
-            if self.historial_versiones:
-                self.historial_versiones[0]["tipo"] = "completed"
-            
-            self.historial_versiones.insert(0, nueva_entrada)
-            
-            # Limpiar formulario
-            self.comentario_nueva_version = ""
-            self.modal_nueva_version_abierto = False
-            self.cambios_pendientes_odontograma = {}
-            
-            self.mostrar_mensaje_exito(f"Nueva versión {nueva_version} creada correctamente")
-            logger.info(f"Nueva versión creada: {nueva_version}")
-            
-        except Exception as e:
-            logger.error(f"Error creando nueva versión: {e}")
-            self.mostrar_mensaje_error(f"Error al crear versión: {str(e)}")
-    
-    def cancelar_nueva_version(self):
-        """Cancelar creación de nueva versión"""
-        self.modal_nueva_version_abierto = False
-        self.comentario_nueva_version = ""
-        self.cambios_detectados_actual = []
-    
-    def crear_version_manual(self):
-        """Crear nueva versión manualmente (sin cambios automáticos)"""
-        self.comentario_nueva_version = ""
-        self.modal_nueva_version_abierto = True
-        logger.info("Creación manual de versión iniciada")
-    
-    async def ver_version_odontograma(self, version: str):
-        """Ver una versión específica del odontograma"""
-        try:
-            # Aquí se cargaría la versión específica
-            logger.info(f"Visualizando versión: {version}")
-            self.mostrar_mensaje_info(f"Mostrando versión {version}")
-        except Exception as e:
-            logger.error(f"Error visualizando versión {version}: {e}")
-            self.mostrar_mensaje_error(f"Error al cargar versión: {str(e)}")
-    
-    def comparar_version(self, version: str):
-        """Iniciar comparación con una versión específica"""
-        self.modo_comparacion_activo = True
-        self.version_comparar_b = version
-        logger.info(f"Iniciando comparación con versión: {version}")
-    
-    async def restaurar_version(self, version: str):
-        """Restaurar una versión anterior del odontograma"""
-        try:
-            # Aquí se integraría con el servicio para restaurar
-            logger.info(f"Restaurando versión: {version}")
-            self.mostrar_mensaje_exito(f"Versión {version} restaurada correctamente")
-        except Exception as e:
-            logger.error(f"Error restaurando versión {version}: {e}")
-            self.mostrar_mensaje_error(f"Error al restaurar versión: {str(e)}")
-    
-    def cambiar_version_a(self, version: str):
-        """Cambiar versión A para comparación"""
-        self.version_comparar_a = version
-    
-    def cambiar_version_b(self, version: str):
-        """Cambiar versión B para comparación"""
-        self.version_comparar_b = version
-    
-    def cerrar_comparador(self):
-        """Cerrar el modo de comparación"""
-        self.modo_comparacion_activo = False
+    # NOTA: Esta sección contiene código OBSOLETO del sistema de versionado antiguo.
+    # La funcionalidad de versionado ahora está implementada en V3.0:
+    # - FASE 3: Versionado automático (línea ~1033-1091)
+    # - FASE 4: Historial timeline (línea ~1200-1285)
+    #
+    # Este código se mantiene comentado solo como referencia histórica.
+    # NO USAR - Puede causar conflictos con V3.0
+    # ==========================================
+
+    # # Variables del sistema de versionado (OBSOLETAS - V3.0 usa otras)
+    # version_actual_odontograma: str = "2.1"
+    # historial_versiones: List[Dict[str, Any]] = []  # V3.0 usa: historial_versiones_odontograma
+    # modal_nueva_version_abierto: bool = False
+    # comentario_nueva_version: str = ""
+    # cambios_detectados_actual: List[Dict[str, str]] = []
+    # modo_comparacion_activo: bool = False
+    # version_comparar_a: str = "v2.1 (Actual)"
+    # version_comparar_b: str = "v2.0"
+
+    # MÉTODOS OBSOLETOS REMOVIDOS:
+    # - cargar_historial_versiones() → Ahora en FASE 4.3 (línea ~1202)
+    # - detectar_cambios_significativos() → Ahora en service (odontologia_service.py)
+    # - abrir_modal_nueva_version() → Versionado es automático en V3.0
+    # - confirmar_nueva_version() → Ahora es crear_nueva_version_odontograma() en service
+    # - cancelar_nueva_version() → No necesario, versionado automático
+    # - crear_version_manual() → No necesario, versionado automático
+    # - ver_version_odontograma() → Ahora es ver_detalles_version() (línea ~1262)
+    # - comparar_version() → Ahora es comparar_con_anterior() (línea ~1275)
+    # - restaurar_version() → Pendiente implementar en V4.0
+    # - cambiar_version_a/b() → Pendiente implementar en V4.0
+    # - cerrar_comparador() → Pendiente implementar en V4.0
     
     # ==========================================
-    # 📜 HISTORIAL DE CAMBIOS POR DIENTE
+    # 📜 HISTORIAL MANUAL Y ALERTAS - ELIMINADO
     # ==========================================
-    
-    # Variables del historial
-    historial_cambios_diente: List[Dict[str, Any]] = []
-    filtro_historial_tipo: str = "Todos"
-    filtro_historial_tiempo: str = "Todo el tiempo"
-    alertas_diente_activas: List[Dict[str, Any]] = []
-    recordatorios_diente: List[Dict[str, Any]] = []
-    
-    def filtrar_historial_por_tipo(self, tipo: str):
-        """Filtrar historial por tipo de cambio"""
-        self.filtro_historial_tipo = tipo
-        logger.info(f"Filtrando historial por tipo: {tipo}")
-    
-    def filtrar_historial_por_tiempo(self, tiempo: str):
-        """Filtrar historial por período de tiempo"""
-        self.filtro_historial_tiempo = tiempo
-        logger.info(f"Filtrando historial por tiempo: {tiempo}")
-    
-    async def exportar_historial_diente(self):
-        """Exportar historial completo del diente"""
-        try:
-            if not self.diente_seleccionado:
-                self.mostrar_mensaje_error("Selecciona un diente primero")
-                return
-            
-            # Aquí se integraría con servicio de exportación
-            logger.info(f"Exportando historial de diente {self.diente_seleccionado}")
-            self.mostrar_mensaje_exito("Historial exportado correctamente")
-        except Exception as e:
-            logger.error(f"Error exportando historial: {e}")
-            self.mostrar_mensaje_error(f"Error al exportar: {str(e)}")
-    
-    def ver_cambio_completo(self, cambio_id: str):
-        """Ver detalles completos de un cambio específico"""
-        logger.info(f"Visualizando cambio completo: {cambio_id}")
-    
-    def ver_imagenes_cambio(self, cambio_id: str):
-        """Ver imágenes asociadas a un cambio"""
-        logger.info(f"Visualizando imágenes del cambio: {cambio_id}")
-    
-    def marcar_alerta_leida(self, alerta_titulo: str):
-        """Marcar una alerta como leída"""
-        logger.info(f"Marcando alerta como leída: {alerta_titulo}")
-        # Aquí se removería de alertas_diente_activas
-    
-    def abrir_formulario_recordatorio(self):
-        """Abrir formulario para crear nuevo recordatorio"""
-        logger.info(f"Abriendo formulario de recordatorio para diente {self.diente_seleccionado}")
-    
-    async def refrescar_historial_diente(self):
-        """Refrescar datos del historial del diente"""
-        try:
-            if not self.diente_seleccionado:
-                self.mostrar_mensaje_error("Selecciona un diente primero")
-                return
-            
-            # Aquí se cargarían los datos reales del historial
-            logger.info(f"Refrescando historial de diente {self.diente_seleccionado}")
-            self.mostrar_mensaje_exito("Historial actualizado")
-        except Exception as e:
-            logger.error(f"Error refrescando historial: {e}")
-            self.mostrar_mensaje_error(f"Error al actualizar: {str(e)}")
-    
-    def abrir_formulario_entrada_historial(self):
-        """Abrir formulario para agregar nueva entrada al historial"""
-        logger.info(f"Abriendo formulario de entrada para diente {self.diente_seleccionado}")
+    # REFACTOR: Historial manual eliminado (filtros, exportar, ver cambios, alertas, recordatorios)
+    # Ahora usa intervention_timeline automático desde BD
     
     # ==========================================
-    # 🔔 SISTEMA DE NOTIFICACIONES
+    # 🔔 SISTEMA DE NOTIFICACIONES - ELIMINADO
     # ==========================================
-    
-    # Variables del sistema de notificaciones
-    notificacion_toast_visible: bool = False
-    notificacion_toast_titulo: str = ""
-    notificacion_toast_mensaje: str = ""
-    notificacion_toast_icono: str = "bell"
-    notificacion_toast_color: str = "blue"
-    notificacion_toast_timestamp: str = ""
-    notificacion_toast_tiene_acciones: bool = False
-    
-    # Centro de notificaciones
-    notificaciones_activas: List[Dict[str, Any]] = []
-    total_notificaciones_no_leidas: int = 0
-    filtro_notificaciones: str = "todas"
-    modal_config_notificaciones_abierto: bool = False
-    
-    # Configuraciones de notificaciones
-    config_notif_cambios_criticos: bool = True
-    config_notif_recordatorios: bool = True
-    config_notif_nuevas_versiones: bool = True
-    config_notif_intervenciones: bool = True
-    config_sonido_notificaciones: bool = False
-    
-    def mostrar_toast_notification(self, titulo: str, mensaje: str, icono: str = "bell", color: str = "blue", tiene_acciones: bool = False):
-        """Mostrar notificación toast en tiempo real"""
-        self.notificacion_toast_titulo = titulo
-        self.notificacion_toast_mensaje = mensaje
-        self.notificacion_toast_icono = icono
-        self.notificacion_toast_color = color
-        self.notificacion_toast_timestamp = datetime.now().strftime("%H:%M")
-        self.notificacion_toast_tiene_acciones = tiene_acciones
-        self.notificacion_toast_visible = True
-        
-        # Auto-ocultar después de 5 segundos (se podría implementar con JS)
-        logger.info(f"Toast mostrado: {titulo} - {mensaje}")
-    
-    def cerrar_toast_notification(self):
-        """Cerrar notificación toast"""
-        self.notificacion_toast_visible = False
-    
-    def aplicar_filtro_notificaciones(self, filtro: str):
-        """Aplicar filtro al centro de notificaciones"""
-        self.filtro_notificaciones = filtro
-        logger.info(f"Filtro de notificaciones aplicado: {filtro}")
-    
-    def marcar_todas_notificaciones_leidas(self):
-        """Marcar todas las notificaciones como leídas"""
-        self.total_notificaciones_no_leidas = 0
-        logger.info("Todas las notificaciones marcadas como leídas")
-    
-    def marcar_notificacion_individual_leida(self, titulo: str):
-        """Marcar notificación específica como leída"""
-        if self.total_notificaciones_no_leidas > 0:
-            self.total_notificaciones_no_leidas -= 1
-        logger.info(f"Notificación marcada como leída: {titulo}")
-    
-    def abrir_configuracion_notificaciones(self):
-        """Abrir modal de configuración de notificaciones"""
-        self.modal_config_notificaciones_abierto = True
-    
-    def cerrar_config_notificaciones(self):
-        """Cerrar modal de configuración"""
-        self.modal_config_notificaciones_abierto = False
-    
-    async def guardar_config_notificaciones(self):
-        """Guardar configuración de notificaciones"""
-        try:
-            # Aquí se guardarían las configuraciones en BD
-            self.modal_config_notificaciones_abierto = False
-            self.mostrar_mensaje_exito("Configuración guardada correctamente")
-            logger.info("Configuración de notificaciones guardada")
-        except Exception as e:
-            logger.error(f"Error guardando configuración: {e}")
-            self.mostrar_mensaje_error(f"Error al guardar: {str(e)}")
-    
-    def actualizar_config_notificacion(self, campo: str, valor: bool):
-        """Actualizar configuración específica"""
-        if campo == "config_notif_cambios_criticos":
-            self.config_notif_cambios_criticos = valor
-        elif campo == "config_notif_recordatorios":
-            self.config_notif_recordatorios = valor
-        elif campo == "config_notif_nuevas_versiones":
-            self.config_notif_nuevas_versiones = valor
-        elif campo == "config_notif_intervenciones":
-            self.config_notif_intervenciones = valor
-        
-        logger.info(f"Configuración actualizada: {campo} = {valor}")
-    
-    def toggle_sonido_notificaciones(self, habilitado: bool):
-        """Habilitar/deshabilitar sonidos"""
-        self.config_sonido_notificaciones = habilitado
-        logger.info(f"Sonidos de notificación: {'habilitados' if habilitado else 'deshabilitados'}")
-    
-    def ver_detalles_notificacion(self):
-        """Ver detalles de la notificación actual"""
-        self.cerrar_toast_notification()
-        logger.info("Abriendo detalles de notificación")
-    
-    def marcar_notificacion_leida(self):
-        """Marcar la notificación toast como leída"""
-        self.cerrar_toast_notification()
-        if self.total_notificaciones_no_leidas > 0:
-            self.total_notificaciones_no_leidas -= 1
-        logger.info("Notificación toast marcada como leída")
-    
-    def abrir_detalle_notificacion(self, metadata: Dict[str, str]):
-        """Abrir detalle específico de notificación"""
-        logger.info(f"Abriendo detalle de notificación: {metadata}")
-    
-    def abrir_panel_completo_notificaciones(self):
-        """Abrir panel completo de notificaciones"""
-        logger.info("Abriendo panel completo de notificaciones")
-    
-    def actualizar_regla_alerta(self, tipo: str, activa: bool):
-        """Actualizar regla de alerta automática"""
-        logger.info(f"Regla de alerta {tipo}: {'activada' if activa else 'desactivada'}")
-    
-    # Computed vars para notificaciones
-    @rx.var
-    def notificaciones_filtradas_count(self) -> int:
-        """Contar notificaciones filtradas"""
-        # Lógica para contar según filtro
-        return len(self.notificaciones_activas)
-    
-    @rx.var
-    def hay_notificaciones_no_leidas(self) -> bool:
-        """Verificar si hay notificaciones sin leer"""
-        return self.total_notificaciones_no_leidas > 0
-    
-    # Método para disparar notificaciones automáticas
-    def disparar_notificacion_cambio_critico(self, diente: int, estado_anterior: str, estado_nuevo: str):
-        """Disparar notificación por cambio crítico en diente"""
-        if self.config_notif_cambios_criticos:
-            self.mostrar_toast_notification(
-                "🚨 Cambio Crítico Detectado",
-                f"Diente {diente}: {estado_anterior} → {estado_nuevo}",
-                "circle_alert",
-                "red",
-                True
-            )
-            self.total_notificaciones_no_leidas += 1
-    
-    def disparar_notificacion_nueva_version(self, version: str):
-        """Disparar notificación por nueva versión"""
-        if self.config_notif_nuevas_versiones:
-            self.mostrar_toast_notification(
-                "📋 Nueva Versión Creada",
-                f"Odontograma actualizado a {version}",
-                "git_branch",
-                "blue"
-            )
-            self.total_notificaciones_no_leidas += 1
-    
-    def disparar_notificacion_intervencion_completada(self, diente: int, tipo: str):
-        """Disparar notificación por intervención completada"""
-        if self.config_notif_intervenciones:
-            self.mostrar_toast_notification(
-                "✅ Intervención Completada",
-                f"{tipo} exitosa en diente {diente}",
-                "circle_check",
-                "green"
-            )
-            self.total_notificaciones_no_leidas += 1
-        self.superficie_seleccionada = "oclusal"  # Por defecto
+    # REFACTOR: Sistema de notificaciones toast eliminado por no uso en páginas principales
+    # Si se necesita en futuro, implementar con sistema de mensajes global simplificado
+
     
     async def cambiar_condicion_diente_svg(self, numero_diente: int, condicion: str):
         """Cambiar condición de un diente en el SVG"""
@@ -1796,94 +1947,11 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado):
         # Los resultados se actualizarán automáticamente vía computed var
     
     # ==========================================
-    # 🔄 NAVEGACIÓN DE TABS DE INTERVENCIÓN
+    # 🔄 NAVEGACIÓN DE TABS - ELIMINADO (Sistema sin tabs V4)
     # ==========================================
-    
-    @rx.event
-    def set_active_intervention_tab(self, tab_id: str):
-        """Cambiar tab activo con validaciones"""
-        try:
-            # Validaciones previas antes de cambiar tab
-            if tab_id == "odontograma" and not self.paciente_actual.id:
-                logger.warning("No se puede acceder al odontograma sin paciente")
-                return
-            
-            if tab_id == "intervencion":
-                # Cargar servicios cuando se acceda al tab de intervención
-                # No llamar aquí porque es async, se carga en el componente con on_mount
-                pass
-            
-            if tab_id == "finalizar":
-                # Validar que se haya completado la información mínima
-                if not self._validar_datos_minimos_intervencion():
-                    logger.warning("Complete los datos mínimos antes de finalizar")
-                    return
-            
-            self.active_intervention_tab = tab_id
-            logger.info(f"Navegando a tab: {tab_id}")
-            
-            # Marcar tab anterior como completado si es válido
-            if tab_id not in self.tabs_completed:
-                self.tabs_completed.append(tab_id)
-                
-        except Exception as e:
-            logger.error(f"Error navegando a tab {tab_id}: {e}")
-    
-    def _validar_datos_minimos_intervencion(self) -> bool:
-        """Validar que hay datos mínimos para finalizar intervención"""
-        try:
-            # Verificar que hay un servicio seleccionado
-            if not self.servicio_seleccionado.id:
-                return False
-            
-            # Verificar que hay descripción del procedimiento
-            if not self.formulario_intervencion.procedimiento_realizado.strip():
-                return False
-            
-            return True
-        except:
-            return False
-    
-    @rx.event
-    def validar_y_avanzar_tab(self):
-        """Validar tab actual y avanzar al siguiente"""
-        tabs_orden = ["paciente", "odontograma", "intervencion", "finalizar"]
-        try:
-            indice_actual = tabs_orden.index(self.active_intervention_tab)
-            
-            if indice_actual < len(tabs_orden) - 1:
-                siguiente_tab = tabs_orden[indice_actual + 1]
-                self.set_active_intervention_tab(siguiente_tab)
-        except ValueError:
-            logger.error(f"Tab activo no válido: {self.active_intervention_tab}")
-    
-    @rx.event
-    def retroceder_tab(self):
-        """Retroceder al tab anterior"""
-        tabs_orden = ["paciente", "odontograma", "intervencion", "finalizar"]
-        try:
-            indice_actual = tabs_orden.index(self.active_intervention_tab)
-            
-            if indice_actual > 0:
-                tab_anterior = tabs_orden[indice_actual - 1]
-                self.set_active_intervention_tab(tab_anterior)
-        except ValueError:
-            logger.error(f"Tab activo no válido: {self.active_intervention_tab}")
-            
-    # Computed var para saber si podemos avanzar al siguiente tab
-    @rx.var
-    def puede_avanzar_al_siguiente_tab(self) -> bool:
-        """Determina si se puede avanzar al siguiente tab"""
-        try:
-            if self.active_intervention_tab == "historial":
-                return True  # Siempre se puede avanzar desde odontograma
-            elif self.active_intervention_tab == "intervencion":
-                return self._validar_datos_minimos_intervencion()
-            else:
-                return False
-        except:
-            return False
-    
+    # REFACTOR: Sistema de tabs eliminado - intervencion_page.py ahora usa diseño sin tabs
+    # active_intervention_tab sigue existiendo como variable legacy (usada en stats)
+
     async def filtrar_por_estado_consulta(self, estado: str):
         """Filtrar consultas por estado - Estados reales de BD"""
         # Mapear estados de UI a estados de BD
@@ -2045,33 +2113,83 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado):
     
     @rx.event
     async def seleccionar_paciente_consulta(self, paciente_id: str, consulta_id: str):
-        """🎯 SELECCIONAR PACIENTE Y CONSULTA ESPECÍFICA"""
+        """
+        🎯 SELECCIONAR PACIENTE Y CONSULTA + PREPARAR PARA INTERVENCIÓN
+
+        Flujo completo de atención:
+        1. Buscar y cargar paciente + consulta
+        2. Cambiar estado de consulta a "en_atencion"
+        3. Cargar odontograma última versión del paciente
+        4. Cargar intervenciones previas de la consulta
+        5. Navegar automáticamente a página de intervención
+
+        Args:
+            paciente_id: ID del paciente
+            consulta_id: ID de la consulta
+        """
         try:
-            # Buscar paciente en la lista
+            # 1. Buscar paciente en la lista
             paciente_encontrado = next(
                 (p for p in self.pacientes_asignados if p.id == paciente_id),
                 None
             )
-            
-            # Buscar consulta en la lista
+
+            # 2. Buscar consulta en la lista
             consulta_encontrada = next(
                 (c for c in self.consultas_asignadas if c.id == consulta_id),
                 None
             )
-            
-            if paciente_encontrado and consulta_encontrada:
-                self.paciente_actual = paciente_encontrado
-                self.consulta_actual = consulta_encontrada
-                
-                # Cargar odontograma del paciente
-                await self.cargar_odontograma_paciente(paciente_id)
-                
-                logger.info(f"✅ Paciente y consulta seleccionados: {paciente_encontrado.nombre_completo}")
-            else:
+
+            if not paciente_encontrado or not consulta_encontrada:
                 logger.warning(f"❌ Paciente o consulta no encontrados: {paciente_id}, {consulta_id}")
-                
+                return
+
+            # 3. Establecer como contexto actual
+            self.paciente_actual = paciente_encontrado
+            self.consulta_actual = consulta_encontrada
+
+            logger.info(f"✅ Paciente seleccionado: {paciente_encontrado.nombre_completo}")
+
+            # 4. Cambiar estado de consulta a "en_atencion" si está "en_espera"
+            if consulta_encontrada.estado in ["en_espera", "programada"]:
+                from dental_system.state.estado_consultas import EstadoConsultas
+                estado_consultas = self.get_state(EstadoConsultas)
+                await self.iniciar_atencion_consulta(
+                    consulta_id,
+                    estado_objetivo="en_atencion"
+                )
+                logger.info(f"🏥 Consulta cambiada a 'en_atencion'")
+
+            # 5. Cargar odontograma del paciente (última versión)
+            await self.cargar_odontograma_paciente_actual()
+
+            # 6. Cargar intervenciones previas de esta consulta
+            await self.cargar_intervenciones_consulta_actual()
+
+            # 7. Cargar historial del paciente
+            await self.cargar_historial_paciente(paciente_id)
+
+            # 8. Establecer flag de formulario activo
+            self.en_formulario_intervencion = True
+            self.modo_formulario = "crear"
+
+            # 9. Navegar a página de intervención
+            from dental_system.state.estado_ui import EstadoUI
+            ui_state = self.get_state(EstadoUI)
+            self.navigate_to(
+                "intervencion",
+                f"Atención Odontológica - {paciente_encontrado.nombre_completo}",
+                f"Consulta #{consulta_encontrada.numero_consulta or 'N/A'}"
+            )
+
+            logger.info(f"🦷 Navegación a intervención completada")
+
         except Exception as e:
-            logger.error(f"❌ Error seleccionando paciente/consulta: {str(e)}")
+            logger.error(f"❌ Error en seleccionar_paciente_consulta: {str(e)}")
+            from dental_system.state.estado_ui import EstadoUI
+            ui_state = self.get_state(EstadoUI)
+           
+            self.mostrar_toast_error("Error al seleccionar paciente")
     
     @rx.event
     async def actualizar_progreso_intervencion(self, progreso: str):
@@ -2332,108 +2450,17 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado):
     # 🦷 MÉTODOS DE ODONTOGRAMA
     # ==========================================
 
-    async def seleccionar_diente_superficie(self, numero_diente: int, nombre_superficie: str):
-        """
-        🦷 Seleccionar un diente y su superficie en el odontograma
-        
-        Args:
-            numero_diente: Número FDI del diente (11-48)
-            nombre_superficie: Nombre de la superficie (oclusal, mesial, distal, vestibular, lingual)
-        """
-        try:
-            # Validar número de diente FDI
-            if numero_diente not in (self.cuadrante_1 + self.cuadrante_2 + self.cuadrante_3 + self.cuadrante_4):
-                logger.warning(f"Número de diente inválido: {numero_diente}")
-                return
-                
-            # Validar superficie
-            superficies_validas = ["oclusal", "mesial", "distal", "vestibular", "lingual"]
-            if nombre_superficie not in superficies_validas:
-                logger.warning(f"Superficie inválida: {nombre_superficie}")
-                return
-                
-            # Actualizar selección
-            self.diente_seleccionado = numero_diente
-            self.superficie_seleccionada = nombre_superficie
-            
-            logger.info(f"✅ Seleccionado diente {numero_diente}, superficie {nombre_superficie}")
-            
-        except Exception as e:
-            logger.error(f"❌ Error seleccionando diente/superficie: {e}")
+    # async def seleccionar_diente_superficie(self, numero_diente: int, nombre_superficie: str):
+    #     """🔄 FUNCIÓN DE RETROCOMPATIBILIDAD - Usar seleccionar_diente_unificado()"""
+    #     await self.seleccionar_diente_unificado(numero_diente, modo="superficie", superficie=nombre_superficie)
+
+    # REFACTOR FASE 2: seleccionar_diente() eliminada - usar select_tooth()
 
     @rx.event
-    async def seleccionar_diente(self, numero_diente: int):
-        """
-        🦷 Seleccionar solo un diente en el odontograma (versión principal)
-        
-        Args:
-            numero_diente: Número FDI del diente (11-48)
-        """
-        try:
-            # Validar número de diente FDI
-            if numero_diente not in (self.cuadrante_1 + self.cuadrante_2 + self.cuadrante_3 + self.cuadrante_4):
-                print(f"⚠️ Número de diente inválido: {numero_diente}")
-                return
-                
-            # Actualizar selección
-            self.diente_seleccionado = numero_diente
-            
-            # En modo edición, agregar a lista de dientes afectados para intervención
-            if self.modo_odontograma == "edicion":
-                self.agregar_diente_afectado(numero_diente)
-                self.actualizar_lista_dientes_seleccionados()
-            
-            print(f"✅ Diente {numero_diente} seleccionado")
-            
-        except Exception as e:
-            print(f"❌ Error seleccionando diente {numero_diente}: {e}")
-
-    @rx.event
-    async def abrir_popover_diente(self, numero_diente: int, x: float = 100, y: float = 100):
-        """
-        🎈 Abrir popover contextual del diente en posición específica
-        
-        Args:
-            numero_diente: Número FDI del diente
-            x: Posición X del mouse/click
-            y: Posición Y del mouse/click
-        """
-        try:
-            # Primero seleccionar el diente
-            await self.seleccionar_diente(numero_diente)
-            
-            # Calcular posición inteligente del popover
-            # Ajustar para evitar que se salga de la pantalla
-            popover_width = 320
-            popover_height = 450
-            
-            # Límites de pantalla aproximados (se pueden ajustar)
-            max_x = 1200 - popover_width
-            max_y = 800 - popover_height
-            
-            adjusted_x = min(max(x, 10), max_x)
-            adjusted_y = min(max(y, 10), max_y)
-            
-            # Establecer posición del popover
-            self.popover_diente_posicion = {
-                "x": adjusted_x,
-                "y": adjusted_y
-            }
-            
-            # Abrir popover
-            self.popover_diente_abierto = True
-            
-            print(f"✅ Popover abierto para diente {numero_diente} en posición ({adjusted_x}, {adjusted_y})")
-            
-        except Exception as e:
-            print(f"❌ Error abriendo popover para diente {numero_diente}: {e}")
-
-    @rx.event
-    def cerrar_popover_diente(self):
-        """🎈 Cerrar popover contextual del diente"""
-        self.popover_diente_abierto = False
-        self.popover_diente_posicion = {}
-        print("✅ Popover cerrado")
+    # ==========================================
+    # 🎈 POPOVER ANTIGUO - ELIMINADO (Reemplazado por Sidebar V4)
+    # ==========================================
+    # REFACTOR: Sistema de popover contextual eliminado - ahora usa tooth_detail_sidebar
 
     @rx.event
     def abrir_modal_historial_completo(self):
@@ -2529,24 +2556,82 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado):
         """🦷 Seleccionar condición que se va a aplicar"""
         self.selected_condition_to_apply = condicion
         
-    async def actualizar_condicion_superficie_actual(self):
-        """🔄 Actualizar condición actual de la superficie seleccionada"""
-        if self.diente_seleccionado and self.superficie_seleccionada:
-            # Obtener condición de cambios pendientes o actual
-            if self.diente_seleccionado in self.cambios_pendientes_odontograma:
-                condicion_pendiente = self.cambios_pendientes_odontograma[self.diente_seleccionado].get(self.superficie_seleccionada)
-                if condicion_pendiente:
-                    self.current_surface_condition = condicion_pendiente
-                    return
-            
-            # Si no hay cambios pendientes, obtener de condiciones actuales
-            if self.diente_seleccionado in self.condiciones_odontograma:
-                condicion_actual = self.condiciones_odontograma[self.diente_seleccionado].get(self.superficie_seleccionada)
-                self.current_surface_condition = condicion_actual if condicion_actual else "sano"
+    # MÉTODO REMOVIDO: actualizar_condicion_superficie_actual
+    # current_surface_condition es ahora un computed var que se calcula automáticamente
+
+    async def limpiar_odontograma_test(self):
+        """🧹 Limpiar odontograma para pruebas"""
+        try:
+            self.condiciones_por_diente = {}
+            self.cambios_pendientes_odontograma = {}
+            self.diente_seleccionado = None
+            self.superficie_seleccionada = "oclusal"
+            print("🧹 Odontograma limpiado para pruebas")
+        except Exception as e:
+            print(f"❌ Error limpiando odontograma: {e}")
+
+    # REFACTOR FASE 2: cargar_odontograma_ejemplo() eliminada - usar datos reales de BD
+
+    # ==========================================
+    # 🆕 MÉTODOS V2.0 ODONTOGRAMA INTERACTIVO
+    # ==========================================
+
+    def toggle_modo_edicion(self):
+        """🔄 Alternar entre modo visualización y edición"""
+        self.modo_edicion_ui = not self.modo_edicion_ui
+        print(f"🔄 Modo cambiado a: {'Edición' if self.modo_edicion_ui else 'Visualización'}")
+
+    def aplicar_filtro_visualizacion(self, tipo: str):
+        """🔍 Aplicar filtros específicos de visualización del odontograma"""
+        try:
+            if tipo == "solo_condiciones":
+                self.mostrar_solo_condiciones = not self.mostrar_solo_condiciones
+                print(f"🔍 Filtro 'Solo Condiciones': {'ON' if self.mostrar_solo_condiciones else 'OFF'}")
+
+            elif tipo == "solo_criticos":
+                self.mostrar_solo_criticos = not self.mostrar_solo_criticos
+                print(f"🔍 Filtro 'Solo Críticos': {'ON' if self.mostrar_solo_criticos else 'OFF'}")
+
             else:
-                self.current_surface_condition = "sano"
-        else:
-            self.current_surface_condition = None
+                print(f"⚠️ Tipo de filtro no reconocido: {tipo}")
+
+        except Exception as e:
+            print(f"❌ Error aplicando filtro {tipo}: {e}")
+
+    def mostrar_comparador_versiones(self):
+        """📊 Mostrar modal comparador de versiones del odontograma"""
+        # Por ahora es un placeholder - funcionalidad completa se implementará después
+        print("📊 Comparador de versiones - Funcionalidad en desarrollo")
+        # self.modal_comparador_versiones_abierto = True  # Se agregará cuando se implemente
+
+    def simular_condiciones_test(self):
+        """🎲 Simular condiciones aleatorias para testing"""
+        try:
+            # Simular algunas condiciones aleatorias para prueba rápida
+            import random
+
+            # Dientes de prueba con condiciones variadas
+            dientes_prueba = [11, 12, 21, 22, 16, 26, 36, 46]
+            condiciones_test = ["caries", "obturado", "corona", "endodoncia", "fractura"]
+
+            for diente in dientes_prueba:
+                if random.choice([True, False]):  # 50% probabilidad
+                    condicion = random.choice(condiciones_test)
+                    superficie = random.choice(["oclusal", "mesial", "distal", "vestibular", "lingual"])
+
+                    # Inicializar diente si no existe
+                    if diente not in self.condiciones_por_diente:
+                        self.condiciones_por_diente[diente] = {
+                            "oclusal": "sano", "mesial": "sano", "distal": "sano",
+                            "vestibular": "sano", "lingual": "sano"
+                        }
+
+                    self.condiciones_por_diente[diente][superficie] = condicion
+
+            print("🎲 Condiciones de prueba simuladas aleatoriamente")
+
+        except Exception as e:
+            print(f"❌ Error simulando condiciones: {e}")
 
     async def apply_selected_condition(self):
         """🦷 Aplicar la condición seleccionada al diente y superficie actual"""
@@ -2563,8 +2648,7 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado):
                 self.selected_condition_to_apply
             )
             
-            # Actualizar la condición actual
-            await self.actualizar_condicion_superficie_actual()
+            # NOTA: current_surface_condition se actualiza automáticamente (computed var)
             
             # Limpiar selección
             self.selected_condition_to_apply = None
@@ -2672,15 +2756,7 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado):
         except Exception as e:
             logger.error(f"❌ Error seleccionando todos los dientes: {e}")
 
-    async def seleccionar_diente_para_historial(self, numero_diente: int):
-        """📚 Seleccionar diente para ver su historial (modo consulta)"""
-        try:
-            self.diente_seleccionado = numero_diente
-            # Cargar historial real desde BD para este diente
-            await self.cargar_historial_diente_especifico(numero_diente)
-            logger.info(f"✅ Diente {numero_diente} seleccionado para consulta de historial")
-        except Exception as e:
-            logger.error(f"❌ Error seleccionando diente para historial: {e}")
+    # REFACTOR FASE 2: seleccionar_diente_para_historial() eliminada - usar select_tooth() + cargar_historial_diente_especifico()
 
     async def cargar_historial_diente_especifico(self, numero_diente: int):
         """📊 Cargar historial real de intervenciones en un diente específico"""
@@ -2837,27 +2913,10 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado):
                 "costo_total_tratamientos": 0.0
             }
 
-    @rx.event
-    async def seleccionar_diente_profesional(self, numero_diente: int):
-        """🦷 Selección profesional de diente con carga BD real + estadísticas"""
-        try:
-            # Seleccionar diente
-            self.diente_seleccionado = numero_diente
-
-            # Cargar historial específico del diente desde BD
-            await self.cargar_historial_diente_especifico(numero_diente)
-
-            # Actualizar estadísticas si es necesario
-            if not hasattr(self, 'estadisticas_paciente_bd') or not self.estadisticas_paciente_bd:
-                await self.obtener_estadisticas_paciente_bd_async()
-
-            logger.info(f"✅ Diente {numero_diente} seleccionado profesionalmente con datos BD")
-
-        except Exception as e:
-            logger.error(f"❌ Error selección profesional diente {numero_diente}: {e}")
+    # REFACTOR FASE 2: seleccionar_diente_profesional() eliminada - usar select_tooth()
 
     # Variable para almacenar estadísticas de BD
-    estadisticas_paciente_bd: Dict[str, Any] = {}
+    estadisticas_paciente_bd: dict = {}  # Cambió de Dict[str, Any]
 
     async def activar_modo_seleccion_multiple(self):
         """🎯 Activar modo de selección múltiple de dientes"""
@@ -2951,29 +3010,7 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado):
         self.recomendaciones_paciente = texto
     
     # Acciones principales
-    async def guardar_intervencion_completa(self):
-        """💾 Guardar intervención completa"""
-        try:
-            self.is_guardando_intervencion = True
-            
-            # Aquí iría la lógica de guardado real
-            # Por ahora simulo el proceso
-            
-            logger.info("🔄 Iniciando guardado de intervención completa...")
-            
-            # Simular delay de guardado
-            import asyncio
-            await asyncio.sleep(1)
-            
-            logger.info("✅ Intervención guardada exitosamente")
-            
-            # Limpiar formulario después del guardado
-            await self.limpiar_formulario_intervencion_completo()
-            
-        except Exception as e:
-            logger.error(f"❌ Error guardando intervención: {e}")
-        finally:
-            self.is_guardando_intervencion = False
+    # REFACTOR FASE 2: guardar_intervencion_completa() stub eliminada - versión real en línea ~4426
     
     async def guardar_borrador_intervencion(self):
         """💾 Guardar como borrador"""
@@ -3203,53 +3240,7 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado):
             logger.error(f"Error cargando condiciones del historial: {str(e)}")
             self.condiciones_odontograma = {}
 
-    def historial_diente_detalle(self, numero_diente: int) -> Dict[str, Any]:
-        """🦷 Información detallada del diente para mostrar en el historial"""
-        try:
-            if hasattr(self, 'condiciones_odontograma') and self.condiciones_odontograma:
-                condicion_data = self.condiciones_odontograma.get(str(numero_diente), {})
 
-                return {
-                    "numero": numero_diente,
-                    "condicion": condicion_data.get("tipo_condicion", "sano"),
-                    "color": self.color_diente_historial(numero_diente),
-                    "descripcion": condicion_data.get("descripcion", "Sin tratamientos registrados"),
-                    "material": condicion_data.get("material_utilizado", "-"),
-                    "fecha": condicion_data.get("fecha_tratamiento", "-"),
-                    "observaciones": condicion_data.get("observaciones", "-")
-                }
-
-            # Diente sin información
-            return {
-                "numero": numero_diente,
-                "condicion": "sano",
-                "color": self.COLORES_CONDICIONES_HISTORIAL["sano"],
-                "descripcion": "Sin tratamientos registrados",
-                "material": "-",
-                "fecha": "-",
-                "observaciones": "-"
-            }
-
-        except Exception as e:
-            logger.error(f"Error obteniendo detalle diente {numero_diente}: {str(e)}")
-            return {
-                "numero": numero_diente,
-                "condicion": "sano",
-                "color": self.COLORES_CONDICIONES_HISTORIAL["sano"],
-                "descripcion": "Error cargando información",
-                "material": "-",
-                "fecha": "-",
-                "observaciones": "-"
-            }
-
-    @rx.event
-    def seleccionar_diente_para_historial(self, numero_diente: int):
-        """🦷 Seleccionar diente en el historial para ver detalles"""
-        try:
-            self.diente_seleccionado = numero_diente
-            logger.info(f"Diente {numero_diente} seleccionado para historial")
-        except Exception as e:
-            logger.error(f"Error seleccionando diente {numero_diente}: {str(e)}")
 
     @rx.event
     async def inicializar_historial_paciente(self):
@@ -3276,7 +3267,7 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado):
     @rx.var(cache=True)
     def estadisticas_paciente_resumen(self) -> Dict[str, Any]:
         """📊 Resumen estadísticas del paciente actual con datos BD"""
-        if not self.paciente_actual.id:
+        if not (hasattr(self.paciente_actual, 'id') and self.paciente_actual.id):
             return {
                 "total_intervenciones": 0,
                 "ultima_visita": "N/A",
@@ -3360,7 +3351,7 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado):
     def puede_mostrar_historial(self) -> bool:
         """🔍 Verificar si se puede mostrar el tab de historial"""
         return (
-            bool(self.paciente_actual.id) and
+            (hasattr(self.paciente_actual, 'id') and bool(self.paciente_actual.id)) and
             self.diente_seleccionado is not None and
             not self.cargando_odontograma_historial
         )
@@ -3386,4 +3377,1241 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado):
             return "1 intervención registrada"
         else:
             return f"{total_intervenciones} intervenciones registradas"
+
+    # ==========================================
+    # 🚀 MÉTODOS V2.0 - ODONTOGRAMA INTERACTIVO
+    # ==========================================
+
+    @rx.event
+    async def cargar_odontograma_paciente_actual(self):
+        """🔄 Cargar odontograma del paciente actual con datos reales"""
+        if not self.paciente_actual.id:
+            logger.warning("No hay paciente actual seleccionado")
+            return
+
+        try:
+            self.odontograma_cargando = True
+            self.odontograma_error = ""
+
+            logger.info(f"🔄 Cargando odontograma para paciente: {self.paciente_actual.id}")
+
+            # Usar id_personal del odontólogo (accesible directamente vía mixin=True)
+            # Preferir id_personal (tabla personal) sobre id_usuario
+            personal_id = self.id_personal if self.id_personal else self.id_usuario
+
+            # Llamar al servicio para obtener/crear odontograma
+            odontograma_data = await odontologia_service.get_or_create_patient_odontogram(
+                self.paciente_actual.id,
+                personal_id
+            )
+
+            if odontograma_data:
+                # Actualizar datos del odontograma
+                self.odontograma_actual = OdontogramaModel.from_dict(odontograma_data)
+
+                # Cargar condiciones organizadas por diente y superficie
+                self.condiciones_por_diente = odontograma_data.get("conditions", {})
+
+                # Resetear cambios pendientes
+                self.cambios_pendientes_odontograma = {}
+                self.cambios_sin_guardar = False
+
+                logger.info(f"✅ Odontograma cargado - Versión: {odontograma_data.get('version', 1)}")
+
+                # NUEVO V4.0: Cargar datos para timeline
+                self.intervenciones_paciente = await odontologia_service.get_patient_interventions(
+                    self.paciente_actual.id
+                )
+                self.dentistas_paciente = await odontologia_service.get_patient_dentists(
+                    self.paciente_actual.id
+                )
+                self.procedimientos_paciente = await odontologia_service.get_patient_procedures(
+                    self.paciente_actual.id
+                )
+
+                logger.info(f"✅ Timeline cargado: {len(self.intervenciones_paciente)} intervenciones")
+
+            else:
+                logger.warning("No se pudo cargar/crear odontograma")
+                self.odontograma_error = "Error cargando odontograma"
+
+            # ✅ ACTIVAR TIMELINE AUTOMÁTICAMENTE cuando hay datos
+            if self.intervenciones_paciente:
+                self.show_timeline = True
+                logger.info(f"✅ Timeline activado automáticamente - {len(self.intervenciones_paciente)} intervenciones")
+
+        except Exception as e:
+            logger.error(f"❌ Error cargando odontograma: {str(e)}")
+            self.odontograma_error = f"Error: {str(e)}"
+        finally:
+            self.odontograma_cargando = False
+
+    @rx.event
+    def seleccionar_diente_superficie(self, tooth_number: int, surface: str):
+        """👆 Seleccionar diente y superficie específica para edición"""
+
+        # NOTA: No validamos permisos aquí porque ya se validaron a nivel de ruta
+        # Si el usuario llegó a la página de intervención, ya tiene permisos de odontólogo
+        # Validación redundante eliminada para mejorar UX
+
+        self.diente_seleccionado = tooth_number
+        self.superficie_seleccionada = surface
+
+        # Abrir modal de condiciones
+        self.modal_condiciones_abierto = True
+
+        logger.info(f"👆 Seleccionado: Diente {tooth_number}, Superficie {surface}")
+
+    @rx.event
+    def cerrar_modal_condiciones(self):
+        """❌ Cerrar modal de selección de condiciones"""
+        self.modal_condiciones_abierto = False
+        self.condicion_seleccionada_temp = "sano"
+
+    @rx.event
+    def seleccionar_condicion_temporal(self, condicion: str):
+        """🎯 Seleccionar condición temporal para aplicar"""
+        self.condicion_seleccionada_temp = condicion
+
+    @rx.event
+    async def aplicar_condicion_seleccionada(self):
+        """💾 Aplicar condición seleccionada al diente/superficie"""
+        if not (self.diente_seleccionado and self.superficie_seleccionada and self.condicion_seleccionada_temp):
+            logger.warning("Datos incompletos para aplicar condición")
+            return
+
+        try:
+            # Actualizar en estado local
+            if self.diente_seleccionado not in self.condiciones_por_diente:
+                self.condiciones_por_diente[self.diente_seleccionado] = {}
+
+            self.condiciones_por_diente[self.diente_seleccionado][self.superficie_seleccionada] = self.condicion_seleccionada_temp
+
+            # Marcar como cambio pendiente
+            if self.diente_seleccionado not in self.cambios_pendientes_odontograma:
+                self.cambios_pendientes_odontograma[self.diente_seleccionado] = {}
+
+            self.cambios_pendientes_odontograma[self.diente_seleccionado][self.superficie_seleccionada] = self.condicion_seleccionada_temp
+            self.cambios_sin_guardar = True
+
+            # Cerrar modal
+            self.modal_condiciones_abierto = False
+
+            logger.info(f"✅ Condición '{self.condicion_seleccionada_temp}' aplicada a diente {self.diente_seleccionado} - {self.superficie_seleccionada}")
+
+            # Auto-guardar (opcional - puede quitarse para guardar manual)
+            await self.guardar_cambios_odontograma()
+
+        except Exception as e:
+            logger.error(f"❌ Error aplicando condición: {str(e)}")
+            self.odontograma_error = f"Error aplicando condición: {str(e)}"
+
+    async def guardar_cambios_odontograma(self):
+        """💾 Guardar cambios pendientes del odontograma en BD (método helper sin @rx.event)"""
+        if not self.cambios_pendientes_odontograma:
+            logger.info("No hay cambios pendientes para guardar")
+            return
+
+        try:
+            self.odontograma_guardando = True
+            self.odontograma_error = ""
+
+            # Guardar cambios usando el servicio
+            success = await odontologia_service.save_odontogram_conditions(
+                self.odontograma_actual.id,
+                self.cambios_pendientes_odontograma
+            )
+
+            if success:
+                # Limpiar cambios pendientes
+                self.cambios_pendientes_odontograma = {}
+                self.cambios_sin_guardar = False
+
+                logger.info("✅ Cambios del odontograma guardados exitosamente")
+            else:
+                raise ValueError("Error guardando en base de datos")
+
+        except PermissionError as e:
+            # Error de permisos - mensaje específico
+            error_msg = str(e)
+            logger.error(f"❌ {error_msg}")
+            self.odontograma_error = error_msg
+            self.mostrar_toast(f"⚠️ Sin Permisos: {error_msg}", "error")
+        except Exception as e:
+            # Otros errores
+            logger.error(f"❌ Error guardando odontograma: {str(e)}")
+            self.odontograma_error = f"Error guardando cambios: {str(e)}"
+            self.mostrar_toast(f"Error al guardar: {str(e)}", "error")
+        finally:
+            self.odontograma_guardando = False
+
+    # ==========================================
+    # 🆕 MÉTODOS NUEVA ESTRUCTURA
+    # ==========================================
+
+    # ─────────────────────────────────────────
+    # MODALES
+    # ─────────────────────────────────────────
+
+    def toggle_add_intervention_modal(self):
+        """Toggle modal agregar intervención"""
+        self.show_add_intervention_modal = not self.show_add_intervention_modal
+
+    def open_add_intervention_modal(self):
+        """Abrir modal agregar intervención"""
+        self.show_add_intervention_modal = True
+        # Resetear formulario
+        self.selected_service_name = ""
+        self.superficie_oclusal_selected = False
+        self.superficie_mesial_selected = False
+        self.superficie_distal_selected = False
+        self.superficie_vestibular_selected = False
+        self.superficie_lingual_selected = False
+        self.auto_change_condition = False
+        self.new_condition_value = ""
+        self.intervention_observations = ""
+
+    def toggle_change_condition_modal(self):
+        """Toggle modal cambiar condición"""
+        self.show_change_condition_modal = not self.show_change_condition_modal
+
+    # ─────────────────────────────────────────
+    # SUPERFICIES (CHECKBOXES)
+    # ─────────────────────────────────────────
+
+    def toggle_superficie_oclusal(self, checked: bool):
+        """Toggle superficie oclusal"""
+        self.superficie_oclusal_selected = checked
+
+    def toggle_superficie_mesial(self, checked: bool):
+        """Toggle superficie mesial"""
+        self.superficie_mesial_selected = checked
+
+    def toggle_superficie_distal(self, checked: bool):
+        """Toggle superficie distal"""
+        self.superficie_distal_selected = checked
+
+    def toggle_superficie_vestibular(self, checked: bool):
+        """Toggle superficie vestibular"""
+        self.superficie_vestibular_selected = checked
+
+    def toggle_superficie_lingual(self, checked: bool):
+        """Toggle superficie lingual"""
+        self.superficie_lingual_selected = checked
+
+    # ─────────────────────────────────────────
+    # OTROS SETTERS
+    # ─────────────────────────────────────────
+
+    def toggle_auto_change_condition(self, checked: bool):
+        """Toggle cambio automático de condición"""
+        self.auto_change_condition = checked
+
+    def set_new_condition_value(self, value: str):
+        """Setear nueva condición"""
+        self.new_condition_value = value
+
+    def set_intervention_observations(self, value: str):
+        """Setear observaciones"""
+        self.intervention_observations = value
+
+    def set_selected_service_name(self, value: str):
+        """Setear servicio seleccionado"""
+        self.selected_service_name = value
+
+    def set_quick_surface_selected(self, value: str):
+        """Setear superficie seleccionada (cambio rápido)"""
+        self.quick_surface_selected = value
+
+    def set_quick_condition(self, condition: str):
+        """Setear condición (cambio rápido)"""
+        self.quick_condition_value = condition
+
+    # ─────────────────────────────────────────
+    # GUARDAR SERVICIOS
+    # ─────────────────────────────────────────
+
+    @rx.event
+    async def save_intervention_to_consultation(self):
+        """
+        💾 Agregar servicio a lista temporal de consulta actual
+
+        NO guarda en BD aún, solo agrega a self.servicios_consulta_actual
+        Se guardará cuando se complete la consulta
+        """
+        try:
+            # Validar datos
+            if not self.selected_service_name:
+                self.mostrar_toast("Selecciona un servicio", "warning")
+                return
+
+            if not self.selected_tooth:
+                self.mostrar_toast("Selecciona un diente", "warning")
+                return
+
+            # Recopilar superficies seleccionadas
+            superficies = []
+            if self.superficie_oclusal_selected:
+                superficies.append("Oclusal")
+            if self.superficie_mesial_selected:
+                superficies.append("Mesial")
+            if self.superficie_distal_selected:
+                superficies.append("Distal")
+            if self.superficie_vestibular_selected:
+                superficies.append("Vestibular")
+            if self.superficie_lingual_selected:
+                superficies.append("Lingual")
+
+            if not superficies:
+                self.mostrar_toast("Selecciona al menos una superficie", "warning")
+                return
+
+            # Crear dict del servicio
+            import uuid
+
+            # Obtener ID del servicio del catálogo
+            servicio_id = self.selected_service_id
+            logger.info(f"📝 Creando servicio: '{self.selected_service_name}' con ID: {servicio_id}")
+
+            if not servicio_id:
+                self.mostrar_toast("⚠️ Error: No se encontró el servicio en el catálogo", "error")
+                logger.error(f"❌ Servicio '{self.selected_service_name}' sin ID. Servicios disponibles: {len(self.servicios_disponibles)}")
+                return
+
+            servicio = {
+                "id": str(uuid.uuid4()),  # ID temporal para la UI
+                "servicio_id": servicio_id,  # ID real del catálogo
+                "diente": self.selected_tooth,
+                "servicio": self.selected_service_name,
+                "superficies": superficies,
+                "costo_bs": self.selected_service_cost_bs,
+                "costo_usd": self.selected_service_cost_usd,
+                "observaciones": self.intervention_observations,
+            }
+
+            # Agregar a lista
+            self.servicios_consulta_actual.append(servicio)
+            logger.info(f"✅ Servicio agregado a lista: {servicio}")
+
+            # Actualizar flag de servicios seleccionados
+            self.tiene_servicios_seleccionados = len(self.servicios_consulta_actual) > 0
+
+            # Si auto_change_condition, actualizar condiciones
+            if self.auto_change_condition and self.new_condition_value:
+                if self.selected_tooth not in self.condiciones_por_diente:
+                    self.condiciones_por_diente[self.selected_tooth] = {}
+
+                for superficie in superficies:
+                    self.condiciones_por_diente[self.selected_tooth][superficie.lower()] = self.new_condition_value
+
+                # Guardar en BD
+                await self.guardar_cambios_odontograma()
+
+            # Cerrar modal
+            self.show_add_intervention_modal = False
+            self.mostrar_toast("Servicio agregado exitosamente", "success")
+
+        except Exception as e:
+            logger.error(f"❌ Error agregando servicio: {str(e)}")
+            self.mostrar_toast(f"Error: {str(e)}", "error")
+
+    @rx.event
+    async def apply_quick_condition_change(self):
+        """
+        🔄 Cambiar condición del diente (cambio rápido)
+
+        Guarda directamente en BD
+        """
+        try:
+            # Validar
+            if not self.selected_tooth:
+                self.mostrar_toast("Selecciona un diente", "warning")
+                return
+
+            if not self.quick_surface_selected:
+                self.mostrar_toast("Selecciona una superficie", "warning")
+                return
+
+            if not self.quick_condition_value:
+                self.mostrar_toast("Selecciona una condición", "warning")
+                return
+
+            # Actualizar en memoria
+            if self.selected_tooth not in self.condiciones_por_diente:
+                self.condiciones_por_diente[self.selected_tooth] = {}
+
+            self.condiciones_por_diente[self.selected_tooth][self.quick_surface_selected] = self.quick_condition_value
+
+            # Guardar en BD
+            await self.guardar_cambios_odontograma()
+
+            # Cerrar modal
+            self.show_change_condition_modal = False
+            self.mostrar_toast("Condición actualizada", "success")
+
+        except Exception as e:
+            logger.error(f"❌ Error cambiando condición: {str(e)}")
+            self.mostrar_toast(f"Error: {str(e)}", "error")
+
+    @rx.event
+    async def edit_consultation_service(self, service_id: str):
+        """✏️ Editar servicio de la consulta actual"""
+        # TODO: Implementar edición
+        self.mostrar_toast("Edición próximamente", "info")
+
+    @rx.event
+    async def delete_consultation_service(self, service_id: str):
+        """🗑️ Eliminar servicio de la consulta actual"""
+        self.servicios_consulta_actual = [
+            s for s in self.servicios_consulta_actual
+            if s.get("id") != service_id
+        ]
+        # Actualizar flag
+        self.tiene_servicios_seleccionados = len(self.servicios_consulta_actual) > 0
+        self.mostrar_toast("Servicio eliminado", "success")
+
+    @rx.event
+    def set_hover_diente(self, tooth_number: Optional[int]):
+        """🖱️ Establecer diente en hover para efectos visuales"""
+        self.diente_hover = tooth_number
+
+    @rx.event
+    def set_hover_superficie(self, surface: Optional[str]):
+        """🖱️ Establecer superficie en hover para efectos visuales"""
+        self.superficie_hover = surface
+
+    # ==========================================
+    # 🎨 COMPUTED VARS V2.0 - COLORES Y VISUAL
+    # ==========================================
+
+   
+    def get_surface_color(self, tooth_number: int, surface: str) -> str:
+        """🎨 Obtener color de superficie específica según condición"""
+        # Verificar cambios pendientes primero
+        if tooth_number in self.cambios_pendientes_odontograma:
+            pending_condition = self.cambios_pendientes_odontograma[tooth_number].get(surface)
+            if pending_condition:
+                return self.condiciones_disponibles.get(pending_condition, {}).get("color", "#90EE90")
+
+        # Verificar condiciones guardadas
+        if tooth_number in self.condiciones_por_diente:
+            current_condition = self.condiciones_por_diente[tooth_number].get(surface, "sano")
+            return self.condiciones_disponibles.get(current_condition, {}).get("color", "#90EE90")
+
+        # Por defecto: sano
+        return "#90EE90"
+
+    @rx.var
+    def odontograma_status_message(self) -> str:
+        """📊 Mensaje de estado del odontograma"""
+        if self.odontograma_cargando:
+            return "🔄 Cargando odontograma..."
+        elif self.odontograma_guardando:
+            return "💾 Guardando cambios..."
+        elif self.odontograma_error:
+            return f"❌ {self.odontograma_error}"
+        elif self.cambios_sin_guardar:
+            return f"⚠️ {len(self.cambios_pendientes_odontograma)} cambios sin guardar"
+        else:
+            return "✅ Odontograma sincronizado"
+
+    @rx.var
+    def condiciones_disponibles_lista(self) -> List[Dict[str, str]]:
+        """📋 Lista de condiciones disponibles para el selector"""
+        return [
+            {
+                "key": key,
+                "color": value["color"],
+                "descripcion": value["descripcion"],
+                "simbolo": value["simbolo"]
+            }
+            for key, value in self.condiciones_disponibles.items()
+        ]
+
+    @rx.var
+    def condiciones_disponibles_ui(self) -> List[Dict[str, str]]:
+        """🎨 Lista de condiciones formateada específicamente para UI V2.0"""
+        return [
+            {
+                "nombre": value["descripcion"],
+                "color": value["color"],
+                "codigo": key
+            }
+            for key, value in self.condiciones_disponibles.items()
+        ]
+
+    @rx.var
+    def current_surface_condition(self) -> str:
+        """🦷 Condición actual de la superficie seleccionada"""
+        if not (self.diente_seleccionado and self.superficie_seleccionada):
+            return "sano"
+
+        # Verificar condiciones guardadas
+        if self.diente_seleccionado in self.condiciones_por_diente:
+            return self.condiciones_por_diente[self.diente_seleccionado].get(self.superficie_seleccionada, "sano")
+
+        return "sano"
+
+    @rx.var
+    def dientes_por_cuadrante(self) -> Dict[str, List[int]]:
+        """🦷 Diccionario de dientes organizados por cuadrante FDI"""
+        return {
+            "cuadrante_1": self.cuadrante_1,
+            "cuadrante_2": self.cuadrante_2,
+            "cuadrante_3": self.cuadrante_3,
+            "cuadrante_4": self.cuadrante_4
+        }
+
+    @rx.var
+    def estadisticas_resumen(self) -> Dict[str, int]:
+        """📊 Estadísticas resumidas del odontograma actual"""
+        if not self.condiciones_por_diente:
+            return {
+                "dientes_sanos": 32,
+                "dientes_afectados": 0,
+                "condiciones_criticas": 0
+            }
+
+        dientes_con_condiciones = set()
+        condiciones_criticas = 0
+        condiciones_criticas_tipos = {"caries", "fractura", "ausente"}
+
+        for diente, superficies in self.condiciones_por_diente.items():
+            for superficie, condicion in superficies.items():
+                if condicion != "sano":
+                    dientes_con_condiciones.add(diente)
+                    if condicion in condiciones_criticas_tipos:
+                        condiciones_criticas += 1
+
+        dientes_afectados = len(dientes_con_condiciones)
+        dientes_sanos = 32 - dientes_afectados
+
+        return {
+            "dientes_sanos": dientes_sanos,
+            "dientes_afectados": dientes_afectados,
+            "condiciones_criticas": condiciones_criticas
+        }
+
+    @rx.var
+    def ultima_intervencion_fecha(self) -> str:
+        """📅 Fecha de la última intervención (simplificada)"""
+        # Por ahora retorna "today" o "Ver historial"
+        # En el futuro se puede conectar con el servicio para obtener fecha real
+        return "today" if self.cambios_sin_guardar else "Ver historial"
+
+    # ==========================================
+    # 🎛️ MÉTODOS DE CONTROL PROFESIONAL
+    # ==========================================
+
+    @rx.event
+    def nueva_intervencion(self):
+        """➕ Iniciar nueva intervención odontológica"""
+        # TODO: Implementar navegación a página de intervención
+        yield rx.toast.info(
+            "Nueva Intervención",
+            description="Funcionalidad en desarrollo",
+            duration=3000
+        )
+
+    @rx.event
+    def mostrar_historial_odontograma(self):
+        """📜 Mostrar historial completo del odontograma"""
+        # TODO: Implementar modal o página de historial
+        yield rx.toast.info(
+            "Historial",
+            description="Funcionalidad en desarrollo",
+            duration=3000
+        )
+
+    @rx.event
+    def exportar_odontograma_pdf(self):
+        """📄 Exportar odontograma a PDF"""
+        # TODO: Implementar generación de PDF
+        yield rx.toast.info(
+            "Exportar PDF",
+            description="Funcionalidad en desarrollo",
+            duration=3000
+        )
+
+    # ==========================================
+    # 🌟 EVENTOS V4.0 - NUEVO DISEÑO PROFESIONAL
+    # ==========================================
+
+    @rx.event
+    def select_tooth(self, tooth_number: int):
+        """
+        🦷 Seleccionar un diente del odontograma
+
+        Args:
+            tooth_number: Número FDI del diente (11-48)
+        """
+        self.selected_tooth = tooth_number
+        self.active_sidebar_tab = "historial"  # Resetear a tab historial
+        logger.info(f"✅ Diente {tooth_number} seleccionado")
+
+    @rx.event
+    def close_sidebar(self):
+        """📭 Cerrar panel lateral de detalles"""
+        self.selected_tooth = None
+        logger.info("✅ Sidebar cerrado")
+
+    @rx.event
+    def change_sidebar_tab(self, tab_name: str):
+        """
+        🔄 Cambiar tab del sidebar
+
+        Args:
+            tab_name: Nombre del tab ("historial" | "info")
+        """
+        self.active_sidebar_tab = tab_name
+        logger.info(f"✅ Tab cambiado a: {tab_name}")
+
+    @rx.event
+    def toggle_timeline(self):
+        """⏱️ Mostrar/ocultar timeline de intervenciones"""
+        self.show_timeline = not self.show_timeline
+        logger.info(f"✅ Timeline {'mostrado' if self.show_timeline else 'ocultado'}")
+
+    @rx.event
+    def update_timeline_filter(self, filter_type: str, value: str):
+        """
+        🔍 Actualizar filtros del timeline
+
+        Args:
+            filter_type: Tipo de filtro ("dentist" | "procedure" | "period")
+            value: Valor del filtro
+        """
+        if filter_type == "dentist":
+            self.timeline_filter_dentist = value
+        elif filter_type == "procedure":
+            self.timeline_filter_procedure = value
+        elif filter_type == "period":
+            self.timeline_filter_period = value
+
+        logger.info(f"✅ Filtro {filter_type} actualizado a: {value}")
+
+    # ============================================================================
+    # 🛠️ MÉTODOS DE GESTIÓN DE SERVICIOS PARA INTERVENCIONES (V4.0)
+    # ============================================================================
+
+    @rx.event
+    def agregar_servicio_a_intervencion(self, servicio_id: str, nombre_servicio: str,
+                                       precio_bs: float, precio_usd: float, dientes: List[int]):
+        """➕ Agregar servicio con dientes específicos a la intervención actual"""
+        try:
+            nuevo_servicio = {
+                "id_servicio": servicio_id,
+                "nombre": nombre_servicio,
+                "precio_bs": precio_bs,
+                "precio_usd": precio_usd,
+                "dientes": dientes,
+                "cantidad": len(dientes) if dientes else 1,
+            }
+
+            self.servicios_intervencion.append(nuevo_servicio)
+            self.recalcular_totales()
+            self.tiene_servicios_seleccionados = True
+
+            logger.info(f"✅ Servicio '{nombre_servicio}' agregado a intervención para dientes: {dientes}")
+
+        except Exception as e:
+            logger.error(f"❌ Error agregando servicio a intervención: {str(e)}")
+
+    @rx.event
+    def quitar_servicio_de_intervencion(self, index: int):
+        """➖ Quitar servicio de la lista de intervención"""
+        try:
+            if 0 <= index < len(self.servicios_intervencion):
+                servicio_removido = self.servicios_intervencion.pop(index)
+                self.recalcular_totales()
+
+                # Actualizar flag de servicios
+                self.tiene_servicios_seleccionados = len(self.servicios_intervencion) > 0
+
+                logger.info(f"✅ Servicio '{servicio_removido.get('nombre')}' removido de intervención")
+            else:
+                logger.warning(f"⚠️ Índice inválido para quitar servicio: {index}")
+
+        except Exception as e:
+            logger.error(f"❌ Error quitando servicio de intervención: {str(e)}")
+
+    @rx.event
+    def recalcular_totales(self):
+        """🧮 Recalcular totales de la intervención según servicios agregados"""
+        try:
+            total_bs = 0.0
+            total_usd = 0.0
+
+            for servicio in self.servicios_intervencion:
+                cantidad = servicio.get("cantidad", 1)
+                total_bs += servicio.get("precio_bs", 0.0) * cantidad
+                total_usd += servicio.get("precio_usd", 0.0) * cantidad
+
+            self.total_bs_intervencion = round(total_bs, 2)
+            self.total_usd_intervencion = round(total_usd, 2)
+
+            logger.info(f"✅ Totales recalculados: BS {self.total_bs_intervencion} | USD {self.total_usd_intervencion}")
+
+        except Exception as e:
+            logger.error(f"❌ Error recalculando totales: {str(e)}")
+            self.total_bs_intervencion = 0.0
+            self.total_usd_intervencion = 0.0
+
+    @rx.event
+    def marcar_cambio_odontograma(self, diente: int, condicion: str):
+        """🦷 Marcar cambio en odontograma y activar flag para guardado"""
+        try:
+            # Actualizar condición del diente (simplificado para V4.0 - 1 diente = 1 condición)
+            self.condiciones_por_diente[str(diente)] = {
+                "general": condicion
+            }
+
+            # Activar flags de cambios
+            self.tiene_cambios_odontograma = True
+
+            logger.info(f"✅ Cambio marcado en diente {diente}: {condicion}")
+
+        except Exception as e:
+            logger.error(f"❌ Error marcando cambio en odontograma: {str(e)}")
+
+    @rx.event
+    def limpiar_intervencion_actual(self):
+        """🧹 Limpiar datos de intervención actual (reset para nueva intervención)"""
+        try:
+            # Limpiar servicios antiguos
+            self.servicios_intervencion = []
+            self.total_bs_intervencion = 0.0
+            self.total_usd_intervencion = 0.0
+
+            # Limpiar servicios nuevos (V4.0)
+            self.servicios_consulta_actual = []
+
+            # Limpiar flags y estado
+            self.tiene_cambios_odontograma = False
+            self.tiene_servicios_seleccionados = False
+            self.selected_tooth = None
+            self.selected_service_name = ""
+
+            logger.info("✅ Datos de intervención limpiados (incluye servicios_consulta_actual)")
+
+        except Exception as e:
+            logger.error(f"❌ Error limpiando intervención: {str(e)}")
+
+    # ============================================================================
+    # 💾 MÉTODOS DE GUARDADO - DUAL WORKFLOW (V4.0)
+    # ============================================================================
+
+    @rx.event(background=True)
+    async def guardar_solo_diagnostico_odontograma(self):
+        """💾 WORKFLOW A: Guardar solo cambios en odontograma SIN crear intervención"""
+        async with self:
+            if not self.tiene_cambios_odontograma:
+                logger.warning("⚠️ No hay cambios en odontograma para guardar")
+                return
+
+            if not self.paciente_actual.id:
+                logger.error("❌ No hay paciente actual seleccionado")
+                return
+
+            try:
+                self.odontograma_guardando = True
+                logger.info("💾 Guardando solo diagnóstico (sin intervención)...")
+
+                # Obtener odontograma actual o crear uno nuevo
+                odontograma_id = self.odontograma_actual.id if self.odontograma_actual else None
+
+                if not odontograma_id:
+                    # Crear nuevo odontograma para el paciente
+                    personal_id = self.id_personal if self.id_personal else self.id_usuario
+                    odontograma_data = await odontologia_service.get_or_create_patient_odontogram(
+                        self.paciente_actual.id,
+                        personal_id
+                    )
+                    odontograma_id = odontograma_data.get("id") if odontograma_data else None
+
+                if not odontograma_id:
+                    logger.error("❌ No se pudo obtener/crear odontograma")
+                    return
+
+                # Guardar condiciones de dientes modificados
+                for diente_num, condiciones in self.condiciones_por_diente.items():
+                    for superficie, condicion in condiciones.items():
+                        await odontologia_service.save_tooth_condition(
+                            odontograma_id=odontograma_id,
+                            tooth_number=int(diente_num),
+                            surface=superficie,
+                            condition=condicion
+                        )
+
+                # Resetear flags
+                self.tiene_cambios_odontograma = False
+                logger.info("✅ Diagnóstico guardado exitosamente (sin intervención)")
+
+            except Exception as e:
+                logger.error(f"❌ Error guardando diagnóstico: {str(e)}")
+            finally:
+                self.odontograma_guardando = False
+
+    @rx.event(background=True)
+    async def guardar_intervencion_completa(self):
+        """
+        💾 FINALIZAR INTERVENCIÓN DEL ODONTÓLOGO ACTUAL
+
+        FLUJO COMPLETO:
+        1. Guardar intervención con servicios en BD
+        2. Actualizar odontograma con nueva versión
+        3. Cambiar estado consulta a "entre_odontologos" o "completada"
+        4. Navegar de vuelta a lista de pacientes
+        """
+        async with self:
+            # Validaciones
+            if not self.servicios_consulta_actual:
+                self.mostrar_toast("⚠️ No hay servicios para guardar", "warning")
+                logger.warning("⚠️ No hay servicios en consulta actual")
+                return
+
+            if not self.consulta_actual or not self.consulta_actual.id:
+                self.mostrar_toast("❌ No hay consulta activa", "error")
+                logger.error("❌ No hay consulta actual activa")
+                return
+
+            try:
+                self.odontograma_guardando = True
+                logger.info(f"💾 Finalizando intervención con {len(self.servicios_consulta_actual)} servicios...")
+
+                # Calcular totales
+                total_bs = sum(float(s.get("costo_bs", 0)) for s in self.servicios_consulta_actual)
+                total_usd = sum(float(s.get("costo_usd", 0)) for s in self.servicios_consulta_actual)
+
+                # 1. Crear nueva versión del odontograma si hay cambios
+                odontograma_version_id = None
+                if self.condiciones_por_diente:
+                    personal_id = self.id_personal if self.id_personal else self.id_usuario
+                    # Guardar condiciones actuales
+                    for diente_num, condiciones in self.condiciones_por_diente.items():
+                        for superficie, condicion in condiciones.items():
+                            await odontologia_service.save_tooth_condition(
+                                odontograma_id=self.odontograma_actual.id if self.odontograma_actual else None,
+                                tooth_number=int(diente_num),
+                                surface=superficie,
+                                condition=condicion
+                            )
+                    logger.info("✅ Odontograma actualizado")
+
+                # 2. Crear intervención en BD
+                personal_id = self.id_personal if self.id_personal else self.id_usuario
+                datos_intervencion = {
+                    "consulta_id": self.consulta_actual.id,
+                    "odontologo_id": personal_id,
+                    "servicios": [
+                        {
+                            "diente": s["diente"],
+                            "servicio_nombre": s["servicio"],
+                            "superficies": s["superficies"],
+                            "costo_bs": float(s["costo_bs"]),
+                            "costo_usd": float(s["costo_usd"]),
+                            "observaciones": s.get("observaciones", "")
+                        }
+                        for s in self.servicios_consulta_actual
+                    ],
+                    "total_bs": total_bs,
+                    "total_usd": total_usd,
+                    "observaciones_generales": f"Intervención completada con {len(self.servicios_consulta_actual)} servicios"
+                }
+
+                # Configurar contexto del servicio (usar perfil completo con permisos)
+                from dental_system.services.odontologia_service import odontologia_service
+                odontologia_service.set_user_context(self.id_usuario, self.perfil_usuario)
+
+                # Preparar servicios para backend (formato antiguo)
+                servicios_backend = []
+                for s in self.servicios_consulta_actual:
+                    servicio_data = {
+                        "servicio_id": s.get("servicio_id"),  # ID real del catálogo
+                        "cantidad": 1,
+                        "precio_unitario_bs": float(s.get("costo_bs", 0)),
+                        "precio_unitario_usd": float(s.get("costo_usd", 0)),
+                        "dientes_texto": str(s.get("diente", "")),
+                        "material_utilizado": "",
+                        "superficie_dental": ", ".join(s.get("superficies", [])),
+                        "observaciones": s.get("observaciones", s.get("servicio", ""))
+                    }
+                    servicios_backend.append(servicio_data)
+
+                datos_intervencion_backend = {
+                    "consulta_id": self.consulta_actual.id,
+                    "odontologo_id": personal_id,
+                    "servicios": servicios_backend,
+                    "observaciones_generales": f"Intervención completada con {len(self.servicios_consulta_actual)} servicios",
+                    "requiere_control": False
+                }
+
+                # Crear intervención con servicios (método antiguo que funciona)
+                resultado = await odontologia_service.crear_intervencion_con_servicios(datos_intervencion_backend)
+
+                if not resultado.get("success"):
+                    async with self:
+                        self.mostrar_toast(f"❌ Error: {resultado.get('message', 'Error desconocido')}", "error")
+                    logger.error(f"Error guardando intervención: {resultado}")
+                    return
+
+                intervencion_id = resultado.get("intervencion_id")
+                logger.info(f"✅ Intervención guardada: {intervencion_id}")
+                print(f"\n{'='*80}")
+                print(f"🔍 DEBUG - CAMBIO DE ESTADO DE CONSULTA")
+                print(f"{'='*80}")
+
+                # 3. CAMBIAR ESTADO CONSULTA (solo si no está en estado final)
+                estado_actual = self.consulta_actual.estado if hasattr(self.consulta_actual, 'estado') else None
+                print(f"📋 Estado actual de la consulta: '{estado_actual}'")
+                print(f"🆔 ID de consulta: {self.consulta_actual.id}")
+                print(f"📊 Servicios guardados: {len(self.servicios_consulta_actual)}")
+                print(f"🎯 Nuevo estado deseado: 'entre_odontologos'")
+                print(f"✅ ¿Puede cambiar? {estado_actual not in ['completada', 'cancelada']}")
+                print(f"{'='*80}\n")
+
+                if estado_actual and estado_actual not in ["completada", "cancelada"]:
+                    from dental_system.services.consultas_service import consultas_service
+                    consultas_service.set_user_context(self.id_usuario, self.perfil_usuario)
+
+                    print(f"🔄 Intentando cambiar estado de '{estado_actual}' → 'entre_odontologos'...")
+
+                    # Cambiar a "entre_odontologos" para que otro odontólogo pueda atender
+                    await consultas_service.change_consultation_status(
+                        consultation_id=self.consulta_actual.id,
+                        nuevo_estado="entre_odontologos",
+                        notas=f"Intervención completada por odontólogo con {len(self.servicios_consulta_actual)} servicios"
+                    )
+                    print(f"✅ Consulta cambiada exitosamente a 'entre_odontologos'")
+                    logger.info("✅ Consulta cambiada a 'entre_odontologos'")
+                else:
+                    print(f"⚠️ SKIPPED: Consulta ya está en estado final '{estado_actual}' - No se cambia")
+                    logger.info(f"⚠️ Consulta ya está en estado final '{estado_actual}' - No se cambia el estado")
+
+                # 4. CREAR PAGO PENDIENTE (TODO: Implementar método crear_pago_pendiente)
+                # El pago se creará manualmente desde el módulo de pagos por ahora
+                logger.info(f"💳 Pago pendiente por crear manualmente: ${resultado.get('total_usd', 0.0)} USD / Bs {resultado.get('total_bs', 0.0)}")
+
+                # 5. LIMPIAR ESTADO LOCAL
+                self.servicios_consulta_actual = []
+                self.condiciones_por_diente = {}
+                self.selected_tooth = None
+                self.show_add_intervention_modal = False
+                self.tiene_servicios_seleccionados = False
+
+                # 6. MOSTRAR ÉXITO Y NAVEGAR
+                self.mostrar_toast("✅ Intervención completada exitosamente", "success")
+
+                # Navegar de vuelta después de 2 segundos
+                import asyncio
+                await asyncio.sleep(2)
+
+                self.navigate_to("odontologia", "Lista de Pacientes", "")
+
+                logger.info("✅ Intervención finalizada con flujo completo")
+
+            except Exception as e:
+                logger.error(f"❌ Error finalizando intervención: {str(e)}")
+                import traceback
+                traceback.print_exc()
+                self.mostrar_toast(f"❌ Error: {str(e)}", "error")
+            finally:
+                self.odontograma_guardando = False
+
+    # ============================================================================
+    # 📊 COMPUTED VARS V4.0 - DATOS PARA COMPONENTES PROFESIONALES
+    # ============================================================================
+
+    @rx.var(cache=True)
+    def get_teeth_data(self) -> Dict[int, Dict[str, Any]]:
+        """🦷 Obtener data de todos los dientes para el grid profesional"""
+        if not self.odontograma_actual:
+            return {}
+
+        teeth_data = {}
+        for diente_num in range(11, 49):  # FDI: 11-18, 21-28, 31-38, 41-48
+            # Saltar números inválidos (19, 20, 29, 30, etc.)
+            if diente_num % 10 == 9 or diente_num % 10 == 0:
+                continue
+
+            # Obtener condiciones del diente actual
+            condiciones = self.condiciones_por_diente.get(str(diente_num), {})
+
+            # Determinar estado general del diente
+            if any(cond in ["caries", "fractura", "ausente"] for cond in condiciones.values()):
+                status = "patologico"
+            elif any(cond in ["restauracion", "corona", "implante"] for cond in condiciones.values()):
+                status = "tratado"
+            elif any(cond in ["obturacion_temporal", "en_tratamiento"] for cond in condiciones.values()):
+                status = "en_tratamiento"
+            else:
+                status = "sano"
+
+            teeth_data[diente_num] = {
+                "number": diente_num,
+                "status": status,
+                "has_conditions": len(condiciones) > 0,
+                "conditions": list(condiciones.values())
+            }
+
+        return teeth_data
+
+    @rx.var(cache=True)
+    def get_tooth_name(self) -> str:
+        """📝 Obtener nombre del diente seleccionado"""
+        if not self.selected_tooth:
+            return ""
+
+        from dental_system.components.odontologia.simple_tooth import TOOTH_NAMES
+        return TOOTH_NAMES.get(self.selected_tooth, f"Diente {self.selected_tooth}")
+
+    @rx.var(cache=True)
+    def get_tooth_status(self) -> str:
+        """📊 Obtener estado del diente seleccionado"""
+        if not self.selected_tooth:
+            return "sano"
+
+        teeth_data = self.get_teeth_data
+        tooth_data = teeth_data.get(self.selected_tooth, {})
+        return tooth_data.get("status", "sano")
+
+    @rx.var(cache=True)
+    def get_tooth_interventions(self) -> List[Dict[str, Any]]:
+        """📋 Obtener intervenciones del diente seleccionado"""
+        if not self.selected_tooth:
+            return []
+
+        # Filtrar intervenciones por diente seleccionado
+        return [
+            intervention for intervention in self.intervenciones_paciente
+            if self.selected_tooth in intervention.get("tooth_numbers", [])
+        ]
+
+    @rx.var(cache=True)
+    def get_tooth_conditions(self) -> List[str]:
+        """🔍 Obtener condiciones activas del diente seleccionado"""
+        if not self.selected_tooth:
+            return []
+
+        condiciones = self.condiciones_por_diente.get(str(self.selected_tooth), {})
+        return [cond for cond in condiciones.values() if cond]
+
+    @rx.var(cache=True)
+    def get_filtered_interventions(self) -> List[Dict[str, Any]]:
+        """🔍 Obtener intervenciones filtradas para el timeline V4.0"""
+        if not self.intervenciones_paciente:
+            return []
+
+        interventions = self.intervenciones_paciente
+
+        # Filtro por dentista
+        if self.timeline_filter_dentist and self.timeline_filter_dentist != "all" and self.timeline_filter_dentist != "Todos":
+            interventions = [
+                i for i in interventions
+                if i.get("dentist") == self.timeline_filter_dentist
+            ]
+
+        # Filtro por procedimiento
+        if self.timeline_filter_procedure and self.timeline_filter_procedure != "all" and self.timeline_filter_procedure != "Todos":
+            interventions = [
+                i for i in interventions
+                if self.timeline_filter_procedure in i.get("procedure", "")
+            ]
+
+        # Filtro por período
+        if self.timeline_filter_period and self.timeline_filter_period != "all" and self.timeline_filter_period != "Todo el historial":
+            from datetime import datetime, timedelta
+            today = datetime.now().date()
+
+            if self.timeline_filter_period == "Últimos 7 días":
+                cutoff_date = today - timedelta(days=7)
+            elif self.timeline_filter_period == "Últimos 30 días":
+                cutoff_date = today - timedelta(days=30)
+            elif self.timeline_filter_period == "Últimos 90 días":
+                cutoff_date = today - timedelta(days=90)
+            else:
+                cutoff_date = None
+
+            if cutoff_date:
+                interventions = [
+                    i for i in interventions
+                    if datetime.strptime(i.get("date", ""), "%Y-%m-%d").date() >= cutoff_date
+                ]
+
+        return interventions
+
+    @rx.var(cache=True)
+    def get_patient_display_name(self) -> str:
+        """👤 Obtener nombre completo del paciente para el control bar"""
+        if not self.consulta_actual or not hasattr(self, 'paciente_info'):
+            return "Sin paciente seleccionado"
+
+        paciente = self.paciente_info
+        if paciente:
+            nombres = paciente.get('nombres', '')
+            apellidos = paciente.get('apellidos', '')
+            return f"{nombres} {apellidos}".strip()
+
+        return "Sin paciente"
+
+    @rx.var(cache=True)
+    def get_patient_id_display(self) -> str:
+        """🔢 Obtener HC del paciente para el control bar"""
+        if not self.consulta_actual or not hasattr(self, 'paciente_info'):
+            return ""
+
+        paciente = self.paciente_info
+        return paciente.get('numero_historia', '') if paciente else ""
+
+    @rx.var(cache=True)
+    def get_available_dentists(self) -> List[str]:
+        """👨‍⚕️ Lista de dentistas para filtros del timeline (con 'Todos' incluido)"""
+        return ["Todos"] + self.dentistas_paciente
+
+    @rx.var(cache=True)
+    def get_available_procedures(self) -> List[str]:
+        """🦷 Lista de procedimientos para filtros del timeline (con 'Todos' incluido)"""
+        return ["Todos"] + self.procedimientos_paciente
+
+    @rx.var(cache=True)
+    def get_interventions_count(self) -> int:
+        """🔢 Contador total de intervenciones"""
+        return len(self.intervenciones_paciente)
+
+    @rx.var(cache=True)
+    def get_filtered_count(self) -> int:
+        """🔢 Contador de intervenciones filtradas"""
+        return len(self.get_filtered_interventions)
+
+    # ==========================================
+    # 🆕 COMPUTED VARS NUEVA ESTRUCTURA
+    # ==========================================
+
+    @rx.var(cache=True)
+    def get_tooth_conditions_rows(self) -> List[Dict[str, str]]:
+        """📊 Formatear condiciones del diente seleccionado para tabla"""
+        if not self.selected_tooth:
+            return []
+
+        condition_map = {
+            "sano": {"icon": "circle-check", "color": "#48BB78"},
+            "caries": {"icon": "circle-alert", "color": "#E53E3E"},
+            "obturado": {"icon": "shield", "color": "#4299E1"},
+            "corona": {"icon": "crown", "color": "#9F7AEA"},
+            "endodoncia": {"icon": "zap", "color": "#ED8936"},
+            "ausente": {"icon": "x-circle", "color": "#A0AEC0"},
+            "por_extraer": {"icon": "scissors", "color": "#F59E0B"},
+            "fracturado": {"icon": "triangle-alert", "color": "#EF4444"},
+        }
+
+        surfaces = [
+            ("oclusal", "Oclusal"),
+            ("mesial", "Mesial"),
+            ("distal", "Distal"),
+            ("vestibular", "Vestibular"),
+            ("lingual", "Lingual"),
+        ]
+
+        rows = []
+        condiciones_diente = self.condiciones_por_diente.get(self.selected_tooth, {})
+
+        for surface_key, surface_name in surfaces:
+            condicion = condiciones_diente.get(surface_key, "sano")
+            map_data = condition_map.get(condicion, {"icon": "circle", "color": "#A0AEC0"})
+
+            rows.append({
+                "superficie": surface_name,
+                "estado": condicion.replace("_", " ").title(),
+                "icon": map_data["icon"],
+                "color": map_data["color"]
+            })
+
+        return rows
+
+    @rx.var(cache=True)
+    def get_consultation_services_rows(self) -> List[Dict[str, Any]]:
+        """📋 Formatear servicios de consulta actual para tabla"""
+        rows = []
+        for service in self.servicios_consulta_actual:
+            superficies = service.get("superficies", [])
+            superficies_str = ", ".join(superficies) if superficies else "—"
+
+            rows.append({
+                "id": service.get("id", ""),
+                "diente": str(service.get("diente", "")),
+                "servicio": service.get("servicio", ""),
+                "superficies": superficies_str,
+                "costo_bs": f"{service.get('costo_bs', 0):,.0f} Bs",
+                "costo_usd": f"${service.get('costo_usd', 0):.2f}",
+            })
+
+        return rows
+
+    @rx.var(cache=True)
+    def get_consultation_total_bs(self) -> float:
+        """💰 Total en bolívares de servicios actuales"""
+        return sum(s.get("costo_bs", 0) for s in self.servicios_consulta_actual)
+
+    @rx.var(cache=True)
+    def get_consultation_total_usd(self) -> float:
+        """💰 Total en dólares de servicios actuales"""
+        return sum(s.get("costo_usd", 0) for s in self.servicios_consulta_actual)
+
+    @rx.var(cache=True)
+    def get_consultation_total_bs_formatted(self) -> str:
+        """💰 Total BS formateado"""
+        return f"{self.get_consultation_total_bs:,.0f} Bs"
+
+    @rx.var(cache=True)
+    def get_consultation_total_usd_formatted(self) -> str:
+        """💰 Total USD formateado"""
+        return f"/ ${self.get_consultation_total_usd:.2f}"
+
+    @rx.var(cache=True)
+    def get_available_services_names(self) -> List[str]:
+        """📋 Lista de nombres de servicios para select"""
+        if self.servicios_disponibles:
+            return [s.nombre for s in self.servicios_disponibles if s.nombre]
+        return []
+
+    @rx.var(cache=True)
+    def selected_service_cost_bs(self) -> float:
+        """💵 Costo BS del servicio seleccionado"""
+        if not self.selected_service_name:
+            return 0.0
+
+        for service in self.servicios_disponibles:
+            if service.nombre == self.selected_service_name:
+                return float(service.precio_base_bs) if service.precio_base_bs else 0.0
+        return 0.0
+
+    @rx.var(cache=True)
+    def selected_service_cost_usd(self) -> float:
+        """💵 Costo USD del servicio seleccionado"""
+        if not self.selected_service_name:
+            return 0.0
+
+        for service in self.servicios_disponibles:
+            if service.nombre == self.selected_service_name:
+                return float(service.precio_base_usd) if service.precio_base_usd else 0.0
+        return 0.0
+
+    @rx.var(cache=True)
+    def selected_service_id(self) -> str:
+        """🆔 ID del servicio seleccionado del catálogo"""
+        if not self.selected_service_name:
+            logger.warning("⚠️ No hay servicio seleccionado")
+            return ""
+
+        logger.debug(f"🔍 Buscando ID para servicio: '{self.selected_service_name}'")
+        logger.debug(f"📋 Servicios disponibles: {len(self.servicios_disponibles)}")
+
+        for service in self.servicios_disponibles:
+            logger.debug(f"  Comparando: '{service.nombre}' vs '{self.selected_service_name}'")
+            if service.nombre == self.selected_service_name:
+                logger.info(f"✅ Servicio encontrado! ID: {service.id}")
+                return service.id if service.id else ""
+
+        logger.error(f"❌ Servicio '{self.selected_service_name}' NO encontrado en catálogo")
+        return ""
 

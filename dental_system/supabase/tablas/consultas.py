@@ -143,10 +143,14 @@ class ConsultationsTable(BaseTable):
                 nombres_paciente.append(paciente_data["segundo_apellido"])
             
             consulta["paciente_nombre_completo"] = " ".join(nombres_paciente) if nombres_paciente else "Sin nombre"
-            
-            # Obtener nombre del odontólogo desde la vista
-            odontologo_data = self._get_odontologo_from_vista(consulta.get("odontologo_id"))
-            consulta["odontologo_nombre_completo"] = odontologo_data.get("nombre_completo", "Sin nombre") if odontologo_data else "Sin nombre"
+
+            # Obtener nombre del odontólogo desde la vista (usar primer_odontologo_id)
+            odontologo_id = consulta.get("primer_odontologo_id")
+            if odontologo_id:  # Solo buscar si hay ID válido
+                odontologo_data = self._get_odontologo_from_vista(odontologo_id)
+                consulta["odontologo_nombre_completo"] = odontologo_data.get("nombre_completo", "Sin nombre") if odontologo_data else "Sin nombre"
+            else:
+                consulta["odontologo_nombre_completo"] = "Sin asignar"
             
             return consulta
         

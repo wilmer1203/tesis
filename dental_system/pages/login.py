@@ -283,21 +283,27 @@ def login_page() -> rx.Component:
     """🔐 Página principal de login enterprise médico sin componentes problemáticos"""
     return rx.fragment(
         # Redirección automática si ya está autenticado
+        # IMPORTANTE: Usar getattr para evitar error cuando el estado es null después de logout
         rx.cond(
-            AppState.esta_autenticado,
-            rx.script(f"""
+            AppState.esta_autenticado if hasattr(AppState, 'esta_autenticado') else False,
+            rx.script("""
                 // Redirección automática según rol
-                const userRole = '{AppState.rol_usuario}';
+                const state = window.__reflex_state_manager?.state;
+                if (!state) return;
+
+                const userRole = state.dental_system___state___app_state____app_state?.rol_usuario;
+                if (!userRole) return;
+
                 let redirectUrl = '/';
-                
-                if (userRole === 'gerente') {{
+
+                if (userRole === 'gerente') {
                     redirectUrl = '/boss';
-                }} else if (userRole === 'administrador') {{
-                    redirectUrl = '/admin';  
-                }} else if (userRole === 'odontologo') {{
+                } else if (userRole === 'administrador') {
+                    redirectUrl = '/admin';
+                } else if (userRole === 'odontologo') {
                     redirectUrl = '/dentist';
-                }}
-                
+                }
+
                 console.log('Usuario ya autenticado, redirigiendo a:', redirectUrl);
                 window.location.href = redirectUrl;
             """),

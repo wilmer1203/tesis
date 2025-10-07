@@ -9,7 +9,7 @@ from .base_service import BaseService
 from dental_system.supabase.tablas import consultas_table, personal_table, services_table
 from dental_system.supabase.tablas.cola_atencion import cola_atencion_table
 from dental_system.models import ConsultaModel, PersonalModel, ConsultaFormModel
-from .cache_invalidation_hooks import invalidate_after_consultation_operation, track_cache_invalidation
+from .cache_invalidation_hooks import invalidate_after_consultation_operation
 import logging
 
 logger = logging.getLogger(__name__)
@@ -588,47 +588,6 @@ class ConsultasService(BaseService):
             self.handle_error("Error obteniendo datos de apoyo", e)
             return []
     
-    async def _get_active_dentists(self) -> List[Dict[str, Any]]:
-        """Obtiene lista de odontólogos activos"""
-        try:
-            # Usar método existente con fallback
-            odontologos_data = self.personal_table.get_dentists(incluir_inactivos=False)
-            
-            processed_dentists = []
-            for item in odontologos_data:
-                try:
-                    model = PersonalModel.from_dict(item)
-                    processed_dentists.append(model)
-                except Exception as e:
-                    logger.warning(f"Error convirtiendo personal: {e}")
-                    continue
-            
-            return processed_dentists
-            
-        except Exception as e:
-            logger.error(f"Error obteniendo odontólogos: {e}")
-            return []
-    
-    async def _get_active_services(self) -> List[Dict[str, Any]]:
-        """Obtiene lista de servicios activos"""
-        try:
-            servicios_data = self.services_table.get_active_services()
-            
-            processed_services = []
-            for item in servicios_data:
-                processed_services.append({
-                    'id': item['id'],
-                    'codigo': item.get('codigo', ''),
-                    'nombre': item.get('nombre', ''),
-                    'categoria': item.get('categoria', ''),
-                    'precio_base': item.get('precio_base', 0)
-                })
-            
-            return processed_services
-            
-        except Exception as e:
-            logger.error(f"Error obteniendo servicios: {e}")
-            return []
     
     async def get_consultation_by_id(self, consultation_id: str) -> Optional[ConsultaModel]:
         """
@@ -662,24 +621,6 @@ class ConsultasService(BaseService):
         """Marca una consulta como no asistida"""
         return await self.change_consultation_status(consultation_id, "no_asistio")
 
-    async def get_filtered_consultations_advanced(self,
-                                           search: str = None,
-                                           estado: str = None,
-                                           odontologo_id: str = None,
-                                           tipo_consulta: str = None,
-                                           fecha_inicio: date = None,
-                                           fecha_fin: date = None,
-                                           order_by_recent: bool = True) -> List[ConsultaModel]:
-        """
-        Obtiene consultas con filtros avanzados - ALIAS para compatibilidad
-        """
-        return await self.get_filtered_consultations(
-            estado=estado,
-            odontologo_id=odontologo_id,
-            search=search,
-            fecha_inicio=fecha_inicio,
-            fecha_fin=fecha_fin
-        )
 
     async def cancel_consultation(self, consultation_id: str, motivo: str = None) -> bool:
         """
@@ -728,12 +669,6 @@ class ConsultasService(BaseService):
             self.handle_error("Error cancelando consulta", e)
             raise ValueError(f"Error inesperado: {str(e)}")
 
-    async def get_support_data_for_consultas(self) -> List[PersonalModel]:
-        """
-        Obtiene datos de apoyo para consultas (odontólogos)
-        ALIAS para compatibilidad con AppState
-        """
-        return await self.get_support_data()
 
     # ==========================================
     # 🔧 MÉTODOS HELPER PARA LÓGICA DE COLAS v4.1

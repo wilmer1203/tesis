@@ -297,7 +297,7 @@ def barra_busqueda_y_filtros() -> rx.Component:
             # Filtro urgencias mejorado
             rx.button(
                 rx.hstack(
-                    rx.icon("alert-triangle", size=16),
+                    rx.icon("triangle-alert", size=16),
                     rx.text("Urgentes", font_weight="600"),
                     spacing="2"
                 ),

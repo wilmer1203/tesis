@@ -202,7 +202,8 @@ def paciente_resultado_item(paciente: rx.Var) -> rx.Component:
                         "box_shadow": SHADOWS["md"]
                     }
                 },
-                on_click=lambda: AppState.seleccionar_paciente_modal(paciente.id)
+                # 🔄 CORREGIDO: seleccionar_paciente_modal → gestionar_modal_operacion
+                on_click=lambda: AppState.gestionar_modal_operacion("seleccionar_paciente_modal", datos={"paciente_id": paciente.id})
             ),
             
             spacing="3",
@@ -246,7 +247,8 @@ def campos_adicionales() -> rx.Component:
                 label="Prioridad",
                 field_name="prioridad",
                 value=rx.cond(AppState.consulta_form_prioridad, AppState.consulta_form_prioridad, "normal"),
-                on_change=lambda field, value: AppState.set_consulta_form_prioridad(value),
+                # 🔄 CORREGIDO: crear lambda que devuelve valor
+                on_change=lambda field, value: AppState.gestionar_formulario_unificado("set_campo", "prioridad", value),
                 field_type="select",
                 options=["baja", "normal", "alta", "urgente"],
                 icon="triangle-alert",

@@ -466,7 +466,13 @@ class IntervencionModel(rx.Base):
     servicio_nombre: str = ""
     servicio_categoria: str = ""
     odontologo_nombre: str = ""
+    odontologo_especialidad: str = ""  # Especialidad del odontólogo
     paciente_nombre: str = ""
+
+    # Campos adicionales para display
+    servicios_resumen: str = ""  # Resumen de servicios realizados
+    costo_total_bs: float = 0.0  # Alias para total_bs (compatibilidad componentes)
+    costo_total_usd: float = 0.0  # Alias para total_usd (compatibilidad componentes)
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "IntervencionModel":
@@ -513,7 +519,13 @@ class IntervencionModel(rx.Base):
             servicio_nombre=str(servicio_data.get("nombre", "") if servicio_data else ""),
             servicio_categoria=str(servicio_data.get("categoria", "") if servicio_data else ""),
             odontologo_nombre=str(odontologo_data.get("nombre_completo", "") if odontologo_data else ""),
-            paciente_nombre=str(data.get("paciente_nombre", ""))
+            odontologo_especialidad=str(odontologo_data.get("especialidad", "") if odontologo_data else ""),
+            paciente_nombre=str(data.get("paciente_nombre", "")),
+
+            # Campos adicionales para display
+            servicios_resumen=str(data.get("servicios_resumen", "") or data.get("procedimiento_realizado", "")),
+            costo_total_bs=float(data.get("total_bs", 0)),  # Alias
+            costo_total_usd=float(data.get("total_usd", 0))  # Alias
         )
     
     @property
@@ -573,6 +585,39 @@ class IntervencionModel(rx.Base):
             except:
                 return self.duracion_real
         return "No registrada"
+
+    @property
+    def fecha_display(self) -> str:
+        """Fecha de registro formateada para display"""
+        if self.fecha_registro:
+            try:
+                # Parsear fecha ISO o PostgreSQL
+                if "T" in self.fecha_registro:
+                    fecha = datetime.fromisoformat(self.fecha_registro.replace("Z", "+00:00"))
+                    return fecha.strftime("%d/%m/%Y")
+                else:
+                    return self.fecha_registro
+            except:
+                return self.fecha_registro
+        return "Sin fecha"
+
+    @property
+    def hora_display(self) -> str:
+        """Hora de inicio formateada para display"""
+        if self.hora_inicio:
+            try:
+                # Parsear hora
+                if "T" in self.hora_inicio:
+                    hora = datetime.fromisoformat(self.hora_inicio.replace("Z", "+00:00"))
+                    return hora.strftime("%H:%M")
+                elif ":" in self.hora_inicio:
+                    partes = self.hora_inicio.split(":")
+                    return f"{partes[0]}:{partes[1]}"
+                else:
+                    return self.hora_inicio
+            except:
+                return self.hora_inicio
+        return "Sin hora"
 
 
 class MaterialModel(rx.Base):

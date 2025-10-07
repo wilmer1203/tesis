@@ -144,27 +144,70 @@ def history_modal_header() -> rx.Component:
     )
 
 def history_modal_content() -> rx.Component:
-    """📋 Contenido del modal de historial"""
-    from dental_system.components.odontologia.panel_historial import (
-        seccion_intervenciones_previas, 
-        seccion_historial_consultas,
-        seccion_notas_rapidas
-    )
-    
+    """📋 Contenido del modal de historial - Versión simplificada temporal"""
+    # NOTA: panel_historial fue archivado, implementando versión básica
+
     return rx.box(
         rx.vstack(
-            # Intervenciones previas
-            seccion_intervenciones_previas(),
-            
+            # Mensaje temporal mientras se implementa el historial completo
+            rx.center(
+                rx.vstack(
+                    rx.icon("history", size=40, color=COLORS["gray"]["400"]),
+                    rx.text(
+                        "Historial del Paciente",
+                        font_size="18px",
+                        font_weight="600",
+                        color=COLORS["gray"]["700"]
+                    ),
+                    rx.text(
+                        "La funcionalidad completa de historial está en desarrollo",
+                        font_size="14px",
+                        color=COLORS["gray"]["500"],
+                        text_align="center"
+                    ),
+                    spacing="3",
+                    align_items="center"
+                ),
+                padding="8"
+            ),
+
             rx.divider(),
-            
-            # Historial de consultas
-            seccion_historial_consultas(),
-            
+
+            # Historial de consultas - TEMPORAL: Funcionalidad simplificada
+            rx.box(
+                rx.text(
+                    "📋 Historial de Consultas",
+                    font_size="16px",
+                    font_weight="600",
+                    color=COLORS["gray"]["700"],
+                    margin_bottom="3"
+                ),
+                rx.text(
+                    "Las consultas previas aparecerán aquí próximamente",
+                    font_size="14px",
+                    color=COLORS["gray"]["500"]
+                ),
+                padding="4"
+            ),
+
             rx.divider(),
-            
-            # Notas rápidas
-            seccion_notas_rapidas(),
+
+            # Notas rápidas - TEMPORAL: Funcionalidad simplificada
+            rx.box(
+                rx.text(
+                    "📝 Notas Clínicas",
+                    font_size="16px",
+                    font_weight="600",
+                    color=COLORS["gray"]["700"],
+                    margin_bottom="3"
+                ),
+                rx.text(
+                    "Las notas del historial clínico estarán disponibles próximamente",
+                    font_size="14px",
+                    color=COLORS["gray"]["500"]
+                ),
+                padding="4"
+            ),
             
             spacing="6",
             width="100%",

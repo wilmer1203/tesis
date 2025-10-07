@@ -293,7 +293,7 @@ def odontograma_consulta_historial() -> rx.Component:
                 "background": AppState.color_diente_historial(numero_diente),
                 "border": rx.cond(
                     AppState.diente_seleccionado == numero_diente,
-                    f"3px solid {COLORS['blue']['400']}",
+                    f"3px solid {COLORS['blue']['500']}",
                     "2px solid rgba(255,255,255,0.2)"
                 ),
                 "border_radius": RADIUS["md"],
@@ -559,8 +559,8 @@ def tab_content_odontograma_profesional() -> rx.Component:
 
                     rx.divider(margin_y="3"),
 
-                    # Odontograma con 32 dientes usando componente existente optimizado
-                    odontograma_medico_profesional(),
+                    # 🆕 ODONTOGRAMA V2.0 INTERACTIVO CON TIEMPO REAL
+                    odontograma_principal_con_estados(),
 
                     spacing="3",
                     width="100%"
@@ -646,7 +646,7 @@ def tab_content_odontograma_profesional() -> rx.Component:
                     rx.divider(margin_y="3"),
 
                     # Historial del diente o paciente
-                    panel_historial_avanzado_con_filtros(),
+                     panel_historial_avanzado_con_filtros(),
 
                     spacing="3",
                     width="100%"
@@ -858,7 +858,7 @@ def panel_detalles_diente_profesional() -> rx.Component:
             AppState.historial_diente_disponible,
             rx.vstack(
                 rx.hstack(
-                    rx.icon("check-circle", size=16, color=COLORS["success"]["400"]),
+                    rx.icon("circle-check", size=16, color=COLORS["success"]["400"]),
                     rx.text("Historial Disponible", size="2", weight="medium", color=COLORS["success"]["400"]),
                     spacing="2"
                 ),
@@ -1019,7 +1019,7 @@ def error_state_odontograma(error_message: str = "Error cargando datos") -> rx.C
     """❌ Estado de error profesional para odontograma"""
     return rx.center(
         rx.vstack(
-            rx.icon("alert-triangle", size=32, color=COLORS["error"]["500"]),
+            rx.icon("triangle-alert", size=32, color=COLORS["error"]["500"]),
             rx.text("Error en Historial Odontológico", size="4", weight="bold", color=COLORS["error"]["500"]),
             rx.text(error_message, size="2", color=REFINED_COLORS["text_muted"]),
             rx.hstack(
