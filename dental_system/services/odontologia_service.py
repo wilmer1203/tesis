@@ -558,7 +558,7 @@ class OdontologiaService(BaseService):
                 else:
                     # Odontograma existe pero sin condiciones → inicializar
                     logger.warning(f"⚠️ Odontograma sin condiciones, inicializando...")
-                    organized_conditions = self._create_initial_tooth_conditions(existing_odontogram['id'])
+                    organized_conditions = self._create_initial_tooth_conditions(existing_odontogram['id'], odontologo_id)
 
                 return {
                     "id": existing_odontogram['id'],
@@ -579,7 +579,7 @@ class OdontologiaService(BaseService):
                 )
 
                 # Crear condiciones iniciales "sano" (32 dientes × 5 superficies)
-                initial_conditions = self._create_initial_tooth_conditions(new_odontogram['id'])
+                initial_conditions = self._create_initial_tooth_conditions(new_odontogram['id'], odontologo_id)
 
                 logger.info(f"✅ Nuevo odontograma creado: {new_odontogram['id']} con 160 condiciones")
                 return {
@@ -1486,12 +1486,13 @@ class OdontologiaService(BaseService):
 
         return (es_valido, errores, warnings)
 
-    def _create_initial_tooth_conditions(self, odontogram_id: str) -> Dict[int, Dict[str, str]]:
+    def _create_initial_tooth_conditions(self, odontogram_id: str, odontologo_id: str) -> Dict[int, Dict[str, str]]:
         """
         🦷 Crear condiciones iniciales "sano" para todos los 32 dientes FDI
 
         Args:
             odontogram_id: ID del odontograma recién creado
+            odontologo_id: ID del odontólogo que crea (para registrado_por)
 
         Returns:
             Diccionario con condiciones iniciales organizadas
@@ -1530,10 +1531,9 @@ class OdontologiaService(BaseService):
                             odontogram_id=odontogram_id,
                             diente_id=str(tooth_info['id']),
                             tipo_condicion="sano",
-                            registrado_por=self.user_id,
+                            registrado_por=odontologo_id,
                             caras_afectadas=[surface],
-                            descripcion=f"Condición inicial para {surface}",
-                            estado="actual"
+                            descripcion=f"Condición inicial para {surface}"
                         )
                         
                         initial_conditions[tooth_number][surface] = "sano"
@@ -2086,7 +2086,7 @@ class OdontologiaService(BaseService):
         try:
             # Paso 1: Obtener todas las consultas del paciente
             consultas_response = self.client.table("consultas").select("id").eq(
-                "numero_historia", patient_id
+                "paciente_id", patient_id
             ).execute()
 
             if not consultas_response.data:
@@ -2163,7 +2163,7 @@ class OdontologiaService(BaseService):
         try:
             # Paso 1: Obtener consultas del paciente
             consultas_response = self.client.table("consultas").select("id").eq(
-                "numero_historia", patient_id
+                "paciente_id", patient_id
             ).execute()
 
             if not consultas_response.data:
@@ -2205,7 +2205,7 @@ class OdontologiaService(BaseService):
         try:
             # Paso 1: Obtener consultas del paciente
             consultas_response = self.client.table("consultas").select("id").eq(
-                "numero_historia", patient_id
+                "paciente_id", patient_id
             ).execute()
 
             if not consultas_response.data:
