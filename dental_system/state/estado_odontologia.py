@@ -299,25 +299,14 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado, mixin=True):
     # ==========================================
 
     # Cache de odontogramas por paciente_id
-    odontograma_cache: Dict[str, Dict[int, Dict[str, str]]] = {}
-    odontograma_cache_timestamp: Dict[str, float] = {}
-    odontograma_cache_ttl: int = 300  # 5 minutos TTL
+    # REFACTOR FASE 3: Variables cache V3 eliminadas (odontograma_cache, odontograma_cache_timestamp, odontograma_cache_ttl)
 
     # Control de carga lazy de historial
     historial_cargado_por_diente: Dict[int, bool] = {}
 
-    # ==========================================
-    # 📦 VARIABLES V3.0 - FASE 2: BATCH UPDATES
-    # ==========================================
-
-    # Buffer de cambios pendientes para batch save
-    cambios_pendientes_buffer: Dict[int, Dict[str, str]] = {}
-    ultimo_guardado_timestamp: float = 0.0
-    intervalo_auto_guardado: int = 30  # 30 segundos
-
-    # Control de auto-guardado
-    auto_guardado_activo: bool = False
-    contador_cambios_pendientes: int = 0
+    # REFACTOR FASE 3: Variables V3 batch/auto-guardado eliminadas
+    # - cambios_pendientes_buffer, ultimo_guardado_timestamp, intervalo_auto_guardado
+    # - auto_guardado_activo, contador_cambios_pendientes
 
     # ==========================================
     # 📜 VARIABLES V3.0 - FASE 4: HISTORIAL TIMELINE
@@ -905,50 +894,18 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado, mixin=True):
     # 🚀 MÉTODOS V3.0 - FASE 1: CACHE INTELIGENTE
     # ==========================================
 
-    def _es_cache_valido(self, paciente_id: str) -> bool:
-        """
-        ✅ Verificar si el cache del odontograma está vigente
-
-        Args:
-            paciente_id: ID del paciente
-
-        Returns:
-            True si el cache es válido y puede usarse
-        """
-        import time
-
-        if paciente_id not in self.odontograma_cache:
-            return False
-
-        timestamp = self.odontograma_cache_timestamp.get(paciente_id, 0)
-        tiempo_transcurrido = time.time() - timestamp
-
-        es_valido = tiempo_transcurrido < self.odontograma_cache_ttl
-
-        if es_valido:
-            logger.info(f"✅ Cache válido para paciente {paciente_id} ({tiempo_transcurrido:.1f}s)")
-        else:
-            logger.info(f"⏰ Cache expirado para paciente {paciente_id} ({tiempo_transcurrido:.1f}s > {self.odontograma_cache_ttl}s)")
-
-        return es_valido
-
-    # REFACTOR FASE 2: cargar_odontograma_paciente_optimizado() eliminada - usar cargar_odontograma_paciente_actual()
-
-    def invalidar_cache_odontograma(self, paciente_id: Optional[str] = None):
-        """
-        🗑️ Invalidar cache del odontograma
-
-        Args:
-            paciente_id: ID específico del paciente. Si es None, invalida todo el cache.
-        """
-        if paciente_id:
-            self.odontograma_cache.pop(paciente_id, None)
-            self.odontograma_cache_timestamp.pop(paciente_id, None)
-            logger.info(f"🗑️ Cache invalidado para paciente {paciente_id}")
-        else:
-            self.odontograma_cache.clear()
-            self.odontograma_cache_timestamp.clear()
-            logger.info("🗑️ Cache completo de odontogramas invalidado")
+    # ==========================================
+    # 🗑️ SISTEMA CACHE V3 - ELIMINADO (Fase 3)
+    # ==========================================
+    # REFACTOR FASE 3: Sistema de cache V3 completo eliminado (~45 líneas)
+    # Funciones eliminadas:
+    # - _es_cache_valido()
+    # - invalidar_cache_odontograma()
+    # Variables eliminadas (ver líneas ~302-304):
+    # - odontograma_cache
+    # - odontograma_cache_timestamp
+    # - odontograma_cache_ttl
+    # Razón: Solo se usaba en cargar_odontograma_paciente_optimizado() (ya eliminada en Fase 2)
 
     async def cargar_historial_diente_lazy(self, tooth_number: int):
         """
@@ -1139,8 +1096,7 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado, mixin=True):
                 self.contador_cambios_pendientes = 0
                 self.ultimo_guardado_timestamp = time.time()
 
-                # Invalidar cache para forzar recarga en próxima visita
-                self.invalidar_cache_odontograma(self.paciente_actual.id)
+                # REFACTOR FASE 3: invalidar_cache_odontograma eliminado
 
                 logger.info("✅ Cambios guardados exitosamente en batch con versionado")
 
@@ -1156,58 +1112,21 @@ class EstadoOdontologia(EstadoOdontogramaAvanzado, mixin=True):
         finally:
             self.odontograma_guardando = False
 
-    @rx.event(background=True)
-    async def iniciar_auto_guardado(self):
-        """
-        ⏰ FASE 2.2: Auto-guardado inteligente cada 30 segundos
-
-        Ejecuta en background y guarda automáticamente si:
-        - Hay cambios pendientes
-        - Han pasado al menos 30 segundos desde el último guardado
-        """
-        import asyncio
-        import time
-
-        # IMPORTANTE: Modificar estado dentro de context manager en background tasks
-        async with self:
-            self.auto_guardado_activo = True
-        logger.info("⏰ Auto-guardado activado (cada 30 segundos)")
-
-        while self.auto_guardado_activo:
-            await asyncio.sleep(self.intervalo_auto_guardado)
-
-            # Verificar si hay cambios pendientes
-            if self.cambios_sin_guardar and self.contador_cambios_pendientes > 0:
-                tiempo_desde_ultimo = time.time() - self.ultimo_guardado_timestamp
-
-                if tiempo_desde_ultimo >= self.intervalo_auto_guardado:
-                    logger.info(f"🔄 Auto-guardado activado ({self.contador_cambios_pendientes} cambios pendientes)")
-
-                    async with self:
-                        await self.guardar_cambios_batch()
-
-    def detener_auto_guardado(self):
-        """
-        🛑 Detener el auto-guardado en background
-
-        Debe llamarse al salir de la página de intervención
-        """
-        self.auto_guardado_activo = False
-        logger.info("🛑 Auto-guardado detenido")
-
-    async def descartar_cambios_pendientes(self):
-        """
-        ❌ Descartar cambios pendientes sin guardar
-
-        Recarga el odontograma desde la base de datos, descartando los cambios pendientes.
-        """
-        # Recargar odontograma desde BD para restaurar estado original
-        await self.cargar_odontograma_paciente_optimizado()
-
-        logger.info("❌ Cambios pendientes descartados - odontograma recargado desde BD")
-
-        # Mostrar toast
-        self.mostrar_toast_warning("Cambios descartados")
+    # ==========================================
+    # 🗑️ SISTEMA AUTO-GUARDADO V3 - ELIMINADO (Fase 3)
+    # ==========================================
+    # REFACTOR FASE 3: Sistema de auto-guardado V3 eliminado (~50 líneas)
+    # Funciones eliminadas:
+    # - iniciar_auto_guardado() - Background task auto-guardado cada 30s
+    # - detener_auto_guardado() - Detener background task
+    # - descartar_cambios_pendientes() - Revertir cambios
+    # Variables eliminadas (ver líneas ~260-270):
+    # - auto_guardado_activo
+    # - intervalo_auto_guardado
+    # - ultimo_guardado_timestamp
+    # - cambios_pendientes_buffer
+    # - contador_cambios_pendientes
+    # Razón: Sistema V3 complejo no usado en V4 - V4 usa guardado manual explícito
 
     # ==========================================
     # 📜 MÉTODOS V3.0 - FASE 4: HISTORIAL TIMELINE
