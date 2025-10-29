@@ -7,7 +7,7 @@ from typing import Dict, List, Optional, Any
 from datetime import date, datetime
 from .base_service import BaseService
 from dental_system.supabase.tablas import consultas_table, personal_table, services_table
-from dental_system.models import ConsultaModel, PersonalModel, ConsultaFormModel
+from dental_system.models import ConsultaModel, ConsultaFormModel
 from .cache_invalidation_hooks import invalidate_after_consultation_operation
 import logging
 

@@ -9,19 +9,18 @@ from .pacientes_models import (
     PacientesStatsModel,
     ContactoEmergenciaModel,
     AlergiaModel,
-    PacienteFormModel
+    PacienteFormModel,
+    # Modelos para historial completo
+    ServicioHistorial,
+    IntervencionHistorial,
+    ConsultaHistorial,
+    HistorialCompletoPaciente
 )
 
 from .consultas_models import (
     ConsultaModel,
     TurnoModel,
-    ConsultasStatsModel,
-    MotivosConsultaModel,
-    HorarioAtencionModel,
-    ConsultaConOrdenModel,
-    ConsultaFormModel,
-    ConsultaFinalizacionModel,
-    ConsultaResumenModel
+    ConsultaFormModel
 )
 
 from .personal_models import (
@@ -41,7 +40,6 @@ from .servicios_models import (
     ServicioStatsModel,
     EstadisticaCategoriaModel,
     IntervencionModel,
-    MaterialModel,
     ServicioFormModel
 )
 
@@ -90,22 +88,22 @@ from .dashboard_models import (
 # ✅ FORMULARIOS AHORA INTEGRADOS EN SUS MÓDULOS RESPECTIVOS
 
 # ✅ MODELOS DE AUTENTICACIÓN (Mantener separado)
-from .auth import AuthSession as AuthModel
+# from .auth import AuthSession as AuthModel
 
 __all__ = [
     # ✅ PACIENTES
     "PacienteModel",
-    "PacientesStatsModel", 
+    "PacientesStatsModel",
     "ContactoEmergenciaModel",
     "AlergiaModel",
+    "ServicioHistorial",
+    "IntervencionHistorial",
+    "ConsultaHistorial",
+    "HistorialCompletoPaciente",
     
     # ✅ CONSULTAS
     "ConsultaModel",
     "TurnoModel",
-    "ConsultasStatsModel",
-    "MotivosConsultaModel", 
-    "HorarioAtencionModel",
-    "ConsultaConOrdenModel",
     
     # ✅ PERSONAL Y USUARIOS
     "UsuarioModel",
@@ -122,7 +120,6 @@ __all__ = [
     "ServicioStatsModel",
     "EstadisticaCategoriaModel",
     "IntervencionModel",
-    "MaterialModel",
     
     # ✅ PAGOS Y FACTURACIÓN
     "PagoModel",
@@ -158,15 +155,13 @@ __all__ = [
     # ✅ MODELOS DE FORMULARIOS
     "PacienteFormModel",
     "ConsultaFormModel", 
-    "ConsultaFinalizacionModel",
-    "ConsultaResumenModel",
     "PersonalFormModel",
     "ServicioFormModel",
     "PagoFormModel",
     "IntervencionFormModel",
     
     # ✅ AUTENTICACIÓN
-    "AuthModel"
+    # "AuthModel"
 ]
 
 # ✅ BACKWARD COMPATIBILITY - Aliases para imports existentes

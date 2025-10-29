@@ -21,8 +21,8 @@ from dental_system.components.common import (
     confirmation_modal
 )
 from dental_system.components.table_components import personal_table
-from dental_system.components.forms import multi_step_staff_form
 from dental_system.state.app_state import AppState
+from dental_system.components.modal_personal import multi_step_staff_form
 from dental_system.styles.themes import (
     COLORS, 
     SHADOWS, 

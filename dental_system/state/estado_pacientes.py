@@ -23,8 +23,8 @@ from dental_system.services.pacientes_service import pacientes_service
 from dental_system.models import (
     PacienteModel, 
     PacientesStatsModel, 
-    ContactoEmergenciaModel,
-    PacienteFormModel
+    PacienteFormModel,
+    HistorialCompletoPaciente
 )
 
 logger = logging.getLogger(__name__)
@@ -49,7 +49,7 @@ class EstadoPacientes(rx.State,mixin=True):
     # Lista principal de pacientes (modelos tipados)
     lista_pacientes: List[PacienteModel] = []
     total_pacientes: int = 0
-    
+    historial_completo: HistorialCompletoPaciente
     # Paciente seleccionado para operaciones
     paciente_seleccionado: PacienteModel = PacienteModel()
     id_paciente_seleccionado: str = ""
@@ -287,8 +287,6 @@ class EstadoPacientes(rx.State,mixin=True):
             if self.id_paciente_seleccionado == id_paciente:
                 self.paciente_seleccionado = paciente_actualizado
             
-            # REMOVED - [2025-01-04] - Referencias a cache comentadas
-            # self._invalidar_cache_pacientes()
             
             print(f"✅ Paciente {id_paciente} actualizado correctamente")
             return paciente_actualizado
@@ -330,9 +328,6 @@ class EstadoPacientes(rx.State,mixin=True):
                 if self.id_paciente_seleccionado == id_paciente:
                     self.paciente_seleccionado = PacienteModel()
                     self.id_paciente_seleccionado = ""
-                
-                # Invalidar cache
-                self._invalidar_cache_pacientes()
                 
                 print(f"✅ Paciente {id_paciente} eliminado correctamente")
                 return True
@@ -384,8 +379,6 @@ class EstadoPacientes(rx.State,mixin=True):
                 self.id_paciente_seleccionado = id_paciente
                 print(f"🎯 Paciente seleccionado: {paciente_encontrado.primer_nombre} {paciente_encontrado.primer_apellido}")
             else:
-                # Si no está en lista local, cargar desde servicio
-                # Configurar contexto del usuario antes de usar servicio
                 pacientes_service.set_user_context(self.id_usuario, self.perfil_usuario)
                 paciente_data = await pacientes_service.get_patient_by_id(id_paciente)
                 if paciente_data:
@@ -399,7 +392,9 @@ class EstadoPacientes(rx.State,mixin=True):
             error_msg = f"Error seleccionando paciente: {str(e)}"
             logger.error(error_msg)
             print(f"❌ {error_msg}")
-    
+
+  
+
     # ==========================================
     # 👥 BÚSQUEDAS Y FILTROS OPTIMIZADOS
     # ==========================================
@@ -431,10 +426,6 @@ class EstadoPacientes(rx.State,mixin=True):
         # Actualizar filtros
         self.filtro_genero = filtros.get("genero", "todos")
         self.filtro_estado = filtros.get("estado", "activos")
-        # REMOVED - [2025-01-04] - Referencias a variables comentadas eliminadas
-        # self.filtro_edad_min = filtros.get("edad_min", 0)
-        # self.filtro_edad_max = filtros.get("edad_max", 120)
-        # self.filtro_ciudad = filtros.get("ciudad", "")
         
         print(f"🎛️ Filtros aplicados: {filtros}")
         
@@ -447,73 +438,11 @@ class EstadoPacientes(rx.State,mixin=True):
         self.termino_busqueda_pacientes = ""
         self.filtro_genero = "todos"
         self.filtro_estado = "activos"
-        # REMOVED - [2025-01-04] - Referencias a variables comentadas eliminadas
-        # self.filtro_edad_min = 0
-        # self.filtro_edad_max = 120
-        # self.filtro_ciudad = ""
         self.busqueda_activa = False
         
         print("🧹 Filtros limpiados")
     
-    @rx.event
-    def cambiar_ordenamiento(self, campo: str):
-        """📊 CAMBIAR ORDENAMIENTO DE LISTA
-        
-        Args:
-            campo: Campo por el cual ordenar
-        """
-        if self.campo_ordenamiento == campo:
-            # Cambiar dirección si es el mismo campo
-            self.direccion_ordenamiento = "desc" if self.direccion_ordenamiento == "asc" else "asc"
-        else:
-            # Nuevo campo, ordenamiento ascendente
-            self.campo_ordenamiento = campo
-            self.direccion_ordenamiento = "asc"
-        
-        # Aplicar ordenamiento local
-        self._ordenar_lista_local()
-        
-        print(f"📊 Ordenamiento: {campo} {self.direccion_ordenamiento}")
-    
-    # ==========================================
-    # 👥 ESTADÍSTICAS Y MÉTRICAS
-    # ==========================================
-    
-    @rx.event
-    async def cargar_estadisticas_pacientes(self, forzar_refresco: bool = False):
-        """
-        📊 CARGAR ESTADÍSTICAS DE PACIENTES CON CACHE
-        
-        Args:
-            forzar_refresco: Forzar recálculo de estadísticas
-        """
-        # REMOVED - [2025-01-04] - Referencias a cache comentadas
-        # if not forzar_refresco and self._cache_estadisticas_valido():
-        #     print("✅ Usando cache de estadísticas válido")
-        #     return
-        
-        self.cargando_estadisticas = True
-        
-        try:
-            # Configurar contexto del usuario antes de usar servicio
-            pacientes_service.set_user_context(self.id_usuario, self.perfil_usuario)
-            
-            # Obtener estadísticas desde el servicio
-            stats = await pacientes_service.get_patients_stats()
-            
-            self.estadisticas_pacientes = stats
-            self.ultima_actualizacion_stats = datetime.now().isoformat()
-            
-            print("✅ Estadísticas de pacientes actualizadas")
-            
-        except Exception as e:
-            error_msg = f"Error cargando estadísticas: {str(e)}"
-            logger.error(error_msg)
-            print(f"❌ {error_msg}")
-            
-        finally:
-            self.cargando_estadisticas = False
-    
+ 
     # ==========================================
     # 👥 COMPUTED VARS CON CACHE
     # ==========================================
@@ -558,31 +487,8 @@ class EstadoPacientes(rx.State,mixin=True):
             if p.fecha_registro and p.fecha_registro.startswith(hoy)
         ])
     
-    @rx.var(cache=True)
-    def tiene_filtros_activos(self) -> bool:
-        """🎛️ Verificar si hay filtros activos"""
-        return (
-            self.busqueda_activa or
-            self.filtro_genero != "todos" or
-            self.filtro_estado != "activos"
-            # REMOVED - [2025-01-04] - Referencias a variables comentadas eliminadas
-            # self.filtro_edad_min > 0 or
-            # self.filtro_edad_max < 120 or
-            # bool(self.filtro_ciudad.strip())
-        )
     
-    @rx.var(cache=True)
-    def informacion_paginacion(self) -> str:
-        """📄 Información de paginación para mostrar"""
-        inicio = (self.pagina_actual_pacientes - 1) * self.pacientes_por_pagina + 1
-        fin = min(self.pagina_actual_pacientes * self.pacientes_por_pagina, self.total_pacientes)
-        return f"Mostrando {inicio}-{fin} de {self.total_pacientes} pacientes"
-    
-    @rx.var(cache=True)
-    def paciente_seleccionado_valido(self) -> bool:
-        """✅ Verificar si hay un paciente seleccionado válido"""
-        return bool(self.id_paciente_seleccionado) and bool(self.paciente_seleccionado.id)
-    
+
     # ==========================================
     # 👥 MÉTODOS DE UTILIDAD Y CACHE
     # ==========================================
@@ -611,12 +517,7 @@ class EstadoPacientes(rx.State,mixin=True):
         except:
             return False
     
-    def _invalidar_cache_pacientes(self):
-        """🗑️ Invalidar cache de pacientes"""
-        self.cache_timestamp_activos = ""
-        self.ultima_actualizacion_stats = ""
-        print("🗑️ Cache de pacientes invalidado")
-    
+
     def _actualizar_paginacion(self):
         """📄 Actualizar cálculos de paginación"""
         if self.pacientes_por_pagina > 0:
@@ -627,29 +528,6 @@ class EstadoPacientes(rx.State,mixin=True):
                 self.pagina_actual_pacientes = self.total_paginas_pacientes
         else:
             self.total_paginas_pacientes = 1
-    
-    def _ordenar_lista_local(self):
-        """📊 Ordenar lista de pacientes localmente"""
-        if not self.lista_pacientes:
-            return
-        
-        reverse = self.direccion_ordenamiento == "desc"
-        
-        if self.campo_ordenamiento == "nombre":
-            self.lista_pacientes.sort(
-                key=lambda p: f"{p.primer_nombre} {p.primer_apellido}".lower(),
-                reverse=reverse
-            )
-        elif self.campo_ordenamiento == "fecha_registro":
-            self.lista_pacientes.sort(
-                key=lambda p: p.fecha_registro or "",
-                reverse=reverse
-            )
-        elif self.campo_ordenamiento == "edad":
-            self.lista_pacientes.sort(
-                key=lambda p: self._calcular_edad(p.fecha_nacimiento),
-                reverse=reverse
-            )
     
     def _calcular_edad(self, fecha_nacimiento: Optional[str]) -> int:
         """🎂 Calcular edad a partir de fecha de nacimiento"""
@@ -670,142 +548,9 @@ class EstadoPacientes(rx.State,mixin=True):
             return 0
     
     # ==========================================
-    # 👥 MÉTODOS DE PAGINACIÓN
-    # ==========================================
-    
-    @rx.event
-    def ir_a_pagina(self, numero_pagina: int):
-        """📄 Ir a página específica"""
-        if 1 <= numero_pagina <= self.total_paginas_pacientes:
-            self.pagina_actual_pacientes = numero_pagina
-            print(f"📄 Página actual: {numero_pagina}/{self.total_paginas_pacientes}")
-    
-    @rx.event
-    def pagina_anterior(self):
-        """⬅️ Ir a página anterior"""
-        if self.pagina_actual_pacientes > 1:
-            self.pagina_actual_pacientes -= 1
-            print(f"⬅️ Página anterior: {self.pagina_actual_pacientes}")
-    
-    @rx.event
-    def pagina_siguiente(self):
-        """➡️ Ir a página siguiente"""
-        if self.pagina_actual_pacientes < self.total_paginas_pacientes:
-            self.pagina_actual_pacientes += 1
-            print(f"➡️ Página siguiente: {self.pagina_actual_pacientes}")
-    
-    @rx.event
-    def cambiar_pacientes_por_pagina(self, cantidad: int):
-        """📊 Cambiar cantidad de pacientes por página"""
-        self.pacientes_por_pagina = max(10, min(100, cantidad))
-        self.pagina_actual_pacientes = 1  # Resetear a primera página
-        self._actualizar_paginacion()
-        print(f"📊 Pacientes por página: {self.pacientes_por_pagina}")
-    
-    # ==========================================
-    # 👥 VALIDACIONES Y UTILIDADES
-    # ==========================================
-    
-    def validar_formulario_paciente(self, datos: Dict[str, Any]) -> Dict[str, str]:
-        """✅ Validar datos del formulario de paciente"""
-        errores = {}
-        
-        # Validaciones básicas
-        if not datos.get("primer_nombre", "").strip():
-            errores["primer_nombre"] = "Primer nombre es requerido"
-        
-        if not datos.get("primer_apellido", "").strip():
-            errores["primer_apellido"] = "Primer apellido es requerido"
-        
-        if not datos.get("numero_documento", "").strip():
-            errores["numero_documento"] = "Número de documento es requerido"
-        
-        # Validación de email si se proporciona
-        email = datos.get("email", "").strip()
-        if email and "@" not in email:
-            errores["email"] = "Email debe ser válido"
-        
-        # Validación de fecha de nacimiento
-        fecha_nac = datos.get("fecha_nacimiento")
-        if fecha_nac:
-            try:
-                fecha_nac_obj = datetime.strptime(fecha_nac, "%Y-%m-%d").date()
-                if fecha_nac_obj > date.today():
-                    errores["fecha_nacimiento"] = "Fecha de nacimiento no puede ser futura"
-            except:
-                errores["fecha_nacimiento"] = "Fecha de nacimiento inválida"
-        
-        return errores
-    
-    def obtener_paciente_por_documento(self, numero_documento: str) -> Optional[PacienteModel]:
-        """🔍 Buscar paciente por número de documento"""
-        for paciente in self.lista_pacientes:
-            if paciente.numero_documento == numero_documento:
-                return paciente
-        return None
-    
-    def obtener_contexto_paciente_seleccionado(self) -> Dict[str, Any]:
-        """📋 Obtener contexto completo del paciente seleccionado"""
-        if not self.paciente_seleccionado_valido:
-            return {}
-        
-        return {
-            "paciente": self.paciente_seleccionado,
-            "edad": self._calcular_edad(self.paciente_seleccionado.fecha_nacimiento),
-            "tiene_contacto_emergencia": bool(self.paciente_seleccionado.contacto_emergencia.get("nombre", "")),
-            "total_consultas": 0,  # Se calculará en otro substate
-            "ultima_consulta": None,  # Se calculará en otro substate
-        }
-    
-    # ==========================================
     # 👥 MÉTODOS AUXILIARES PARA APPSTATE
     # ==========================================
-    
-    @rx.event
-    async def aplicar_filtros_pacientes(self, filtros: Dict[str, Any]):
-        """🔍 APLICAR FILTROS DE PACIENTES - COORDINACIÓN CON APPSTATE"""
-        try:
-            # Aplicar filtros individuales
-            if "genero" in filtros:
-                self.filtro_genero = filtros["genero"]
-            
-            if "estado" in filtros:
-                self.filtro_estado = filtros["estado"]
-            
-            if "mostrar_solo_activos" in filtros:
-                self.mostrar_solo_activos_pacientes = filtros["mostrar_solo_activos"]
-            
-            # REMOVED - [2025-01-04] - Referencias a variables comentadas eliminadas
-            # if "edad_min" in filtros:
-            #     self.filtro_edad_min = filtros["edad_min"]
-            #     
-            # if "edad_max" in filtros:
-            #     self.filtro_edad_max = filtros["edad_max"]
-            
-            logger.info(f"✅ Filtros aplicados: {filtros}")
-            
-        except Exception as e:
-            logger.error(f"❌ Error aplicando filtros: {str(e)}")
-    
-    @rx.event  
-    async def actualizar_ultimo_acceso(self, patient_id: str):
-        """🕒 ACTUALIZAR ÚLTIMO ACCESO DEL PACIENTE"""
-        try:
-            # Actualizar en la lista local si existe
-            for i, paciente in enumerate(self.lista_pacientes):
-                if paciente.id == patient_id:
-                    # Crear copia con último acceso actualizado
-                    paciente_actualizado = PacienteModel.from_dict({
-                        **paciente.__dict__,
-                        "ultimo_acceso": datetime.now().isoformat()
-                    })
-                    self.lista_pacientes[i] = paciente_actualizado
-                    break
-            
-            logger.info(f"✅ Último acceso actualizado para paciente: {patient_id}")
-            
-        except Exception as e:
-            logger.error(f"❌ Error actualizando último acceso: {str(e)}")
+
     
     def limpiar_datos(self):
         """🧹 LIMPIAR TODOS LOS DATOS - USADO EN LOGOUT"""
@@ -824,11 +569,6 @@ class EstadoPacientes(rx.State,mixin=True):
         self.cargando_lista_pacientes = False
         self.cargando_estadisticas = False
         self.cargando_operacion = False
-        
-        # REMOVED - [2025-01-04] - Referencias a variables comentadas eliminadas
-        # self.cache_pacientes_activos = []
-        # self.cache_timestamp_activos = ""
-        
         logger.info("🧹 Datos de pacientes limpiados")
     
     @rx.event
@@ -911,3 +651,52 @@ class EstadoPacientes(rx.State,mixin=True):
         
         # Limpiar errores
         self.errores_validacion_paciente = {}
+            
+        
+    @rx.event
+    async def navegar_a_historial_paciente(self, id_paciente: str):
+        """
+        📋 NAVEGAR A PÁGINA DE HISTORIAL DEL PACIENTE
+
+        Args:
+            id_paciente: ID del paciente a mostrar historial
+        """
+        try:
+            # 1. Seleccionar el paciente
+            await self.seleccionar_paciente(id_paciente)
+
+            # 2. Cargar historial completo del paciente desde el servicio
+            from dental_system.services.pacientes_service import pacientes_service
+            pacientes_service.set_user_context(self.id_usuario, self.perfil_usuario)
+            self.historial_completo = await pacientes_service.get_historial_completo_paciente(id_paciente)
+
+            # 4. Cargar odontograma del paciente
+            try:
+                await self.cargar_odontograma_paciente_actual()
+            except Exception as odonto_error:
+                logger.warning(f"⚠️ No se pudo cargar odontograma: {odonto_error}")
+                # Continuar aunque falle el odontograma
+
+            # 5. Navegar a la página
+            self.navigate_to(
+                "historial-paciente",
+                f"Historial de {self.paciente_seleccionado.nombre_completo}",
+                f"HC: {self.paciente_seleccionado.numero_historia}"
+            )
+
+            print(f"✅ Navegando a historial de paciente {id_paciente} - {self.historial_completo.total_consultas} consultas cargadas")
+
+        except Exception as e:
+            error_msg = f"Error navegando a historial: {str(e)}"
+            logger.error(error_msg)
+            self.mostrar_toast(f"Error al cargar historial: {str(e)}", "error")
+            
+    @rx.var(cache=True)
+    def consultas_del_paciente_seleccionado(self) -> List:
+        """📅 Consultas del paciente seleccionado (para historial)"""
+        if not self.id_paciente_seleccionado:
+            return []
+        return [
+            c for c in self.lista_consultas
+            if c.paciente_id == self.id_paciente_seleccionado
+        ]

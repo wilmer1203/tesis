@@ -24,7 +24,6 @@ from dental_system.services.consultas_service import consultas_service
 from dental_system.models import (
     ConsultaModel,
     TurnoModel, 
-    ConsultasStatsModel,
     PacienteModel,
     ConsultaFormModel,
 )
@@ -134,8 +133,6 @@ class EstadoConsultas(rx.State,mixin=True):
     # 📅 ESTADÍSTICAS Y MÉTRICAS CACHE
     # ==========================================
     
-    # Estadísticas principales
-    estadisticas_consultas: ConsultasStatsModel = ConsultasStatsModel()
     ultima_actualizacion_stats_consultas: str = ""
     
     # Métricas de productividad

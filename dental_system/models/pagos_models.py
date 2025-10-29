@@ -617,7 +617,7 @@ class ServicioFormateado(rx.Base):
     precio_usd: str = "0.00"
     precio_bs: str = "0"
 
-# ✅ MODELO PARA CONSULTA PENDIENTE (igual que ConsultaModel en consultas)
+
 class ConsultaPendientePago(rx.Base):
     """Modelo tipado para consulta pendiente de pago"""
     pago_id: str = ""  

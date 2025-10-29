@@ -11,7 +11,7 @@ from ..styles.themes import (
 )
 
 
-def fondo_medico_premium() -> rx.Component:
+def fondo_medico() -> rx.Component:
     """🌟 Fondo médico profesional con efectos cristalinos"""
     return rx.box(
         style={
@@ -310,7 +310,7 @@ def login_page() -> rx.Component:
         ),
         
         # Fondo premium
-        fondo_medico_premium(),
+        fondo_medico(),
         
         # Toast de error flotante
         toast_error_flotante(),

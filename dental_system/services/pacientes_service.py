@@ -8,7 +8,7 @@ from datetime import date, datetime
 from .base_service import BaseService
 from .cache_invalidation_hooks import invalidate_after_patient_operation, track_cache_invalidation
 from dental_system.supabase.tablas import pacientes_table
-from dental_system.models import PacienteModel, PacienteFormModel
+from dental_system.models import PacienteModel, PacienteFormModel,  HistorialCompletoPaciente,ConsultaHistorial,IntervencionHistorial,ServicioHistorial
 import logging
 
 logger = logging.getLogger(__name__)
@@ -594,6 +594,171 @@ class PacientesService(BaseService):
         except Exception as e:
             logger.warning(f"⚠️ Error registrando auditoría para {numero_historia}: {e}")
             return False
+
+    async def get_historial_completo_paciente(self, paciente_id: str) -> HistorialCompletoPaciente:
+        """
+        📋 Obtener historial completo del paciente con todas las consultas, intervenciones y servicios
+
+        Similar a get_consultas_pendientes_facturacion() de pagos.py pero más completo
+
+        Args:
+            paciente_id: ID del paciente
+
+        Returns:
+            HistorialCompletoPaciente con todas las consultas y detalles
+        """
+        try:
+            
+
+            logger.info(f"📋 Obteniendo historial completo para paciente {paciente_id}")
+
+            # Query completa con JOINs (similar a pagos.py línea 606)
+            query = self.client.table("consultas").select("""
+                id,
+                numero_consulta,
+                fecha_llegada,
+                estado,
+                motivo_consulta,
+                primer_odontologo_id,
+                personal!primer_odontologo_id(primer_nombre, primer_apellido),
+                intervenciones(
+                    id,
+                    odontologo_id,
+                    procedimiento_realizado,
+                    total_usd,
+                    total_bs,
+                    personal!odontologo_id(primer_nombre, primer_apellido),
+                    intervenciones_servicios(
+                        cantidad,
+                        precio_unitario_usd,
+                        precio_unitario_bs,
+                        servicios(nombre)
+                    )
+                ),
+                pagos(
+                    id,
+                    estado_pago,
+                    monto_pagado_usd,
+                    monto_pagado_bs,
+                    saldo_pendiente_usd,
+                    saldo_pendiente_bs
+                )
+            """).eq("paciente_id", paciente_id).order("fecha_llegada", desc=True).execute()
+
+            if not query.data:
+                logger.info(f"No se encontraron consultas para paciente {paciente_id}")
+                return HistorialCompletoPaciente()
+
+            # Procesar consultas
+            consultas_historial = []
+            total_consultas = 0
+            total_intervenciones = 0
+            total_pagado_usd = 0.0
+            total_pagado_bs = 0.0
+            total_pendiente_usd = 0.0
+            total_pendiente_bs = 0.0
+
+            for consulta_data in query.data:
+                total_consultas += 1
+                # Procesar intervenciones
+                intervenciones_list = []
+                for interv_data in consulta_data.get("intervenciones", []):
+                    total_intervenciones += 1
+
+                    # Procesar servicios de la intervención
+                    servicios_list = []
+                    for serv_data in interv_data.get("intervenciones_servicios", []):
+                        servicio = ServicioHistorial(
+                            nombre=serv_data.get("servicios", {}).get("nombre", "Servicio"),
+                            cantidad=serv_data.get("cantidad", 1),
+                            precio_unitario_usd=float(serv_data.get("precio_unitario_usd", 0)),
+                            precio_unitario_bs=float(serv_data.get("precio_unitario_bs", 0)),
+                            subtotal_usd=float(serv_data.get("cantidad", 1)) * float(serv_data.get("precio_unitario_usd", 0)),
+                            subtotal_bs=float(serv_data.get("cantidad", 1)) * float(serv_data.get("precio_unitario_bs", 0))
+                        )
+                        servicios_list.append(servicio)
+
+                    # Obtener nombre del odontólogo
+                    personal_data = interv_data.get("personal", {})
+                    odontologo_nombre = f"{personal_data.get('primer_nombre', '')} {personal_data.get('primer_apellido', '')}".strip() or "Odontólogo"
+
+                    intervencion = IntervencionHistorial(
+                        id=interv_data.get("id", ""),
+                        odontologo_id=interv_data.get("odontologo_id", ""),
+                        odontologo_nombre=odontologo_nombre,
+                        procedimiento_realizado=interv_data.get("procedimiento_realizado", ""),
+                        total_usd=float(interv_data.get("total_usd", 0)),
+                        total_bs=float(interv_data.get("total_bs", 0)),
+                        servicios=servicios_list
+                    )
+                    intervenciones_list.append(intervencion)
+                # Procesar pago
+                pagos_data = consulta_data.get("pagos", [])
+                pago_info = pagos_data[0] if pagos_data else {}
+
+                pago_usd = float(pago_info.get("monto_pagado_usd", 0))
+                pago_bs = float(pago_info.get("monto_pagado_bs", 0))
+                saldo_usd = float(pago_info.get("saldo_pendiente_usd", 0))
+                saldo_bs = float(pago_info.get("saldo_pendiente_bs", 0))
+
+                total_pagado_usd += pago_usd
+                total_pagado_bs += pago_bs
+                total_pendiente_usd += saldo_usd
+                total_pendiente_bs += saldo_bs
+
+                # Determinar estado del pago
+                if saldo_usd <= 0 and saldo_bs <= 0:
+                    pago_estado = "completado"
+                elif pago_usd > 0 or pago_bs > 0:
+                    pago_estado = "parcial"
+                else:
+                    pago_estado = "pendiente"
+
+                # Calcular totales de la consulta
+                costo_total_usd = sum(i.total_usd for i in intervenciones_list)
+                costo_total_bs = sum(i.total_bs for i in intervenciones_list)
+
+                # Obtener nombre del odontólogo principal
+                personal_principal = consulta_data.get("personal", {})
+                odontologo_principal = f"{personal_principal.get('primer_nombre', '')} {personal_principal.get('primer_apellido', '')}".strip() or "No asignado"
+
+                consulta = ConsultaHistorial(
+                    id=consulta_data.get("id", ""),
+                    numero_consulta=consulta_data.get("numero_consulta", ""),
+                    fecha_llegada=consulta_data.get("fecha_llegada", ""),
+                    estado=consulta_data.get("estado", ""),
+                    motivo_consulta=consulta_data.get("motivo_consulta", ""),
+                    primer_odontologo_id=consulta_data.get("primer_odontologo_id", ""),
+                    primer_odontologo_nombre=odontologo_principal,
+                    intervenciones=intervenciones_list,
+                    costo_total_usd=costo_total_usd,
+                    costo_total_bs=costo_total_bs,
+                    pago_id=pago_info.get("id", ""),
+                    pago_estado=pago_estado,
+                    pago_usd=pago_usd,
+                    pago_bs=pago_bs,
+                    saldo_pendiente_usd=saldo_usd,
+                    saldo_pendiente_bs=saldo_bs
+                )
+                consultas_historial.append(consulta)
+            historial = HistorialCompletoPaciente(
+                consultas=consultas_historial,
+                total_consultas=total_consultas,
+                total_intervenciones=total_intervenciones,
+                total_pagado_usd=total_pagado_usd,
+                total_pagado_bs=total_pagado_bs,
+                total_pendiente_usd=total_pendiente_usd,
+                total_pendiente_bs=total_pendiente_bs
+            )
+            print("="*80)
+            print(historial.consultas[1])
+            logger.info(f"✅ Historial completo obtenido: {total_consultas} consultas, {total_intervenciones} intervenciones")
+            return historial
+
+        except Exception as e:
+            logger.error(f"❌ Error obteniendo historial completo: {str(e)}")
+            self.handle_error("Error obteniendo historial del paciente", e)
+            return HistorialCompletoPaciente()
 
 
 # Instancia única para importar

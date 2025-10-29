@@ -508,39 +508,6 @@ class IntervencionModel(rx.Base):
                 return self.duracion_real
         return "No registrada"
 
-    @property
-    def fecha_display(self) -> str:
-        """Fecha de registro formateada para display"""
-        if self.fecha_registro:
-            try:
-                # Parsear fecha ISO o PostgreSQL
-                if "T" in self.fecha_registro:
-                    fecha = datetime.fromisoformat(self.fecha_registro.replace("Z", "+00:00"))
-                    return fecha.strftime("%d/%m/%Y")
-                else:
-                    return self.fecha_registro
-            except:
-                return self.fecha_registro
-        return "Sin fecha"
-
-    @property
-    def hora_display(self) -> str:
-        """Hora de inicio formateada para display"""
-        if self.hora_inicio:
-            try:
-                # Parsear hora
-                if "T" in self.hora_inicio:
-                    hora = datetime.fromisoformat(self.hora_inicio.replace("Z", "+00:00"))
-                    return hora.strftime("%H:%M")
-                elif ":" in self.hora_inicio:
-                    partes = self.hora_inicio.split(":")
-                    return f"{partes[0]}:{partes[1]}"
-                else:
-                    return self.hora_inicio
-            except:
-                return self.hora_inicio
-        return "Sin hora"
-
 
 class MaterialModel(rx.Base):
     """Modelo para materiales odontológicos"""

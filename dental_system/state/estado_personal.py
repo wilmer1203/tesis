@@ -109,12 +109,6 @@ class EstadoPersonal(rx.State, mixin=True):
     estadisticas_personal: PersonalStatsModel = PersonalStatsModel()
     ultima_actualizacion_stats_personal: str = ""
     
-    # UNUSED - [2025-01-04] - Variables de cache no utilizadas
-    # cache_personal_activo: List[PersonalModel] = []
-    # cache_odontologos_disponibles: List[PersonalModel] = []
-    # cache_timestamp_personal: str = ""
-    # cache_validez_minutos_personal: int = 20
-    
     # Estados de carga
     cargando_lista_personal: bool = False
     cargando_estadisticas_personal: bool = False

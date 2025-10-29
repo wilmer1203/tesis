@@ -9,7 +9,7 @@ DATOS: Conectado a AppState (datos reales de BD)
 import reflex as rx
 from dental_system.state.app_state import AppState
 from dental_system.constants import METODOS_PAGO, ESTADOS_PAGO
-from dental_system.pages.components_pagos.modal_factura_profesional import modal_factura_profesional
+from dental_system.components.modal_pago import modal_factura_profesional
 
 # ==========================================
 # 🎨 COLORES Y ESTILOS DEL SISTEMA

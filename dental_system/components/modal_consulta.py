@@ -14,11 +14,8 @@
 
 import reflex as rx
 from dental_system.state.app_state import AppState
-from dental_system.state.estado_consultas import EstadoConsultas
-from dental_system.components.forms import (
-    enhanced_form_field, enhanced_form_field_dinamico, form_section_header, 
-    success_feedback, loading_feedback
-)
+from typing import  Optional, Callable, Any
+from dental_system.components.forms import enhanced_form_field, form_section_header
 from dental_system.styles.themes import (
     COLORS, SHADOWS, RADIUS, SPACING, ANIMATIONS, 
     GRADIENTS, GLASS_EFFECTS, DARK_THEME
@@ -27,6 +24,140 @@ from dental_system.styles.themes import (
 # ==========================================
 # 📝 COMPONENTES DEL FORMULARIO MEJORADO
 # ==========================================
+
+
+def enhanced_form_field_dinamico(
+    label: str,
+    field_name: str,
+    value: Any,
+    on_change: Callable,
+    placeholder: str = "",
+    required: bool = False,
+    validation_error: str = "",
+    help_text: str = "",
+    icon: Optional[str] = None
+) -> rx.Component:
+    """📝 Campo de formulario con select dinámico de odontólogos"""
+    
+    return rx.vstack(
+        # Label con indicador de requerido
+        rx.hstack(
+            rx.hstack(
+                *([rx.icon(icon, size=18, color=COLORS["primary"]["500"])] if icon else []),
+                rx.text(
+                    label,
+                    style={
+                        "font_size": "1rem",
+                        "font_weight": "600",
+                        "color": DARK_THEME["colors"]["text_primary"]
+                    }
+                ),
+                spacing="2",
+                align="center"
+            ),
+            
+            *([rx.text(
+                "*",
+                style={
+                    "color": COLORS["error"]["500"],
+                    "font_weight": "700",
+                    "margin_left": "2px"
+                }
+            )] if required else []),
+            
+            rx.spacer(),
+            
+            # Texto de ayuda opcional
+            *([rx.text(
+                help_text,
+                style={
+                    "font_size": "0.75rem",
+                    "color": COLORS["gray"]["500"],
+                    "font_style": "italic"
+                }
+            )] if help_text else []),
+            
+            width="100%",
+            align="center"
+        ),
+        
+        # Select dinámico con estructura correcta
+        rx.box(
+            rx.select.root(
+                rx.select.trigger(
+                    placeholder=placeholder,
+                    style={
+                        "width": "100%",
+                        "height": "2.5em",
+                        "padding": f"{SPACING['1']} {SPACING['3']}",
+                        "border_radius": RADIUS["lg"],
+                        "font_size": "1rem",
+                        "background": DARK_THEME["colors"]["surface_secondary"],
+                        "border": f"2px solid {DARK_THEME['colors']['border']}",
+                        "transition": "all 250ms cubic-bezier(0.4, 0, 0.2, 1)",
+                        "color": DARK_THEME["colors"]["text_primary"],
+                        "placeholder_color": DARK_THEME["colors"]["text_primary"],
+                        "_focus": {
+                            "outline": "none",
+                            "border_color": COLORS["primary"]["400"],
+                            "box_shadow": f"0 0 0 3px {COLORS['primary']['100']}",
+                            "background": DARK_THEME["colors"]["surface_elevated"]
+                        },
+                        "_hover": {
+                            "border_color": COLORS["primary"]["300"],
+                            "box_shadow": f"0 2px 8px rgba(0, 0, 0, 0.2)"
+                        }
+                    }
+                ),
+                rx.select.content(
+                    rx.cond(
+                        AppState.odontologos_disponibles.length() > 0,
+                        rx.foreach(
+                            AppState.odontologos_disponibles,
+                            lambda doctor: rx.select.item(
+                                f"Dr(a). {doctor.primer_nombre} {doctor.primer_apellido} ({doctor.especialidad})",
+                                value=doctor.id
+                            )
+                        ),
+                        rx.select.item(
+                            "No hay odontólogos disponibles",
+                            value="",
+                            disabled=True
+                        )
+                    )
+                ),
+                value=value,
+                on_change=lambda v: on_change(field_name, v) if on_change else None,
+                width="100%"
+            ),
+            width="100%"
+        ),
+        
+        # Mensaje de error
+        rx.cond(
+            validation_error != "",
+            rx.hstack(
+                rx.icon("triangle-alert", size=14, color=COLORS["error"]["500"]),
+                rx.text(
+                    validation_error,
+                    style={
+                        "font_size": "0.75rem",
+                        "color": COLORS["error"]["500"],
+                        "font_weight": "500"
+                    }
+                ),
+                spacing="2",
+                align="center"
+            ),
+            rx.box()
+        ),
+        
+        spacing="2",
+        align="start",
+        width="100%"
+    )
+
+
 
 def selector_odontologo() -> rx.Component:
     """👨‍⚕️ Selector de odontólogo dinámico con enhanced_form_field"""
@@ -45,6 +176,7 @@ def selector_odontologo() -> rx.Component:
             ""
         )
     )
+
 
 def buscador_paciente() -> rx.Component:
     """🔍 Buscador y selector de paciente con enhanced_form_field"""
@@ -311,12 +443,6 @@ def modal_nueva_consulta() -> rx.Component:
                     # Campos adicionales
                     campos_adicionales(),
                     
-                    # Feedback visual durante carga
-                    rx.cond(
-                        AppState.cargando_crear_consulta,
-                        loading_feedback("Creando consulta..."),
-                        rx.box()
-                    ),
                     
                     # Botones de navegación mejorados
                     rx.hstack(
@@ -428,4 +554,182 @@ def modal_nueva_consulta() -> rx.Component:
         ),
         open=AppState.modal_crear_consulta_abierto | AppState.modal_editar_consulta_abierto,
         on_open_change=AppState.cerrar_todos_los_modales
+    )
+    
+    
+    
+    
+def modal_transferir_paciente() -> rx.Component:
+    """🔄 MODAL PARA TRANSFERIR PACIENTE - VERSIÓN ENTERPRISE MEJORADA"""
+    return rx.dialog.root(
+        rx.dialog.content(
+            # Header elegante con glassmorphism
+            rx.vstack(
+                rx.hstack(
+                    form_section_header(
+                        "Transferir Paciente",
+                        "Cambiar odontólogo asignado a la consulta",
+                        "arrow-right-left",
+                        COLORS["blue"]["500"]
+                    ),
+                    rx.spacer(),
+                    rx.dialog.close(
+                        rx.button(
+                            rx.icon("x", size=20),
+                            style={
+                                "background": "transparent",
+                                "border": "none",
+                                "color": COLORS["gray"]["500"],
+                                "cursor": "pointer",
+                                "_hover": {"color": COLORS["gray"]["700"]}
+                            }
+                        )
+                    ),
+                    width="100%",
+                    align="center"
+                ),
+                spacing="4",
+                width="100%"
+            ),
+            
+            # Formulario mejorado
+            rx.form(
+                rx.vstack(
+                    # Info del paciente con feedback visual mejorado
+                    rx.cond(
+                        AppState.consulta_para_transferir,
+                        rx.vstack(
+                            rx.text(
+                                "Información del Paciente",
+                                style={
+                                    "font_size": "1rem",
+                                    "font_weight": "600",
+                                    "color": DARK_THEME["colors"]["text_primary"],
+                                    "margin_bottom": SPACING["2"]
+                                }
+                            ),
+                            rx.text(
+                                f"Paciente: {AppState.consulta_para_transferir.paciente_nombre} | Posición: #{AppState.consulta_para_transferir.orden_cola_odontologo}",
+                                color= DARK_THEME["colors"]["text_primary"],
+                            ),
+                            spacing="2",
+                            width="100%"
+                        ),
+                        rx.box()
+                    ),
+                    
+                    # Selector dinámico de odontólogo 
+                    enhanced_form_field_dinamico(
+                        label="Odontólogo de Destino",
+                        field_name="odontologo_destino",
+                        value=rx.cond(AppState.odontologo_destino_seleccionado, AppState.odontologo_destino_seleccionado, ""),
+                        on_change=lambda field, value: AppState.gestionar_modal_operacion("set_odontologo_destino", datos={"odontologo_id": value}),
+                        placeholder="Seleccionar odontólogo de destino...",
+                        required=True,
+                        icon="user-round",
+                        help_text="Odontólogo que recibirá al paciente",
+                        validation_error=""
+                    ),
+                    
+                    
+                    enhanced_form_field(
+                        label="Motivo de la Transferencia",
+                        field_name="motivo_transferencia",
+                        value=rx.cond(AppState.motivo_transferencia, AppState.motivo_transferencia, ""),
+                        on_change=lambda field, value: AppState.gestionar_modal_operacion("set_motivo_transferencia", datos={"motivo": value}),
+                        field_type="textarea",
+                        placeholder="Explique por qué se transfiere al paciente...",
+                        required=True,
+                        icon="file-text",
+                        help_text="Justificación requerida para transferencias",
+                        max_length=500,
+                        validation_error=""
+                    ),
+                    # Botones de navegación mejorados
+                    rx.hstack(
+                        rx.dialog.close(
+                            rx.button(
+                                rx.hstack(
+                                    rx.icon("x", size=16),
+                                    rx.text("Cancelar"),
+                                    spacing="2",
+                                    align="center"
+                                ),
+                                style={
+                                    **GLASS_EFFECTS["light"],
+                                    "border": f"1px solid {COLORS['gray']['300']}",
+                                    "color": COLORS["gray"]["700"],
+                                    "border_radius": RADIUS["xl"],
+                                    "padding": f"{SPACING['3']} {SPACING['5']}",
+                                    "font_weight": "600",
+                                    "transition": ANIMATIONS["presets"]["crystal_hover"],
+                                    "_hover": {
+                                        **GLASS_EFFECTS["medium"],
+                                        "transform": "translateY(-2px)",
+                                        "box_shadow": SHADOWS["sm"]
+                                    }
+                                },
+                                # 🔄 CORREGIDO: cerrar_modal_transferir_paciente → gestionar_modal_operacion
+                                on_click=lambda: AppState.gestionar_modal_operacion("cerrar_transferencia")
+                            )
+                        ),
+                        
+                        rx.spacer(),
+                        
+                        rx.button(
+                            rx.hstack(
+                                rx.text("Transferir Paciente"),
+                                rx.icon("arrow-right-left", size=16),
+                                spacing="2",
+                                align="center"
+                            ),
+                            style={
+                                "background": f"linear-gradient(135deg, {COLORS['blue']['500']}, {COLORS['blue']['600']})",
+                                "color": "white",
+                                "border": "none",
+                                "border_radius": RADIUS["xl"],
+                                "padding": f"{SPACING['3']} {SPACING['6']}",
+                                "font_weight": "700",
+                                "font_size": "1rem",
+                                "box_shadow": f"0 0 20px {COLORS['blue']['500']}40",
+                                "transition": ANIMATIONS["presets"]["crystal_hover"],
+                                "_hover": {
+                                    "transform": "translateY(-2px) scale(1.02)",
+                                    "box_shadow": f"0 0 30px {COLORS['blue']['500']}50, {SHADOWS['crystal_lg']}"
+                                },
+                                "_disabled": {
+                                    "opacity": "0.6",
+                                    "cursor": "not-allowed",
+                                    "transform": "none"
+                                }
+                            },
+                            on_click=AppState.ejecutar_transferencia_paciente
+                        ),
+                        
+                        width="100%",
+                        align="center",
+                        margin_top=SPACING["8"]
+                    ),
+                    
+                    spacing="6",
+                    width="100%",
+                    align="start"
+                ),
+            ),
+            
+            style={
+                "max_width": "600px",
+                "width": "90vw",
+                "max_height": "90vh",
+                "padding": SPACING["8"],
+                "border_radius": RADIUS["3xl"],
+                **GLASS_EFFECTS["strong"],
+                "box_shadow": SHADOWS["2xl"],
+                "border": f"1px solid {COLORS['blue']['200']}30",
+                "overflow_y": "auto",
+                "backdrop_filter": "blur(20px)"
+            }
+        ),
+        open=AppState.modal_transferir_paciente_abierto,
+        on_open_change=lambda open: rx.cond(~open, AppState.gestionar_modal_operacion("cerrar_transferencia"), rx.noop())
     )

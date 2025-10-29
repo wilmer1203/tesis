@@ -88,6 +88,7 @@ def main_content() -> rx.Component:
         AppState.current_page,
         ("dashboard", dashboard_page()),
         ("pacientes", pacientes_page()),
+        ("historial-paciente", historial_paciente_page()),  # 🆕 Historial del paciente
         ("consultas", consultas_page_v41()),  # 🔄 VERSIÓN ORIGINAL (FUNCIONA)
         ("personal", personal_page()),
         ("servicios", servicios_page()),  # ✅ Habilitado

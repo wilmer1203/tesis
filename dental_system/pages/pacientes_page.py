@@ -16,7 +16,7 @@ Desarrollado para Reflex.dev con patrones modernos
 import reflex as rx
 from dental_system.state.app_state import AppState
 from dental_system.components.table_components import patients_table
-from dental_system.components.forms import multi_step_patient_form
+from dental_system.components.modal_paciente import multi_step_patient_form
 from dental_system.styles.themes import (
     COLORS, 
     SHADOWS, 

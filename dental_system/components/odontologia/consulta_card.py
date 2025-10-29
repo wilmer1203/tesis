@@ -222,7 +222,7 @@ def consulta_compacta_odontologo_card(consulta: rx.Var[ConsultaModel], posicion:
                 # Info secundaria compacta
                 rx.hstack(
                     rx.text(
-                        f"🕐 {consulta.hora_display}",
+                        f"🕐 {consulta.fecha_llegada}",
                         font_size="0.75rem",
                         color=DARK_COLORS["accent_blue"],
                         font_weight="600"

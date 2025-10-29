@@ -1,175 +1,16 @@
 """
-📋 PÁGINA DE HISTORIAL COMPLETO DEL PACIENTE - Mockup Profesional
-============================================================
-Diseñada usando los componentes y estilos del proyecto
+🏥 PÁGINA DE HISTORIAL COMPLETO DEL PACIENTE - V2.0 PROFESIONAL
+==================================================================
+Conectada con datos reales de Reflex.dev + Theme.py
 """
 
 import reflex as rx
-from typing import Dict, List
+from typing import Dict, List, Any
+from dental_system.state.app_state import AppState
+from dental_system.components.common import medical_page_layout
 from dental_system.styles.themes import (
-    SPACING, RADIUS, DARK_THEME, COLORS, glassmorphism_card
+    SPACING, RADIUS, DARK_THEME, COLORS, glassmorphism_card, dark_header_style
 )
-
-
-# ==================== DATOS ESTÁTICOS MOCKUP ====================
-
-PACIENTE_MOCKUP = {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "numero_historia": "HC-0023",
-    "primer_nombre": "Juan Carlos",
-    "segundo_nombre": "Alberto",
-    "primer_apellido": "Pérez",
-    "segundo_apellido": "González",
-    "cedula": "V-12345678",
-    "fecha_nacimiento": "1985-03-15",
-    "edad": 39,
-    "genero": "Masculino",
-    "telefono": "+58 414-1234567",
-    "email": "juan.perez@email.com",
-    "direccion": "Av. Principal, Urb. Los Médanos, Casa 45, Cumaná, Edo. Sucre",
-    "estado_civil": "Casado",
-    "ocupacion": "Ingeniero Civil",
-    "estado": "activo",
-    "created_at": "2023-01-10",
-    "tipo_sangre": "O+",
-    "alergias": ["Penicilina", "Anestesia con epinefrina"],
-    "condiciones_preexistentes": ["Diabetes tipo 2 controlada", "Hipertensión arterial"],
-    "medicamentos_actuales": ["Metformina 850mg", "Losartán 50mg"],
-    "observaciones_medicas": "Paciente requiere profilaxis antibiótica antes de procedimientos invasivos. Control glicémico estable.",
-    "contacto_emergencia_nombre": "María González",
-    "contacto_emergencia_relacion": "Esposa",
-    "contacto_emergencia_telefono": "+58 424-7654321",
-}
-
-CONSULTAS_MOCKUP = [
-    {
-        "id": "c1",
-        "numero_consulta": "C-0156",
-        "fecha_consulta": "2024-10-20",
-        "hora_inicio": "09:30",
-        "hora_fin": "10:45",
-        "motivo_consulta": "Control rutinario + dolor molar inferior derecho",
-        "diagnostico": "Caries profunda en diente 46, gingivitis leve generalizada",
-        "estado": "completada",
-        "odontologo": "Dra. Carmen Rodríguez",
-        "intervenciones": [
-            {
-                "tipo": "Obturación con resina",
-                "dientes": ["46"],
-                "superficies": ["Oclusal", "Distal"],
-                "descripcion": "Eliminación de tejido cariado y obturación con resina fotopolimerizable color A2",
-                "material": "Resina compuesta Filtek Z350",
-                "duracion": "45 min",
-                "servicios": ["Obturación dental", "Anestesia local"]
-            },
-            {
-                "tipo": "Profilaxis dental",
-                "dientes": ["Todas las piezas"],
-                "superficies": [],
-                "descripcion": "Limpieza profunda con ultrasonido y pulido dental",
-                "material": "Pasta profiláctica",
-                "duracion": "30 min",
-                "servicios": ["Limpieza dental profesional"]
-            }
-        ],
-        "total_pagado_bs": 180.00,
-        "total_pagado_usd": 5.00,
-    },
-    {
-        "id": "c2",
-        "numero_consulta": "C-0098",
-        "fecha_consulta": "2024-07-15",
-        "hora_inicio": "14:00",
-        "hora_fin": "15:30",
-        "motivo_consulta": "Extracción de muela de juicio",
-        "diagnostico": "Tercer molar inferior derecho impactado con dolor recurrente",
-        "estado": "completada",
-        "odontologo": "Dr. Luis Martínez",
-        "intervenciones": [
-            {
-                "tipo": "Exodoncia quirúrgica",
-                "dientes": ["48"],
-                "superficies": [],
-                "descripcion": "Extracción quirúrgica de tercer molar inferior derecho impactado. Osteotomía y odontosección realizada.",
-                "material": "Sutura reabsorbible 3-0",
-                "duracion": "60 min",
-                "servicios": ["Extracción quirúrgica", "Anestesia infiltrativa", "Sutura"]
-            }
-        ],
-        "total_pagado_bs": 250.00,
-        "total_pagado_usd": 0.00,
-    },
-    {
-        "id": "c3",
-        "numero_consulta": "C-0045",
-        "fecha_consulta": "2024-03-10",
-        "hora_inicio": "10:00",
-        "hora_fin": "11:00",
-        "motivo_consulta": "Revisión general y limpieza",
-        "diagnostico": "Salud oral estable, sin hallazgos patológicos",
-        "estado": "completada",
-        "odontologo": "Dra. Carmen Rodríguez",
-        "intervenciones": [
-            {
-                "tipo": "Profilaxis dental",
-                "dientes": ["Todas las piezas"],
-                "superficies": [],
-                "descripcion": "Limpieza dental de rutina con ultrasonido",
-                "material": "Pasta profiláctica con flúor",
-                "duracion": "40 min",
-                "servicios": ["Limpieza dental profesional", "Aplicación de flúor"]
-            }
-        ],
-        "total_pagado_bs": 80.00,
-        "total_pagado_usd": 0.00,
-    },
-]
-
-ODONTOGRAMA_ACTUAL_MOCKUP = {
-    # Cuadrante 1
-    "18": {"estado": "ausente", "color": COLORS["gray"]["600"]},
-    "17": {"estado": "sano", "color": COLORS["success"]["400"]},
-    "16": {"estado": "sano", "color": COLORS["success"]["400"]},
-    "15": {"estado": "sano", "color": COLORS["success"]["400"]},
-    "14": {"estado": "sano", "color": COLORS["success"]["400"]},
-    "13": {"estado": "sano", "color": COLORS["success"]["400"]},
-    "12": {"estado": "sano", "color": COLORS["success"]["400"]},
-    "11": {"estado": "sano", "color": COLORS["success"]["400"]},
-    # Cuadrante 2
-    "21": {"estado": "sano", "color": COLORS["success"]["400"]},
-    "22": {"estado": "sano", "color": COLORS["success"]["400"]},
-    "23": {"estado": "sano", "color": COLORS["success"]["400"]},
-    "24": {"estado": "sano", "color": COLORS["success"]["400"]},
-    "25": {"estado": "sano", "color": COLORS["success"]["400"]},
-    "26": {"estado": "endodoncia", "color": "#9333EA"},
-    "27": {"estado": "sano", "color": COLORS["success"]["400"]},
-    "28": {"estado": "ausente", "color": COLORS["gray"]["600"]},
-    # Cuadrante 3
-    "38": {"estado": "ausente", "color": COLORS["gray"]["600"]},
-    "37": {"estado": "sano", "color": COLORS["success"]["400"]},
-    "36": {"estado": "sano", "color": COLORS["success"]["400"]},
-    "35": {"estado": "sano", "color": COLORS["success"]["400"]},
-    "34": {"estado": "sano", "color": COLORS["success"]["400"]},
-    "33": {"estado": "sano", "color": COLORS["success"]["400"]},
-    "32": {"estado": "sano", "color": COLORS["success"]["400"]},
-    "31": {"estado": "sano", "color": COLORS["success"]["400"]},
-    # Cuadrante 4
-    "41": {"estado": "sano", "color": COLORS["success"]["400"]},
-    "42": {"estado": "sano", "color": COLORS["success"]["400"]},
-    "43": {"estado": "sano", "color": COLORS["success"]["400"]},
-    "44": {"estado": "sano", "color": COLORS["success"]["400"]},
-    "45": {"estado": "sano", "color": COLORS["success"]["400"]},
-    "46": {"estado": "obturado", "color": COLORS["primary"]["500"]},
-    "47": {"estado": "sano", "color": COLORS["success"]["400"]},
-    "48": {"estado": "extraido", "color": COLORS["error"]["500"]},
-}
-
-ESTADISTICAS_MOCKUP = {
-    "total_consultas": 3,
-    "total_intervenciones": 4,
-    "total_pagado_bs": 510.00,
-    "total_pagado_usd": 5.00,
-}
 
 
 # ==================== COMPONENTES UI ====================
@@ -181,29 +22,33 @@ def header_paciente() -> rx.Component:
             # Avatar y datos
             rx.hstack(
                 rx.avatar(
-                    fallback=f"{PACIENTE_MOCKUP['primer_nombre'][0]}{PACIENTE_MOCKUP['primer_apellido'][0]}",
+                    fallback=rx.cond(
+                        AppState.paciente_seleccionado.primer_nombre,
+                        f"{AppState.paciente_seleccionado.primer_nombre[0]}{AppState.paciente_seleccionado.primer_apellido[0]}",
+                        "??"
+                    ),
                     size="8",
                     color_scheme="cyan",
                 ),
                 rx.vstack(
                     rx.heading(
-                        f"{PACIENTE_MOCKUP['primer_nombre']} {PACIENTE_MOCKUP['primer_apellido']}",
+                        AppState.paciente_seleccionado.nombre_completo,
                         size="6",
                         weight="bold",
                         color=DARK_THEME["colors"]["text_primary"],
                     ),
                     rx.hstack(
                         rx.badge(
-                            PACIENTE_MOCKUP["numero_historia"],
+                            AppState.paciente_seleccionado.numero_historia,
                             color_scheme="cyan",
                             variant="soft",
                         ),
                         rx.badge(
-                            PACIENTE_MOCKUP["cedula"],
+                            AppState.paciente_seleccionado.numero_documento,
                             variant="outline",
                         ),
                         rx.badge(
-                            f"{PACIENTE_MOCKUP['edad']} años",
+                            f"{AppState.paciente_seleccionado.edad} años",
                             variant="surface",
                         ),
                         spacing="2",
@@ -218,10 +63,10 @@ def header_paciente() -> rx.Component:
 
             # Acciones
             rx.hstack(
-                rx.badge(
-                    "🟢 Activo",
-                    color_scheme="green",
-                    size="3",
+                rx.cond(
+                    AppState.paciente_seleccionado.activo,
+                    rx.badge("🟢 Activo", color_scheme="green", size="3"),
+                    rx.badge("🔴 Inactivo", color_scheme="red", size="3")
                 ),
                 rx.button(
                     rx.icon("printer", size=18),
@@ -233,6 +78,7 @@ def header_paciente() -> rx.Component:
                     rx.icon("arrow_left", size=18),
                     "Volver",
                     variant="soft",
+                    on_click=lambda: AppState.navigate_to("pacientes")
                 ),
                 spacing="3",
             ),
@@ -257,7 +103,7 @@ def stat_card_mini(icono: str, titulo: str, valor: str, color: str = "primary") 
     return rx.box(
         rx.vstack(
             rx.hstack(
-                rx.icon(icono, size=20, color=f"{color}.500"),
+                rx.icon(icono, size=20, color=COLORS[color]["500"]),
                 rx.text(titulo, size="2", color=DARK_THEME["colors"]["text_muted"]),
                 spacing="2",
                 align="center",
@@ -280,7 +126,7 @@ def stat_card_mini(icono: str, titulo: str, valor: str, color: str = "primary") 
     )
 
 
-def info_row(label: str, value: str) -> rx.Component:
+def info_row(label: str, value: Any) -> rx.Component:
     """Fila de información label: value"""
     return rx.hstack(
         rx.text(
@@ -302,6 +148,12 @@ def info_row(label: str, value: str) -> rx.Component:
 
 def tab_resumen() -> rx.Component:
     """Tab de resumen general"""
+
+    # # Calcular estadísticas del paciente
+    # consultas_paciente = rx.State.computed_var(
+    #     lambda self: [c for c in self.lista_consultas if c.paciente_id == self.id_paciente_seleccionado]
+    # )
+
     return rx.vstack(
         # KPIs
         rx.heading(
@@ -311,10 +163,10 @@ def tab_resumen() -> rx.Component:
             margin_bottom=SPACING["4"],
         ),
         rx.grid(
-            stat_card_mini("calendar", "Consultas", str(ESTADISTICAS_MOCKUP["total_consultas"]), "primary"),
-            stat_card_mini("activity", "Intervenciones", str(ESTADISTICAS_MOCKUP["total_intervenciones"]), "blue"),
-            stat_card_mini("dollar_sign", "Pagado BS", f"Bs. {ESTADISTICAS_MOCKUP['total_pagado_bs']:.2f}", "success"),
-            stat_card_mini("dollar_sign", "Pagado USD", f"${ESTADISTICAS_MOCKUP['total_pagado_usd']:.2f}", "success"),
+            stat_card_mini("calendar", "Consultas", "0", "primary"),  # TODO: calcular real
+            stat_card_mini("activity", "Intervenciones", "0", "primary"),
+            stat_card_mini("dollar_sign", "Pagado BS", "Bs. 0.00", "success"),
+            stat_card_mini("dollar_sign", "Pagado USD", "$0.00", "success"),
             columns="4",
             spacing="4",
             width="100%",
@@ -329,13 +181,12 @@ def tab_resumen() -> rx.Component:
                 rx.vstack(
                     rx.heading("👤 Datos Personales", size="4", color=DARK_THEME["colors"]["text_primary"], margin_bottom=SPACING["4"]),
                     rx.vstack(
-                        info_row("Nombre Completo", f"{PACIENTE_MOCKUP['primer_nombre']} {PACIENTE_MOCKUP['segundo_nombre']} {PACIENTE_MOCKUP['primer_apellido']} {PACIENTE_MOCKUP['segundo_apellido']}"),
-                        info_row("Cédula", PACIENTE_MOCKUP["cedula"]),
-                        info_row("Fecha Nacimiento", PACIENTE_MOCKUP["fecha_nacimiento"]),
-                        info_row("Género", PACIENTE_MOCKUP["genero"]),
-                        info_row("Estado Civil", PACIENTE_MOCKUP["estado_civil"]),
-                        info_row("Ocupación", PACIENTE_MOCKUP["ocupacion"]),
-                        info_row("Tipo Sangre", PACIENTE_MOCKUP["tipo_sangre"]),
+                        info_row("Nombre Completo", AppState.paciente_seleccionado.nombre_completo),
+                        info_row("Cédula", AppState.paciente_seleccionado.numero_documento),
+                        info_row("Fecha Nacimiento", AppState.paciente_seleccionado.fecha_nacimiento),
+                        info_row("Género", AppState.paciente_seleccionado.genero),
+                        info_row("Estado Civil", AppState.paciente_seleccionado.estado_civil),
+                        info_row("Ocupación", AppState.paciente_seleccionado.ocupacion),
                         spacing="3",
                         width="100%",
                     ),
@@ -353,16 +204,16 @@ def tab_resumen() -> rx.Component:
                 rx.vstack(
                     rx.heading("📞 Contacto", size="4", color=DARK_THEME["colors"]["text_primary"], margin_bottom=SPACING["4"]),
                     rx.vstack(
-                        info_row("Teléfono", PACIENTE_MOCKUP["telefono"]),
-                        info_row("Email", PACIENTE_MOCKUP["email"]),
-                        info_row("Dirección", PACIENTE_MOCKUP["direccion"]),
+                        info_row("Teléfono", AppState.paciente_seleccionado.celular_1),
+                        info_row("Email", AppState.paciente_seleccionado.email),
+                        info_row("Dirección", AppState.paciente_seleccionado.direccion),
 
                         rx.divider(margin_y=SPACING["4"]),
 
                         rx.text("🚨 Contacto de Emergencia", weight="bold", color=COLORS["error"]["500"], size="3"),
-                        info_row("Nombre", PACIENTE_MOCKUP["contacto_emergencia_nombre"]),
-                        info_row("Relación", PACIENTE_MOCKUP["contacto_emergencia_relacion"]),
-                        info_row("Teléfono", PACIENTE_MOCKUP["contacto_emergencia_telefono"]),
+                        info_row("Nombre", AppState.paciente_seleccionado.contacto_emergencia.get("nombre", "N/A")),
+                        info_row("Relación", AppState.paciente_seleccionado.contacto_emergencia.get("relacion", "N/A")),
+                        info_row("Teléfono", AppState.paciente_seleccionado.contacto_emergencia.get("telefono", "N/A")),
                         spacing="3",
                         width="100%",
                     ),
@@ -395,10 +246,28 @@ def tab_consultas() -> rx.Component:
             margin_bottom=SPACING["4"],
         ),
 
-        rx.vstack(
-            *[consulta_card(consulta) for consulta in CONSULTAS_MOCKUP],
-            spacing="4",
-            width="100%",
+        rx.cond(
+            AppState.historial_completo.consultas.length() > 0,
+            rx.vstack(
+                rx.foreach(
+                    AppState.historial_completo.consultas,
+                    consulta_card
+                ),
+                spacing="4",
+                width="100%",
+            ),
+            rx.box(
+                rx.text(
+                    f"No hay consultas registradas para este paciente { AppState.historial_completo.consultas.length()}",
+                    size="3",
+                    color=DARK_THEME["colors"]["text_muted"]
+                ),
+                style={
+                    **glassmorphism_card(opacity="80", blur="10px"),
+                    "padding": SPACING["6"],
+                    "text_align": "center"
+                }
+            )
         ),
 
         spacing="4",
@@ -406,7 +275,7 @@ def tab_consultas() -> rx.Component:
     )
 
 
-def consulta_card(consulta: Dict) -> rx.Component:
+def consulta_card(consulta) -> rx.Component:
     """Card de consulta individual"""
     return rx.box(
         rx.vstack(
@@ -415,20 +284,32 @@ def consulta_card(consulta: Dict) -> rx.Component:
                 rx.hstack(
                     rx.icon("calendar", size=20, color=COLORS["primary"]["500"]),
                     rx.text(
-                        consulta["fecha_consulta"],
+                        consulta.fecha_llegada,
                         size="4",
                         weight="bold",
                         color=DARK_THEME["colors"]["text_primary"],
                     ),
-                    rx.badge(consulta["numero_consulta"], color_scheme="cyan"),
+                    rx.badge(consulta.numero_consulta, color_scheme="cyan"),
                     spacing="2",
                 ),
 
                 rx.spacer(),
 
                 rx.vstack(
-                    rx.badge("✅ Completada", color_scheme="green"),
-                    rx.text(consulta["odontologo"], size="2", color=DARK_THEME["colors"]["text_muted"]),
+                    rx.cond(
+                        consulta.estado == "completada",
+                        rx.badge("✅ Completada", color_scheme="green"),
+                        rx.cond(
+                            consulta.estado == "en_atencion",
+                            rx.badge("🔄 En Atención", color_scheme="blue"),
+                            rx.badge("⏳ En Espera", color_scheme="yellow")
+                        )
+                    ),
+                    # rx.text(
+                    #     f"Dr. {consulta.primer_odontologo_nombre or 'No asignado'}",
+                    #     size="2",
+                    #     color=DARK_THEME["colors"]["text_muted"]
+                    # ),
                     spacing="1",
                     align_items="end",
                 ),
@@ -442,40 +323,26 @@ def consulta_card(consulta: Dict) -> rx.Component:
             rx.vstack(
                 rx.vstack(
                     rx.text("💬 Motivo:", weight="bold", color=DARK_THEME["colors"]["text_secondary"], size="2"),
-                    rx.text(consulta["motivo_consulta"], color=DARK_THEME["colors"]["text_muted"], size="2"),
+                    rx.text(consulta.motivo_consulta, color=DARK_THEME["colors"]["text_muted"], size="2"),
                     spacing="1",
                     align_items="start",
                 ),
-                rx.vstack(
-                    rx.text("🔍 Diagnóstico:", weight="bold", color=DARK_THEME["colors"]["text_secondary"], size="2"),
-                    rx.text(consulta["diagnostico"], color=DARK_THEME["colors"]["text_muted"], size="2"),
-                    spacing="1",
-                    align_items="start",
-                ),
-                spacing="3",
-                width="100%",
             ),
 
-            # Intervenciones
-            rx.vstack(
-                rx.text("🦷 Intervenciones:", weight="bold", color=COLORS["primary"]["500"], size="3", margin_top=SPACING["3"]),
-                rx.vstack(
-                    *[intervencion_mini(interv) for interv in consulta["intervenciones"]],
-                    spacing="3",
-                    width="100%",
+            # Total (si existe)
+            rx.cond(
+                consulta.costo_total_usd > 0,
+                rx.box(
+                    rx.divider(margin_y=SPACING["3"]),
+                    rx.hstack(
+                        rx.text("Total Pagado:", weight="medium", color=DARK_THEME["colors"]["text_muted"]),
+                        rx.text(f"Bs. {consulta.costo_total_bs:.2f}", weight="bold", color=COLORS["success"]["500"]),
+                        rx.text("+", color=DARK_THEME["colors"]["text_muted"]),
+                        rx.text(f"${consulta.costo_total_usd:.2f} USD", weight="bold", color=COLORS["success"]["500"]),
+                        spacing="2",
+                    ),
                 ),
-                spacing="2",
-                width="100%",
-            ),
-
-            # Total
-            rx.divider(margin_y=SPACING["3"]),
-            rx.hstack(
-                rx.text("Total Pagado:", weight="medium", color=DARK_THEME["colors"]["text_muted"]),
-                rx.text(f"Bs. {consulta['total_pagado_bs']:.2f}", weight="bold", color=COLORS["success"]["500"]),
-                rx.text("+", color=DARK_THEME["colors"]["text_muted"]),
-                rx.text(f"${consulta['total_pagado_usd']:.2f} USD", weight="bold", color=COLORS["success"]["500"]),
-                spacing="2",
+                rx.box()
             ),
 
             spacing="4",
@@ -485,44 +352,6 @@ def consulta_card(consulta: Dict) -> rx.Component:
             **glassmorphism_card(opacity="80", blur="10px"),
             "padding": SPACING["6"],
             "border_left": f"4px solid {COLORS['primary']['500']}",
-        }
-    )
-
-
-def intervencion_mini(intervencion: Dict) -> rx.Component:
-    """Intervención mini dentro de consulta"""
-    return rx.box(
-        rx.vstack(
-            rx.hstack(
-                rx.icon("zap", size=16, color=COLORS["warning"]["500"]),
-                rx.text(intervencion["tipo"], weight="bold", color=DARK_THEME["colors"]["text_primary"], size="2"),
-                rx.badge(f"⏱️ {intervencion['duracion']}", size="1", variant="soft"),
-                spacing="2",
-            ),
-
-            rx.cond(
-                len(intervencion["dientes"]) > 0,
-                rx.hstack(
-                    rx.text("Dientes:", size="1", color=DARK_THEME["colors"]["text_muted"]),
-                    rx.hstack(
-                        *[rx.badge(d, size="1", color_scheme="purple") for d in intervencion["dientes"]],
-                        spacing="1",
-                    ),
-                    spacing="2",
-                ),
-                rx.box(),
-            ),
-
-            rx.text(intervencion["descripcion"], size="2", color=DARK_THEME["colors"]["text_muted"]),
-
-            spacing="2",
-            width="100%",
-        ),
-        style={
-            "background": DARK_THEME["colors"]["surface_secondary"],
-            "padding": SPACING["4"],
-            "border_radius": RADIUS["lg"],
-            "border_left": f"3px solid {COLORS['warning']['500']}",
         }
     )
 
@@ -560,6 +389,11 @@ def tab_odontograma() -> rx.Component:
                     rx.hstack(
                         rx.box(width="16px", height="16px", background=COLORS["error"]["500"], border_radius=RADIUS["sm"]),
                         rx.text("Extraído", size="1", color=DARK_THEME["colors"]["text_muted"]),
+                        spacing="1",
+                    ),
+                    rx.hstack(
+                        rx.box(width="16px", height="16px", background=COLORS["gray"]["600"], border_radius=RADIUS["sm"]),
+                        rx.text("Ausente", size="1", color=DARK_THEME["colors"]["text_muted"]),
                         spacing="1",
                     ),
                     spacing="4",
@@ -612,26 +446,40 @@ def tab_odontograma() -> rx.Component:
 def odontograma_cuadrante(dientes: List[int]) -> rx.Component:
     """Cuadrante del odontograma"""
     return rx.hstack(
-        *[diente_visual(str(d)) for d in dientes],
+        *[diente_visual(d) for d in dientes],
         spacing="2",
     )
 
 
-def diente_visual(numero: str) -> rx.Component:
-    """Diente visual"""
-    diente_data = ODONTOGRAMA_ACTUAL_MOCKUP.get(numero, {"estado": "sano", "color": COLORS["success"]["400"]})
+def diente_visual(numero: int) -> rx.Component:
+    """Diente visual conectado con get_teeth_data"""
+
+    # Obtener datos del diente desde AppState
+    teeth_data = AppState.get_teeth_data
+    diente_info = teeth_data.get(numero, {"status": "sano", "has_conditions": False})
+
+    # Mapeo de colores por estado
+    color_map = {
+        "sano": COLORS["success"]["400"],
+        "obturado": COLORS["primary"]["500"],
+        "caries": COLORS["error"]["500"],
+        "endodoncia": "#9333EA",
+        "ausente": COLORS["gray"]["600"]
+    }
+
+    color = color_map.get(diente_info.get("status", "sano"), COLORS["success"]["400"])
 
     return rx.tooltip(
         rx.box(
             rx.text(
-                numero,
+                str(numero),
                 size="2",
                 weight="bold",
                 color="white",
             ),
             width="50px",
             height="60px",
-            background=diente_data["color"],
+            background=color,
             border_radius=RADIUS["lg"],
             border=f"2px solid {DARK_THEME['colors']['border']}",
             display="flex",
@@ -641,12 +489,12 @@ def diente_visual(numero: str) -> rx.Component:
             style={
                 "_hover": {
                     "transform": "scale(1.1)",
-                    "box_shadow": f"0 0 12px {diente_data['color']}",
+                    "box_shadow": f"0 0 12px {color}",
                 },
                 "transition": "all 0.2s ease",
             }
         ),
-        content=f"Diente {numero}: {diente_data['estado'].upper()}",
+        content=f"Diente {numero}: {diente_info.get('status', 'sano').upper()}",
     )
 
 
@@ -669,21 +517,25 @@ def tab_datos_medicos() -> rx.Component:
                         rx.heading("Alergias", size="4", color=COLORS["error"]["500"]),
                         spacing="2",
                     ),
-                    rx.vstack(
-                        *[
-                            rx.box(
-                                rx.text(alergia, size="2", color=DARK_THEME["colors"]["text_primary"]),
-                                style={
-                                    "background": f"{COLORS['error']['500']}20",
-                                    "padding": SPACING["3"],
-                                    "border_radius": RADIUS["lg"],
-                                    "border_left": f"4px solid {COLORS['error']['500']}",
-                                }
-                            )
-                            for alergia in PACIENTE_MOCKUP["alergias"]
-                        ],
-                        spacing="2",
-                        width="100%",
+                    rx.cond(
+                        AppState.paciente_seleccionado.alergias.length() > 0,
+                        rx.vstack(
+                            rx.foreach(
+                                AppState.paciente_seleccionado.alergias,
+                                lambda alergia: rx.box(
+                                    rx.text(alergia, size="2", color=DARK_THEME["colors"]["text_primary"]),
+                                    style={
+                                        "background": f"{COLORS['error']['500']}20",
+                                        "padding": SPACING["3"],
+                                        "border_radius": RADIUS["lg"],
+                                        "border_left": f"4px solid {COLORS['error']['500']}",
+                                    }
+                                )
+                            ),
+                            spacing="2",
+                            width="100%",
+                        ),
+                        rx.text("Sin alergias registradas", size="2", color=DARK_THEME["colors"]["text_muted"])
                     ),
                     spacing="4",
                     width="100%",
@@ -702,21 +554,25 @@ def tab_datos_medicos() -> rx.Component:
                         rx.heading("Condiciones", size="4", color=COLORS["warning"]["500"]),
                         spacing="2",
                     ),
-                    rx.vstack(
-                        *[
-                            rx.box(
-                                rx.text(cond, size="2", color=DARK_THEME["colors"]["text_primary"]),
-                                style={
-                                    "background": f"{COLORS['warning']['500']}20",
-                                    "padding": SPACING["3"],
-                                    "border_radius": RADIUS["lg"],
-                                    "border_left": f"4px solid {COLORS['warning']['500']}",
-                                }
-                            )
-                            for cond in PACIENTE_MOCKUP["condiciones_preexistentes"]
-                        ],
-                        spacing="2",
-                        width="100%",
+                    rx.cond(
+                        AppState.paciente_seleccionado.condiciones_medicas.length() > 0,
+                        rx.vstack(
+                            rx.foreach(
+                                AppState.paciente_seleccionado.condiciones_medicas,
+                                lambda cond: rx.box(
+                                    rx.text(cond, size="2", color=DARK_THEME["colors"]["text_primary"]),
+                                    style={
+                                        "background": f"{COLORS['warning']['500']}20",
+                                        "padding": SPACING["3"],
+                                        "border_radius": RADIUS["lg"],
+                                        "border_left": f"4px solid {COLORS['warning']['500']}",
+                                    }
+                                )
+                            ),
+                            spacing="2",
+                            width="100%",
+                        ),
+                        rx.text("Sin condiciones registradas", size="2", color=DARK_THEME["colors"]["text_muted"])
                     ),
                     spacing="4",
                     width="100%",
@@ -736,14 +592,21 @@ def tab_datos_medicos() -> rx.Component:
         rx.box(
             rx.vstack(
                 rx.hstack(
-                    rx.icon("pill", size=20, color=COLORS["info"]["500"]),
-                    rx.heading("Medicamentos Actuales", size="4", color=COLORS["info"]["500"]),
+                    rx.icon("pill", size=20, color=COLORS["primary"]["500"]),
+                    rx.heading("Medicamentos Actuales", size="4", color=COLORS["primary"]["500"]),
                     spacing="2",
                 ),
-                rx.hstack(
-                    *[rx.badge(med, color_scheme="blue", variant="soft") for med in PACIENTE_MOCKUP["medicamentos_actuales"]],
-                    spacing="2",
-                    wrap="wrap",
+                rx.cond(
+                    AppState.paciente_seleccionado.medicamentos_actuales.length() > 0,
+                    rx.hstack(
+                        rx.foreach(
+                            AppState.paciente_seleccionado.medicamentos_actuales,
+                            lambda med: rx.badge(med, color_scheme="blue", variant="soft")
+                        ),
+                        spacing="2",
+                        wrap="wrap",
+                    ),
+                    rx.text("Sin medicamentos registrados", size="2", color=DARK_THEME["colors"]["text_muted"])
                 ),
                 spacing="4",
                 width="100%",
@@ -764,7 +627,9 @@ def tab_datos_medicos() -> rx.Component:
                     spacing="2",
                 ),
                 rx.text(
-                    PACIENTE_MOCKUP["observaciones_medicas"],
+                    rx.cond(AppState.paciente_seleccionado.observaciones,
+                            AppState.paciente_seleccionado.observaciones,
+                            "Sin observaciones médicas registradas"),
                     size="2",
                     color=DARK_THEME["colors"]["text_secondary"],
                     line_height="1.6",
@@ -788,63 +653,63 @@ def tab_datos_medicos() -> rx.Component:
 
 def historial_paciente_page() -> rx.Component:
     """Página completa de historial del paciente"""
-    return rx.box(
-        rx.vstack(
-            # Header
-            header_paciente(),
+    return medical_page_layout(
+        rx.box(
+            rx.vstack(
+                # Header
+                header_paciente(),
 
-            # Tabs
-            rx.box(
-                rx.tabs.root(
-                    rx.tabs.list(
-                        rx.tabs.trigger(
-                            "📊 Resumen",
-                            value="resumen",
-                            style={"color": DARK_THEME["colors"]["text_primary"]},
+                # Tabs
+                rx.box(
+                    rx.tabs.root(
+                        rx.tabs.list(
+                            rx.tabs.trigger(
+                                "📊 Resumen",
+                                value="resumen",
+                                style={"color": DARK_THEME["colors"]["text_primary"]},
+                            ),
+                            rx.tabs.trigger(
+                                "📅 Consultas",
+                                value="consultas",
+                                style={"color": DARK_THEME["colors"]["text_primary"]},
+                            ),
+                            rx.tabs.trigger(
+                                "🦷 Odontograma",
+                                value="odontograma",
+                                style={"color": DARK_THEME["colors"]["text_primary"]},
+                            ),
+                            rx.tabs.trigger(
+                                "🩺 Datos Médicos",
+                                value="medicos",
+                                style={"color": DARK_THEME["colors"]["text_primary"]},
+                            ),
+                            style={
+                                "border_bottom": f"1px solid {DARK_THEME['colors']['border']}",
+                            }
                         ),
-                        rx.tabs.trigger(
-                            "📅 Consultas",
-                            value="consultas",
-                            style={"color": DARK_THEME["colors"]["text_primary"]},
+
+                        rx.box(
+                            rx.tabs.content(tab_resumen(), value="resumen"),
+                            rx.tabs.content(tab_consultas(), value="consultas"),
+                            # rx.tabs.content(tab_odontograma(), value="odontograma"),
+                            rx.tabs.content(tab_datos_medicos(), value="medicos"),
+                            padding=SPACING["6"],
                         ),
-                        rx.tabs.trigger(
-                            "🦷 Odontograma",
-                            value="odontograma",
-                            style={"color": DARK_THEME["colors"]["text_primary"]},
-                        ),
-                        rx.tabs.trigger(
-                            "🩺 Datos Médicos",
-                            value="medicos",
-                            style={"color": DARK_THEME["colors"]["text_primary"]},
-                        ),
-                        style={
-                            "border_bottom": f"1px solid {DARK_THEME['colors']['border']}",
-                        }
+
+                        default_value="resumen",
                     ),
 
-                    rx.box(
-                        rx.tabs.content(tab_resumen(), value="resumen"),
-                        rx.tabs.content(tab_consultas(), value="consultas"),
-                        rx.tabs.content(tab_odontograma(), value="odontograma"),
-                        rx.tabs.content(tab_datos_medicos(), value="medicos"),
-                        padding=SPACING["6"],
-                    ),
-
-                    default_value="resumen",
+                    width="100%",
+                    max_width="1400px",
+                    margin="0 auto",
                 ),
 
+                spacing="0",
                 width="100%",
-                max_width="1400px",
-                margin="0 auto",
+                min_height="100vh",
+                padding=SPACING["6"],
             ),
-
-            spacing="0",
-            width="100%",
             min_height="100vh",
-            padding=SPACING["6"],
-        ),
-
-        background=DARK_THEME["colors"]["background"],
-        min_height="100vh",
-        width="100%",
+            width="100%",
+        )
     )
