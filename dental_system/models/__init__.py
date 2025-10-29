@@ -48,12 +48,12 @@ from .servicios_models import (
 from .pagos_models import (
     PagoModel,
     PagosStatsModel,
-    FacturaModel,
-    ConceptoPagoModel,
+    ConsultaPendientePago,
     BalanceGeneralModel,
     CuentaPorCobrarModel,
     PagoFormModel,
-    PagoParcialFormModel
+    ServicioFormateado
+    
 )
 
 from .ui_models import (
@@ -65,10 +65,13 @@ from .odontologia_models import (
     OdontogramaModel,
     DienteModel,
     CondicionDienteModel,
+    CondicionCatalogoModel,  # ✨ V3.0: Catálogo de condiciones
+    ActualizacionOdontogramaResult,  # ✨ V3.0: Resultado batch
     HistorialClinicoModel,
     PlanTratamientoModel,
     IntervencionFormModel,
-    HistorialMedicoModel
+    HistorialMedicoModel,
+    HistorialServicioModel
 )
 
 from .dashboard_models import (
@@ -124,8 +127,8 @@ __all__ = [
     # ✅ PAGOS Y FACTURACIÓN
     "PagoModel",
     "PagosStatsModel", 
-    "FacturaModel",
-    "ConceptoPagoModel",
+    "ConsultaPendientePago",
+    "ServicioFormateado",
     "BalanceGeneralModel",
     "CuentaPorCobrarModel",
     
@@ -133,9 +136,12 @@ __all__ = [
     "OdontogramaModel",
     "DienteModel",
     "CondicionDienteModel",
+    "CondicionCatalogoModel",  # ✨ V3.0
+    "ActualizacionOdontogramaResult",  # ✨ V3.0
     "HistorialClinicoModel",
     "PlanTratamientoModel",
     "HistorialMedicoModel",
+    "HistorialServicioModel",
     
     # ✅ DASHBOARD Y ESTADÍSTICAS
     "DashboardStatsModel",
@@ -157,7 +163,6 @@ __all__ = [
     "PersonalFormModel",
     "ServicioFormModel",
     "PagoFormModel",
-    "PagoParcialFormModel",
     "IntervencionFormModel",
     
     # ✅ AUTENTICACIÓN

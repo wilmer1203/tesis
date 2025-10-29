@@ -17,7 +17,8 @@ import reflex as rx
 from dental_system.components.common import (
     medical_page_layout,
     medical_toast_container,
-    toast_animations_css
+    toast_animations_css,
+    confirmation_modal
 )
 from dental_system.components.table_components import personal_table
 from dental_system.components.forms import multi_step_staff_form
@@ -388,8 +389,8 @@ def personal_page() -> rx.Component:
                 width="100%"
             )
         ),
-        
+
         # Modales
         multi_step_staff_form(),
-        # delete_personal_confirmation_modal()  # TODO: Arreglar modal
+        confirmation_modal()  # Modal genérico de confirmación para inhabilitación
     )

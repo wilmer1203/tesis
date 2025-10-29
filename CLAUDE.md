@@ -113,12 +113,12 @@ pacientes → condiciones_diente (activo: true/false para historial)
 ## 🔄 FLUJO PRINCIPAL DEL SISTEMA
 
 ### 1. Creación de Paciente (NUEVO ✨)
-1. Asistente/Administrador registra nuevo paciente
+1. Gerente/Administrador registra nuevo paciente
 2. **Trigger SQL auto-crea 160 condiciones "sano"** (32 dientes × 5 superficies)
 3. Odontograma listo para usar inmediatamente
 
 ### 2. Llegada del Paciente (Sin Cita)
-1. Asistente busca paciente existente
+1. Administrador busca paciente existente
 2. Crea nueva consulta
 3. Asigna a cola de odontólogo preferido
 4. Sistema asigna orden automático en la cola
@@ -453,8 +453,7 @@ Odontología: Sin acceso directo
 ```
 Su cola, atención, odontograma
 Dashboard: Métricas clínicas personales
-Pacientes: Solo lectura de sus pacientes asignados
-Consultas: CRUD de sus propias consultas
+Pacientes: Solo lectura de sus pacientes asignados o ya atendidos 
 Odontología: Módulo completo
   - Cargar odontograma actual (auto-cargado al atender)
   - Actualizar condiciones por diente/superficie

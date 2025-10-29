@@ -22,18 +22,19 @@ import logging
 
 # Servicios y modelos
 from dental_system.services.pagos_service import pagos_service
+from dental_system.constants import METODOS_PAGO, ESTADOS_PAGO
 from dental_system.models import (
     PagoModel,
     PagosStatsModel,
-    FacturaModel,
-    ConceptoPagoModel,
     BalanceGeneralModel,
     CuentaPorCobrarModel,
     PagoFormModel,
-    PagoParcialFormModel
+    ConsultaPendientePago,
+    ServicioFormateado
 )
 
 logger = logging.getLogger(__name__)
+
 
 class EstadoPagos(rx.State,mixin=True):
     """
@@ -56,21 +57,10 @@ class EstadoPagos(rx.State,mixin=True):
     # Lista principal de pagos (modelos tipados)
     lista_pagos: List[PagoModel] = []
     total_pagos: int = 0
-    
-    # Pago seleccionado para operaciones
-    pago_seleccionado: PagoModel = PagoModel()
-    id_pago_seleccionado: str = ""
-    
-    # Formularios de pagos (datos temporales)
-    formulario_pago: Dict[str, Any] = {}
-    formulario_pago_data: PagoFormModel = PagoFormModel()
-    formulario_pago_parcial_data: PagoParcialFormModel = PagoParcialFormModel()
     errores_validacion_pago: Dict[str, str] = {}
 
     # Variables auxiliares para operaciones
-    pago_para_eliminar: Optional[PagoModel] = None
     cargando_lista_pagos: bool = False
-    mostrar_solo_pendientes: bool = False
 
     # ==========================================
     # 💰 NUEVAS VARIABLES SISTEMA DUAL USD/BS
@@ -78,6 +68,7 @@ class EstadoPagos(rx.State,mixin=True):
 
     # 📊 FORMULARIO DUAL SIMPLIFICADO
     formulario_pago_dual: PagoFormModel = PagoFormModel()
+    modal_pago_dual_abierto: bool = False
 
     # 💱 TASA DE CAMBIO DINÁMICA
     tasa_del_dia: float = 36.50              # Tasa editable por usuario
@@ -116,30 +107,22 @@ class EstadoPagos(rx.State,mixin=True):
     consultas_pendientes_facturacion: List[Dict[str, Any]] = []
     consulta_seleccionada_pago: Optional[Dict[str, Any]] = None
     cargando_consultas_pendientes: bool = False
+
+    # 📝 DATOS ADICIONALES DE LA CONSULTA SELECCIONADA (para el modal)
+    consulta_actual_numero_historia: str = ""
+    consulta_actual_documento: str = ""
+    consulta_actual_telefono: str = ""
     
+    consulta_pagar : Optional[ConsultaPendientePago] = None
+    consultas_pendientes_pagar: List[ConsultaPendientePago] = None
     # ==========================================
     # 💳 MÉTODOS DE PAGO Y CONFIGURACIÓN
     # ==========================================
-    
-    # Métodos de pago disponibles
-    metodos_pago_disponibles: List[str] = [
-        "efectivo",
-        "tarjeta_credito", 
-        "tarjeta_debito",
-        "transferencia_bancaria",
-        "cheque",
-        "pago_movil",
-        "otros"
-    ]
-    
-    # Estados de pago
-    estados_pago_disponibles: List[str] = [
-        "pendiente",
-        "completado", 
-        "anulado",
-        "reembolsado"
-    ]
-    
+
+    # Métodos de pago disponibles (importados desde constants.py)
+    # Mantenemos como variable de estado para posible personalización por clínica
+    metodos_pago_disponibles: List[str] = METODOS_PAGO
+
     # ==========================================
     # 💳 FILTROS Y BÚSQUEDAS ESPECIALIZADAS
     # ==========================================
@@ -198,60 +181,12 @@ class EstadoPagos(rx.State,mixin=True):
     # 💳 COMPUTED VARS PARA UI (SIN ASYNC)
     # ==========================================
     
-    @rx.var(cache=True)
-    def pagos_filtrados_display(self) -> List[PagoModel]:
-        """🔍 Pagos filtrados según criterios actuales"""
-        pagos = self.lista_pagos
-        
-        # Filtrar por búsqueda
-        if self.termino_busqueda_pagos:
-            pagos = [
-                p for p in pagos 
-                if (self.termino_busqueda_pagos.lower() in p.numero_recibo.lower() or
-                    self.termino_busqueda_pagos.lower() in p.concepto.lower())
-            ]
-        
-        # Filtrar por método de pago
-        if self.filtro_metodo_pago != "todos":
-            pagos = [p for p in pagos if p.metodo_pago == self.filtro_metodo_pago]
-        
-        # Filtrar por estado
-        if self.filtro_estado_pago != "todos":
-            pagos = [p for p in pagos if p.estado_pago == self.filtro_estado_pago]
-        
-        # Filtrar por solo pendientes
-        if self.mostrar_solo_pendientes:
-            pagos = [p for p in pagos if p.estado_pago == "pendiente"]
-        
-        # Filtrar por rango de monto
-        monto_min = self.filtro_rango_monto.get("min", 0.0)
-        monto_max = self.filtro_rango_monto.get("max", 999999.0)
-        pagos = [
-            p for p in pagos 
-            if monto_min <= p.monto_total <= monto_max
-        ]
-        
-        return pagos
     
     @rx.var(cache=True)
     def pagos_pendientes(self) -> List[PagoModel]:
         """⏳ Pagos pendientes"""
         return [p for p in self.lista_pagos if p.estado_pago == "pendiente"]
-    
-    @rx.var(cache=True)
-    def pagos_completados_hoy(self) -> List[PagoModel]:
-        """✅ Pagos completados hoy"""
-        hoy = date.today()
-        return [
-            p for p in self.lista_pagos 
-            if p.estado_pago == "completado" and p.fecha_pago.date() == hoy
-        ]
-    
-    @rx.var(cache=True)
-    def pagos_con_saldo_pendiente(self) -> List[PagoModel]:
-        """💰 Pagos con saldo pendiente"""
-        return [p for p in self.lista_pagos if p.saldo_pendiente > 0]
-    
+   
     @rx.var(cache=True)
     def total_pagos_pendientes(self) -> int:
         """📊 Total de pagos pendientes"""
@@ -262,39 +197,16 @@ class EstadoPagos(rx.State,mixin=True):
         """💰 Total saldo pendiente"""
         return sum(p.saldo_pendiente for p in self.lista_pagos)
     
-    @rx.var(cache=True)
-    def recaudacion_del_dia(self) -> float:
-        """💵 Recaudación del día"""
-        hoy = date.today()
-        return sum(
-            p.monto_pagado for p in self.lista_pagos 
-            if p.fecha_pago.date() == hoy and p.estado_pago == "completado"
-        )
+    # @rx.var(cache=True)
+    # def recaudacion_del_dia(self) -> float:
+    #     """💵 Recaudación del día"""
+    #     hoy = date.today()
+    #     return sum(
+    #         p.monto_pagado for p in self.lista_pagos 
+    #         if p.fecha_pago.date() == hoy and p.estado_pago == "completado"
+    #     )
     
-    @rx.var(cache=True)
-    def pago_seleccionado_valido(self) -> bool:
-        """✅ Validar si hay pago seleccionado"""
-        return (
-            hasattr(self.pago_seleccionado, 'id') and 
-            bool(self.pago_seleccionado.id)
-        )
-    
-    @rx.var(cache=True)
-    def proximo_numero_recibo(self) -> str:
-        """🔢 Próximo número de recibo disponible"""
-        # Generar formato: REC2024120001
-        hoy = date.today()
-        año = hoy.year
-        mes = hoy.month
-        
-        # Contar recibos del mes actual
-        recibos_mes = len([
-            p for p in self.lista_pagos 
-            if p.fecha_pago.month == mes and p.fecha_pago.year == año
-        ])
-        
-        return f"REC{año}{mes:02d}{(recibos_mes + 1):04d}"
-    
+
     # ==========================================
     # 💳 MÉTODOS PRINCIPALES DE CRUD
     # ==========================================
@@ -304,294 +216,207 @@ class EstadoPagos(rx.State,mixin=True):
         """💳 CARGAR LISTA COMPLETA DE PAGOS"""
         try:
             self.cargando_lista_pagos = True
-            
+
+            print(f"🔍 DEBUG: Cargando lista de pagos...")
             # Cargar desde el servicio
             pagos_data = await pagos_service.get_all_payments()
-            
+            print(f"🔍 Pagos recibidos: {len(pagos_data) if pagos_data else 0}")
             # Convertir a modelos tipados
-            self.lista_pagos = [
-                PagoModel.from_dict(pago) 
-                for pago in pagos_data
-            ]
+            self.lista_pagos = pagos_data
             self.total_pagos = len(self.lista_pagos)
-            
+
             # Actualizar métricas rápidas
-            await self._actualizar_metricas_rapidas()
-            
+            # await self._actualizar_metricas_rapidas()
+
             logger.info(f"✅ {len(self.lista_pagos)} pagos cargados")
             
         except Exception as e:
             logger.error(f"❌ Error cargando pagos: {str(e)}")
         finally:
             self.cargando_lista_pagos = False
-    
-    @rx.event
-    async def crear_pago(self, form_data: Dict[str, Any]):
-        """➕ CREAR NUEVO PAGO"""
-        try:
-            self.procesando_pago = True
-            self.errores_validacion_pago = {}
-            
-            # Validar datos del formulario
-            errores = await self._validar_formulario_pago(form_data)
-            if errores:
-                self.errores_validacion_pago = errores
-                return False
-            
-            # Procesar pago a través del servicio
-            pago_creado = await pagos_service.create_payment(form_data)
-            
-            if pago_creado:
-                # Agregar a la lista local
-                nuevo_pago = PagoModel.from_dict(pago_creado)
-                self.lista_pagos.append(nuevo_pago)
-                self.total_pagos += 1
-                
-                # Actualizar métricas
-                await self._actualizar_metricas_rapidas()
-                
-                # Limpiar formulario
-                self.formulario_pago = {}
-                self.formulario_pago_data = PagoFormModel()
-                
-                logger.info(f"✅ Pago creado: {nuevo_pago.numero_recibo}")
-                return True
-            
-            return False
-            
-        except Exception as e:
-            error_msg = f"Error creando pago: {str(e)}"
-            self.errores_validacion_pago["general"] = error_msg
-            logger.error(error_msg)
-            return False
-        finally:
-            self.procesando_pago = False
-    
-    @rx.event
-    async def procesar_pago_parcial(self, pago_id: str, monto_pago: float):
-        """💰 PROCESAR PAGO PARCIAL"""
-        try:
-            self.procesando_pago = True
-            
-            # Procesar a través del servicio
-            resultado = await pagos_service.process_partial_payment(pago_id, monto_pago)
-            
-            if resultado:
-                # Actualizar en la lista local
-                for i, pago in enumerate(self.lista_pagos):
-                    if pago.id == pago_id:
-                        pago_actualizado = PagoModel.from_dict(resultado)
-                        self.lista_pagos[i] = pago_actualizado
-                        
-                        # Si es el seleccionado, actualizarlo
-                        if self.pago_seleccionado.id == pago_id:
-                            self.pago_seleccionado = pago_actualizado
-                        break
-                
-                # Actualizar métricas
-                await self._actualizar_metricas_rapidas()
-                
-                logger.info(f"✅ Pago parcial procesado: ${monto_pago}")
-                return True
-            
-            return False
-            
-        except Exception as e:
-            logger.error(f"❌ Error procesando pago parcial: {str(e)}")
-            return False
-        finally:
-            self.procesando_pago = False
-    
-    @rx.event
-    async def anular_pago(self, pago_id: str, motivo: str):
-        """❌ ANULAR PAGO"""
-        try:
-            self.procesando_pago = True
-            
-            # Anular a través del servicio
-            resultado = await pagos_service.void_payment(pago_id, motivo)
-            
-            if resultado:
-                # Actualizar en la lista local
-                for i, pago in enumerate(self.lista_pagos):
-                    if pago.id == pago_id:
-                        pago_anulado = PagoModel.from_dict(resultado)
-                        self.lista_pagos[i] = pago_anulado
-                        break
-                
-                # Actualizar métricas
-                await self._actualizar_metricas_rapidas()
-                
-                logger.info(f"✅ Pago anulado: {pago_id}")
-                return True
-            
-            return False
-            
-        except Exception as e:
-            logger.error(f"❌ Error anulando pago: {str(e)}")
-            return False
-        finally:
-            self.procesando_pago = False
-    
+
     @rx.event
     async def buscar_pagos(self, query: str):
         """🔍 BUSCAR PAGOS"""
         self.termino_busqueda_pagos = query.strip()
         logger.info(f"🔍 Búsqueda de pagos: '{query}'")
-    
-    @rx.event
-    async def seleccionar_pago(self, pago_id: str):
-        """🎯 SELECCIONAR PAGO"""
-        try:
-            pago_encontrado = next(
-                (p for p in self.lista_pagos if p.id == pago_id),
-                None
-            )
-            
-            if pago_encontrado:
-                self.pago_seleccionado = pago_encontrado
-                self.id_pago_seleccionado = pago_id
-                logger.info(f"✅ Pago seleccionado: {pago_encontrado.numero_recibo}")
-            else:
-                self.pago_seleccionado = PagoModel()
-                self.id_pago_seleccionado = ""
-                
-        except Exception as e:
-            logger.error(f"❌ Error seleccionando pago: {str(e)}")
-    
-    @rx.event
-    async def aplicar_filtros_pagos(self, filtros: Dict[str, Any]):
-        """🔍 APLICAR FILTROS DE PAGOS - COORDINACIÓN CON APPSTATE"""
-        try:
-            # Aplicar filtros individuales
-            if "metodo_pago" in filtros:
-                self.filtro_metodo_pago = filtros["metodo_pago"]
-            
-            if "estado_pago" in filtros:
-                self.filtro_estado_pago = filtros["estado_pago"]
-            
-            if "mostrar_solo_pendientes" in filtros:
-                self.mostrar_solo_pendientes = filtros["mostrar_solo_pendientes"]
-            
-            if "rango_monto" in filtros:
-                self.filtro_rango_monto = filtros["rango_monto"]
-            
-            if "fecha_inicio" in filtros:
-                self.rango_fecha_inicio = filtros["fecha_inicio"]
-                
-            if "fecha_fin" in filtros:
-                self.rango_fecha_fin = filtros["fecha_fin"]
-            
-            logger.info(f"✅ Filtros de pagos aplicados: {filtros}")
-            
-        except Exception as e:
-            logger.error(f"❌ Error aplicando filtros pagos: {str(e)}")
-    
-    # ==========================================
-    # 💳 MÉTODOS AUXILIARES Y ESTADÍSTICAS
-    # ==========================================
-    
-    async def _actualizar_metricas_rapidas(self):
-        """📊 ACTUALIZAR MÉTRICAS RÁPIDAS"""
-        try:
-            self.recaudacion_hoy = self.recaudacion_del_dia
-            
-            # Calcular recaudación del mes
-            hoy = date.today()
-            primer_dia_mes = date(hoy.year, hoy.month, 1)
-            self.recaudacion_mes = sum(
-                p.monto_pagado for p in self.lista_pagos
-                if p.fecha_pago >= primer_dia_mes and p.estado_pago == "completado"
-            )
-            
-            # Actualizar saldos pendientes
-            self.saldo_pendiente_total = self.total_saldo_pendiente
-            self.total_facturas_pendientes = self.total_pagos_pendientes
-            
-        except Exception as e:
-            logger.error(f"❌ Error actualizando métricas rápidas: {str(e)}")
-    
-    async def _validar_formulario_pago(self, datos: Dict[str, Any]) -> Dict[str, str]:
-        """✅ Validar datos del formulario de pago"""
-        errores = {}
-        
-        # Validaciones básicas
-        if not datos.get("paciente_id", "").strip():
-            errores["paciente_id"] = "Paciente es requerido"
-        
-        if not datos.get("concepto", "").strip():
-            errores["concepto"] = "Concepto es requerido"
-        
-        # Validar montos
-        try:
-            monto_total = float(datos.get("monto_total", 0))
-            if monto_total <= 0:
-                errores["monto_total"] = "Monto debe ser mayor a 0"
-        except:
-            errores["monto_total"] = "Monto inválido"
-        
-        # Validar método de pago
-        metodo = datos.get("metodo_pago", "")
-        if metodo not in self.metodos_pago_disponibles:
-            errores["metodo_pago"] = "Método de pago inválido"
-        
-        return errores
-    
+
     # ==========================================
     # 💰 MÉTODOS SISTEMA DUAL USD/BS
     # ==========================================
 
+    @rx.var(cache=True)
+    def total_pagando_usd(self) -> float:
+        """💰 Calcular total pagando en USD (conversión automática de BS)"""
+        try:
+            pago_usd = float(self.formulario_pago_dual.monto_pagado_usd or 0)
+            pago_bs = float(self.formulario_pago_dual.monto_pagado_bs or 0)
+            tasa = float(self.formulario_pago_dual.tasa_cambio or 36.50)
+
+            bs_a_usd = pago_bs / tasa if tasa > 0 else 0
+            return pago_usd + bs_a_usd
+        except:
+            return 0.0
+
+    @rx.var(cache=True)
+    def saldo_pendiente_calculado(self) -> float:
+        """💰 Calcular saldo pendiente después del pago"""
+        try:
+            total = float(self.formulario_pago_dual.monto_total_usd or 0)
+            pagando = self.total_pagando_usd
+            descuento = float(self.formulario_pago_dual.descuento_usd or 0)
+
+            saldo = total - descuento - pagando
+            return saldo if saldo > 0 else 0.0
+        except:
+            return 0.0
+
+    @rx.var(cache=True)
+    def equivalente_bs_de_usd_pagado(self) -> float:
+        """💱 Convertir USD pagado a BS"""
+        try:
+            pago_usd = float(self.formulario_pago_dual.monto_pagado_usd or 0)
+            tasa = float(self.formulario_pago_dual.tasa_cambio or 36.50)
+            return pago_usd * tasa if tasa > 0 else 0
+        except:
+            return 0.0
+
+    @rx.var(cache=True)
+    def equivalente_usd_de_bs_pagado(self) -> float:
+        """💱 Convertir BS pagado a USD"""
+        try:
+            pago_bs = float(self.formulario_pago_dual.monto_pagado_bs or 0)
+            tasa = float(self.formulario_pago_dual.tasa_cambio or 36.50)
+            return pago_bs / tasa if tasa > 0 else 0
+        except:
+            return 0.0
+
+    @rx.event
+    def actualizar_campo_pago_dual(self, campo: str, valor: str):
+        """Actualizar campo del formulario de pago dual"""
+        try:
+            if campo == "monto_pagado_usd":
+                self.formulario_pago_dual.monto_pagado_usd = float(valor) if valor else 0.0
+            elif campo == "monto_pagado_bs":
+                self.formulario_pago_dual.monto_pagado_bs = float(valor) if valor else 0.0
+            elif campo == "metodo_pago_usd":
+                self.formulario_pago_dual.metodo_pago_usd = valor
+            elif campo == "metodo_pago_bs":
+                self.formulario_pago_dual.metodo_pago_bs = valor
+            elif campo == "referencia_usd":
+                self.formulario_pago_dual.referencia_usd = valor
+            elif campo == "referencia_bs":
+                self.formulario_pago_dual.referencia_bs = valor
+            elif campo == "descuento_usd":
+                self.formulario_pago_dual.descuento_usd = float(valor) if valor else 0.0
+            elif campo == "motivo_descuento":
+                self.formulario_pago_dual.motivo_descuento = valor
+            elif campo == "notas":
+                self.formulario_pago_dual.notas = valor
+        except Exception as e:
+            logger.error(f"Error actualizando campo {campo}: {str(e)}")
+
+    @rx.event
+    def limpiar_formulario_pago_dual(self):
+        """Limpiar formulario de pago dual"""
+        self.formulario_pago_dual = PagoFormModel()
+        self.errores_validacion_pago = {}
+        self.modal_pago_dual_abierto = False
+
+        # Limpiar datos adicionales del modal
+        self.consulta_actual_numero_historia = ""
+        self.consulta_actual_documento = ""
+        self.consulta_actual_telefono = ""
+
     @rx.event
     async def crear_pago_dual(self):
-        """💰 CREAR PAGO CON SISTEMA DUAL USD/BS"""
+        """💰 PROCESAR PAGO DUAL USD/BS (Actualizar pago pendiente)"""
         try:
+            print("ejecutando el proceso de pago")
             self.procesando_pago = True
             self.errores_validacion_pago = {}
 
             # Validar formulario dual
             errores = await self._validar_formulario_dual()
+            print(errores)
             if errores:
                 self.errores_validacion_pago = errores
-                return False
+                return  # ✅ Return None
+            print(self.formulario_pago_dual.pago_id)
+            # ✅ VERIFICAR QUE HAY PAGO_ID (directo, sin buscar por consulta)
+            if not self.formulario_pago_dual.pago_id:
+                self.errores_validacion_pago["general"] = "No hay pago seleccionado"
+                logger.error("❌ pago_id está vacío en formulario_pago_dual")
+                return  # ✅ Return None
 
-            # Preparar datos para el servicio
-            form_data = {
-                "paciente_id": self.formulario_pago_dual.paciente_id,
-                "monto_total_usd": self.formulario_pago_dual.monto_total_usd,
-                "monto_pagado_usd": self.formulario_pago_dual.monto_pagado_usd,
-                "monto_pagado_bs": self.formulario_pago_dual.monto_pagado_bs,
-                "tasa_cambio_del_dia": self.tasa_del_dia,
-                "concepto": self.formulario_pago_dual.concepto,
-                "metodos_pago": self.formulario_pago_dual.metodos_pago
+            # Establecer contexto de usuario antes de llamar al servicio
+            pagos_service.set_user_context(self.id_usuario, self.perfil_usuario)
+            print("--------------preparando los datos----------------")
+            # 📊 PREPARAR DATOS DE ACTUALIZACIÓN
+            datos_actualizacion = {
+                "monto_pagado_usd": float(self.formulario_pago_dual.monto_pagado_usd),
+                "monto_pagado_bs": float(self.formulario_pago_dual.monto_pagado_bs),
+                "descuento_usd": float(self.formulario_pago_dual.descuento_usd),
+                "motivo_descuento": self.formulario_pago_dual.motivo_descuento if self.formulario_pago_dual.descuento_usd > 0 else None,
+                "observaciones": self.formulario_pago_dual.notas or self.formulario_pago_dual.observaciones,
+                "tasa_cambio_bs_usd": float(self.formulario_pago_dual.tasa_cambio)
             }
 
-            # Crear pago a través del servicio dual
-            pago_creado = await pagos_service.create_dual_payment(form_data, "usuario_actual")
+            # 🎛️ CONSTRUIR metodos_pago JSONB
+            metodos_pago = []
+            if self.formulario_pago_dual.monto_pagado_usd > 0:
+                metodos_pago.append({
+                    "tipo": self.formulario_pago_dual.metodo_pago_usd,
+                    "moneda": "USD",
+                    "monto": float(self.formulario_pago_dual.monto_pagado_usd),
+                    "referencia": self.formulario_pago_dual.referencia_usd or None
+                })
 
-            if pago_creado:
-                # Agregar a lista local
-                nuevo_pago = PagoModel.from_dict(pago_creado)
-                self.lista_pagos.append(nuevo_pago)
-                self.total_pagos += 1
+            if self.formulario_pago_dual.monto_pagado_bs > 0:
+                metodos_pago.append({
+                    "tipo": self.formulario_pago_dual.metodo_pago_bs,
+                    "moneda": "BS",
+                    "monto": float(self.formulario_pago_dual.monto_pagado_bs),
+                    "referencia": self.formulario_pago_dual.referencia_bs or None
+                })
 
-                # Actualizar estadísticas duales
-                await self.cargar_estadisticas_duales()
+            datos_actualizacion["metodos_pago"] = metodos_pago
 
-                # Limpiar formulario
+            # 🧮 CALCULAR SALDOS
+            total_pagado_usd = float(self.formulario_pago_dual.monto_pagado_usd) + (float(self.formulario_pago_dual.monto_pagado_bs) / float(self.formulario_pago_dual.tasa_cambio))
+            saldo_pendiente_usd = max(0, float(self.formulario_pago_dual.monto_total_usd) - float(self.formulario_pago_dual.descuento_usd) - total_pagado_usd)
+
+            datos_actualizacion["saldo_pendiente_usd"] = saldo_pendiente_usd
+            datos_actualizacion["saldo_pendiente_bs"] = saldo_pendiente_usd * float(self.formulario_pago_dual.tasa_cambio)
+            datos_actualizacion["estado_pago"] = "completado" if saldo_pendiente_usd <= 0.01 else "pendiente"
+            datos_actualizacion["monto_total_bs"] = float(self.formulario_pago_dual.monto_total_usd) * float(self.formulario_pago_dual.tasa_cambio)
+
+            print("vamos a entar a la funcion de servicio para agregar el pago ")
+            # 💾 ACTUALIZAR PAGO EXISTENTE usando pago_id directamente
+            pago_actualizado = await pagos_service.update_payment(self.formulario_pago_dual.pago_id, datos_actualizacion)
+
+            if pago_actualizado:
+                # Recargar consultas pendientes (quitar la que se pagó si está completa)
+                await self.cargar_consultas_pendientes_pago()
+
+                # ✅ Recargar lista de pagos para actualizar historial en la tabla
+                await self.cargar_lista_pagos()
+
+                # Limpiar formulario y cerrar modal
                 self.formulario_pago_dual = PagoFormModel()
                 self.errores_validacion_pago = {}
+                self.modal_pago_dual_abierto = False
 
-                logger.info(f"✅ Pago dual creado: {nuevo_pago.numero_recibo}")
-                return True
-
-            return False
+                logger.info(f"✅ Pago actualizado exitosamente ID: {self.formulario_pago_dual.pago_id}")
+            else:
+                self.errores_validacion_pago["general"] = "Error al actualizar el pago"
 
         except Exception as e:
-            error_msg = f"Error creando pago dual: {str(e)}"
+            error_msg = f"Error procesando pago dual: {str(e)}"
             self.errores_validacion_pago["general"] = error_msg
             logger.error(error_msg)
-            return False
         finally:
+            self.modal_pago_dual_abierto = False
             self.procesando_pago = False
 
     @rx.event
@@ -646,27 +471,6 @@ class EstadoPagos(rx.State,mixin=True):
         finally:
             self.calculando_conversion = False
 
-    @rx.event
-    async def cargar_estadisticas_duales(self):
-        """📊 CARGAR ESTADÍSTICAS DUALES USD/BS"""
-        try:
-            # Obtener estadísticas del servicio
-            stats = await pagos_service.get_currency_stats()
-
-            if stats:
-                self.estadisticas_dual = stats
-                self.recaudacion_usd_hoy = stats.get("recaudacion_usd_hoy", 0.0)
-                self.recaudacion_bs_hoy = stats.get("recaudacion_bs_hoy", 0.0)
-                self.pendiente_usd_total = stats.get("pendiente_usd_total", 0.0)
-                self.pendiente_bs_total = stats.get("pendiente_bs_total", 0.0)
-                self.pagos_mixtos_count = stats.get("pagos_mixtos_count", 0)
-                self.pagos_solo_usd_count = stats.get("pagos_solo_usd_count", 0)
-                self.pagos_solo_bs_count = stats.get("pagos_solo_bs_count", 0)
-
-                logger.info(f"✅ Estadísticas duales actualizadas")
-
-        except Exception as e:
-            logger.error(f"❌ Error cargando estadísticas duales: {str(e)}")
 
     @rx.event
     async def alternar_calculadora_conversion(self):
@@ -708,19 +512,6 @@ class EstadoPagos(rx.State,mixin=True):
             logger.error(f"❌ Error calculando conversión: {str(e)}")
             self.monto_calculadora_usd = "Error"
 
-    @rx.event
-    async def alternar_vista_dual(self):
-        """🎨 ALTERNAR VISTA DUAL/SIMPLIFICADA"""
-        self.vista_dual_activa = not self.vista_dual_activa
-        if not self.vista_dual_activa:
-            self.moneda_principal_vista = "USD" if self.preferencia_moneda_del_dia == "USD" else "BS"
-
-    @rx.event
-    async def cambiar_moneda_principal(self, moneda: str):
-        """💰 CAMBIAR MONEDA PRINCIPAL DE VISTA"""
-        if moneda in ["USD", "BS"]:
-            self.moneda_principal_vista = moneda
-            self.preferencia_moneda_del_dia = moneda
 
     @rx.event
     async def limpiar_calculadora(self):
@@ -770,105 +561,7 @@ class EstadoPagos(rx.State,mixin=True):
             self.pagos_solo_usd_count = 0
             self.pagos_solo_bs_count = 0
 
-    # ==========================================
-    # 💰 COMPUTED VARS SISTEMA DUAL
-    # ==========================================
 
-    @rx.var(cache=True)
-    def monto_total_bs_calculado(self) -> float:
-        """💱 Monto total calculado en BS automáticamente"""
-        try:
-            usd_value = float(self.formulario_pago_dual.monto_total_usd or "0")
-            tasa = float(self.formulario_pago_dual.tasa_cambio_del_dia or "36.50")
-            return usd_value * tasa
-        except (ValueError, AttributeError):
-            return 0.0
-
-    @rx.var(cache=True)
-    def saldo_pendiente_usd_calculado(self) -> float:
-        """💰 Saldo pendiente en USD después del pago"""
-        try:
-            monto_total = float(self.formulario_pago_dual.monto_total_usd or "0")
-            pago_usd = float(self.formulario_pago_dual.pago_usd or "0")
-            pago_bs = float(self.formulario_pago_dual.pago_bs or "0")
-            tasa = float(self.formulario_pago_dual.tasa_cambio_del_dia or "36.50")
-
-            # Convertir pago en BS a USD
-            pago_bs_en_usd = pago_bs / tasa if tasa > 0 else 0
-            total_pagado_usd = pago_usd + pago_bs_en_usd
-
-            saldo = monto_total - total_pagado_usd
-            return max(0, saldo)  # No puede ser negativo
-        except (ValueError, AttributeError):
-            return 0.0
-
-    @rx.var(cache=True)
-    def saldo_pendiente_bs_calculado(self) -> float:
-        """💱 Saldo pendiente en BS después del pago"""
-        try:
-            saldo_usd = self.saldo_pendiente_usd_calculado
-            tasa = float(self.formulario_pago_dual.tasa_cambio_del_dia or "36.50")
-            return saldo_usd * tasa
-        except (ValueError, AttributeError):
-            return 0.0
-
-    @rx.var(cache=True)
-    def total_recaudado_dual_hoy(self) -> Dict[str, float]:
-        """💰 Total recaudado hoy en ambas monedas"""
-        hoy = date.today()
-        usd_total = 0.0
-        bs_total = 0.0
-
-        for pago in self.lista_pagos:
-            if pago.fecha_pago.date() == hoy and pago.estado_pago == "completado":
-                usd_total += getattr(pago, 'monto_pagado_usd', 0.0)
-                bs_total += getattr(pago, 'monto_pagado_bs', 0.0)
-
-        return {
-            "usd": usd_total,
-            "bs": bs_total,
-            "tasa_promedio": bs_total / usd_total if usd_total > 0 else self.tasa_del_dia
-        }
-
-    @rx.var(cache=True)
-    def pendientes_dual_totales(self) -> Dict[str, float]:
-        """⏳ Saldos pendientes en ambas monedas"""
-        usd_pendiente = 0.0
-        bs_pendiente = 0.0
-
-        for pago in self.lista_pagos:
-            if pago.estado_pago == "pendiente":
-                usd_pendiente += getattr(pago, 'saldo_pendiente_usd', 0.0)
-                bs_pendiente += getattr(pago, 'saldo_pendiente_bs', 0.0)
-
-        return {
-            "usd": usd_pendiente,
-            "bs": bs_pendiente,
-            "total_facturas": len([p for p in self.lista_pagos if p.estado_pago == "pendiente"])
-        }
-
-    @rx.var(cache=True)
-    def distribucion_metodos_pago_dual(self) -> Dict[str, Dict[str, float]]:
-        """📊 Distribución de métodos de pago por moneda"""
-        distribucion = {}
-
-        for pago in self.lista_pagos:
-            if hasattr(pago, 'metodos_pago') and pago.metodos_pago:
-                for metodo_info in pago.metodos_pago:
-                    metodo = metodo_info.get('metodo', 'otros')
-                    if metodo not in distribucion:
-                        distribucion[metodo] = {"usd": 0.0, "bs": 0.0, "count": 0}
-
-                    distribucion[metodo]["usd"] += metodo_info.get('monto_usd', 0.0)
-                    distribucion[metodo]["bs"] += metodo_info.get('monto_bs', 0.0)
-                    distribucion[metodo]["count"] += 1
-
-        return distribucion
-
-    @rx.var(cache=True)
-    def conversion_automatica_activa(self) -> bool:
-        """🔄 Si la conversión automática está habilitada"""
-        return self.mostrar_conversion_automatica and self.tasa_del_dia > 0
 
     # ==========================================
     # 💰 VALIDACIONES SISTEMA DUAL
@@ -881,9 +574,6 @@ class EstadoPagos(rx.State,mixin=True):
         # Validaciones básicas
         if not self.formulario_pago_dual.paciente_id:
             errores["paciente_id"] = "Paciente es requerido"
-
-        if not self.formulario_pago_dual.concepto.strip():
-            errores["concepto"] = "Concepto es requerido"
 
         # Validar monto total en USD
         if self.formulario_pago_dual.monto_total_usd <= 0:
@@ -910,101 +600,77 @@ class EstadoPagos(rx.State,mixin=True):
     # ==========================================
     # 🏥 MÉTODOS PARA CONSULTAS PENDIENTES DE PAGO
     # ==========================================
-
+    
     @rx.event
     async def cargar_consultas_pendientes_pago(self):
-        """🏥 Cargar consultas completadas pendientes de facturación"""
         try:
             self.cargando_lista_pagos = True
 
-            # ✅ ESTABLECER CONTEXTO DEL USUARIO ANTES DE USAR EL SERVICIO
+            print(f"🔍 DEBUG: Cargando consultas pendientes de pago...")
+         
             pagos_service.set_user_context(self.id_usuario, self.perfil_usuario)
-
-            # Obtener consultas completadas con pagos pendientes
             consultas_pendientes = await pagos_service.get_consultas_pendientes_pago()
-
+            print(consultas_pendientes)
             if consultas_pendientes:
                 # Actualizar lista interna para computed vars
-                self.consultas_pendientes_facturacion = consultas_pendientes
-                logger.info(f"✅ {len(consultas_pendientes)} consultas pendientes de pago cargadas")
-            else:
-                self.consultas_pendientes_facturacion = []
-                logger.info("📭 No hay consultas pendientes de pago")
-
+                self.consultas_pendientes_pagar = consultas_pendientes
+                
         except Exception as e:
             logger.error(f"❌ Error cargando consultas pendientes: {str(e)}")
-            self.consultas_pendientes_facturacion = []
+            self.consultas_pendientes_pagar = []
+            print(f"❌ Error cargando consultas pendientes: {str(e)}")
         finally:
             self.cargando_lista_pagos = False
+            
 
     @rx.event
-    async def seleccionar_consulta_para_pago(self, consulta_id: str):
-        """🎯 Seleccionar consulta para procesar pago"""
+    async def seleccionar_consulta_para_pago(self, pago_id: str):
+        """🎯 Seleccionar consulta para procesar pago y abrir modal"""
+        print(pago_id)
+        print(self.consultas_pendientes_pagar)
         try:
-            # Buscar la consulta en la lista pendiente
+           
+            # Buscar la consulta en la lista pendiente enriquecida (tipada)
             consulta_encontrada = next(
-                (c for c in self.consultas_pendientes_facturacion if c.get("consulta_id") == consulta_id),
+                (c for c in self.consultas_pendientes_pagar if c.pago_id == pago_id),
                 None
             )
-
+            self.consulta_pagar =  consulta_encontrada
+            print(f"🔍 consulta_pagar seteada: {self.consulta_pagar}")
             if consulta_encontrada:
                 # Pre-llenar formulario dual con datos de la consulta
-                self.formulario_pago_dual.consulta_id = consulta_id
-                self.formulario_pago_dual.paciente_id = consulta_encontrada.get("paciente_id", "")
-                self.formulario_pago_dual.monto_total_usd = float(consulta_encontrada.get("total_usd", 0.0))
-                self.formulario_pago_dual.monto_total_bs = float(consulta_encontrada.get("total_bs", 0.0))
-                self.formulario_pago_dual.concepto = consulta_encontrada.get("concepto", f"Consulta {consulta_encontrada.get('numero_consulta', '')}")
+                self.formulario_pago_dual.pago_id = consulta_encontrada.pago_id  # ✅ LO MÁS IMPORTANTE
+                self.formulario_pago_dual.consulta_id = consulta_encontrada.consulta_id
+                self.formulario_pago_dual.paciente_id = consulta_encontrada.paciente_id
+                self.formulario_pago_dual.paciente_nombre = consulta_encontrada.paciente_nombre
+                self.formulario_pago_dual.numero_consulta = consulta_encontrada.numero_consulta
+                self.formulario_pago_dual.monto_total_usd = consulta_encontrada.total_usd
+                self.formulario_pago_dual.monto_total_bs = consulta_encontrada.total_bs
+                self.formulario_pago_dual.concepto = consulta_encontrada.concepto
+                self.formulario_pago_dual.tasa_cambio = self.tasa_del_dia
+
+                # ✨ GUARDAR DATOS ADICIONALES en variables simples del estado
+                self.consulta_actual_numero_historia = consulta_encontrada.paciente_numero_historia or "Sin HC"
+                self.consulta_actual_documento = consulta_encontrada.paciente_documento or "Sin documento"
+                self.consulta_actual_telefono = consulta_encontrada.paciente_telefono or "Sin teléfono"
 
                 # Calcular conversión con tasa actual
                 await self.recalcular_formulario_dual()
 
-                logger.info(f"✅ Consulta seleccionada para pago: {consulta_encontrada.get('numero_consulta')}")
-                return True
+                # ✅ Abrir modal de pago dual
+                self.modal_pago_dual_abierto = True
+
+                logger.info(f"✅ Consulta seleccionada para pago: {consulta_encontrada.numero_consulta}")
             else:
-                logger.warning(f"⚠️ Consulta no encontrada: {consulta_id}")
-                return False
+                logger.warning(f"⚠️ Consulta no encontrada: {pago_id}")
+                # Mostrar mensaje de error al usuario
+                self.errores_validacion_pago["general"] = "Consulta no encontrada"
 
         except Exception as e:
             logger.error(f"❌ Error seleccionando consulta: {str(e)}")
-            return False
+            self.errores_validacion_pago["general"] = f"Error: {str(e)}"
 
-    @rx.event
-    async def procesar_pago_consulta(self):
-        """💳 Procesar pago de consulta seleccionada"""
-        try:
-            self.procesando_pago = True
-
-            # Validar que hay una consulta seleccionada
-            if not hasattr(self.formulario_pago_dual, 'consulta_id') or not self.formulario_pago_dual.consulta_id:
-                self.errores_validacion_pago["general"] = "No hay consulta seleccionada"
-                return False
-
-            # Usar el método dual existente
-            resultado = await self.crear_pago_dual()
-
-            if resultado:
-                # Remover consulta de la lista de pendientes
-                self.consultas_pendientes_facturacion = [
-                    c for c in self.consultas_pendientes_facturacion
-                    if c.get("consulta_id") != self.formulario_pago_dual.consulta_id
-                ]
-
-                # Limpiar formulario
-                self.formulario_pago_dual = PagoFormModel()
-
-                logger.info("✅ Pago de consulta procesado exitosamente")
-                return True
-
-            return False
-
-        except Exception as e:
-            error_msg = f"Error procesando pago de consulta: {str(e)}"
-            self.errores_validacion_pago["general"] = error_msg
-            logger.error(error_msg)
-            return False
-        finally:
-            self.procesando_pago = False
-
+    
     # ==========================================
     # 🏥 COMPUTED VARS PARA CONSULTAS PENDIENTES
     # ==========================================
@@ -1014,19 +680,6 @@ class EstadoPagos(rx.State,mixin=True):
         """📊 Total de consultas pendientes de pago"""
         return len(getattr(self, 'consultas_pendientes_facturacion', []))
 
-    @rx.var(cache=True)
-    def valor_total_pendiente_consultas(self) -> Dict[str, float]:
-        """💰 Valor total pendiente de todas las consultas"""
-        consultas = getattr(self, 'consultas_pendientes_facturacion', [])
-
-        total_usd = sum(float(c.get("total_usd", 0)) for c in consultas)
-        total_bs = sum(float(c.get("total_bs", 0)) for c in consultas)
-
-        return {
-            "usd": total_usd,
-            "bs": total_bs,
-            "count": len(consultas)
-        }
 
     @rx.var(cache=True)
     def consultas_por_odontologo(self) -> Dict[str, List[Dict[str, Any]]]:
@@ -1042,19 +695,48 @@ class EstadoPagos(rx.State,mixin=True):
 
         return agrupadas
 
+
+    # Variable de estado para almacenar ID de consulta seleccionada para accordion
+    consulta_id_seleccionada_accordion: str = ""
+
+
+    @rx.var(cache=True)
+    def servicios_factura_seleccionada(self) -> List[ServicioFormateado]:
+        """🧾 Lista de servicios de la consulta seleccionada para la factura"""
+        if self.formulario_pago_dual.consulta_id:
+            consulta = next(
+                (c for c in self.consultas_pendientes_pagar if c.pago_id == self.formulario_pago_dual.pago_id),
+                None
+            )
+            return consulta.servicios_formateados if consulta else []
+        return []
+
+    @rx.var(cache=True)
+    def pagos_historial_formateados(self) -> List[Dict[str, Any]]:
+        """📋 Pagos formateados con info adicional para tabla de historial"""
+        resultado = []
+        for pago in self.lista_pagos:
+            # Convertir PagoModel a dict y formatear
+            pago_dict = {
+                "id": pago.id,
+                "numero_recibo": pago.numero_recibo,
+                "monto_pagado_usd": getattr(pago, 'monto_pagado_usd', 0.0),
+                "monto_pagado_bs": getattr(pago, 'monto_pagado_bs', 0.0),
+                "estado_pago": pago.estado_pago,
+                "fecha_pago": pago.fecha_pago.isoformat() if hasattr(pago.fecha_pago, 'isoformat') else str(pago.fecha_pago),
+                # Campos que pueden faltar - usar valores por defecto
+                "paciente_nombre": getattr(pago, 'paciente_nombre', 'N/A'),
+                "paciente_documento": getattr(pago, 'paciente_documento', 'N/A'),
+            }
+            resultado.append(pago_dict)
+        return resultado
+
     def limpiar_datos(self):
         """🧹 LIMPIAR TODOS LOS DATOS - USADO EN LOGOUT"""
         self.lista_pagos = []
         self.total_pagos = 0
-        self.pago_seleccionado = PagoModel()
-        self.id_pago_seleccionado = ""
-        self.formulario_pago = {}
-        self.formulario_pago_data = PagoFormModel()
-        self.formulario_pago_parcial_data = PagoParcialFormModel()
         self.errores_validacion_pago = {}
-        self.pago_para_eliminar = None
         self.cargando_lista_pagos = False
-        self.mostrar_solo_pendientes = False
 
         # Limpiar filtros
         self.termino_busqueda_pagos = ""
@@ -1117,3 +799,26 @@ class EstadoPagos(rx.State,mixin=True):
         self.consulta_seleccionada_pago = None
 
         logger.info("🧹 Datos de pagos limpiados (incluye sistema dual)")
+        
+        
+    async def cargar_datos_pagos_page(self):
+        """Carga todos los datos necesarios al entrar a la página de pagos"""
+        await self.cargar_consultas_pendientes_pago()
+        await self.cargar_lista_pagos(force_refresh=True)
+        await self.cargar_estadisticas_duales()
+        
+    @rx.event
+    async def recargar_todo_pagos(self):
+        """🔄 RECARGAR TODA LA PÁGINA DE PAGOS (consultas pendientes, lista de pagos y  estadísticas)"""
+        try:
+           logger.info("🔄 Recargando toda la página de pagos...")
+
+           # Cargar todo en paralelo
+           await self.cargar_consultas_pendientes_pago()
+           await self.cargar_lista_pagos(force_refresh=True)
+           await self.cargar_estadisticas_duales()
+
+           logger.info("✅ Página de pagos recargada completamente")
+        except Exception as e:
+           logger.error(f"❌ Error recargando página de pagos: {str(e)}")
+

@@ -31,7 +31,10 @@ def get_tooth_color(status: str) -> str:
         "fractura": DARK_COLORS["priority_urgent"], # #dc2626 - Rojo
         "implante": DARK_COLORS["accent_purple"], # #805ad5 - Púrpura
     }
-    return color_map.get(status, DARK_COLORS["surface"])  # Default gris oscuro
+
+    # 🔍 DEBUG: Imprimir status recibido
+    color_resultado = color_map.get(status, DARK_COLORS["surface"])
+    return color_resultado
 
 
 def simple_tooth(
@@ -57,8 +60,20 @@ def simple_tooth(
         Box único con número del diente, color de fondo y badge opcional
     """
 
-    # Color de fondo según estado
-    bg_color = get_tooth_color(status)
+    # ✅ SOLUCIÓN: Usar rx.match para evaluar color en el frontend
+    # No podemos usar get_tooth_color() porque recibe un Reflex Var, no un string
+    bg_color = rx.match(
+        status,
+        ("sano", DARK_COLORS["accent_green"]),       # #38a169 - Verde
+        ("caries", DARK_COLORS["priority_urgent"]),  # #dc2626 - Rojo
+        ("obturado", DARK_COLORS["accent_blue"]),    # #3182ce - Azul
+        ("corona", DARK_COLORS["accent_yellow"]),    # #d69e2e - Amarillo
+        ("endodoncia", DARK_COLORS["accent_orange"]), # #dd6b20 - Naranja
+        ("ausente", DARK_COLORS["border"]),          # #718096 - Gris
+        ("fractura", DARK_COLORS["priority_urgent"]), # #dc2626 - Rojo
+        ("implante", DARK_COLORS["accent_purple"]),  # #805ad5 - Púrpura
+        DARK_COLORS["surface"]  # Default: gris oscuro
+    )
 
     return rx.box(
         # Número del diente centrado

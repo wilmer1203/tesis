@@ -23,7 +23,6 @@ class ConsultationsTable(BaseTable):
                           paciente_id: str,
                           primer_odontologo_id: str = None,
                           odontologo_id: str = None,  # Compatibility parameter
-                          odontologo_preferido_id: str = None,
                           fecha_llegada: datetime = None,
                           fecha_programada: datetime = None,  # Compatibility parameter
                           orden_llegada_general: int = None,
@@ -33,7 +32,6 @@ class ConsultationsTable(BaseTable):
                           motivo_consulta: Optional[str] = None,
                           observaciones: str = None,
                           observaciones_cita: Optional[str] = None,  # Compatibility parameter
-                          notas_internas: str = None,
                           prioridad: str = 'normal',
                           creada_por: Optional[str] = None,
                           programada_por: Optional[str] = None) -> Dict[str, Any]:  # Compatibility parameter
@@ -44,7 +42,6 @@ class ConsultationsTable(BaseTable):
             paciente_id: ID del paciente
             primer_odontologo_id: ID del primer odontólogo asignado (esquema v4.1)
             odontologo_id: ID del odontólogo (backward compatibility)
-            odontologo_preferido_id: Odontólogo preferido (opcional)
             fecha_llegada: Momento real de llegada del paciente
             fecha_programada: Fecha programada (backward compatibility)
             orden_llegada_general: Orden general del día (calculado automáticamente si no se proporciona)
@@ -54,7 +51,6 @@ class ConsultationsTable(BaseTable):
             motivo_consulta: Motivo de la consulta
             observaciones: Observaciones visibles (esquema v4.1)
             observaciones_cita: Observaciones (backward compatibility)
-            notas_internas: Notas internas del personal
             prioridad: Prioridad (normal, alta, urgente)
             creada_por: ID del usuario que crea la consulta
             programada_por: Usuario que programa (backward compatibility)
@@ -75,7 +71,6 @@ class ConsultationsTable(BaseTable):
         data = {
             "paciente_id": paciente_id,
             "primer_odontologo_id": doctor_id,
-            "odontologo_preferido_id": odontologo_preferido_id if odontologo_preferido_id else None,
             "fecha_llegada": fecha_consulta.isoformat(),
             "orden_llegada_general": orden_llegada_general or 1,
             "orden_cola_odontologo": orden_cola_odontologo or 1,
@@ -83,7 +78,6 @@ class ConsultationsTable(BaseTable):
             "tipo_consulta": tipo_consulta,
             "motivo_consulta": motivo_consulta or "Consulta general",
             "observaciones": observaciones_finales,
-            "notas_internas": notas_internas or "",
             "prioridad": prioridad,
             "creada_por": usuario_creador if usuario_creador else None,
             
@@ -361,15 +355,6 @@ class ConsultationsTable(BaseTable):
         """
         data = {"estado": nuevo_estado}
         
-        # Agregar timestamps según el estado (usando nombres correctos del esquema)
-        if nuevo_estado == "en_atencion":
-            data["fecha_inicio_atencion"] = datetime.now().isoformat()
-        elif nuevo_estado in ["completada", "cancelada"]:
-            data["fecha_fin_atencion"] = datetime.now().isoformat()
-        
-        if notas:
-            data["notas_internas"] = notas
-        
         logger.info(f"Actualizando estado de consulta {consultation_id} a {nuevo_estado}")
         return self.update(consultation_id, data)
     
@@ -388,25 +373,9 @@ class ConsultationsTable(BaseTable):
         """
         data = {"prioridad": nueva_prioridad}
         
-        if notas:
-            data["notas_internas"] = notas
-        
         logger.info(f"Actualizando prioridad de consulta {consultation_id} a {nueva_prioridad}")
         return self.update(consultation_id, data)
-    
-    @handle_supabase_error
-    def confirm_consultation(self, consultation_id: str) -> Dict[str, Any]:
-        """
-        Confirma una consulta programada
-        
-        Args:
-            consultation_id: ID de la consulta
-            
-        Returns:
-            Consulta confirmada
-        """
-        return self.update_status(consultation_id, "confirmada")
-    
+
     @handle_supabase_error
     def cancel_consultation(self, consultation_id: str, motivo: str) -> Dict[str, Any]:
         """
@@ -420,20 +389,7 @@ class ConsultationsTable(BaseTable):
             Consulta cancelada
         """
         return self.update_status(consultation_id, "cancelada", motivo)
-    
-    @handle_supabase_error
-    def mark_no_show(self, consultation_id: str) -> Dict[str, Any]:
-        """
-        Marca una consulta como no asistida
-        
-        Args:
-            consultation_id: ID de la consulta
-            
-        Returns:
-            Consulta actualizada
-        """
-        return self.update_status(consultation_id, "no_asistio")
-    
+
     @handle_supabase_error
     def reschedule_consultation(self, 
                               consultation_id: str,
@@ -452,8 +408,7 @@ class ConsultationsTable(BaseTable):
         """
         data = {
             "fecha_llegada": nueva_fecha.isoformat(),
-            "estado": "en_espera",
-            "notas_internas": f"Reprogramada: {motivo}"
+            "estado": "en_espera"
         }
         
         logger.info(f"Reprogramando consulta {consultation_id}")

@@ -18,8 +18,9 @@ from dental_system.utils.servicios_validators import (
     validar_codigo_servicio,
     validar_nombre_servicio,
     validar_precio,
-    validar_duracion,
-    validar_categoria
+    validar_categoria,
+    validar_alcance_servicio,
+    validar_condicion_resultante
 )
 
 class ServicioModel(rx.Base):
@@ -29,16 +30,17 @@ class ServicioModel(rx.Base):
     codigo: str = ""        # varchar(20) + regex ^[A-Z0-9]+$
     nombre: str = ""        # varchar(100)
     categoria: str = ""     # varchar(50)
-    duracion_estimada: str = "00:30:00"  # interval default 30min
-    precio_base_bs: Decimal = Decimal('0.00')   # numeric(10,2) > 0
     precio_base_usd: Decimal = Decimal('0.00')  # numeric(10,2) > 0
-    
+
+    # 🆕 Alcance del servicio
+    alcance_servicio: str = "superficie_especifica"  # superficie_especifica | diente_completo | boca_completa
+
+    # ✨ V3.0: Condición resultante (FK a catalogo_condiciones)
+    condicion_resultante: Optional[str] = None  # NULL = servicio preventivo (no modifica odontograma)
+
     # Campos opcionales
     descripcion: Optional[str] = None      # text
-    subcategoria: Optional[str] = None     # varchar(50)
     material_incluido: Optional[List[str]] = None  # text[]
-    instrucciones_pre: Optional[str] = None   # text
-    instrucciones_post: Optional[str] = None  # text
     activo: bool = True
     fecha_creacion: str = ""
     creado_por: Optional[str] = ""
@@ -52,9 +54,7 @@ class ServicioModel(rx.Base):
         # Procesar material_incluido desde BD
         material_data = data.get("material_incluido", [])
 
-        # Procesar precios y duración llegando desde BD
-        duracion_bd = data.get("duracion_estimada", "30 minutes")
-        precio_bs_bd = data.get("precio_base_bs", 0)
+        # Procesar precio desde BD
         precio_usd_bd = data.get("precio_base_usd", 0)
 
         return cls(
@@ -63,15 +63,10 @@ class ServicioModel(rx.Base):
             nombre=str(data.get("nombre", "")),
             descripcion=str(data.get("descripcion", "") if data.get("descripcion") else ""),
             categoria=str(data.get("categoria", "")),
-            subcategoria=str(data.get("subcategoria", "") if data.get("subcategoria") else ""),
-            duracion_estimada=str(duracion_bd),
-
-            # Precios dual currency - mapeo directo desde BD
-            precio_base_bs=float(precio_bs_bd),
             precio_base_usd=float(precio_usd_bd),
+            alcance_servicio=str(data.get("alcance_servicio", "superficie_especifica")),
+            condicion_resultante=data.get("condicion_resultante"),  # NULL si es preventivo
             material_incluido=material_data,
-            instrucciones_pre=str(data.get("instrucciones_pre", "") if data.get("instrucciones_pre") else ""),
-            instrucciones_post=str(data.get("instrucciones_post", "") if data.get("instrucciones_post") else ""),
             activo=bool(data.get("activo", True)),
             fecha_creacion=str(data.get("fecha_creacion", "")),
             creado_por=str(data.get("creado_por", "") if data.get("creado_por") else "")
@@ -83,93 +78,80 @@ class ServicioModel(rx.Base):
         return f"${self.precio_base_usd:,.2f}"
 
     @property
-    def precio_bs_display(self) -> str:
-        """Precio en bolívares formateado"""
-        return f"Bs {self.precio_base_bs:,.2f}"
-
-    @property
-    def precio_dual_display(self) -> str:
-        """Precios dual currency formateados"""
-        return f"${self.precio_base_usd:,.2f} | Bs {self.precio_base_bs:,.2f}"
-    
-    @property
-    def categoria_display(self) -> str:
-        """Categoría formateada con emoji"""
-        categorias_map = {
-            "preventiva": "🛡️ Preventiva",
-            "restaurativa": "🔧 Restaurativa",
-            "estetica": "✨ Estética",
-            "cirugia": "⚔️ Cirugía",
-            "endodoncia": "🦷 Endodoncia",
-            "protesis": "🦾 Prótesis",
-            "ortodoncia": "📐 Ortodoncia",
-            "implantes": "🔩 Implantes",
-            "pediatrica": "👶 Pediátrica",
-            "diagnostico": "🔬 Diagnóstico",
-            "emergencia": "🚨 Emergencia",
-            "otro": "📋 Otro"
-        }
-        return categorias_map.get(self.categoria.lower(), f"📋 {self.categoria.title()}")
-    
-    @property
-    def duracion_display(self) -> str:
-        """Duración formateada"""
-        try:
-            # Si viene como "30 minutes", "1 hour", etc.
-            if "minute" in self.duracion_estimada:
-                minutos = int(self.duracion_estimada.split()[0])
-                if minutos < 60:
-                    return f"{minutos} min"
-                else:
-                    horas = minutos // 60
-                    mins = minutos % 60
-                    if mins > 0:
-                        return f"{horas}h {mins}m"
-                    else:
-                        return f"{horas}h"
-            elif "hour" in self.duracion_estimada:
-                horas = int(self.duracion_estimada.split()[0])
-                return f"{horas}h"
-            else:
-                return self.duracion_estimada
-        except:
-            return self.duracion_estimada
-    
-    @property
     def material_incluido_display(self) -> str:
         """Material incluido formateado"""
         if self.material_incluido:
             return ", ".join(self.material_incluido)
         return "No especificado"
     
+
     @property
-    def requisitos_display(self) -> List[str]:
-        """Lista de requisitos del servicio"""
-        requisitos = []
-        if self.requiere_cita_previa:
-            requisitos.append("📅 Requiere cita previa")
-        if self.requiere_autorizacion:
-            requisitos.append("✋ Requiere autorización")
-        return requisitos
-    
-    @property
-    def color_categoria(self) -> str:
-        """Color según la categoría para UI"""
-        colores_categoria = {
-            "preventiva": "#28a745",     # Verde
-            "restaurativa": "#007bff",   # Azul
-            "estetica": "#e83e8c",       # Rosa
-            "cirugia": "#dc3545",        # Rojo
-            "endodoncia": "#fd7e14",     # Naranja
-            "protesis": "#6c757d",       # Gris
-            "ortodoncia": "#20c997",     # Turquesa
-            "implantes": "#343a40",      # Negro
-            "pediatrica": "#ffc107",     # Amarillo
-            "diagnostico": "#17a2b8",    # Cian
-            "emergencia": "#dc3545",     # Rojo
-            "otro": "#6f42c1"            # Púrpura
+    def alcance_display(self) -> str:
+        """Alcance del servicio formateado para UI"""
+        alcances_map = {
+            "superficie_especifica": "🎯 Superficie específica",
+            "diente_completo": "🦷 Diente completo",
+            "boca_completa": "👄 Boca completa"
         }
-        return colores_categoria.get(self.categoria.lower(), "#007bff")
+        return alcances_map.get(self.alcance_servicio, "🎯 Superficie específica")
+
+    @property
+    def requiere_seleccion_superficies(self) -> bool:
+        """Indica si el servicio requiere selección de superficies"""
+        return self.alcance_servicio == "superficie_especifica"
+
+    @property
+    def requiere_seleccion_diente(self) -> bool:
+        """Indica si el servicio requiere selección de diente"""
+        return self.alcance_servicio in ["superficie_especifica", "diente_completo"]
+
+    @property
+    def aplica_toda_boca(self) -> bool:
+        """Indica si el servicio se aplica a toda la boca"""
+        return self.alcance_servicio == "boca_completa"
+
+    # ✨ V3.0: Métodos para condición resultante
+    def modifica_odontograma(self) -> bool:
+        """¿Este servicio modifica el odontograma?"""
+        return self.condicion_resultante is not None
+
+    @property
+    def es_preventivo(self) -> bool:
+        """Indica si es un servicio preventivo (no modifica odontograma)"""
+        return self.condicion_resultante is None
+
+    @property
+    def tipo_servicio_display(self) -> str:
+        """Tipo de servicio formateado según condición resultante"""
+        if self.condicion_resultante:
+            return f"🦷 Restaurativo → {self.condicion_resultante.title()}"
+        return "⭕ Preventivo"
+
+    @property
+    def condicion_display(self) -> str:
+        """Condición resultante formateada para UI"""
+        if not self.condicion_resultante:
+            return "No modifica odontograma"
+
+        # Mapeo de condiciones a etiquetas legibles
+        condiciones_map = {
+            "sano": "✅ Sano",
+            "caries": "🦠 Caries",
+            "obturacion": "🔧 Obturación",
+            "endodoncia": "🦷 Endodoncia",
+            "corona": "👑 Corona",
+            "puente": "🌉 Puente",
+            "implante": "🔩 Implante",
+            "protesis": "🦾 Prótesis",
+            "ausente": "❌ Ausente",
+            "fractura": "💥 Fractura",
+            "extraccion_indicada": "⚠️ Extracción Indicada"
+        }
+
+        return condiciones_map.get(
+            self.condicion_resultante,
+            self.condicion_resultante.replace("_", " ").title()
+        )
 
 
 class CategoriaServicioModel(rx.Base):
@@ -214,16 +196,13 @@ class ServicioFormModel(rx.Base):
     codigo: str = ""
     nombre: str = ""
     categoria: str = ""
-    duracion_estimada: str = "00:30:00"
-    precio_base_bs: str = "0.00"  # Cambio: Decimal → str para compatibilidad con formularios
     precio_base_usd: str = "0.00"  # Cambio: Decimal → str para compatibilidad con formularios
-    
+    alcance_servicio: str = "superficie_especifica"  # superficie_especifica | diente_completo | boca_completa
+
     # Campos opcionales
     descripcion: Optional[str] = ""
-    subcategoria: Optional[str] = ""
     material_incluido: Optional[str] = ""
-    instrucciones_pre: Optional[str] = ""
-    instrucciones_post: Optional[str] = ""
+    condicion_resultante: Optional[str] = None  # NULL = servicio preventivo (no modifica odontograma)
     
     def validate_form(self) -> Dict[str, str]:
         """
@@ -233,37 +212,31 @@ class ServicioFormModel(rx.Base):
             Dict con mensajes de error por campo
         """
         errors: Dict[str, str] = {}
-        
+
         # Validar campos obligatorios
         if error := validar_codigo_servicio(self.codigo):
             errors["codigo"] = error
-            
+
         if error := validar_nombre_servicio(self.nombre):
             errors["nombre"] = error
-            
+
         if error := validar_categoria(self.categoria):
             errors["categoria"] = error
-            
-        if error := validar_duracion(self.duracion_estimada):
-            errors["duracion_estimada"] = error
-            
-        if error := validar_precio(self.precio_base_bs, "bolívares"):
-            errors["precio_base_bs"] = error
-            
+
         if error := validar_precio(self.precio_base_usd, "dólares"):
             errors["precio_base_usd"] = error
-            
-        # Validar campos opcionales si tienen valor
-        if self.subcategoria and len(self.subcategoria) > 50:
-            errors["subcategoria"] = "La subcategoría no puede exceder 50 caracteres"
-            
-        # Validar material incluido
-        if self.material_incluido:
-            for item in self.material_incluido:
-                if len(item) > 100:
-                    errors["material_incluido"] = "Los items de material no pueden exceder 100 caracteres"
-                    break
-                    
+
+        if error := validar_alcance_servicio(self.alcance_servicio):
+            errors["alcance_servicio"] = error
+
+        # Validar campo opcional condicion_resultante
+        if error := validar_condicion_resultante(self.condicion_resultante):
+            errors["condicion_resultante"] = error
+
+        # Validar material incluido (es string, no lista en formulario)
+        if self.material_incluido and len(self.material_incluido) > 500:
+            errors["material_incluido"] = "El material incluido no puede exceder 500 caracteres"
+
         return errors
     
     def to_dict(self) -> Dict:
@@ -281,14 +254,11 @@ class ServicioFormModel(rx.Base):
             "codigo": self.codigo.strip().upper(),
             "nombre": self.nombre.strip(),
             "categoria": self.categoria.lower(),
-            "duracion_estimada": self.duracion_estimada,
-            "precio_base_bs": float(self.precio_base_bs),
             "precio_base_usd": float(self.precio_base_usd),
+            "alcance_servicio": self.alcance_servicio,
             "descripcion": self.descripcion.strip() if self.descripcion else None,
-            "subcategoria": self.subcategoria.strip() if self.subcategoria else None,
             "material_incluido": material_incluido_list,
-            "instrucciones_pre": self.instrucciones_pre.strip() if self.instrucciones_pre else None,
-            "instrucciones_post": self.instrucciones_post.strip() if self.instrucciones_post else None
+            "condicion_resultante": self.condicion_resultante if self.condicion_resultante else None
         }
 
     @classmethod
@@ -296,39 +266,6 @@ class ServicioFormModel(rx.Base):
         """Crear instancia de formulario desde ServicioModel para edición"""
 
         # Conversión de datos desde ServicioModel a formulario
-
-        # Conversión de duracion_estimada: "00:30:00" → "30" (minutos)
-        duracion_str = "30"  # Default
-        if servicio.duracion_estimada:
-            try:
-                if ":" in servicio.duracion_estimada:
-                    # Formato HH:MM:SS → convertir a minutos
-                    parts = servicio.duracion_estimada.split(":")
-                    horas = int(parts[0])
-                    minutos = int(parts[1])
-                    segundos = int(parts[2]) if len(parts) > 2 else 0
-
-                    # Convertir todo a minutos (redondear segundos)
-                    total_minutos = (horas * 60) + minutos
-                    if segundos >= 30:  # Redondear hacia arriba si >= 30 segundos
-                        total_minutos += 1
-
-                    # Mínimo 1 minuto si hay algún tiempo registrado
-                    if total_minutos == 0 and (horas > 0 or minutos > 0 or segundos > 0):
-                        total_minutos = 1
-
-                    duracion_str = str(total_minutos)
-                    # Conversión exitosa de duración
-
-                elif "minutes" in servicio.duracion_estimada:
-                    # Formato "30 minutes" → "30"
-                    duracion_str = servicio.duracion_estimada.replace(" minutes", "").strip()
-                else:
-                    # Asumir que es solo el número de minutos
-                    duracion_str = str(servicio.duracion_estimada).strip()
-            except Exception:
-                duracion_str = "30"
-
         # Conversión de material_incluido: Array → String separado por comas
         material_str = ""
         if servicio.material_incluido is not None:
@@ -345,9 +282,6 @@ class ServicioFormModel(rx.Base):
                     material_str = str(servicio.material_incluido).strip()
             except Exception as e:
                 material_str = ""
-
-        # Conversión de precios: Decimal → str (para compatibilidad con formularios HTML)
-        form_precio_bs = str(float(servicio.precio_base_bs or 0.00))
         form_precio_usd = str(float(servicio.precio_base_usd or 0.00))
 
         # Datos convertidos correctamente para formulario
@@ -357,13 +291,10 @@ class ServicioFormModel(rx.Base):
             nombre=servicio.nombre or "",
             categoria=servicio.categoria or "Preventiva",
             descripcion=servicio.descripcion or "",
-            subcategoria=servicio.subcategoria or "",
-            duracion_estimada=duracion_str,  # String de minutos para el formulario
-            precio_base_bs=form_precio_bs,   # str: "123.45"
             precio_base_usd=form_precio_usd, # str: "67.89"
+            alcance_servicio=servicio.alcance_servicio or "superficie_especifica",
             material_incluido=material_str,
-            instrucciones_pre=servicio.instrucciones_pre or "",
-            instrucciones_post=servicio.instrucciones_post or ""
+            condicion_resultante=servicio.condicion_resultante
         )
 
 
@@ -393,9 +324,7 @@ class EstadisticaCategoriaModel(rx.Base):
         """Crear estadísticas desde lista de servicios de una categoría"""
         if not servicios:
             return cls()
-        
-        precios = [s.precio_base for s in servicios if s.precio_base and s.precio_base > 0]
-        
+
         # Encontrar el más popular
         mas_popular = ""
         if servicios:
@@ -534,13 +463,6 @@ class IntervencionModel(rx.Base):
         return f"${self.precio_final:,.2f}"
     
     @property
-    def descuento_display(self) -> str:
-        """Descuento formateado"""
-        if self.descuento > 0:
-            return f"-${self.descuento:,.2f}"
-        return "Sin descuento"
-    
-    @property
     def dientes_display(self) -> str:
         """Dientes afectados formateados"""
         if self.dientes_afectados:
@@ -669,106 +591,3 @@ class MaterialModel(rx.Base):
         else:
             return "🟢 Disponible"
 
-
-# ==========================================
-# 📝 FORMULARIOS DE SERVICIOS
-# ==========================================
-
-# class ServicioFormModel(rx.Base):
-#     """
-#     📝 FORMULARIO DE CREACIÓN/EDICIÓN DE SERVICIOS
-    
-#     Reemplaza: form_data: Dict[str, str] en servicios_service
-#     """
-    
-#     # Información básica
-#     codigo: str = ""  # Código del servicio (ej: SER001)
-#     nombre: str = ""
-#     descripcion: str = ""
-#     categoria: str = "preventiva"  # preventiva, restaurativa, estetica, cirugia, etc.
-    
-#     # Precios dual currency
-#     precio_base_bs: str = "0"
-#     precio_base_usd: str = "0"
-
-#     # Detalles del servicio
-#     duracion_estimada: str = "30"  # minutos
-
-#     # Materiales e instrucciones
-#     material_incluido: str = ""
-#     instrucciones_pre: str = ""
-#     instrucciones_post: str = ""
-    
-#     # Estado
-#     activo: bool = True
-    
-#     @classmethod
-#     def from_servicio_model(cls, servicio: "ServicioModel") -> "ServicioFormModel":
-#         """Crear instancia de formulario desde ServicioModel para edición"""
-#         return cls(
-#             nombre=servicio.nombre,
-#             descripcion=servicio.descripcion or "",
-#             categoria=servicio.categoria or "preventiva",
-#             precio_base_bs=str(servicio.precio_base_bs) if servicio.precio_base_bs else "0",
-#             precio_base_usd=str(servicio.precio_base_usd) if servicio.precio_base_usd else "0",
-#             duracion_estimada=str(servicio.duracion_estimada).replace(" minutes", "") if servicio.duracion_estimada else "30",
-#             material_incluido=", ".join(servicio.material_incluido) if servicio.material_incluido else "",
-#             instrucciones_pre=servicio.instrucciones_pre or "",
-#             instrucciones_post=servicio.instrucciones_post or "",
-#             activo=servicio.activo
-#         )
-    
-#     def validate_servicio(self) -> Dict[str, List[str]]:
-#         """Validar campos específicos de servicios (alias para validate_form)"""
-#         return self.validate_form()
-    
-#     def validate_form(self) -> Dict[str, List[str]]:
-#         """Validar campos requeridos y formato"""
-#         errors = {}
-        
-#         if not self.nombre.strip():
-#             errors.setdefault("nombre", []).append("Nombre del servicio es requerido")
-        
-#         if not self.categoria.strip():
-#             errors.setdefault("categoria", []).append("Categoría es requerida")
-        
-#         # Validar precios dual currency
-#         try:
-#             precio_bs = float(self.precio_base_bs)
-#             if precio_bs <= 0:
-#                 errors.setdefault("precio_base_bs", []).append("Precio en BS debe ser mayor a 0")
-#         except (ValueError, TypeError):
-#             errors.setdefault("precio_base_bs", []).append("Precio en BS debe ser un número válido")
-
-#         try:
-#             precio_usd = float(self.precio_base_usd)
-#             if precio_usd <= 0:
-#                 errors.setdefault("precio_base_usd", []).append("Precio en USD debe ser mayor a 0")
-#         except (ValueError, TypeError):
-#             errors.setdefault("precio_base_usd", []).append("Precio en USD debe ser un número válido")
-        
-#         # Validar duración
-#         try:
-#             if self.duracion_estimada and self.duracion_estimada.strip():
-#                 duracion = int(self.duracion_estimada)
-#                 if duracion <= 0:
-#                     errors.setdefault("duracion_estimada", []).append("Duración debe ser mayor a 0 minutos")
-#         except (ValueError, TypeError):
-#             errors.setdefault("duracion_estimada", []).append("Duración debe ser un número entero de minutos")
-        
-#         return errors
-    
-#     def to_dict(self) -> Dict[str, str]:
-#         """Convertir a dict para compatibilidad"""
-#         return {
-#             "nombre": self.nombre,
-#             "descripcion": self.descripcion,
-#             "categoria": self.categoria,
-#             "precio_base_bs": self.precio_base_bs,
-#             "precio_base_usd": self.precio_base_usd,
-#             "duracion_estimada": self.duracion_estimada,
-#             "material_incluido": self.material_incluido,
-#             "instrucciones_pre": self.instrucciones_pre,
-#             "instrucciones_post": self.instrucciones_post,
-#             "activo": str(self.activo),
-#         }

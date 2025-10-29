@@ -20,11 +20,11 @@ INTEGRACIÓN:
 
 import reflex as rx
 from dental_system.state.app_state import AppState
-from dental_system.components.common import medical_page_layout, primary_button, secondary_button
+from dental_system.components.common import medical_page_layout
 from dental_system.components.forms import service_form_modal
 from dental_system.styles.themes import (
-    COLORS, RADIUS, SPACING, SHADOWS, DARK_THEME, GRADIENTS, GLASS_EFFECTS, ANIMATIONS,
-    dark_crystal_card, dark_header_style, create_dark_style, dark_table_container
+    COLORS, RADIUS, SPACING, DARK_THEME, GRADIENTS,
+    dark_crystal_card, dark_header_style,  dark_table_container
 )
 
 # ==========================================
@@ -338,6 +338,7 @@ def servicios_table() -> rx.Component:
                         rx.table.column_header_cell("Servicio"),
                         rx.table.column_header_cell("Categoría"),
                         rx.table.column_header_cell("Precio"),
+                        rx.table.column_header_cell("Alcance"),
                         rx.table.column_header_cell("Estado"),
                         rx.table.column_header_cell("Acciones", display=rx.cond(AppState.rol_usuario == "gerente", "table-cell", "none"))
                     )
@@ -404,6 +405,14 @@ def servicio_row(servicio) -> rx.Component:
                 weight="medium",
                 color=COLORS["warning"]["500"]
             )
+        ),
+        rx.table.cell(
+            rx.text(
+                servicio.alcance_servicio,
+                size="3",
+                weight="medium",
+                color=DARK_THEME["colors"]["text_primary"]
+            ),
         ),
         rx.table.cell(
             rx.badge(

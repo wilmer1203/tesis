@@ -19,38 +19,27 @@ class ConsultaModel(rx.Base):
     id: Optional[str] = ""
     numero_consulta: str = ""
     paciente_id: str = ""
-    
-    # ✅ MÚLTIPLES ODONTÓLOGOS (esquema v4.1)
+
     primer_odontologo_id: str = ""         # Campo principal BD
-    odontologo_preferido_id: Optional[str] = ""  # Campo opcional BD
-    
-    # ✅ SISTEMA DE COLAS (esquema v4.1) 
+
     fecha_llegada: str = ""                # Momento real de llegada
     orden_llegada_general: Optional[int] = None    # Orden global del día
     orden_cola_odontologo: Optional[int] = None    # Orden en cola específica
-    
-    # ✅ ESTADOS ESPECÍFICOS DEL NEGOCIO (esquema v4.1)
+
     estado: str = "en_espera"  # en_espera, en_atencion, entre_odontologos, completada, cancelada
     tipo_consulta: str = "general"  # general, control, urgencia, emergencia
     prioridad: str = "normal"       # baja, normal, alta, urgente
-    
-    # Detalles de la consulta
+
     motivo_consulta: Optional[str] = ""
     observaciones: Optional[str] = ""
-    notas_internas: Optional[str] = ""
-    
-    # ✅ COSTOS DUALES (esquema v4.1)
+
     costo_total_bs: float = 0.0
     costo_total_usd: float = 0.0
-    
-    # Control administrativo
+
     creada_por: Optional[str] = ""
     fecha_creacion: str = ""
     fecha_actualizacion: str = ""
-    fecha_inicio_atencion: Optional[str] = ""
-    fecha_fin_atencion: Optional[str] = ""
-    
-    # ✅ INFORMACIÓN RELACIONADA (JOINs con otras tablas)
+
     paciente_nombre: str = ""          
     odontologo_nombre: str = ""        
     paciente_telefono: str = ""        
@@ -71,7 +60,6 @@ class ConsultaModel(rx.Base):
             
             # ✅ MÚLTIPLES ODONTÓLOGOS
             primer_odontologo_id=str(data.get("primer_odontologo_id", "") or data.get("odontologo_id", "")),  # Compatibility
-            odontologo_preferido_id=str(data.get("odontologo_preferido_id", "") if data.get("odontologo_preferido_id") else ""),
             
             # ✅ SISTEMA DE COLAS
             fecha_llegada=str(data.get("fecha_llegada", "") or data.get("fecha_programada", "")),  # Compatibility
@@ -86,7 +74,6 @@ class ConsultaModel(rx.Base):
             # Detalles
             motivo_consulta=str(data.get("motivo_consulta", "") if data.get("motivo_consulta") else ""),
             observaciones=str(data.get("observaciones", "") if data.get("observaciones") else ""),
-            notas_internas=str(data.get("notas_internas", "") if data.get("notas_internas") else ""),
             
             # ✅ COSTOS DUALES
             costo_total_bs=float(data.get("costo_total_bs", 0) or data.get("costo_total", 0)),  # Compatibility
@@ -96,8 +83,6 @@ class ConsultaModel(rx.Base):
             creada_por=str(data.get("creada_por", "") if data.get("creada_por") else ""),
             fecha_creacion=str(data.get("fecha_creacion", "")),
             fecha_actualizacion=str(data.get("fecha_actualizacion", "")),
-            fecha_inicio_atencion=str(data.get("fecha_inicio_atencion", "") if data.get("fecha_inicio_atencion") else ""),
-            fecha_fin_atencion=str(data.get("fecha_fin_atencion", "") if data.get("fecha_fin_atencion") else ""),
             
             # ✅ INFORMACIÓN RELACIONADA (JOINs)
             paciente_nombre=str(data.get("paciente_nombre_completo", "") or data.get("paciente_nombre", "")),
@@ -398,30 +383,23 @@ class ConsultaFormModel(rx.Base):
     Alineado con ConsultaModel y tabla `consultas` del esquema
     Reemplaza: form_data: Dict[str, str] en consultas_service
     """
-    
-    # ✅ REFERENCIAS MÚLTIPLES ODONTÓLOGOS (esquema v4.1)
+
     paciente_id: str = ""
     paciente_nombre: str = ""              # Para mostrar en UI
     primer_odontologo_id: str = ""         # Campo principal BD
-    odontologo_preferido_id: str = ""      # Campo opcional BD
-    
-    # ✅ DETALLES DE LA CONSULTA (esquema v4.1)
+
     tipo_consulta: str = "general"  # general, control, urgencia, emergencia
     motivo_consulta: str = ""
     observaciones: str = ""         # Campo BD unificado
-    notas_internas: str = ""        # Campo BD nuevo
-    
-    # ✅ PRIORIDAD Y ESTADO (esquema v4.1)
+
     prioridad: str = "normal"  # baja, normal, alta, urgente
     estado: str = "en_espera"  # en_espera, en_atencion, entre_odontologos, completada, cancelada
-    
-    # ✅ INFORMACIÓN MÉDICA (opcional para formulario)
+
     diagnostico_preliminar: str = ""
     diagnostico_final: str = ""
     tratamiento_realizado: str = ""
     receta_medicamentos: str = ""
-    
-    # ✅ SEGUIMIENTO Y CITAS (opcional)
+
     proxima_consulta: str = ""  # Fecha sugerida
     requiere_seguimiento: bool = False
     notas_seguimiento: str = ""
@@ -452,34 +430,32 @@ class ConsultaFormModel(rx.Base):
         return errors
     
     def to_dict(self) -> Dict[str, str]:
-        """Convertir a dict para compatibilidad - ESQUEMA BD v4.1"""
+        """Convertir a dict para compatibilidad - ESQUEMA BD v4.1 LIMPIEZA 2025-10-21"""
         return {
             # Referencias múltiples odontólogos
             "paciente_id": self.paciente_id,
             "primer_odontologo_id": self.primer_odontologo_id,
-            "odontologo_preferido_id": self.odontologo_preferido_id,
-            
+
             # Detalles de la consulta
             "tipo_consulta": self.tipo_consulta,
             "motivo_consulta": self.motivo_consulta,
             "observaciones": self.observaciones,
-            "notas_internas": self.notas_internas,
-            
+
             # Estado y prioridad
             "prioridad": self.prioridad,
             "estado": self.estado,
-            
+
             # Información médica
             "diagnostico_preliminar": self.diagnostico_preliminar,
             "diagnostico_final": self.diagnostico_final,
             "tratamiento_realizado": self.tratamiento_realizado,
             "receta_medicamentos": self.receta_medicamentos,
-            
+
             # Seguimiento
             "proxima_consulta": self.proxima_consulta,
             "requiere_seguimiento": str(self.requiere_seguimiento),
             "notas_seguimiento": self.notas_seguimiento,
-            
+
             # Compatibility con nombres anteriores
             "odontologo_id": self.primer_odontologo_id,  # Alias para backward compatibility
         }
@@ -489,11 +465,9 @@ class ConsultaFormModel(rx.Base):
         return ConsultaModel(
             paciente_id=self.paciente_id,
             primer_odontologo_id=self.primer_odontologo_id,
-            odontologo_preferido_id=self.odontologo_preferido_id,
             tipo_consulta=self.tipo_consulta,
             motivo_consulta=self.motivo_consulta,
             observaciones=self.observaciones,
-            notas_internas=self.notas_internas,
             prioridad=self.prioridad,
             estado=self.estado
         )

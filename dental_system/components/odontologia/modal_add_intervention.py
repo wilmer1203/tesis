@@ -82,12 +82,30 @@ def modal_add_intervention() -> rx.Component:
                         size="3",
                         width="100%",
                     ),
+                    # 🎯 Alcance del servicio (info dinámica)
+                    rx.cond(
+                        AppState.selected_service_name != "",
+                        rx.box(
+                            rx.text(
+                                AppState.selected_service_alcance_display,
+                                font_size="12px",
+                                color=MEDICAL_COLORS["medical_ui"]["text_secondary"],
+                                font_style="italic",
+                            ),
+                            padding="8px",
+                            background=f"{MEDICAL_COLORS['medical_ui']['accent_primary']}10",
+                            border_radius="4px",
+                            margin_top="4px",
+                        ),
+                    ),
                     spacing="2",
                     width="100%",
                 ),
 
-                # 🦷 Superficies tratadas
-                rx.vstack(
+                # 🦷 Superficies tratadas (CONDICIONAL: solo si requiere superficies)
+                rx.cond(
+                    AppState.selected_service_requiere_superficies,
+                    rx.vstack(
                     rx.text(
                         "🦷 Superficies tratadas",
                         font_weight="600",
@@ -125,12 +143,15 @@ def modal_add_intervention() -> rx.Component:
                         ),
                         spacing="4",
                     ),
-                    spacing="2",
-                    width="100%",
-                ),
+                        spacing="2",
+                        width="100%",
+                    ),
+                ),  # Cierre del rx.cond para superficies
 
-                # 🎨 Cambiar condición automáticamente
-                rx.vstack(
+                # 🎨 Cambiar condición automáticamente (CONDICIONAL: solo si requiere diente)
+                rx.cond(
+                    AppState.selected_service_requiere_diente,
+                    rx.vstack(
                     rx.checkbox(
                         "Cambiar condición del diente automáticamente",
                         checked=AppState.auto_change_condition,
@@ -158,9 +179,10 @@ def modal_add_intervention() -> rx.Component:
                             width="100%",
                         ),
                     ),
-                    spacing="2",
-                    width="100%",
-                ),
+                        spacing="2",
+                        width="100%",
+                    ),
+                ),  # Cierre del rx.cond para cambiar condición
 
                 # 💬 Observaciones
                 rx.vstack(

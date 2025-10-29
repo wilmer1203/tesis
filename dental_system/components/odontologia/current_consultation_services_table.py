@@ -98,7 +98,7 @@ def current_consultation_services_table() -> rx.Component:
 
         # Tabla de servicios o mensaje vacío
         rx.cond(
-            AppState.get_consultation_services_rows,
+            AppState.servicios_en_intervencion,
             # Hay servicios - mostrar tabla
             rx.box(
                 rx.table.root(
@@ -118,7 +118,11 @@ def current_consultation_services_table() -> rx.Component:
                                 # Diente
                                 rx.table.cell(
                                     rx.badge(
-                                        f"Diente {service['diente']}",
+                                        rx.cond(
+                                            service['diente'] == "Boca completa",
+                                            service['diente'],
+                                            f"Diente {service['diente']}"
+                                        ),
                                         color_scheme="cyan",
                                         variant="soft",
                                     ),
@@ -199,13 +203,13 @@ def current_consultation_services_table() -> rx.Component:
                         ),
                         rx.hstack(
                             rx.text(
-                                AppState.get_consultation_total_bs_formatted,
+                                f"{AppState.total_intervencion_bs:,.0f} Bs",
                                 font_size="18px",
                                 font_weight="700",
                                 color=MEDICAL_COLORS["medical_ui"]["accent_success"],
                             ),
                             rx.text(
-                                AppState.get_consultation_total_usd_formatted,
+                                f"/ ${AppState.total_intervencion_usd:.2f}",
                                 font_size="14px",
                                 font_weight="600",
                                 color=MEDICAL_COLORS["medical_ui"]["text_secondary"],

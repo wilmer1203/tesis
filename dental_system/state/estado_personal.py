@@ -54,6 +54,8 @@ class EstadoPersonal(rx.State, mixin=True):
     # Personal seleccionado para operaciones
     empleado_seleccionado: Optional[PersonalModel] = None
     id_empleado_seleccionado: str = ""
+    personal_to_modify: Optional[PersonalModel] = None  # Personal marcado para activar/desactivar
+    accion_personal: bool = False  # True = activar, False = desactivar
     
     # Formulario de empleado (datos temporales) - MODELO TIPADO
     formulario_empleado: PersonalFormModel = PersonalFormModel()
@@ -540,30 +542,53 @@ class EstadoPersonal(rx.State, mixin=True):
             if hasattr(self, 'mostrar_toast_error'):
                 self.mostrar_toast_error("Error al guardar empleado")
     
-    async def activar_desactivar_empleado(self, empleado_id: str, activar: bool):
-        """Activar o desactivar empleado (soft delete)"""
+    async def activar_desactivar_empleado(self, personal_id: str, activar: bool):
+        """
+        🔄 Preparar activación o desactivación de empleado
+
+        Args:
+            personal_id: ID del empleado
+            activar: True para activar, False para desactivar
+        """
         try:
-            success = await personal_service.toggle_personal_status(
-                personal_id=empleado_id,
-                activo=activar,
-                user_id=self.id_usuario
-            )
-            
-            if success:
-                # Actualizar en la lista
-                for i, emp in enumerate(self.lista_personal):
-                    if emp.id == empleado_id:
-                        self.lista_personal[i].activo = activar
-                        break
-                
-                accion = "activado" if activar else "desactivado"
-                if hasattr(self, 'mostrar_toast_exito'):
-                    self.mostrar_toast_exito(f"Empleado {accion} exitosamente")
-                
+            # Buscar el empleado en la lista
+            empleado_encontrado = None
+            for empleado in self.lista_personal:
+                if empleado.id == personal_id:
+                    empleado_encontrado = empleado
+                    break
+
+            if empleado_encontrado:
+                # Establecer el empleado a modificar y la acción
+                self.personal_to_modify = empleado_encontrado
+                self.accion_personal = activar
+
+                nombre_completo = f"{empleado_encontrado.primer_nombre} {empleado_encontrado.primer_apellido}"
+
+                # Mostrar modal apropiado según la acción
+                if activar:
+                    # Modal de reactivación
+                    await self.abrir_modal_confirmacion(
+                        "Confirmar Reactivación",
+                        f"¿Estás seguro de que deseas reactivar a {nombre_completo}? El empleado podrá volver a iniciar sesión en el sistema.",
+                        "activar_personal"
+                    )
+                else:
+                    # Modal de inhabilitación
+                    await self.abrir_modal_confirmacion(
+                        "Confirmar Inhabilitación",
+                        f"¿Estás seguro de que deseas inhabilitar a {nombre_completo}? Esta acción impedirá que el empleado inicie sesión en el sistema.",
+                        "desactivar_personal"
+                    )
+
+                logger.info(f"❓ Confirmación {'activar' if activar else 'desactivar'} personal: {personal_id}")
+            else:
+                logger.warning(f"⚠️ Empleado {personal_id} no encontrado")
+
         except Exception as e:
-            logger.error(f"❌ Error cambiando estado empleado: {e}")
+            logger.error(f"❌ Error preparando acción de empleado: {e}")
             if hasattr(self, 'mostrar_toast_error'):
-                self.mostrar_toast_error("Error al cambiar estado del empleado")
+                self.mostrar_toast_error("Error al preparar la acción")
     
     # ==========================================
     # 📝 GESTIÓN DE FORMULARIOS
@@ -727,13 +752,6 @@ class EstadoPersonal(rx.State, mixin=True):
         if 1 <= numero_pagina <= info["total_paginas"]:
             self.pagina_actual_personal = numero_pagina
     
-    # UNUSED - [2025-01-04] - Método de paginación no utilizado
-    # def cambiar_empleados_por_pagina(self, cantidad: int):
-    #     """Cambiar cantidad de empleados por página"""
-    #     self.empleados_por_pagina = cantidad
-    #     self.pagina_actual_personal = 1  # Reset a primera página
-    #     self._calcular_paginacion_personal()
-    
     def _calcular_paginacion_personal(self):
         """Recalcular paginación basado en filtros actuales"""
         total_filtrado = len(self.personal_filtrado)
@@ -758,21 +776,6 @@ class EstadoPersonal(rx.State, mixin=True):
         except Exception:
             # Si no se puede mostrar toast, solo log
             pass
-    
-    # UNUSED - [2025-01-04] - Métodos de cache no utilizados
-    # def limpiar_cache_personal(self):
-    #     """Limpiar cache de personal para forzar recarga"""
-    #     self.cache_personal_activo = []
-    #     self.cache_odontologos_disponibles = []
-    #     self.cache_timestamp_personal = ""
-    #     logger.info("🧹 Cache de personal limpiado")
-    
-    # async def refrescar_datos_personal(self):
-    #     """Refrescar todos los datos de personal"""
-    #     self.limpiar_cache_personal()
-    #     await self.cargar_lista_personal()
-    #     await self.cargar_estadisticas_personal()
-    #     logger.info("🔄 Datos de personal refrescados")
     
     # ==========================================
     # 📱 FUNCIONES DE MODAL
@@ -834,40 +837,57 @@ class EstadoPersonal(rx.State, mixin=True):
             self.handle_error("abrir modal personal", e)
     
     @rx.event
-    async def eliminar_personal(self):
+    async def ejecutar_accion_personal(self):
         """
-        🗑️ DESACTIVAR/ELIMINAR PERSONAL SELECCIONADO
-        
-        Utiliza self.personal_to_delete para desactivar el empleado
-        """
-        if self.personal_to_delete and self.personal_to_delete.id:
-            await self.activar_desactivar_empleado(self.personal_to_delete.id, False)
-            # Limpiar variable después de eliminar
-            self.personal_to_delete = None
-        else:
-            print("❌ No hay personal seleccionado para eliminar.")
+        ✅ EJECUTAR ACCIÓN DE ACTIVAR/DESACTIVAR PERSONAL
 
-    @rx.event  
-    async def seleccionar_personal_para_eliminar(self, personal_id: str):
-        """🗑️ Seleccionar personal para eliminar"""
-        try:
-            await self.seleccionar_empleado(personal_id)
-            
-            if hasattr(self, 'abrir_modal_confirmacion'):
-                await self.abrir_modal_confirmacion(
-                    "Confirmar Eliminación",
-                    "¿Estás seguro de que deseas desactivar este empleado?",
-                    "eliminar_personal"
+        Ejecuta la acción almacenada en self.accion_personal
+        sobre el empleado en self.personal_to_modify
+        """
+        if self.personal_to_modify and self.personal_to_modify.id:
+            nombre_completo = f"{self.personal_to_modify.primer_nombre} {self.personal_to_modify.primer_apellido}"
+            personal_id = self.personal_to_modify.id
+            activar = self.accion_personal
+
+            try:
+                # Establecer contexto de usuario en el servicio
+                personal_service.set_user_context(
+                    user_id=self.id_usuario,
+                    user_profile=self.perfil_usuario
                 )
-            logger.info(f"❓ Confirmación eliminar personal: {personal_id}")
-            
-        except Exception as e:
-            self.handle_error("seleccionar personal para eliminar", e)
 
+                # Ejecutar la acción apropiada
+                if activar:
+                    success = await personal_service.reactivate_staff_member(personal_id)
+                    accion_texto = "reactivado"
+                else:
+                    success = await personal_service.deactivate_staff_member(personal_id)
+                    accion_texto = "inhabilitado"
 
-# ==========================================
-# 🚀 INSTANCIA GLOBAL DEL ESTADO
-# ==========================================
+                if success:
+                    # Actualizar en la lista local
+                    for i, emp in enumerate(self.lista_personal):
+                        if emp.id == personal_id:
+                            self.lista_personal[i].estado_laboral = "activo" if activar else "inactivo"
+                            break
 
-# # Crear instancia global para usar en AppState
-# estado_personal = EstadoPersonal()
+                    # Recargar lista para reflejar cambios
+                    await self.cargar_lista_personal()
+
+                    # Mostrar éxito
+                    if hasattr(self, 'mostrar_toast_exito'):
+                        self.mostrar_toast_exito(f"Empleado {nombre_completo} {accion_texto} exitosamente")
+
+                    logger.info(f"✅ Personal {nombre_completo} {accion_texto} exitosamente")
+
+                # Limpiar variables temporales
+                self.personal_to_modify = None
+                self.accion_personal = False
+
+            except Exception as e:
+                logger.error(f"❌ Error ejecutando acción de personal: {e}")
+                if hasattr(self, 'mostrar_toast_error'):
+                    self.mostrar_toast_error(f"Error al modificar a {nombre_completo}")
+        else:
+            logger.warning("❌ No hay personal seleccionado para modificar")
+

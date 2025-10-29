@@ -14,11 +14,10 @@ PATRÓN: Substate con get_estado_ui() en AppState
 """
 
 import reflex as rx
-from datetime import datetime
+from datetime import datetime,timedelta
 from typing import Dict, Any, List, Optional, Union
 import logging
 from dental_system.models.ui_models import ToastModel, NotificationModel
-
 logger = logging.getLogger(__name__)
 
 class EstadoUI(rx.State, mixin=True):
@@ -158,7 +157,7 @@ class EstadoUI(rx.State, mixin=True):
     def navigate_to(self, pagina: str, titulo: str = "", subtitulo: str = ""):
         """
         🧭 NAVEGACIÓN PRINCIPAL ENTRE PÁGINAS
-        
+
         Args:
             pagina: Nombre de la página destino
             titulo: Título a mostrar en la página
@@ -169,11 +168,12 @@ class EstadoUI(rx.State, mixin=True):
         self.titulo_pagina = titulo or pagina.title()
         self.subtitulo_pagina = subtitulo
         self.puede_retroceder = bool(self.previous_page)
-        
+
         # Actualizar breadcrumbs
         self._actualizar_breadcrumbs(pagina, titulo)
-        
+
         print(f"🧭 Navegación: {self.previous_page} → {self.current_page}")
+
     
     @rx.event
     def retroceder_pagina(self):
@@ -277,7 +277,43 @@ class EstadoUI(rx.State, mixin=True):
         self.mensaje_modal_confirmacion = mensaje
         self.accion_modal_confirmacion = accion
         print(f"⚠️ Modal confirmación: {titulo}")
-    
+
+    @rx.event
+    async def ejecutar_accion_confirmacion(self):
+        """
+        ✅ EJECUTAR ACCIÓN CONFIRMADA
+
+        Ejecuta la acción almacenada en accion_modal_confirmacion
+        basándose en el nombre del método.
+        """
+        try:
+            accion = self.accion_modal_confirmacion
+            print(f"🎯 Ejecutando acción confirmada: {accion}")
+
+            # Router de acciones disponibles
+            if accion == "activar_personal":
+                await self.ejecutar_accion_personal()
+            elif accion == "desactivar_personal":
+                await self.ejecutar_accion_personal()
+            elif accion == "eliminar_paciente":
+                # Aquí iría la lógica para eliminar paciente
+                pass
+            elif accion == "reactivar_paciente":
+                # Aquí iría la lógica para reactivar paciente
+                pass
+            else:
+                print(f"⚠️ Acción no reconocida: {accion}")
+
+            # Cerrar modal después de ejecutar la acción
+            self.cerrar_todos_los_modales()
+
+        except Exception as e:
+            print(f"❌ Error ejecutando acción confirmada: {e}")
+            if hasattr(self, 'mostrar_toast_error'):
+                self.mostrar_toast_error("Error al ejecutar la acción")
+            # Cerrar modal incluso si hay error
+            self.cerrar_todos_los_modales()
+
     @rx.event
     def abrir_modal_alerta(self, titulo: str, mensaje: str, tipo: str = "info"):
         """🔔 Abrir modal de alerta"""
@@ -292,12 +328,6 @@ class EstadoUI(rx.State, mixin=True):
         self.modal_cambio_odontologo_abierto = True
         print("🔄 Modal cambio odontólogo abierto")
     
-    @rx.event
-    def cerrar_modal(self, is_open: bool = False):
-        """❌ Cerrar el modal actual (alias para cerrar_todos_los_modales)"""
-        if not is_open:  # Solo cerrar si is_open es False
-            self.cerrar_todos_los_modales()
-            print("🔄 Cerrando modal - variables cambiadas a False")
 
     @rx.event
     def cerrar_todos_los_modales(self):
@@ -769,3 +799,67 @@ class EstadoUI(rx.State, mixin=True):
         self.resetear_formulario_consulta()
         
         print("🧹 Datos temporales limpiados completamente")
+        
+        
+        
+           
+        
+    # ==========================================
+    # GRÁFICOS Y ANALYTICS
+    # ==========================================
+    area_toggle: bool = True
+    selected_tab: str = "Pacientes"
+    timeframe: str = "Mensual"
+    pacientes_data = []
+    ingresos_data = []
+    consultas_data = []
+    
+    
+    def toggle_areachart(self):
+        """Alterna entre gráfico de área y barras."""
+        self.area_toggle = not self.area_toggle
+    
+    def set_selected_tab(self, selected_tab: Union[str, List[str]]):
+        """Cambia la pestaña seleccionada."""
+        if isinstance(selected_tab, list):
+            self.selected_tab = selected_tab[0]
+        else:
+            self.selected_tab = selected_tab
+    
+    @rx.var(cache=False)
+    def get_current_data(self) -> list:
+        match self.selected_tab:
+            case "Pacientes":
+                return self.pacientes_data
+            case "Ingresos":
+                return self.ingresos_data
+            case "Consultas":
+                return self.consultas_data
+        return []
+    
+    def randomize_data(self):
+        import random
+        """Genera datos de ejemplo para gráficos"""
+        if self.pacientes_data:
+            return
+        
+        for i in range(30, -1, -1):
+            date_str = (datetime.now() - timedelta(days=i)).strftime("%d-%m")
+            
+            self.ingresos_data.append({
+                "name": date_str,
+                "Ingresos": random.randint(1000, 5000)
+            })
+            
+            self.consultas_data.append({
+                "name": date_str,
+                "Consultas": random.randint(10, 50)
+            })
+            
+            self.pacientes_data.append({
+                "name": date_str,
+                "Pacientes": random.randint(5, 20)
+            })
+            
+            
+    

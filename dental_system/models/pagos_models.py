@@ -59,7 +59,6 @@ class PagoModel(rx.Base):
     # Información relacionada
     paciente_nombre: str = ""
     paciente_documento: str = ""
-    procesado_por_nombre: str = ""
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "PagoModel":
@@ -69,8 +68,19 @@ class PagoModel(rx.Base):
         
         # Manejar datos relacionados
         paciente_data = data.get("pacientes", {})
-        procesado_por_data = data.get("procesado_por_usuario", {})
-        
+
+        # Construir nombre del paciente con diferentes formatos posibles
+        paciente_nombre = ""
+        if paciente_data:
+            # Intentar nombre_completo primero
+            if paciente_data.get("nombre_completo"):
+                paciente_nombre = str(paciente_data.get("nombre_completo", ""))
+            else:
+                # Construir desde nombres separados
+                primer_nombre = paciente_data.get("primer_nombre", "")
+                primer_apellido = paciente_data.get("primer_apellido", "")
+                paciente_nombre = f"{primer_nombre} {primer_apellido}".strip()
+
         return cls(
             id=str(data.get("id", "")),
             numero_recibo=str(data.get("numero_recibo", "")),
@@ -109,10 +119,9 @@ class PagoModel(rx.Base):
             procesado_por=str(data.get("procesado_por", "")),
             autorizado_por=str(data.get("autorizado_por", "") if data.get("autorizado_por") else ""),
 
-            # Información relacionada
-            paciente_nombre=str(paciente_data.get("nombre_completo", "") if paciente_data else ""),
+            # Información relacionada (usando la variable construida arriba)
+            paciente_nombre=paciente_nombre,
             paciente_documento=str(paciente_data.get("numero_documento", "") if paciente_data else ""),
-            procesado_por_nombre=str(procesado_por_data.get("email", "") if procesado_por_data else "")
         )
     
     @property
@@ -341,92 +350,6 @@ class PagosStatsModel(rx.Base):
     monto_promedio: float = 0.0
 
 
-class FacturaModel(rx.Base):
-    """Modelo para facturas detalladas"""
-    id: str = ""
-    numero_factura: str = ""
-    fecha_factura: str = ""
-    paciente_id: str = ""
-    consulta_id: str = ""
-    
-    # Información del paciente
-    paciente_nombre: str = ""
-    paciente_documento: str = ""
-    paciente_direccion: str = ""
-    
-    # Información de la clínica
-    clinica_nombre: str = ""
-    clinica_nit: str = ""
-    clinica_direccion: str = ""
-    clinica_telefono: str = ""
-    
-    # Detalles de la factura
-    items: List[Dict[str, Any]] = []
-    subtotal: float = 0.0
-    descuentos: float = 0.0
-    impuestos: float = 0.0
-    total: float = 0.0
-    
-    # Estado
-    estado_factura: str = "emitida"  # emitida, pagada, anulada
-    fecha_vencimiento: Optional[str] = ""
-    observaciones: Optional[str] = ""
-    
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "FacturaModel":
-        """Crear instancia desde diccionario"""
-        if not data or not isinstance(data, dict):
-            return cls()
-        
-        return cls(
-            id=str(data.get("id", "")),
-            numero_factura=str(data.get("numero_factura", "")),
-            fecha_factura=str(data.get("fecha_factura", "")),
-            paciente_id=str(data.get("paciente_id", "")),
-            consulta_id=str(data.get("consulta_id", "")),
-            paciente_nombre=str(data.get("paciente_nombre", "")),
-            paciente_documento=str(data.get("paciente_documento", "")),
-            paciente_direccion=str(data.get("paciente_direccion", "")),
-            clinica_nombre=str(data.get("clinica_nombre", "")),
-            clinica_nit=str(data.get("clinica_nit", "")),
-            clinica_direccion=str(data.get("clinica_direccion", "")),
-            clinica_telefono=str(data.get("clinica_telefono", "")),
-            items=data.get("items", []),
-            subtotal=float(data.get("subtotal", 0)),
-            descuentos=float(data.get("descuentos", 0)),
-            impuestos=float(data.get("impuestos", 0)),
-            total=float(data.get("total", 0)),
-            estado_factura=str(data.get("estado_factura", "emitida")),
-            fecha_vencimiento=str(data.get("fecha_vencimiento", "") if data.get("fecha_vencimiento") else ""),
-            observaciones=str(data.get("observaciones", "") if data.get("observaciones") else "")
-        )
-
-
-class ConceptoPagoModel(rx.Base):
-    """Modelo para conceptos de pago predefinidos"""
-    id: str = ""
-    nombre: str = ""
-    descripcion: str = ""
-    categoria: str = ""  # consulta, tratamiento, producto, etc.
-    precio_sugerido: Optional[float] = None
-    activo: bool = True
-    
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ConceptoPagoModel":
-        """Crear instancia desde diccionario"""
-        if not data or not isinstance(data, dict):
-            return cls()
-        
-        return cls(
-            id=str(data.get("id", "")),
-            nombre=str(data.get("nombre", "")),
-            descripcion=str(data.get("descripcion", "")),
-            categoria=str(data.get("categoria", "")),
-            precio_sugerido=float(data.get("precio_sugerido")) if data.get("precio_sugerido") else None,
-            activo=bool(data.get("activo", True))
-        )
-
-
 class BalanceGeneralModel(rx.Base):
     """Modelo para balance general de pagos"""
     fecha_desde: str = ""
@@ -509,18 +432,25 @@ class PagoFormModel(rx.Base):
     """
 
     # 📋 REFERENCIAS BÁSICAS
+    pago_id: str = ""  # ✅ ID del pago a actualizar (más importante que consulta_id)
     paciente_id: str = ""
     consulta_id: str = ""  # Opcional
+    paciente_nombre: str = ""  # Nombre del paciente (display)
+    numero_consulta: str = ""  # Número de consulta (display)
 
     # 💰 MONTO PRINCIPAL EN USD
-    monto_total_usd: str = "0.00"          # Monto base en USD
+    monto_total_usd: float = 0.0           # Monto base en USD
+    monto_total_bs: float = 0.0            # Monto total en BS (calculado)
 
     # 💱 TASA DE CONVERSIÓN
-    tasa_cambio_del_dia: str = "36.50"     # Tasa editable por usuario
+    tasa_cambio: float = 36.50             # Tasa del día
+    tasa_cambio_del_dia: str = "36.50"     # Tasa editable por usuario (string para input)
 
     # 💵 PAGOS EN AMBAS MONEDAS
-    pago_usd: str = "0.00"                 # Cuánto paga en USD
-    pago_bs: str = "0"                     # Cuánto paga en BS
+    monto_pagado_usd: float = 0.0          # Cuánto paga en USD
+    monto_pagado_bs: float = 0.0           # Cuánto paga en BS
+    pago_usd: str = "0.00"                 # Cuánto paga en USD (string para input)
+    pago_bs: str = "0"                     # Cuánto paga en BS (string para input)
 
     # 🎛️ MÉTODOS DE PAGO DUALES
     metodo_pago_usd: str = "efectivo"      # efectivo, tarjeta, transferencia
@@ -530,9 +460,10 @@ class PagoFormModel(rx.Base):
 
     # 📝 CAMPOS ADICIONALES
     concepto: str = ""
-    descuento_usd: str = "0.00"           # Descuento en USD
+    descuento_usd: float = 0.0             # Descuento en USD
     motivo_descuento: str = ""
     observaciones: str = ""
+    notas: str = ""                        # Alias para observaciones
 
     # 📊 CAMPOS DE ESTADO
     estado_pago: str = "completado"        # pendiente, completado, anulado
@@ -679,36 +610,30 @@ class PagoFormModel(rx.Base):
         }
 
 
-class PagoParcialFormModel(rx.Base):
-    """
-    📝 FORMULARIO PARA PAGOS PARCIALES
-    
-    Usado en: process_partial_payment
-    """
-    
-    monto_adicional: str = "0"
-    metodo_pago: str = "efectivo"
-    referencia_pago: str = ""
-    observaciones: str = ""
-    
-    def validate_form(self) -> Dict[str, List[str]]:
-        """Validar monto adicional"""
-        errors = {}
-        
-        try:
-            monto = float(self.monto_adicional)
-            if monto <= 0:
-                errors.setdefault("monto_adicional", []).append("Monto debe ser mayor a 0")
-        except (ValueError, TypeError):
-            errors.setdefault("monto_adicional", []).append("Monto debe ser un número válido")
-        
-        return errors
-    
-    def to_dict(self) -> Dict[str, str]:
-        """Convertir a dict para compatibilidad"""
-        return {
-            "monto_adicional": self.monto_adicional,
-            "metodo_pago": self.metodo_pago,
-            "referencia_pago": self.referencia_pago,
-            "observaciones": self.observaciones,
-        }
+class ServicioFormateado(rx.Base):
+    """Modelo simple para servicios formateados en accordion"""
+    nombre: str = ""
+    odontologo: str = "" 
+    precio_usd: str = "0.00"
+    precio_bs: str = "0"
+
+# ✅ MODELO PARA CONSULTA PENDIENTE (igual que ConsultaModel en consultas)
+class ConsultaPendientePago(rx.Base):
+    """Modelo tipado para consulta pendiente de pago"""
+    pago_id: str = ""  
+    consulta_id: str = ""
+    numero_consulta: str = ""
+    paciente_id: str = ""
+    paciente_nombre: str = ""
+    paciente_documento: str = ""
+    paciente_numero_historia: str = ""  
+    paciente_telefono: str = ""  
+    odontologo_nombre: str = ""
+    fecha_consulta: str = ""
+    dias_pendiente: int = 0
+    prioridad: str = "baja"
+    servicios_count: int = 0
+    concepto: str = ""
+    total_usd: float = 0.0
+    total_bs: float = 0.0
+    servicios_formateados: list[ServicioFormateado] = []

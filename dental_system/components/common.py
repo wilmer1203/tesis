@@ -1,10 +1,8 @@
 import reflex as rx
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Optional
 from ..state.app_state import AppState
 from dental_system.styles.themes import (
-    COLORS, SHADOWS, ROLE_THEMES, RADIUS, GRADIENTS, GLASS_EFFECTS, ANIMATIONS,
-    DARK_THEME, SPACING, dark_sidebar_style, dark_nav_item_style, dark_nav_item_active_style,
-    dark_page_background
+    COLORS, SHADOWS, ROLE_THEMES, RADIUS, GRADIENTS, ANIMATIONS, SPACING, dark_page_background
 )
 
 # ==========================================
@@ -794,6 +792,119 @@ def toast_animations_css() -> rx.Component:
             document.head.appendChild(style);
         }
     """)
+
+# ==========================================
+# MODAL DE CONFIRMACIÓN GENÉRICO
+# ==========================================
+
+def confirmation_modal() -> rx.Component:
+    """
+    ⚠️ MODAL DE CONFIRMACIÓN GENÉRICO
+
+    Modal reutilizable para cualquier acción que requiera confirmación.
+    Lee los datos desde AppState:
+    - modal_confirmacion_abierto: bool
+    - titulo_modal_confirmacion: str
+    - mensaje_modal_confirmacion: str
+    - accion_modal_confirmacion: str (nombre del método a llamar)
+    """
+    return rx.dialog.root(
+        rx.dialog.content(
+            # Header con icono de advertencia
+            rx.vstack(
+                rx.box(
+                    rx.icon("triangle-alert", size=48, color=COLORS["error"]["500"]),
+                    padding=SPACING["4"],
+                    border_radius=RADIUS["full"],
+                    background=COLORS["error"]["50"]
+                ),
+                rx.heading(
+                    AppState.titulo_modal_confirmacion,
+                    size="5",
+                    color=COLORS["gray"]["800"],
+                    text_align="center"
+                ),
+                rx.text(
+                    AppState.mensaje_modal_confirmacion,
+                    size="3",
+                    color=COLORS["gray"]["600"],
+                    text_align="center",
+                    line_height="1.5",
+                    max_width="400px"
+                ),
+                spacing="4",
+                align="center",
+                margin_bottom="6"
+            ),
+
+            # Botones de acción
+            rx.hstack(
+                rx.button(
+                    "Cancelar",
+                    on_click=AppState.cerrar_todos_los_modales,
+                    style={
+                        "background": "transparent",
+                        "border": f"1px solid {COLORS['gray']['300']}",
+                        "color": COLORS["gray"]["700"],
+                        "border_radius": RADIUS["2xl"],
+                        "padding": f"{SPACING['3']} {SPACING['6']}",
+                        "font_weight": "600",
+                        "transition": ANIMATIONS["presets"]["crystal_hover"],
+                        "cursor": "pointer",
+                        "_hover": {
+                            "background": COLORS["gray"]["50"],
+                            "transform": "translateY(-2px)",
+                            "box_shadow": SHADOWS["sm"]
+                        }
+                    },
+                    width="100%"
+                ),
+                rx.button(
+                    "Confirmar",
+                    on_click=AppState.ejecutar_accion_confirmacion,
+                    loading=AppState.cargando_operacion_personal,
+                    style={
+                        "background": GRADIENTS["neon_primary"].replace(
+                            COLORS["primary"]["500"],
+                            COLORS["error"]["500"]
+                        ).replace(
+                            COLORS["blue"]["600"],
+                            COLORS["error"]["600"]
+                        ),
+                        "color": "white",
+                        "border": "none",
+                        "border_radius": RADIUS["2xl"],
+                        "padding": f"{SPACING['3']} {SPACING['6']}",
+                        "font_weight": "700",
+                        "cursor": "pointer",
+                        "box_shadow": SHADOWS["glow_primary"].replace(
+                            COLORS["primary"]["500"],
+                            COLORS["error"]["500"]
+                        ),
+                        "transition": ANIMATIONS["presets"]["crystal_hover"],
+                        "_hover": {
+                            "transform": "translateY(-2px) scale(1.02)",
+                            "box_shadow": f"0 0 30px {COLORS['error']['500']}50, 0 8px 16px {COLORS['error']['500']}30"
+                        }
+                    },
+                    width="100%"
+                ),
+                spacing="3",
+                width="100%"
+            ),
+
+            style={
+                "max_width": "480px",
+                "padding": SPACING["8"],
+                "border_radius": RADIUS["3xl"],
+                "background": f"linear-gradient(135deg, white 0%, {COLORS['gray']['50']} 100%)",
+                "box_shadow": SHADOWS["crystal_xl"],
+                "border": f"1px solid {COLORS['error']['200']}40",
+            }
+        ),
+        open=AppState.modal_confirmacion_abierto,
+        on_open_change=AppState.cerrar_todos_los_modales
+    )
 
 # ==========================================
 # BREADCRUMBS MÉDICOS

@@ -26,7 +26,8 @@ from dental_system.models import (
     ServicioStatsModel,
     CategoriaServicioModel,
     EstadisticaCategoriaModel,
-    ServicioFormModel
+    ServicioFormModel,
+    CondicionCatalogoModel  # V3.0: Catálogo de condiciones dentales
 )
 
 logger = logging.getLogger(__name__)
@@ -95,7 +96,16 @@ class EstadoServicios(rx.State,mixin=True):
         "Diagnóstico",
         "Consulta"
     ]
-    
+
+    # ==========================================
+    # 🦷 CATÁLOGO DE CONDICIONES V3.0
+    # ==========================================
+
+    # Catálogo cargado desde BD (catalogo_condiciones table)
+    catalogo_condiciones: List[CondicionCatalogoModel] = []
+    condiciones_cargadas: bool = False
+    cargando_catalogo_condiciones: bool = False
+
     # Filtros por categoría
     filtro_categoria: str = "todas"
     filtro_estado_servicio: str = "activos"  # todos, activos, inactivos
@@ -153,6 +163,25 @@ class EstadoServicios(rx.State,mixin=True):
         return ["todas"] + self.categorias_servicios
 
     @rx.var(cache=True)
+    def opciones_condiciones_display(self) -> List[Dict[str, str]]:
+        """
+        🦷 V3.0 - Opciones de condiciones dentales para UI
+
+        Returns:
+            Lista de dicts con {value: codigo, label: nombre_display}
+            Incluye opción "preventivo" (sin condición)
+        """
+        opciones = [{"value": "", "label": "🔹 Preventivo (no modifica odontograma)"}]
+
+        for condicion in self.catalogo_condiciones:
+            opciones.append({
+                "value": condicion.codigo,
+                "label": condicion.nombre_display
+            })
+
+        return opciones
+
+    @rx.var(cache=True)
     def servicios_filtrados_display(self) -> List[ServicioModel]:
         """🔍 Servicios filtrados según criterios actuales"""
         servicios = self.lista_servicios
@@ -178,7 +207,7 @@ class EstadoServicios(rx.State,mixin=True):
         precio_max = self.filtro_rango_precio_servicios.get("max", 999999.0)
         servicios = [
             s for s in servicios
-            if precio_min <= s.precio_base_bs <= precio_max
+            if precio_min <= s.precio_base_usd<= precio_max
         ]
         
         return servicios
@@ -250,25 +279,12 @@ class EstadoServicios(rx.State,mixin=True):
                 resultado = [serv for serv in resultado if serv.activo]
             elif self.filtro_estado_servicio == "inactivos":
                 resultado = [serv for serv in resultado if not serv.activo]
-            
-            # Filtro por rango de precio
-            # Aplicar filtro de precio usando la variable correcta
-            precio_min = self.filtro_rango_precio_servicios.get("min", 0.0)
-            precio_max = self.filtro_rango_precio_servicios.get("max", 999999.0)
-            if precio_min > 0 or precio_max < 999999.0:
-                resultado = [s for s in resultado
-                           if precio_min <= (s.precio_base or 0) <= precio_max]
-            
+        
             # Aplicar ordenamiento
             if self.campo_ordenamiento_servicios == "nombre":
                 resultado = sorted(resultado, key=lambda x: x.nombre)
-            elif self.campo_ordenamiento_servicios == "precio":
-                resultado = sorted(resultado, key=lambda x: x.precio_base or 0)
             elif self.campo_ordenamiento_servicios == "categoria":
                 resultado = sorted(resultado, key=lambda x: x.categoria or "")
-            elif self.campo_ordenamiento_servicios == "popularidad":
-                # Ordenar por servicios más usados (requiere estadísticas)
-                resultado = sorted(resultado, key=lambda x: x.veces_usado or 0, reverse=True)
             
             # Aplicar dirección de ordenamiento
             if self.direccion_ordenamiento_servicios == "desc":
@@ -388,22 +404,6 @@ class EstadoServicios(rx.State,mixin=True):
         valor = str(self.formulario_servicio.precio_base_usd) if self.formulario_servicio.precio_base_usd else ""
         return valor
 
-    @rx.var
-    def formulario_precio_bs_value(self) -> str:
-        """📝 Precio BS del formulario de servicio"""
-        if not self.formulario_servicio:
-            return ""
-        valor = str(self.formulario_servicio.precio_base_bs) if self.formulario_servicio.precio_base_bs else ""
-        return valor
-
-    @rx.var
-    def formulario_duracion_value(self) -> str:
-        """📝 Duración del formulario de servicio"""
-        if not self.formulario_servicio:
-            return ""
-        valor = str(self.formulario_servicio.duracion_estimada) if self.formulario_servicio.duracion_estimada else ""
-        return valor
-
     # ==========================================
     # 🔄 MÉTODOS DE CARGA DE DATOS
     # ==========================================
@@ -451,18 +451,60 @@ class EstadoServicios(rx.State,mixin=True):
     async def cargar_estadisticas_servicios(self):
         """Carga estadísticas de servicios con cache"""
         self.cargando_estadisticas_servicios = True
-        
+
         try:
             stats_data = await servicios_service.get_servicios_stats()
             self.estadisticas_servicios = stats_data
             self.ultima_actualizacion_stats_servicios = datetime.now().strftime("%H:%M:%S")
-            
+
             logger.info("✅ Estadísticas de servicios actualizadas")
-            
+
         except Exception as e:
             logger.error(f"❌ Error cargando estadísticas servicios: {e}")
         finally:
             self.cargando_estadisticas_servicios = False
+
+    async def cargar_catalogo_condiciones(self):
+        """
+        🦷 V3.0 - Carga catálogo de condiciones dentales desde BD
+
+        Llamar al iniciar módulo de servicios para tener opciones disponibles
+        en formularios. Se carga una vez y se mantiene en estado.
+        """
+        # Evitar recargas innecesarias
+        if self.condiciones_cargadas:
+            logger.debug("ℹ️ Catálogo de condiciones ya cargado (usando cache)")
+            return
+
+        self.cargando_catalogo_condiciones = True
+
+        try:
+            from dental_system.services.odontologia_service import odontologia_service
+
+            # Establecer contexto de usuario
+            odontologia_service.set_user_context(self.id_usuario, self.perfil_usuario)
+
+            # Cargar catálogo desde BD
+            condiciones_data = await odontologia_service.get_catalogo_condiciones()
+
+            # Convertir a modelos tipados
+            self.catalogo_condiciones = [
+                CondicionCatalogoModel.from_dict(cond) for cond in condiciones_data
+            ]
+
+            self.condiciones_cargadas = True
+
+            logger.info(
+                f"✅ Catálogo de condiciones cargado: {len(self.catalogo_condiciones)} condiciones"
+            )
+
+        except Exception as e:
+            logger.error(f"❌ Error cargando catálogo de condiciones: {e}")
+            self.catalogo_condiciones = []
+            self.condiciones_cargadas = False
+
+        finally:
+            self.cargando_catalogo_condiciones = False
     
     # ==========================================
     # 🔍 MÉTODOS DE BÚSQUEDA Y FILTROS
@@ -512,41 +554,6 @@ class EstadoServicios(rx.State,mixin=True):
             self.campo_ordenamiento_servicios = campo
             self.direccion_ordenamiento_servicios = "asc"
         
-        # Las computed vars se actualizarán automáticamente
-    
-    def _aplicar_filtro_precio(self, servicios: List[ServicioModel], rango: str) -> List[ServicioModel]:
-        """Aplicar filtro de rango de precio"""
-        try:
-            if not servicios:
-                return []
-            
-            # Calcular rangos dinámicos basados en precios existentes
-            precios = [s.precio_base for s in servicios if s.precio_base and s.precio_base > 0]
-            if not precios:
-                return servicios
-            
-            precio_min = min(precios)
-            precio_max = max(precios)
-            
-            # Dividir en 3 rangos
-            rango_size = (precio_max - precio_min) / 3
-            
-            if rango == "bajo":
-                limite = precio_min + rango_size
-                return [s for s in servicios if s.precio_base and s.precio_base <= limite]
-            elif rango == "medio":
-                limite_min = precio_min + rango_size
-                limite_max = precio_min + (2 * rango_size)
-                return [s for s in servicios if s.precio_base and limite_min < s.precio_base <= limite_max]
-            elif rango == "alto":
-                limite = precio_min + (2 * rango_size)
-                return [s for s in servicios if s.precio_base and s.precio_base > limite]
-            
-            return servicios
-            
-        except Exception as e:
-            logger.error(f"Error aplicando filtro precio: {e}")
-            return servicios
     
     # ==========================================
     # ➕ MÉTODOS CRUD DE SERVICIOS
@@ -666,12 +673,18 @@ class EstadoServicios(rx.State,mixin=True):
         if not self.rol_usuario == "gerente":
             self.mostrar_toast("Solo el gerente puede cambiar el estado de servicios", "error")
             return
-        
+
         try:
-            success = await servicios_service.reactivate_service(
-                service_id=servicio_id,
-            )
-            
+            # Llamar al método correcto según el parámetro activar
+            if activar:
+                success = await servicios_service.reactivate_service(
+                    service_id=servicio_id,
+                )
+            else:
+                success = await servicios_service.deactivate_service(
+                    service_id=servicio_id,
+                )
+
             if success:
                 # Actualizar en la lista
                 for i, serv in enumerate(self.lista_servicios):
@@ -782,18 +795,6 @@ class EstadoServicios(rx.State,mixin=True):
     # 🔧 MÉTODOS DE UTILIDAD Y CACHE
     # ==========================================
     
-    def handle_error(self, contexto: str, error: Exception):
-        """Manejar errores de manera centralizada"""
-        logger.error(f"{contexto}: {str(error)}")
-        
-        # Obtener estado UI para mostrar notificaciones
-        try:
-            from dental_system.state.estado_ui import EstadoUI
-            ui_state = self.get_state(EstadoUI)
-            ui_state.mostrar_toast_error(f"Error: {contexto}")
-        except Exception:
-            # Si no se puede acceder al estado UI, solo log
-            pass
     
     def limpiar_cache_servicios(self):
         """Limpiar cache de servicios para forzar recarga"""
@@ -841,12 +842,6 @@ class EstadoServicios(rx.State,mixin=True):
     async def abrir_modal_crear_servicio(self):
         """🆕 Abrir modal para crear nuevo servicio"""
         # Verificar permisos
-        if not self.rol_usuario == "gerente":
-            from dental_system.state.estado_ui import EstadoUI
-            ui_state = self.get_state(EstadoUI)
-            await ui_state.mostrar_toast_error("Solo el gerente puede crear servicios")
-            return
-
         # Limpiar formulario
         self.limpiar_formulario_servicio()
         self.servicio_seleccionado = ServicioModel()
@@ -927,25 +922,6 @@ class EstadoServicios(rx.State,mixin=True):
             )
         except Exception:
             return None
-    
-    def calcular_precio_con_descuento(self, servicio_id: str, descuento_pct: float) -> float:
-        """Calcular precio final con descuento aplicado"""
-        try:
-            servicio = self.obtener_servicio_por_id(servicio_id)
-            if not servicio or not servicio.precio_base:
-                return 0.0
-            
-            descuento = (descuento_pct / 100) * servicio.precio_base
-            precio_final = servicio.precio_base - descuento
-            
-            # Asegurar que no baje del precio mínimo
-            if servicio.precio_minimo and precio_final < servicio.precio_minimo:
-                return servicio.precio_minimo
-            
-            return precio_final
-            
-        except Exception:
-            return 0.0
     
     # ==========================================
     # 🏥 MÉTODOS AUXILIARES PARA APPSTATE

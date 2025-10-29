@@ -16,7 +16,6 @@ MÉTRICAS POR TIPO:
 from typing import Dict, Any, Optional
 from datetime import date, datetime, timedelta
 from .base_service import BaseService
-from .cache_invalidation_hooks import CacheInvalidationHooks
 from dental_system.models import DashboardStatsModel, AdminStatsModel, PacientesStatsModel
 from dental_system.supabase.tablas import (
     pacientes_table, consultas_table, pagos_table, 

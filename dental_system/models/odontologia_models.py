@@ -87,21 +87,23 @@ class OdontogramaModel(rx.Base):
 class DienteModel(rx.Base):
     """🦷 Modelo catálogo FDI completo (32 dientes permanentes)"""
     id: str = ""
-    numero_fdi: int = 0           # ← NUEVO: Numeración FDI estándar (11-48)
-    nombre_diente: str = ""       # ← NUEVO: Nombre completo anatómico
-    cuadrante: int = 0            # ← MEJORADO: 1-4 según FDI
+    numero_fdi: int = 0           # Numeración FDI estándar (11-48)
+    nombre_diente: str = ""       # Nombre completo anatómico
+    cuadrante: int = 0            # 1-4 según FDI
     tipo_diente: str = ""         # incisivo, canino, premolar, molar
-    coordenadas_svg: Dict[str, float] = {}  # ← NUEVO: Posición en odontograma
-    superficies_disponibles: List[str] = [] # ← NUEVO: Superficies anatómicas
-    
+    superficies_disponibles: List[str] = [] # Superficies anatómicas
+
     # Compatibilidad con sistema anterior
     numero_diente: int = 0        # Mantener para backward compatibility
-    numero_diente_pediatrico: Optional[int] = None
+    # ❌ ELIMINADO 2025-10-21: numero_diente_pediatrico (no se usa)
     ubicacion: str = ""           # superior_derecha, superior_izquierda, etc.
     es_temporal: bool = False
     posicion_en_cuadrante: Optional[int] = None
     caras: List[str] = []         # oclusal, mesial, distal, vestibular, lingual
-    descripcion_anatomica: Optional[str] = ""
+    # ❌ ELIMINADO 2025-10-21: descripcion_anatomica (información excesiva)
+    # ❌ ELIMINADO 2025-10-21: coordenadas_svg (frontend calcula posiciones)
+    # ❌ ELIMINADO 2025-10-21: forma_base (no se renderiza)
+    # ❌ ELIMINADO 2025-10-21: imagenes_clinicas (no se usa)
     activo: bool = True
     
     @classmethod
@@ -116,35 +118,25 @@ class DienteModel(rx.Base):
             nombre_diente=str(data.get("nombre_diente", "")),
             cuadrante=int(data.get("cuadrante", 0)),
             tipo_diente=str(data.get("tipo_diente", "")),
-            coordenadas_svg=data.get("coordenadas_svg", {}),
             superficies_disponibles=data.get("superficies_disponibles", []),
             # Compatibilidad backward
             numero_diente=int(data.get("numero_diente", data.get("numero_fdi", 0))),
-            numero_diente_pediatrico=int(data.get("numero_diente_pediatrico")) if data.get("numero_diente_pediatrico") else None,
             ubicacion=str(data.get("ubicacion", "")),
             es_temporal=bool(data.get("es_temporal", False)),
             posicion_en_cuadrante=int(data.get("posicion_en_cuadrante")) if data.get("posicion_en_cuadrante") else None,
             caras=data.get("caras", data.get("superficies_disponibles", [])),
-            descripcion_anatomica=str(data.get("descripcion_anatomica", "") if data.get("descripcion_anatomica") else ""),
             activo=bool(data.get("activo", True))
         )
     
     @property
     def numero_display(self) -> str:
         """🔢 Número FDI formateado"""
-        if self.es_temporal and self.numero_diente_pediatrico:
-            return f"{self.numero_diente_pediatrico} (temp)"
         return str(self.numero_fdi if self.numero_fdi else self.numero_diente)
-    
+
     @property
     def nombre_completo(self) -> str:
         """🦷 Nombre completo con numeración FDI"""
         return f"{self.numero_fdi} - {self.nombre_diente}" if self.nombre_diente else f"Diente {self.numero_fdi}"
-    
-    @property
-    def posicion_svg(self) -> Dict[str, float]:
-        """📍 Coordenadas SVG para renderizado"""
-        return self.coordenadas_svg if self.coordenadas_svg else {"x": 0, "y": 0}
     
     @property
     def tipo_emoji(self) -> str:
@@ -178,10 +170,10 @@ class CondicionDienteModel(rx.Base):
     caras_afectadas: List[str] = []
     severidad: str = "leve"
     descripcion: Optional[str] = ""
-    observaciones: Optional[str] = ""
-    material_utilizado: Optional[str] = ""
-    color_material: Optional[str] = ""
-    fecha_tratamiento: Optional[str] = ""
+    # ❌ ELIMINADO 2025-10-21: observaciones (redundante con descripcion)
+    # ❌ ELIMINADO 2025-10-21: material_utilizado (se registra en intervenciones_servicios)
+    # ❌ ELIMINADO 2025-10-21: color_material (no se usa)
+    # ❌ ELIMINADO 2025-10-21: fecha_tratamiento (redundante con fecha_registro)
     estado: str = "actual"  # planificado, en_tratamiento, actual, historico
     requiere_seguimiento: bool = False
     fecha_registro: str = ""
@@ -189,7 +181,7 @@ class CondicionDienteModel(rx.Base):
     posicion_x: Optional[float] = None
     posicion_y: Optional[float] = None
     color_hex: str = "#FFFFFF"
-    
+
     # Información relacionada
     diente_numero: int = 0
     diente_nombre: str = ""
@@ -211,10 +203,7 @@ class CondicionDienteModel(rx.Base):
             caras_afectadas=data.get("caras_afectadas", []),
             severidad=str(data.get("severidad", "leve")),
             descripcion=str(data.get("descripcion", "") if data.get("descripcion") else ""),
-            observaciones=str(data.get("observaciones", "") if data.get("observaciones") else ""),
-            material_utilizado=str(data.get("material_utilizado", "") if data.get("material_utilizado") else ""),
-            color_material=str(data.get("color_material", "") if data.get("color_material") else ""),
-            fecha_tratamiento=str(data.get("fecha_tratamiento", "") if data.get("fecha_tratamiento") else ""),
+            # Campos eliminados en migración 2025-10-21
             estado=str(data.get("estado", "actual")),
             requiere_seguimiento=bool(data.get("requiere_seguimiento", False)),
             fecha_registro=str(data.get("fecha_registro", "")),
@@ -734,3 +723,193 @@ class HistorialMedicoModel(rx.Base):
     def total_archivos(self) -> int:
         """Total de archivos adjuntos"""
         return len(self.imagenes_url) + len(self.documentos_url)
+
+
+class HistorialServicioModel(rx.Base):
+    """
+    🆕 Modelo para historial de servicios del paciente (2025-10-16)
+
+    Usado en: patient_history_section para mostrar servicios previos
+    """
+    id: str = ""
+    fecha: str = ""
+    odontologo_nombre: str = ""
+    especialidad: str = ""
+    diente_numero: Optional[int] = None
+    diente_nombre: str = ""
+    superficies: List[str] = []
+    superficies_texto: str = ""
+    alcance: str = ""
+    servicio_nombre: str = ""
+    servicio_categoria: str = ""
+    condicion_aplicada: Optional[str] = None
+    material_utilizado: Optional[str] = None
+    observaciones: str = ""
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "HistorialServicioModel":
+        """Crear instancia desde diccionario"""
+        if not data or not isinstance(data, dict):
+            return cls()
+
+        return cls(
+            id=str(data.get("id", "")),
+            fecha=str(data.get("fecha", "")),
+            odontologo_nombre=str(data.get("odontologo_nombre", "")),
+            especialidad=str(data.get("especialidad", "")),
+            diente_numero=data.get("diente_numero"),
+            diente_nombre=str(data.get("diente_nombre", "")),
+            superficies=data.get("superficies", []),
+            superficies_texto=str(data.get("superficies_texto", "")),
+            alcance=str(data.get("alcance", "")),
+            servicio_nombre=str(data.get("servicio_nombre", "")),
+            servicio_categoria=str(data.get("servicio_categoria", "")),
+            condicion_aplicada=data.get("condicion_aplicada"),
+            material_utilizado=data.get("material_utilizado"),
+            observaciones=str(data.get("observaciones", ""))
+        )
+
+
+class CondicionCatalogoModel(rx.Base):
+    """
+    📚 Catálogo de condiciones dentales disponibles (V3.0)
+
+    Este modelo representa las condiciones predefinidas del sistema que
+    pueden resultar de aplicar servicios odontológicos.
+
+    Usado en:
+    - Tabla catalogo_condiciones (BD)
+    - Selector de condiciones en formulario de servicios
+    - Resolución de conflictos por prioridad
+    """
+
+    # Identificador y nombre
+    codigo: str = ""  # PK: código único (ej: "obturacion", "ausente")
+    nombre: str = ""  # Nombre legible (ej: "Obturación", "Ausente")
+    descripcion: str = ""
+
+    # Categorización
+    categoria: str = ""  # normal, patologia, restauracion, protesis, ausencia
+
+    # Visualización
+    color_hex: str = "#FFFFFF"  # Color para representar en odontograma
+    icono_emoji: str = "🦷"  # Emoji para UI
+
+    # Reglas de negocio
+    prioridad: int = 1  # 1-10: prioridad para resolver conflictos (10=máxima)
+    es_estado_final: bool = False  # True si es irreversible (ej: "ausente")
+    permite_reversion: bool = True  # Permite cambiar a otra condición
+
+    # Control
+    activo: bool = True
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "CondicionCatalogoModel":
+        """Crear instancia desde diccionario de Supabase"""
+        if not data or not isinstance(data, dict):
+            return cls()
+
+        return cls(
+            codigo=str(data.get("codigo", "")),
+            nombre=str(data.get("nombre", "")),
+            descripcion=str(data.get("descripcion", "")),
+            categoria=str(data.get("categoria", "")),
+            color_hex=str(data.get("color_hex", "#FFFFFF")),
+            icono_emoji=str(data.get("icono_emoji", "🦷")),
+            prioridad=int(data.get("prioridad", 1)),
+            es_estado_final=bool(data.get("es_estado_final", False)),
+            permite_reversion=bool(data.get("permite_reversion", True)),
+            activo=bool(data.get("activo", True))
+        )
+
+    @property
+    def nombre_display(self) -> str:
+        """Nombre formateado con emoji para UI"""
+        return f"{self.icono_emoji} {self.nombre}"
+
+    @property
+    def categoria_display(self) -> str:
+        """Categoría formateada"""
+        categorias_map = {
+            "normal": "✅ Normal",
+            "patologia": "🦠 Patología",
+            "restauracion": "🔧 Restauración",
+            "protesis": "👑 Prótesis",
+            "ausencia": "❌ Ausencia"
+        }
+        return categorias_map.get(self.categoria, self.categoria.title())
+
+    @property
+    def prioridad_display(self) -> str:
+        """Prioridad formateada con indicador visual"""
+        if self.prioridad >= 9:
+            return f"🔴 Crítica ({self.prioridad})"
+        elif self.prioridad >= 6:
+            return f"🟡 Alta ({self.prioridad})"
+        elif self.prioridad >= 3:
+            return f"🟢 Media ({self.prioridad})"
+        else:
+            return f"⚪ Baja ({self.prioridad})"
+
+
+class ActualizacionOdontogramaResult(rx.Base):
+    """
+    📊 Resultado de actualización batch del odontograma (V3.0)
+
+    Modelo que encapsula el resultado de actualizar múltiples
+    condiciones dentales en una sola operación transaccional.
+
+    Usado en:
+    - Retorno de _actualizar_odontograma_por_servicios()
+    - Validación de éxito/fallos de actualizaciones
+    - Logging y debugging de operaciones batch
+    """
+
+    # Contadores
+    exitosos: int = 0  # Número de actualizaciones exitosas
+    fallidos: int = 0  # Número de actualizaciones fallidas
+
+    # Detalles
+    advertencias: List[str] = []  # Advertencias durante el proceso
+    ids_creados: List[str] = []  # IDs de las nuevas condiciones creadas
+
+    @property
+    def total(self) -> int:
+        """Total de actualizaciones intentadas"""
+        return self.exitosos + self.fallidos
+
+    @property
+    def porcentaje_exito(self) -> float:
+        """Porcentaje de actualizaciones exitosas"""
+        if self.total == 0:
+            return 0.0
+        return (self.exitosos / self.total) * 100.0
+
+    @property
+    def tuvo_errores(self) -> bool:
+        """¿Hubo errores durante la actualización?"""
+        return self.fallidos > 0
+
+    @property
+    def resultado_display(self) -> str:
+        """Resumen formateado del resultado"""
+        if self.total == 0:
+            return "⚪ Sin actualizaciones"
+
+        if not self.tuvo_errores:
+            return f"✅ {self.exitosos} actualizaciones exitosas"
+
+        return f"⚠️ {self.exitosos} exitosas, {self.fallidos} fallidas ({self.porcentaje_exito:.1f}% éxito)"
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ActualizacionOdontogramaResult":
+        """Crear instancia desde resultado de BD"""
+        if not data or not isinstance(data, dict):
+            return cls()
+
+        return cls(
+            exitosos=int(data.get("exitosos", 0)),
+            fallidos=int(data.get("fallidos", 0)),
+            advertencias=data.get("advertencias", []),
+            ids_creados=[str(id) for id in data.get("ids_creados", [])]
+        )

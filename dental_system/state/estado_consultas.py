@@ -15,8 +15,8 @@ PATRÓN: Substate con get_estado_consultas() en AppState
 """
 
 import reflex as rx
-from datetime import date, datetime, time
-from typing import Dict, Any, List, Optional, Union
+from datetime import date, datetime
+from typing import Dict, Any, List, Optional
 import logging
 
 # Servicios y modelos
@@ -25,12 +25,8 @@ from dental_system.models import (
     ConsultaModel,
     TurnoModel, 
     ConsultasStatsModel,
-    MotivosConsultaModel,
     PacienteModel,
-    PersonalModel,
     ConsultaFormModel,
-    ConsultaFinalizacionModel,
-    ConsultaResumenModel
 )
 
 logger = logging.getLogger(__name__)
@@ -70,7 +66,6 @@ class EstadoConsultas(rx.State,mixin=True):
     errores_validacion_consulta: Dict[str, List[str]] = {}
 
     # Variables auxiliares
-    consulta_para_eliminar: Optional[ConsultaModel] = None
     cargando_lista_consultas: bool = False
     termino_busqueda_pacientes_modal: str = ""
 
@@ -81,12 +76,9 @@ class EstadoConsultas(rx.State,mixin=True):
     formulario_activo: bool = False
 
     # Variables del modal (consolidadas)
-    consulta_form_odontologo_id: str = ""
     consulta_form_busqueda_paciente: str = ""
     consulta_form_paciente_seleccionado: PacienteModel = PacienteModel()
-    consulta_form_tipo_consulta: str = "general"
     consulta_form_prioridad: str = "normal"
-    consulta_form_motivo: str = ""
     cargando_crear_consulta: bool = False
     
     # ==========================================
@@ -100,7 +92,11 @@ class EstadoConsultas(rx.State,mixin=True):
     # Estados de atención
     consulta_en_curso: Optional[ConsultaModel] = None
     id_consulta_en_curso: str = ""
-    
+
+    # 🛡️ Protección anti-doble-clic para finalizar consulta
+    finalizando_consulta: bool = False
+    consulta_siendo_finalizada: str = ""  # ID de la consulta que se está finalizando
+
     # Métricas de turnos
     siguiente_numero_turno: int = 1
     total_turnos_dia: int = 0
@@ -119,23 +115,12 @@ class EstadoConsultas(rx.State,mixin=True):
     # Filtros de estado
     filtro_estado_consultas: str = "todas"  # todas, programada, en_curso, completada, cancelada
     filtro_tipo_consulta: str = "todas"    # todas, primera_vez, control, emergencia, tratamiento
-    
-    # Filtros por personal
-    filtro_odontologo_consultas: str = ""
-    solo_mis_consultas: bool = False  # Para odontólogos
-    
-    # ✅ NUEVOS FILTROS DE VISTA PARA DASHBOARD
-    filtro_vista_dashboard: str = "todos"  # todos/urgentes/en_espera/atrasados
-    
+
     # Búsqueda avanzada
     termino_busqueda_consultas: str = ""
     buscar_por_paciente: str = ""
     buscar_por_diagnostico: str = ""
-    
-    # Variables adicionales para UI
-    pacientes_search_modal: str = ""
-    
-    
+   
     # Variables de mensajes
     success_message: str = ""
     error_message: str = ""
@@ -178,58 +163,7 @@ class EstadoConsultas(rx.State,mixin=True):
     cargando_estadisticas_consultas: bool = False
     actualizando_estado_consulta: bool = False
     
-    # ==========================================
-    # 📅 COMPUTED VARS PARA UI (SIN ASYNC)
-    # ==========================================
-    
-    @rx.var(cache=True)
-    def consultas_filtradas(self) -> List[ConsultaModel]:
-        """🔍 Consultas filtradas según criterios actuales"""
-        consultas = self.lista_consultas
-        
-        # Filtrar por búsqueda
-        if self.termino_busqueda_consultas:
-            consultas = [
-                c for c in consultas 
-                if (self.termino_busqueda_consultas.lower() in c.prioridad.lower())
-            ]
-        
-        # Filtrar por estado
-        if self.filtro_estado_consultas != "todas":
-            consultas = [c for c in consultas if c.estado == self.filtro_estado_consultas]
-        
-        # Filtrar por odontólogo - ESQUEMA v4.1
-        if self.filtro_odontologo_consultas:
-            consultas = [c for c in consultas if c.primer_odontologo_id == self.filtro_odontologo_consultas]
-        
-        return consultas
-    
-    @rx.var(cache=True)
-    def consultas_ordenadas_por_prioridad(self) -> List[ConsultaModel]:
-        """🚨 CONSULTAS ORDENADAS POR PRIORIDAD Y ORDEN DE LLEGADA"""
-        # Definir orden de prioridades
-        orden_prioridad = {"urgente": 0, "alta": 1, "normal": 2, "baja": 3}
-        
-        # Ordenar consultas por: 1) prioridad, 2) orden de llegada
-        consultas_ordenadas = sorted(
-            self.consultas_filtradas,
-            key=lambda c: (
-                orden_prioridad.get(c.prioridad or "normal", 2),  # Por prioridad primero
-                c.orden_llegada_general or 999  # Luego por orden de llegada
-            )
-        )
-        
-        return consultas_ordenadas
-    
-    # REMOVIDO: consultas_organizadas - Causaba UntypedVarError por estructura Dict compleja
-    # Se usan computed vars específicas tipadas en su lugar
-    
-    
-    
-
-    # REMOVIDO: estadisticas_completas - Causaba UntypedVarError por dependencias complejas
-    # Se usan computed vars específicas tipadas en su lugar
-
+ 
     # ==========================================
     # 📊 COMPUTED VARS ESPECÍFICAS PARA UI (TIPADAS)
     # ==========================================
@@ -250,9 +184,9 @@ class EstadoConsultas(rx.State,mixin=True):
         return len([c for c in self.lista_consultas if c.estado == "en_atencion"])
 
     @rx.var(cache=True)
-    def total_urgentes_dashboard(self) -> int:
-        """🚨 Total urgentes para dashboard"""
-        return len([c for c in self.lista_consultas if c.prioridad == "urgente"])
+    def total_canceladas_dashboard(self) -> int:
+        """🚨 Total canceladas para dashboard"""
+        return len([c for c in self.lista_consultas if c.prioridad == "canceladas"])
 
     @rx.var(cache=True)
     def total_completadas_dashboard(self) -> int:
@@ -270,35 +204,25 @@ class EstadoConsultas(rx.State,mixin=True):
         return len(set(c.primer_odontologo_id for c in self.lista_consultas if c.primer_odontologo_id))
 
     @rx.var(cache=True)
-    def consultas_por_odontologo(self) -> Dict[str, int]:
-        """👨‍⚕️ Total de consultas por odontólogo"""
-        conteo = {}
-        for consulta in self.lista_consultas:
-            doctor_id = consulta.primer_odontologo_id
-            if doctor_id:
-                conteo[doctor_id] = conteo.get(doctor_id, 0) + 1
-        return conteo
-
-    @rx.var(cache=True)
-    def urgentes_por_odontologo(self) -> Dict[str, int]:
-        """🚨 Consultas urgentes por odontólogo"""
-        conteo = {}
-        for consulta in self.lista_consultas:
-            if consulta.prioridad == "urgente" and consulta.primer_odontologo_id:
-                doctor_id = consulta.primer_odontologo_id
-                conteo[doctor_id] = conteo.get(doctor_id, 0) + 1
-        return conteo
-
-    @rx.var(cache=True)
     def consultas_por_odontologo_dict(self) -> Dict[str, List[ConsultaModel]]:
-        """📊 Diccionario con consultas agrupadas por odontólogo"""
+        """📊 Diccionario con consultas agrupadas por odontólogo ORDENADAS por orden_cola_odontologo"""
         resultado = {}
-        for consulta in self.lista_consultas:
-            if consulta.primer_odontologo_id and consulta.estado in ["en_espera", "en_atencion"]:
+        # ✅ Usar consultas_hoy (todas las del día) en vez de lista_consultas (filtrada)
+        for consulta in self.consultas_hoy:
+            # ✅ CORREGIDO: Incluir "entre_odontologos" para que Gerente/Admin puedan finalizar
+            if consulta.primer_odontologo_id and consulta.estado in ["en_espera", "en_atencion", "entre_odontologos"]:
                 doctor_id = consulta.primer_odontologo_id
                 if doctor_id not in resultado:
                     resultado[doctor_id] = []
                 resultado[doctor_id].append(consulta)
+
+        # ✅ ORDENAR cada lista por orden_cola_odontologo (CRÍTICO para UI)
+        for doctor_id in resultado:
+            resultado[doctor_id] = sorted(
+                resultado[doctor_id],
+                key=lambda c: c.orden_cola_odontologo if c.orden_cola_odontologo else 9999
+            )
+
         return resultado
 
     @rx.var(cache=True)
@@ -321,19 +245,6 @@ class EstadoConsultas(rx.State,mixin=True):
     # ==========================================
     # 🛠️ MÉTODOS HELPER RESTAURADOS
     # ==========================================
-
-    def _invalidar_cache_consultas(self):
-        """🔄 Invalidar cache de consultas (método helper)"""
-        # En el nuevo sistema con computed vars, la invalidación es automática
-        # Este método se mantiene para compatibilidad
-        logger.info("💾 Cache invalidado automáticamente por computed vars")
-
-    @rx.event
-    def cerrar_modal_transferir_paciente(self):
-        """❌ Cerrar modal de transferir paciente"""
-        logger.info("❌ Cerrando modal transferir paciente")
-        # Usar el sistema unificado de modales
-        self.gestionar_modal_operacion("cerrar_transferencia")
 
     @rx.event
     def abrir_modal_nueva_consulta(self):
@@ -391,15 +302,6 @@ class EstadoConsultas(rx.State,mixin=True):
                 resultado = await consultas_service.create_consultation(datos)
                 mensaje_exito = "Consulta creada exitosamente"
 
-            elif accion == "actualizar":
-                # CORREGIDO: update_consultation requiere ConsultaFormModel, no dict
-                if not datos:
-                    datos_form = self.formulario_consulta_data
-                else:
-                    datos_form = ConsultaFormModel.from_dict(datos) if isinstance(datos, dict) else datos
-                resultado = await consultas_service.update_consultation(consulta_id, datos_form)
-                mensaje_exito = "Consulta actualizada"
-
             elif accion == "cancelar":
                 # Método correcto existe: cancel_consultation
                 motivo = datos.get("motivo", "Consulta cancelada") if datos else "Cancelada"
@@ -416,17 +318,6 @@ class EstadoConsultas(rx.State,mixin=True):
                 else:
                     resultado = None
                 mensaje_exito = f"Estado actualizado: {nuevo_estado}"
-
-            elif accion == "transferir":
-                # CORREGIDO: usar change_consultation_dentist (no transferir_consulta)
-                nuevo_odontologo = datos["nuevo_odontologo_id"]
-                motivo = datos.get("motivo", "Transferido")
-                exito = await consultas_service.change_consultation_dentist(consulta_id, nuevo_odontologo, motivo)
-                if exito:
-                    resultado = await consultas_service.get_consultation_by_id(consulta_id)
-                else:
-                    resultado = None
-                mensaje_exito = "Paciente transferido exitosamente"
 
             # Procesar resultado
             if resultado:
@@ -447,20 +338,19 @@ class EstadoConsultas(rx.State,mixin=True):
                     self.mostrar_toast(mensaje_exito, "success")
 
                 logger.info(f"✅ {mensaje_exito} - ID: {consulta_id}")
-                return {"exito": True, "mensaje": mensaje_exito, "datos": resultado}
+
             else:
                 error_msg = f"Error ejecutando {accion}"
                 if hasattr(self, 'mostrar_toast'):
                     self.mostrar_toast(error_msg, "error")
-                logger.error(f"❌ {error_msg}")
-                return {"exito": False, "mensaje": error_msg}
+                logger.error(f"❌ {error_msg}")      
 
         except Exception as e:
             error_msg = f"Error en {accion}: {str(e)}"
             logger.error(f"❌ {error_msg}")
             if hasattr(self, 'mostrar_toast'):
                 self.mostrar_toast(error_msg, "error")
-            return {"exito": False, "mensaje": error_msg, "excepcion": str(e)}
+
 
     # ==========================================
     # 📅 MÉTODOS CRUD ORIGINALES (LEGACY)
@@ -481,10 +371,10 @@ class EstadoConsultas(rx.State,mixin=True):
         clave_cache = f"consultas_{odontologo_id or 'todas'}"
         resultado_cache = self.cache_inteligente("get", "consultas")
 
-        if not forzar_refresco and resultado_cache["valido"]:
-            self.lista_consultas = resultado_cache["datos"]
-            print(f"✅ Usando cache de consultas válido (hace {resultado_cache.get('timestamp', 'N/A')})")
-            return
+        # if not forzar_refresco and resultado_cache["valido"]:
+        #     self.lista_consultas = resultado_cache["datos"]
+        #     print(f"✅ Usando cache de consultas válido (hace {resultado_cache.get('timestamp', 'N/A')})")
+        #     return
         
         self.cargando_consultas = True
         
@@ -536,94 +426,6 @@ class EstadoConsultas(rx.State,mixin=True):
         datos = datos_formulario.to_dict() if datos_formulario else None
         return await self.operacion_consulta_master("crear", datos=datos)
 
-    @rx.event
-    async def crear_consulta_original(self, datos_formulario: Optional[ConsultaFormModel] = None):
-        """
-        ➕ CREAR NUEVA CONSULTA (REGISTRO POR ORDEN DE LLEGADA) - ESQUEMA v4.1
-        
-        Args:
-            datos_formulario: Modelo de formulario tipado (opcional, usa formulario_consulta_data por defecto)
-        """
-        print("➕ Creando nueva consulta por orden de llegada...")
-        
-        self.cargando_turnos = True
-        self.errores_validacion_consulta = {}
-        
-        try:
-            # Validar sesión usando mixin directo
-            if not self.esta_autenticado:
-                raise ValueError("Sesión no válida para crear consulta")
-            
-            # ✅ ESTABLECER CONTEXTO DE USUARIO PARA EL SERVICIO
-            consultas_service.set_user_context(self.id_usuario, self.perfil_usuario)
-            
-            # Usar formulario tipado si no se proporciona datos
-            if datos_formulario is None:
-                # Validar formulario tipado
-                errores = self.formulario_consulta_data.validate_form()
-                if errores:
-                    self.errores_validacion_consulta = errores
-                    if hasattr(self, 'mostrar_toast'):
-                        errores_texto = ", ".join([f"{campo}: {msgs}" for campo, msgs in errores.items()])
-                        self.mostrar_toast(f"Complete los campos obligatorios: {errores_texto}", "error")
-                    return
-
-                # Convertir a dict para compatibilidad con servicio
-                datos_formulario = self.formulario_consulta_data.to_dict()
-            else:
-                # Validar datos Dict legacy
-                errores = self._validar_formulario_consulta_legacy(datos_formulario)
-                if errores:
-                    self.errores_validacion_consulta = {"general": [errores]}
-                    return
-            
-            # Asignar número de turno automáticamente - ESQUEMA v4.1
-            numero_turno = self._obtener_siguiente_numero_turno(
-                datos_formulario.get("primer_odontologo_id", "") or datos_formulario.get("odontologo_id", "")
-            )
-            datos_formulario["orden_llegada_general"] = numero_turno
-            datos_formulario["orden_cola_odontologo"] = numero_turno
-            datos_formulario["estado"] = "en_espera"  # Estado inicial según esquema v4.1
-            
-            # Crear consulta usando el servicio
-            consulta_nueva = await consultas_service.create_consultation(
-                datos_formulario,
-                self.id_usuario
-                
-            )
-            
-            # En lugar de actualizar listas locales, recargar desde BD con JOINs correctos
-            await self.cargar_consultas_hoy()  # Esto trae los nombres de pacientes
-            
-            # Actualizar sistema de turnos
-            self._actualizar_turnos_por_odontologo()
-            
-            # Invalidar cache
-            self._invalidar_cache_consultas()
-            
-            # REMOVED - [2025-01-04] - Referencias a last_update eliminadas
-            # import time
-            # self.last_update = time.time()
-            
-            # Mostrar feedback de éxito usando mixin directo
-            if hasattr(self, 'mostrar_toast'):
-                self.mostrar_toast(
-                    f"Consulta creada - Turno #{numero_turno}",
-                    "success"
-                )
-            
-            print(f"✅ Consulta creada con turno #{numero_turno}")
-            return consulta_nueva
-            
-        except Exception as e:
-            print("error en la funcion de crear consulta")
-            error_msg = f"Error creando consulta: {str(e)}"
-            self.errores_validacion_consulta["general"] = error_msg
-            logger.error(error_msg)
-            print(f"❌ {error_msg}")
-            
-        finally:
-            self.cargando_turnos = False
     
     @rx.event
     async def iniciar_atencion_consulta(self, id_consulta: str, estado_objetivo: str = "en_curso"):
@@ -648,7 +450,6 @@ class EstadoConsultas(rx.State,mixin=True):
             if self._odontologo_tiene_consulta_en_curso(odontologo_id):
                 raise ValueError("El odontólogo ya tiene una consulta en curso")
 
-            # Crear modelo tipado desde diccionario
             # Establecer contexto de usuario en el servicio
             consultas_service.set_user_context(
                 user_id=self.id_usuario,
@@ -670,7 +471,7 @@ class EstadoConsultas(rx.State,mixin=True):
             
             # Actualizar listas locales
             self._actualizar_consulta_en_listas(id_consulta, consulta_actualizada)
-            
+            await self.cargar_consultas_hoy(forzar_refresco=True)
             # Establecer como consulta en curso
             self.consulta_en_curso = consulta_actualizada
             self.id_consulta_en_curso = id_consulta
@@ -688,117 +489,7 @@ class EstadoConsultas(rx.State,mixin=True):
         finally:
             self.actualizando_estado_consulta = False
     
-    @rx.event
-    async def completar_consulta(self, id_consulta: str, datos_finalizacion: ConsultaFinalizacionModel):
-        """
-        ✅ COMPLETAR CONSULTA Y REGISTRAR RESULTADOS
-        
-        Args:
-            id_consulta: ID de la consulta a completar
-            datos_finalizacion: Modelo tipado con datos de finalización
-        """
-        print(f"✅ Completando consulta {id_consulta}...")
-        
-        self.actualizando_estado_consulta = True
-        
-        try:
-            # Validar datos de finalización usando el modelo tipado
-            errores_validacion = datos_finalizacion.validate_finalizacion()
-            if errores_validacion:
-                logger.error(f"Errores de validación en finalización: {errores_validacion}")
-                return
-            
-            # Preparar datos de finalización desde modelo tipado
-            datos_actualizacion = {
-                **datos_finalizacion.to_dict(),
-                "estado": "completada",
-                "hora_fin": datetime.now().time().isoformat(),
-                "fecha_llegada": datetime.now().isoformat()
-            }
-            
-            # Establecer contexto de usuario en el servicio
-            consultas_service.set_user_context(
-                user_id=self.id_usuario,
-                user_profile=self.perfil_usuario
-            )
-            
-            # Actualizar consulta usando el servicio
-            consulta_completada = await consultas_service.update_consultation(
-                id_consulta,
-                datos_actualizacion
-            )
-            
-            # Actualizar listas locales
-            self._actualizar_consulta_en_listas(id_consulta, consulta_completada)
-            
-            # Limpiar consulta en curso si era esta
-            if self.id_consulta_en_curso == id_consulta:
-                self.consulta_en_curso = None
-                self.id_consulta_en_curso = ""
-            
-            # Actualizar métricas
-            self.total_completadas_hoy += 1
-            self._actualizar_metricas_dia()
-            
-            # Actualizar sistema de turnos
-            self._actualizar_turnos_por_odontologo()
-            
-            print(f"✅ Consulta {id_consulta} completada correctamente")
-            
-        except Exception as e:
-            error_msg = f"Error completando consulta: {str(e)}"
-            logger.error(error_msg)
-            print(f"❌ {error_msg}")
-            
-        finally:
-            self.actualizando_estado_consulta = False
-    
-    @rx.event
-    async def cancelar_consulta(self, id_consulta: str, motivo_cancelacion: str):
-        """
-        ❌ CANCELAR CONSULTA CON MOTIVO
-        
-        Args:
-            id_consulta: ID de la consulta a cancelar
-            motivo_cancelacion: Motivo de la cancelación
-        """
-        print(f"❌ Cancelando consulta {id_consulta}...")
-        
-        self.actualizando_estado_consulta = True
-        
-        try:
-            # Usar método directo de la tabla para cambiar solo el estado
-            from dental_system.supabase.tablas.consultas import consultas_table
-            
-            consulta_cancelada_dict = consultas_table.update_status(
-                id_consulta, 
-                "cancelada", 
-                f"Cancelada: {motivo_cancelacion}"
-            )
-            
-            # Convertir a modelo si el resultado existe
-            consulta_cancelada = None
-            if consulta_cancelada_dict:
-                from dental_system.models.consultas_models import ConsultaModel
-                consulta_cancelada = ConsultaModel.from_dict(consulta_cancelada_dict)
-            
-            # Recargar las consultas desde la base de datos para mostrar cambios
-            await self.cargar_lista_consultas()
-            
-            # Limpiar consulta en curso si era esta
-            if self.id_consulta_en_curso == id_consulta:
-                self.consulta_en_curso = None
-                self.id_consulta_en_curso = ""
-            
-            print(f"✅ Consulta {id_consulta} cancelada: {motivo_cancelacion}")
-            
-        except Exception as e:
-            error_msg = f"Error cancelando consulta: {str(e)}"
-            logger.error(error_msg)
-            print(f"❌ {error_msg}")
-            
-        finally:
-            self.actualizando_estado_consulta = False
+   
     
     # ==========================================
     # 📅 SISTEMA DE TURNOS Y COLA DE ESPERA
@@ -887,67 +578,7 @@ class EstadoConsultas(rx.State,mixin=True):
                 return True
         return False
     
-    # ==========================================
-    # 📅 BÚSQUEDAS Y FILTROS
-    # ==========================================
     
-    @rx.event
-    async def buscar_consultas(self, termino: str):
-        """
-        🔍 BÚSQUEDA PRINCIPAL DE CONSULTAS
-        
-        Args:
-            termino: Término de búsqueda
-        """
-        self.termino_busqueda_consultas = termino.strip()
-        print(f"🔍 Búsqueda de consultas: '{self.termino_busqueda_consultas}'")
-        
-        # Aplicar filtros con búsqueda
-        await self._aplicar_filtros_internos()
-    
-    @rx.event
-    async def aplicar_filtros_consultas(self, filtros: Dict[str, Any]):
-        """
-        🎛️ APLICAR FILTROS AVANZADOS DE CONSULTAS
-        
-        Args:
-            filtros: Diccionario con filtros a aplicar
-        """
-        self.filtro_estado_consulta = filtros.get("estado", "todas")
-        self.filtro_tipo_consulta = filtros.get("tipo", "todas")
-        self.filtro_odontologo_id = filtros.get("odontologo_id", "")
-        self.fecha_consulta_filtro = filtros.get("fecha", date.today().isoformat())
-        
-        print(f"🎛️ Filtros de consultas aplicados: {filtros}")
-        
-        await self._aplicar_filtros_internos()
-    
-    
-    @rx.event
-    def limpiar_filtros_consultas(self):
-        """🧹 LIMPIAR TODOS LOS FILTROS DE CONSULTAS"""
-        self.termino_busqueda_consultas = ""
-        self.filtro_estado_consulta = "todas"
-        self.filtro_tipo_consulta = "todas"
-        self.filtro_odontologo_id = ""
-        self.fecha_consulta_filtro = date.today().isoformat()
-        self.buscar_por_paciente = ""
-        self.buscar_por_diagnostico = ""
-        
-        print("🧹 Filtros de consultas limpiados")
-    
-    # ==========================================
-    # 📅 COMPUTED VARS CON CACHE
-    # ==========================================
-
-    
-
-    
-    
-    
-    
-    
-
     # ==========================================
     # 📊 COMPUTED VARS PARA DASHBOARD AVANZADO
     # ==========================================
@@ -977,104 +608,6 @@ class EstadoConsultas(rx.State,mixin=True):
                 "completadas": 0, "dentistas_activos": 0, "tiempo_promedio": 0.0, "capacidad_usada": 0.0
             }
     
-    @rx.var(cache=True)
-    def alertas_sistema(self) -> List[Dict[str, str]]:
-        """🚨 Alertas contextuales inteligentes para el sistema"""
-        alertas = []
-        
-        try:
-            stats = self.estadisticas_globales_tiempo_real
-            urgentes = stats["urgentes"]
-            total = stats["total_pacientes"]
-            tiempo_promedio = stats["tiempo_promedio"]
-            
-            # Alerta por muchos urgentes
-            if urgentes >= 5:
-                alertas.append({
-                    "tipo": "warning", 
-                    "mensaje": f"⚠️ {urgentes} pacientes con prioridad urgente"
-                })
-            
-            # Alerta por alta capacidad
-            if total > 40:
-                alertas.append({
-                    "tipo": "danger", 
-                    "mensaje": f"🚨 Capacidad alta: {total} pacientes (>80%)"
-                })
-            
-            # Alerta por tiempo de espera alto
-            if tiempo_promedio > 90:  # Más de 1.5 horas
-                alertas.append({
-                    "tipo": "warning", 
-                    "mensaje": f"⏱️ Tiempo promedio alto: {tiempo_promedio:.0f} minutos"
-                })
-                
-            return alertas
-            
-        except Exception:
-            return []
-    
-    @rx.var(cache=True)
-    def consultas_filtradas_por_vista(self) -> List[ConsultaModel]:
-        """🔍 Consultas filtradas según vista seleccionada en dashboard"""
-        try:
-            if self.filtro_vista_dashboard == "urgentes":
-                return [c for c in self.consultas_hoy if c.prioridad == "urgente"]
-            elif self.filtro_vista_dashboard == "en_espera":
-                return [c for c in self.consultas_hoy if c.estado == "en_espera"]
-            elif self.filtro_vista_dashboard == "atrasados":
-                # Pacientes esperando más de 60 minutos
-                return [
-                    c for c in self.consultas_hoy 
-                    if c.estado == "en_espera" and self._calcular_tiempo_espera_consulta(c) > 60
-                ]
-            else:  # "todos"
-                return self.consultas_hoy
-        except Exception:
-            return self.consultas_hoy
-    
-    @rx.var(cache=True)
-    def metricas_para_graficos(self) -> Dict[str, List[Dict[str, Any]]]:
-        """📈 Métricas procesadas para gráficos de analytics"""
-        try:
-            # Datos para gráfico de tiempos de espera por hora
-            tiempos_por_hora = []
-            for hora in range(8, 18):  # 8 AM a 6 PM
-                consultas_hora = [
-                    c for c in self.consultas_hoy 
-                    if c.fecha_llegada and f"{hora:02d}:" in c.fecha_llegada
-                ]
-                tiempo_promedio = sum(
-                    self._calcular_tiempo_espera_consulta(c) for c in consultas_hora
-                ) / len(consultas_hora) if consultas_hora else 0
-                
-                tiempos_por_hora.append({
-                    "hora": f"{hora}:00",
-                    "tiempo_promedio": round(tiempo_promedio, 1),
-                    "cantidad": len(consultas_hora)
-                })
-            
-            # Datos para gráfico de carga por dentista
-            carga_por_dentista = []
-            for odontologo_id in self.odontologos_activos_hoy:
-                consultas_odontologo = [
-                    c for c in self.consultas_hoy
-                    if c.primer_odontologo_id == odontologo_id
-                ]
-                carga_por_dentista.append({
-                    "dentista": f"Dr. {odontologo_id[:8]}...",  # ID truncado como placeholder
-                    "total": len(consultas_odontologo),
-                    "en_espera": len([c for c in consultas_odontologo if c.estado == "en_espera"]),
-                    "completadas": len([c for c in consultas_odontologo if c.estado == "completada"])
-                })
-            
-            return {
-                "tiempos_por_hora": tiempos_por_hora,
-                "carga_por_dentista": carga_por_dentista
-            }
-            
-        except Exception:
-            return {"tiempos_por_hora": [], "carga_por_dentista": []}
     
     # ==========================================
     # 🔍 COMPUTED VARS PARA BÚSQUEDA DE PACIENTES
@@ -1285,37 +818,7 @@ class EstadoConsultas(rx.State,mixin=True):
             logger.error(f"❌ Error en cache_inteligente: {e}")
             return {"error": str(e), "exito": False}
     
-    # ==========================================
-    # 📅 MÉTODOS DE ESTADÍSTICAS
-    # ==========================================
-    
-    @rx.event
-    async def cargar_estadisticas_consultas(self, forzar_refresco: bool = False):
-        """
-        📊 CARGAR ESTADÍSTICAS DE CONSULTAS
-        
-        Args:
-            forzar_refresco: Forzar recálculo de estadísticas
-        """
-        self.cargando_estadisticas_consultas = True
-        
-        try:
-            # Obtener estadísticas desde el servicio
-            stats = await consultas_service.get_consultations_stats()
-            
-            self.estadisticas_consultas = stats
-            self.ultima_actualizacion_stats_consultas = datetime.now().isoformat()
-            
-            print("✅ Estadísticas de consultas actualizadas")
-            
-        except Exception as e:
-            error_msg = f"Error cargando estadísticas: {str(e)}"
-            logger.error(error_msg)
-            print(f"❌ {error_msg}")
-            
-        finally:
-            self.cargando_estadisticas_consultas = False
-    
+  
     # ==========================================
     # 📅 MÉTODOS AUXILIARES PARA APPSTATE
     # ==========================================
@@ -1382,31 +885,6 @@ class EstadoConsultas(rx.State,mixin=True):
         finally:
             self.cargando_lista_consultas = False
     
-    @rx.event
-    async def actualizar_estado_consulta_intervencion(self, consulta_id: str, nuevo_estado: str):
-        """🔧 ACTUALIZAR ESTADO CONSULTA DESDE INTERVENCIÓN"""
-        try:
-            # Usar método específico para cambios de estado solamente
-            from dental_system.supabase.tablas.consultas import consultas_table
-            
-            # Actualizar solo el estado en la base de datos
-            consulta_actualizada_dict = consultas_table.update_status(
-                consulta_id, 
-                nuevo_estado, 
-                f"Estado actualizado desde intervención: {nuevo_estado}"
-            )
-            
-            if consulta_actualizada_dict:
-                # Recargar las consultas desde la base de datos
-                await self.cargar_lista_consultas()
-                logger.info(f"✅ Estado de consulta {consulta_id} actualizado a {nuevo_estado}")
-            else:
-                logger.error(f"❌ Error actualizando estado de consulta {consulta_id}")
-                
-        except Exception as e:
-            logger.error(f"❌ Error en actualizar_estado_consulta_intervencion: {e}")
-            import traceback
-            traceback.print_exc()
 
     
     def limpiar_datos(self):
@@ -1418,7 +896,6 @@ class EstadoConsultas(rx.State,mixin=True):
         self.id_consulta_seleccionada = ""
         self.formulario_consulta_data = ConsultaFormModel()
         self.errores_validacion_consulta = {}
-        self.consulta_para_eliminar = None
         self.cargando_lista_consultas = False
         
         # Limpiar turnos
@@ -1429,7 +906,6 @@ class EstadoConsultas(rx.State,mixin=True):
         
         # Limpiar filtros
         self.filtro_estado_consultas = "todas"
-        self.filtro_odontologo_consultas = ""
         self.filtro_fecha_consultas = date.today().isoformat()
         self.termino_busqueda_consultas = ""
         self.buscar_por_paciente = ""
@@ -1441,146 +917,11 @@ class EstadoConsultas(rx.State,mixin=True):
         
         logger.info("🧹 Datos de consultas limpiados")
     
-    # ==========================================
-    # 📅 FUNCIONES ADICIONALES FALTANTES PARA UI
-    # ==========================================
-    
-    @rx.event
-    def buscar_pacientes_modal(self, termino: str):
-        """🔍 Buscar pacientes en modal"""
-        self.pacientes_search_modal = termino
-        print(f"🔍 Buscando pacientes en modal: {termino}")
-    
-    @rx.event
-    def update_consulta_form(self, campo: str, valor: str):
-        """📝 Actualizar campo del formulario de consulta tipado - ESQUEMA v4.1"""
-        # Mapear campos legacy a esquema v4.1
-        campo_mapping = {
-            "odontologo_id": "primer_odontologo_id",
-            "observaciones_cita": "observaciones"
-        }
-        
-        campo_real = campo_mapping.get(campo, campo)
-        
-        # Actualizar en formulario tipado
-        if hasattr(self.formulario_consulta_data, campo_real):
-            setattr(self.formulario_consulta_data, campo_real, valor)
-            print(f"📝 Formulario tipado actualizado: {campo_real} = {valor}")
-        else:
-            print(f"⚠️ Campo {campo_real} no encontrado en ConsultaFormModel")
-    
-    @rx.event
-    async def guardar_consulta(self):
-        """💾 Guardar nueva consulta usando formulario tipado"""
-        print("💾 Guardando nueva consulta...")
-        try:
-            # Usar método actualizado que usa formulario_consulta_data
-            await self.crear_consulta()
-            
-            # Limpiar formulario después de guardar
-            self.formulario_consulta_data = ConsultaFormModel()
-            
-            self.success_message = "Consulta creada exitosamente"
-            self.error_message = ""
-            print("✅ Consulta guardada exitosamente")
-        except Exception as e:
-            self.error_message = f"Error guardando consulta: {str(e)}"
-            self.success_message = ""
-            print(f"❌ Error guardando consulta: {str(e)}")
-    
-    @rx.event
-    def set_show_consulta_modal(self, mostrar: bool):
-        """🪟 Controlar visibilidad del modal (manejado por EstadoUI)"""
-        print(f"🪟 Modal consulta: {mostrar}")
-        # Esta función es un alias para compatibilidad
-        # El modal real es manejado por EstadoUI.abrir_modal_consulta()
-    
-    @rx.event
-    async def seleccionar_y_abrir_modal_consulta(self, consulta_id: str = ""):
-        """📅 Seleccionar consulta y abrir modal usando EstadoUI correctamente"""
-        
-        try:
-            if consulta_id:
-                # Modo editar: seleccionar la consulta primero
-                consulta = self._buscar_consulta_por_id(consulta_id)
-                if consulta:
-                    self.consulta_seleccionada = consulta
-                    self.id_consulta_seleccionada = consulta_id
-                    # Cargar datos en el formulario tipado - ESQUEMA v4.1
-                    self.formulario_consulta_data = ConsultaFormModel(
-                        paciente_id=consulta.paciente_id,
-                        primer_odontologo_id=consulta.primer_odontologo_id,
-                        odontologo_preferido_id=consulta.odontologo_preferido_id or "",
-                        motivo_consulta=consulta.motivo_consulta,
-                        tipo_consulta=consulta.tipo_consulta or "general",
-                        prioridad=consulta.prioridad or "normal",
-                        observaciones=consulta.observaciones or "",
-                        notas_internas=consulta.notas_internas or ""
-                    )
-                self.abrir_modal_consulta("editar")
-            else:
-                # Modo crear: limpiar selección
-                self.consulta_seleccionada = ConsultaModel()
-                self.id_consulta_seleccionada = ""
-                self.formulario_consulta_data = ConsultaFormModel()
-                self.abrir_modal_consulta("crear")
-
-        except Exception as e:
-            logger.error(f"Error abriendo modal de consulta: {str(e)}")
-            import traceback
-            traceback.print_exc()
-    
+ 
     # ==========================================
     # 📅 MÉTODOS DE EDICIÓN SIGUIENDO PATRÓN PERSONAL
     # ==========================================
     
-    @rx.event
-    async def seleccionar_consulta(self, consulta_id: str):
-        """🎯 Seleccionar consulta para operaciones"""
-        try:
-            # Buscar consulta en la lista local
-            consulta_encontrada = None
-            for consulta in self.lista_consultas:
-                if consulta.id == consulta_id:
-                    consulta_encontrada = consulta
-                    break
-            
-            if consulta_encontrada:
-                self.consulta_seleccionada = consulta_encontrada
-                self.id_consulta_seleccionada = consulta_id
-                logger.info(f"🎯 Consulta seleccionada: {consulta_id}")
-            else:
-                logger.warning(f"⚠️ Consulta {consulta_id} no encontrada en lista local")
-                self.consulta_seleccionada = None
-                self.id_consulta_seleccionada = ""
-                
-        except Exception as e:
-            logger.error(f"❌ Error seleccionando consulta: {e}")
-            self.consulta_seleccionada = None
-            self.id_consulta_seleccionada = ""
-    
-    def cargar_consulta_en_formulario(self, consulta: ConsultaModel):
-        """📝 Cargar datos de consulta en el formulario para edición (usando modelo tipado)"""
-        try:
-            self.consulta_seleccionada = consulta
-            self.id_consulta_seleccionada = consulta.id
-            
-            # Cargar datos en el modelo tipado (patrón igual que personal)
-            self.formulario_consulta_data = ConsultaFormModel(
-                paciente_id=consulta.paciente_id or "",
-                paciente_nombre=consulta.paciente_nombre or "",  # Nombre para mostrar en UI
-                primer_odontologo_id=consulta.primer_odontologo_id or "",
-                motivo_consulta=consulta.motivo_consulta or "",
-                tipo_consulta=consulta.tipo_consulta or "general",
-                prioridad=consulta.prioridad or "normal",
-                observaciones=consulta.observaciones or "",
-                notas_internas=consulta.notas_internas or ""
-            )
-            
-            logger.info(f"📝 Consulta {consulta.id} cargada en formulario tipado")
-            
-        except Exception as e:
-            logger.error(f"❌ Error cargando consulta en formulario: {e}")
     
     @rx.event
     def set_formulario_consulta_field(self, field: str, value: str):
@@ -1646,41 +987,6 @@ class EstadoConsultas(rx.State,mixin=True):
         else:
             self.set_consulta_form_busqueda_paciente(value)
     
-    @rx.event
-    async def abrir_modal_editar_consulta(self, consulta_id: str = ""):
-        """📅 Abrir modal de editar/crear consulta siguiendo patrón personal"""
-        try:
-            if consulta_id:
-                # Modo editar: seleccionar la consulta primero
-                await self.seleccionar_consulta(consulta_id)
-                
-                # Cargar datos en el formulario
-                if self.consulta_seleccionada:
-                    self.cargar_consulta_en_formulario(self.consulta_seleccionada)
-                
-                # Abrir modal editar usando EstadoUI mixin
-                if hasattr(self, 'abrir_modal_consulta'):
-                    self.abrir_modal_consulta("editar")
-                
-                logger.info(f"📝 Modal editar consulta abierto: {consulta_id}")
-                
-            else:
-                # Modo crear: limpiar selección y abrir modal
-                self.consulta_seleccionada = None
-                self.id_consulta_seleccionada = ""
-                self.formulario_consulta_data = ConsultaFormModel()
-                
-                # Abrir modal crear usando EstadoUI mixin
-                if hasattr(self, 'abrir_modal_consulta'):
-                    self.abrir_modal_consulta("crear")
-                
-                logger.info("✅ Modal crear consulta abierto")
-                
-        except Exception as e:
-            logger.error(f"❌ Error abriendo modal consulta: {e}")
-            if hasattr(self, 'mostrar_toast'):
-                self.mostrar_toast("Error abriendo modal de consulta", "error")
-    
     @rx.event  
     async def actualizar_consulta(self):
         """✏️ Actualizar consulta existente"""
@@ -1718,7 +1024,7 @@ class EstadoConsultas(rx.State,mixin=True):
                         break
                 
                 # Actualizar todas las listas de consultas
-                await self.cargar_consultas_hoy()
+                await self.cargar_consultas_hoy(forzar_refresco=True)
                 
                 # Si hay un odontólogo seleccionado en la página, recargar también sus consultas
                 if hasattr(self, 'odontologo_seleccionado_id') and self.odontologo_seleccionado_id:
@@ -1731,13 +1037,6 @@ class EstadoConsultas(rx.State,mixin=True):
                 # Invalidar cache de variables computadas relacionadas con consultas
                 if hasattr(self, '_invalidate_computed_vars'):
                     self._invalidate_computed_vars(['consultas_hoy', 'consultas_por_odontologo', 'total_consultas_hoy'])
-                
-                # REMOVED - [2025-01-04] - Referencias a last_update eliminadas
-                # import time
-                # self.last_update = time.time()
-                
-                # Forzar actualización del estado en la UI
-                yield
                 
                 # Limpiar formulario y cerrar modal
                 self.formulario_consulta_data = ConsultaFormModel()
@@ -1752,9 +1051,6 @@ class EstadoConsultas(rx.State,mixin=True):
                 
                 logger.info(f"✅ Consulta {self.id_consulta_seleccionada} actualizada")
                 
-                # Forzar actualización completa del estado después de un pequeño delay
-                yield
-                await self.cargar_consultas_hoy()  # Segunda recarga para asegurar
             
         except Exception as e:
             logger.error(f"❌ Error actualizando consulta: {e}")
@@ -1767,13 +1063,11 @@ class EstadoConsultas(rx.State,mixin=True):
         try:
             # Validar campos obligatorios usando formulario tipado
             if not self.formulario_consulta_data.paciente_id:
-                if hasattr(self, 'mostrar_toast'):
-                    self.mostrar_toast("Complete los campos obligatorios: Paciente requerido", "error")
+                self.mostrar_toast("Complete los campos obligatorios: Paciente requerido", "error")
                 return
 
             if not self.formulario_consulta_data.primer_odontologo_id:
-                if hasattr(self, 'mostrar_toast'):
-                    self.mostrar_toast("Complete los campos obligatorios: Odontólogo requerido", "error")
+                self.mostrar_toast("Complete los campos obligatorios: Odontólogo requerido", "error")
                 return
             
             # Establecer contexto de usuario en el servicio
@@ -1788,12 +1082,7 @@ class EstadoConsultas(rx.State,mixin=True):
             else:
                 # Modo crear usando el formulario tipado
                 await self.crear_consulta()
-                
-                # Forzar segunda recarga para asegurar nombres de pacientes visibles
-                await self.cargar_consultas_hoy()
 
-                # Limpiar formulario tras éxito (ya se limpia automáticamente)
-                # self._limpiar_formulario_modal()  # COMENTADO: Formulario se limpia automáticamente
                 # Cerrar modal si existe
                 if hasattr(self, 'set_modal_crear_consulta_abierto'):
                     self.set_modal_crear_consulta_abierto(False)
@@ -1803,174 +1092,9 @@ class EstadoConsultas(rx.State,mixin=True):
             if hasattr(self, 'mostrar_toast'):
                 self.mostrar_toast(f"Error guardando consulta: {str(e)}", "error")
     
-    
+
     # ==========================================
-    # ❌ MÉTODOS DE CANCELACIÓN/ELIMINACIÓN
-    # ==========================================
-    
-    
-    @rx.event
-    async def cancelar_consulta(self, consulta_id: str):
-        """❌ Cancelar consulta (cambiar estado a cancelada)"""
-        try:
-            if not consulta_id:
-                logger.warning("⚠️ ID de consulta vacío para cancelar")
-                return
-            
-            # Usar método directo de la tabla para cambiar solo el estado
-            from dental_system.supabase.tablas.consultas import consultas_table
-            
-            consulta_actualizada_dict = consultas_table.update_status(
-                consulta_id, 
-                "cancelada", 
-                "Consulta cancelada"
-            )
-            
-            # Convertir a modelo si el resultado existe
-            consulta_actualizada = None
-            if consulta_actualizada_dict:
-                from dental_system.models.consultas_models import ConsultaModel
-                consulta_actualizada = ConsultaModel.from_dict(consulta_actualizada_dict)
-            
-            if consulta_actualizada:
-                # Recargar las consultas desde la base de datos para mostrar cambios
-                await self.cargar_lista_consultas()
-                
-                # Limpiar variables auxiliares
-                self.consulta_para_eliminar = None
-                
-                # Cerrar modal de confirmación
-                if hasattr(self, 'cerrar_todos_los_modales'):
-                    self.cerrar_todos_los_modales()
-                
-                # Mostrar éxito
-                if hasattr(self, 'mostrar_toast'):
-                    self.mostrar_toast("Consulta cancelada exitosamente", "success")
-                
-                logger.info(f"✅ Consulta {consulta_id} cancelada exitosamente")
-            
-        except Exception as e:
-            logger.error(f"❌ Error cancelando consulta: {e}")
-            if hasattr(self, 'mostrar_toast'):
-                self.mostrar_toast(f"Error cancelando consulta: {str(e)}", "error")
-    
-    @rx.event
-    def solicitar_cancelar_consulta(self, consulta_id: str):
-        """🔍 Preparar consulta para cancelar y abrir modal"""
-        try:
-            # Buscar la consulta en la lista
-            consulta_encontrada = None
-            for consulta in self.lista_consultas:
-                if consulta.id == consulta_id:
-                    consulta_encontrada = consulta
-                    break
-            
-            if consulta_encontrada:
-                self.consulta_para_eliminar = consulta_encontrada
-                # Abrir modal de confirmación
-                if hasattr(self, 'abrir_modal_confirmacion'):
-                    return self.abrir_modal_confirmacion(
-                        titulo="Confirmar Cancelación",
-                        mensaje="¿Está seguro de que desea cancelar esta consulta?",
-                        accion="cancelar_consulta"
-                    )
-                    
-        except Exception as e:
-            logger.error(f"❌ Error preparando cancelación consulta: {e}")
-    
-    # ==========================================
-    # 🚨 SISTEMA DE PRIORIDADES
-    # ==========================================
-    
-    @rx.event
-    async def cambiar_prioridad_consulta(self, consulta_id: str, nueva_prioridad: str):
-        """🚨 CAMBIAR PRIORIDAD DE UNA CONSULTA"""
-        try:
-            print(f"🚨 Cambiando prioridad de consulta {consulta_id} a {nueva_prioridad}")
-            
-            # Validar prioridad
-            prioridades_validas = ["baja", "normal", "alta", "urgente"]
-            if nueva_prioridad not in prioridades_validas:
-                logger.warning(f"⚠️ Prioridad inválida: {nueva_prioridad}")
-                return
-            
-            # Encontrar consulta en lista local
-            consulta_encontrada = None
-            for consulta in self.lista_consultas:
-                if consulta.id == consulta_id:
-                    consulta_encontrada = consulta
-                    break
-                    
-            if not consulta_encontrada:
-                logger.warning(f"⚠️ Consulta {consulta_id} no encontrada")
-                return
-            
-            # Actualizar en base de datos usando tabla directamente
-            from dental_system.supabase.tablas.consultas import consultas_table
-            
-            consulta_actualizada_dict = consultas_table.update_priority(
-                consulta_id,
-                nueva_prioridad,
-                f"Prioridad cambiada de {consulta_encontrada.prioridad} a {nueva_prioridad}"
-            )
-            
-            if consulta_actualizada_dict:
-                # Recargar consultas para reflejar cambios
-                await self.cargar_consultas_hoy()
-                
-                # Mostrar mensaje de éxito
-                if hasattr(self, 'mostrar_toast'):
-                    self.mostrar_toast(f"Prioridad cambiada a {nueva_prioridad.title()}", "success")
-                
-                logger.info(f"✅ Prioridad de consulta {consulta_id} cambiada a {nueva_prioridad}")
-                
-            else:
-                logger.error(f"❌ Error actualizando prioridad en BD")
-                if hasattr(self, 'mostrar_toast'):
-                    self.mostrar_toast("Error cambiando prioridad", "error")
-                    
-        except Exception as e:
-            logger.error(f"❌ Error cambiando prioridad: {e}")
-            if hasattr(self, 'mostrar_toast'):
-                self.mostrar_toast(f"Error: {str(e)}", "error")
-    
-    @rx.event
-    def ciclar_prioridad_consulta(self, consulta_id: str):
-        """🔄 CICLAR PRIORIDAD DE UNA CONSULTA (normal → alta → urgente → normal)"""
-        try:
-            # Encontrar consulta actual
-            consulta_actual = None
-            for consulta in self.lista_consultas:
-                if consulta.id == consulta_id:
-                    consulta_actual = consulta
-                    break
-            
-            if not consulta_actual:
-                return
-            
-            # Definir ciclo de prioridades
-            ciclo_prioridades = {
-                "baja": "normal",
-                "normal": "alta", 
-                "alta": "urgente",
-                "urgente": "normal"
-            }
-            
-            prioridad_actual = consulta_actual.prioridad or "normal"
-            nueva_prioridad = ciclo_prioridades.get(prioridad_actual, "normal")
-            
-            # Cambiar prioridad
-            return self.cambiar_prioridad_consulta(consulta_id, nueva_prioridad)
-            
-        except Exception as e:
-            logger.error(f"❌ Error ciclando prioridad: {e}")
-    
-    # ==========================================
-    # 🔄 SISTEMA DE TRANSFERENCIAS ENTRE COLAS
-    # ==========================================
-    
-    # ==========================================
-    # 🎨 GESTIÓN UNIFICADA DE MODALES Y OPERACIONES
+    # 🎨 GESTIÓN UNIFICADA DE MODALES Y OPERACIONES para tranferir 
     # ==========================================
 
     # Variables unificadas para modales
@@ -2007,23 +1131,6 @@ class EstadoConsultas(rx.State,mixin=True):
             elif accion == "set_motivo_transferencia":
                 self.motivo_transferencia = datos.get("motivo", "") if datos else ""
 
-            elif accion == "preparar_cancelacion":
-                if consulta_encontrada:
-                    self.consulta_para_eliminar = consulta_encontrada
-                    if hasattr(self, 'abrir_modal_confirmacion'):
-                        self.abrir_modal_confirmacion(
-                            titulo="Confirmar Cancelación",
-                            mensaje="¿Está seguro de que desea cancelar esta consulta?",
-                            accion="cancelar_consulta"
-                        )
-
-            elif accion == "preparar_cambio_odontologo":
-                if consulta_encontrada:
-                    self.consulta_seleccionada = consulta_encontrada
-                    self.id_consulta_seleccionada = consulta_id
-                    if hasattr(self, 'abrir_modal_cambio_odontologo'):
-                        self.abrir_modal_cambio_odontologo()
-
             elif accion == "seleccionar_paciente_modal":
                 paciente_id = datos.get("paciente_id", "") if datos else ""
                 paciente = next((p for p in self.pacientes_filtrados_modal if p.id == paciente_id), None)
@@ -2032,10 +1139,6 @@ class EstadoConsultas(rx.State,mixin=True):
                     self.consulta_form_busqueda_paciente = ""
                     self.set_formulario_consulta_field("paciente_id", paciente.id)
                     self.set_formulario_consulta_field("paciente_nombre", paciente.nombre_completo)
-
-            elif accion == "limpiar_paciente_seleccionado":
-                self.consulta_form_paciente_seleccionado = PacienteModel()
-                self.consulta_form_busqueda_paciente = ""
 
         except Exception as e:
             logger.error(f"❌ Error en gestionar_modal_operacion ({accion}): {e}")
@@ -2072,7 +1175,7 @@ class EstadoConsultas(rx.State,mixin=True):
             )
             
             # Cerrar modal tras éxito
-            self.cerrar_modal_transferir_paciente()
+            self.gestionar_modal_operacion("cerrar_transferencia")
             
             if hasattr(self, 'mostrar_toast'):
                 self.mostrar_toast("Paciente transferido exitosamente", "success")
@@ -2083,17 +1186,10 @@ class EstadoConsultas(rx.State,mixin=True):
             logger.error(f"❌ Error ejecutando transferencia: {e}")
             if hasattr(self, 'mostrar_toast'):
                 self.mostrar_toast(f"Error en transferencia: {str(e)}", "error")
-    
-    # ==========================================
-    # 🔍 EVENTOS PARA MODAL NUEVA CONSULTA
-    # ==========================================
-    
-    
-    
+
     # ==========================================
     # 🔄 CAMBIO DE ODONTÓLOGO
     # ==========================================
-    
     
     @rx.event
     async def cambiar_odontologo_consulta(self, consulta_id: str, nuevo_odontologo_id: str, motivo: str):
@@ -2121,7 +1217,6 @@ class EstadoConsultas(rx.State,mixin=True):
             if transferencia_exitosa:
                 # Invalidar cache completamente
                 self.cache_inteligente("invalidar", "consultas")
-                self._invalidar_cache_consultas()
 
                 # Limpiar todas las listas para forzar recálculo
                 self.consultas_hoy = []
@@ -2148,120 +1243,8 @@ class EstadoConsultas(rx.State,mixin=True):
             logger.error(f"❌ Error cambiando odontólogo: {e}")
             if hasattr(self, 'mostrar_toast'):
                 self.mostrar_toast(f"Error: {str(e)}", "error")
-    
-    @rx.event
-    async def procesar_cambio_odontologo(self, form_data: dict):
-        """🔄 Procesar cambio de odontólogo desde formulario - Wrapper para on_submit"""
-        try:
-            nuevo_odontologo_id = form_data.get("nuevo_odontologo_id", "").strip()
-            motivo_cambio = form_data.get("motivo_cambio", "").strip()
-            
-            # Validaciones
-            if not nuevo_odontologo_id:
-                if hasattr(self, 'mostrar_toast'):
-                    self.mostrar_toast("Debe seleccionar un nuevo odontólogo", "error")
-                return
-            
-            if not motivo_cambio or len(motivo_cambio) < 10:
-                if hasattr(self, 'mostrar_toast'):
-                    self.mostrar_toast("El motivo debe tener al menos 10 caracteres", "error") 
-                return
-            
-            if not self.consulta_seleccionada or not self.consulta_seleccionada.id:
-                if hasattr(self, 'mostrar_toast'):
-                    self.mostrar_toast("Error: No hay consulta seleccionada", "error")
-                return
-            
-            # Llamar al método principal con los parámetros extraídos
-            await self.cambiar_odontologo_consulta(
-                self.consulta_seleccionada.id, nuevo_odontologo_id, motivo_cambio
-            )
-            
-            # Cerrar modal si existe el método
-            if hasattr(self, 'cerrar_todos_los_modales'):
-                self.cerrar_todos_los_modales()
-            
-        except Exception as e:
-            logger.error(f"❌ Error procesando cambio de odontólogo: {e}")
-            if hasattr(self, 'mostrar_toast'):
-                self.mostrar_toast(f"Error procesando cambio: {str(e)}", "error")
-    
-    # ==========================================
-    # 🎛️ MÉTODOS DE CONTROL DE VISTA Y DASHBOARD
-    # ==========================================
-    
-    @rx.event
-    def cambiar_vista_dashboard(self, vista: str):
-        """🎛️ Cambiar filtro de vista principal del dashboard"""
-        vistas_validas = ["todos", "urgentes", "en_espera", "atrasados"]
-        if vista in vistas_validas:
-            self.filtro_vista_dashboard = vista
-            logger.info(f"🎛️ Vista dashboard cambiada a: {vista}")
-        else:
-            logger.warning(f"⚠️ Vista no válida: {vista}")
-    
-    @rx.event
-    def marcar_paciente_urgente(self, consulta_id: str):
-        """🚨 BOTÓN URGENTE - Cambiar a prioridad urgente directamente"""
-        return self.cambiar_prioridad_consulta(consulta_id, "urgente")
-    
-    @rx.event
-    async def refrescar_tiempo_real(self):
-        """🔄 Refrescar datos en tiempo real para dashboard"""
-        try:
-            logger.info("🔄 Refrescando datos en tiempo real...")
-            await self.cargar_consultas_hoy(forzar_refresco=True)
-            
-            if hasattr(self, 'mostrar_toast'):
-                self.mostrar_toast("Datos actualizados", "info")
-                
-        except Exception as e:
-            logger.error(f"❌ Error refrescando datos: {e}")
-            if hasattr(self, 'mostrar_toast'):
-                self.mostrar_toast("Error actualizando datos", "error")
-    
-    @rx.event
-    async def crear_consulta_urgente(self):
-        """🚨 Crear consulta con prioridad urgente (atajo para QueueControlBar)"""
-        try:
-            # Limpiar formulario y establecer prioridad urgente
-            self.formulario_consulta_data = ConsultaFormModel()
-            self.formulario_consulta_data.prioridad = "urgente"
-            self.formulario_consulta_data.tipo_consulta = "urgencia"
-            
-            # Abrir modal usando EstadoUI
-            if hasattr(self, 'abrir_modal_consulta'):
-                self.abrir_modal_consulta("crear")
-            
-            logger.info("🚨 Modal consulta urgente abierto")
-            
-        except Exception as e:
-            logger.error(f"❌ Error abriendo consulta urgente: {e}")
-    
-    @rx.event
-    def resetear_filtros_vista(self):
-        """🧹 Resetear todos los filtros de vista"""
-        self.filtro_vista_dashboard = "todos"
-        self.termino_busqueda_consultas = ""
-        self.filtro_estado_consultas = "todas"
-        self.filtro_odontologo_consultas = ""
-        
-        logger.info("🧹 Filtros de vista reseteados")
-    
-    @rx.event  
-    def obtener_estadisticas_vista_actual(self) -> Dict[str, int]:
-        """📊 Obtener estadísticas de la vista actual"""
-        try:
-            consultas_vista = self.consultas_filtradas_por_vista
-            return {
-                "total": len(consultas_vista),
-                "urgentes": len([c for c in consultas_vista if c.prioridad == "urgente"]),
-                "en_espera": len([c for c in consultas_vista if c.estado == "en_espera"]),
-                "en_atencion": len([c for c in consultas_vista if c.estado == "en_atencion"])
-            }
-        except Exception:
-            return {"total": 0, "urgentes": 0, "en_espera": 0, "en_atencion": 0}
-    
+
+
     # ==========================================
     # 🔄 MÉTODOS DE REORDENAMIENTO EN COLA
     # ==========================================
@@ -2271,107 +1254,177 @@ class EstadoConsultas(rx.State,mixin=True):
         """⬆️ Subir paciente una posición en la cola de su odontólogo"""
         try:
             logger.info(f"⬆️ Subiendo en cola: {consulta_id}")
-            
+
             # Buscar la consulta actual
-            consulta_actual = None
-            for consulta in self.consultas_hoy:
-                if consulta.id == consulta_id:
-                    consulta_actual = consulta
-                    break
-            
+            consulta_actual = next((c for c in self.consultas_hoy if c.id == consulta_id), None)
+
             if not consulta_actual:
                 logger.error("❌ Consulta no encontrada")
-                self.mostrar_toast("Consulta no encontrada", "error")
+                self.mostrar_toast("❌ Consulta no encontrada", "error")
                 return
-                
+
             odontologo_id = consulta_actual.primer_odontologo_id
             orden_actual = consulta_actual.orden_cola_odontologo
-            
+
+            logger.info(f"📍 Orden actual: {orden_actual}, Odontólogo: {odontologo_id}")
+
             if orden_actual <= 1:
-                self.mostrar_toast("Ya está en la primera posición", "warning")
+                self.mostrar_toast("⚠️ Ya está en la primera posición", "warning")
                 return
-            
+
             # Usar el servicio para intercambiar posiciones
             from dental_system.services.consultas_service import ConsultasService
             service = ConsultasService()
-            
-            # Establecer contexto de usuario para el servicio
             service.set_user_context(self.id_usuario, self.perfil_usuario)
-            
+
+            logger.info(f"🔄 Intercambiando posición {orden_actual} → {orden_actual - 1}")
+
             resultado = await service.intercambiar_orden_cola(
-                consulta_id, 
-                odontologo_id, 
-                orden_actual, 
+                consulta_id,
+                odontologo_id,
+                orden_actual,
                 orden_actual - 1
             )
-            
+
+            logger.info(f"📊 Resultado del servicio: {resultado}")
+
             if resultado.get("success"):
-                # Recargar datos
+                # ✅ INVALIDAR CACHE Y RECARGAR TODAS LAS CONSULTAS (igual que al crear/transferir)
+                self.cache_inteligente("invalidar", "consultas")
                 await self.cargar_consultas_hoy(forzar_refresco=True)
-                self.mostrar_toast("Paciente movido hacia arriba", "success")
-                logger.info(f"✅ {resultado.get('message', 'Intercambio exitoso')}")
+
+                self.mostrar_toast("✅ Paciente movido hacia arriba", "success")
+                logger.info(f"✅ Intercambio exitoso y lista recargada")
             else:
                 error_msg = resultado.get("message", "Error desconocido")
-                self.mostrar_toast(f"Error: {error_msg}", "error")
+                self.mostrar_toast(f"❌ {error_msg}", "error")
                 logger.error(f"❌ Error en intercambio: {error_msg}")
-                    
+
         except Exception as e:
             logger.error(f"❌ Error subiendo en cola: {e}")
-            self.mostrar_toast("Error al mover paciente", "error")
+            self.mostrar_toast("❌ Error al mover paciente", "error")
     
     @rx.event
     async def bajar_en_cola(self, consulta_id: str):
         """⬇️ Bajar paciente una posición en la cola de su odontólogo"""
         try:
             logger.info(f"⬇️ Bajando en cola: {consulta_id}")
-            
+
             # Buscar la consulta actual
-            consulta_actual = None
-            for consulta in self.consultas_hoy:
-                if consulta.id == consulta_id:
-                    consulta_actual = consulta
-                    break
-            
+            consulta_actual = next((c for c in self.consultas_hoy if c.id == consulta_id), None)
+
             if not consulta_actual:
                 logger.error("❌ Consulta no encontrada")
-                self.mostrar_toast("Consulta no encontrada", "error")
+                self.mostrar_toast("❌ Consulta no encontrada", "error")
                 return
-                
+
             odontologo_id = consulta_actual.primer_odontologo_id
             orden_actual = consulta_actual.orden_cola_odontologo
-            
+
             # Contar total de consultas en esa cola (usar estados correctos)
             total_en_cola = len([c for c in self.consultas_hoy
                                if c.primer_odontologo_id == odontologo_id and c.estado in ["programada", "en_espera"]])
-            
+
+            logger.info(f"📍 Orden actual: {orden_actual}/{total_en_cola}, Odontólogo: {odontologo_id}")
+
             if orden_actual >= total_en_cola:
-                self.mostrar_toast("Ya está en la última posición", "warning")
+                self.mostrar_toast("⚠️ Ya está en la última posición", "warning")
                 return
-            
+
             # Usar el servicio para intercambiar posiciones
             from dental_system.services.consultas_service import ConsultasService
             service = ConsultasService()
-            
-            # Establecer contexto de usuario para el servicio
             service.set_user_context(self.id_usuario, self.perfil_usuario)
-            
+
+            logger.info(f"🔄 Intercambiando posición {orden_actual} → {orden_actual + 1}")
+
             resultado = await service.intercambiar_orden_cola(
                 consulta_id,
-                odontologo_id, 
-                orden_actual, 
+                odontologo_id,
+                orden_actual,
                 orden_actual + 1
             )
-            
+
+            logger.info(f"📊 Resultado del servicio: {resultado}")
+
             if resultado.get("success"):
-                # Recargar datos
+                # ✅ INVALIDAR CACHE Y RECARGAR TODAS LAS CONSULTAS (igual que al crear/transferir)
+                self.cache_inteligente("invalidar", "consultas")
                 await self.cargar_consultas_hoy(forzar_refresco=True)
-                self.mostrar_toast("Paciente movido hacia abajo", "success")
-                logger.info(f"✅ {resultado.get('message', 'Intercambio exitoso')}")
+
+                self.mostrar_toast("✅ Paciente movido hacia abajo", "success")
+                logger.info(f"✅ Intercambio exitoso y lista recargada")
             else:
                 error_msg = resultado.get("message", "Error desconocido")
-                self.mostrar_toast(f"Error: {error_msg}", "error")
+                self.mostrar_toast(f"❌ {error_msg}", "error")
                 logger.error(f"❌ Error en intercambio: {error_msg}")
-                    
+
         except Exception as e:
             logger.error(f"❌ Error bajando en cola: {e}")
-            self.mostrar_toast("Error al mover paciente", "error")
+            self.mostrar_toast("❌ Error al mover paciente", "error")
+            
+    @rx.event
+    async def completar_consulta_completa(self, consulta_id: str):
+        """
+        🏥 COMPLETAR CONSULTA + CREAR PAGO (LLAMADA DESDE FRONTEND)
+        """
+        # 🛡️ PROTECCIÓN 1: Prevenir doble ejecución
+        if self.finalizando_consulta and self.consulta_siendo_finalizada == consulta_id:
+            logger.warning(f"⚠️ Ya se está finalizando la consulta {consulta_id} - ignorando doble clic")
+            return
+
+        try:
+            # 🛡️ Marcar como "en proceso de finalización"
+            self.finalizando_consulta = True
+            self.consulta_siendo_finalizada = consulta_id
+            self.cargando_consultas = True
+
+            # Llamar servicio completo
+            
+            consultas_service.set_user_context(
+                user_id=self.id_usuario,
+                user_profile=self.perfil_usuario
+            )
+            resultado = await consultas_service.complete_consultation_with_payment(
+                consulta_id,
+                self.id_usuario
+            )
+
+            if resultado.get("success"):
+                # Mostrar toast de éxito (diferente mensaje si ya existía)
+                mensaje = resultado.get("mensaje", "")
+                if "ya existía" in mensaje:
+                    self.mostrar_toast(
+                        f"ℹ️ Pago {resultado.get('numero_recibo')} ya existía - consulta completada",
+                        "info"
+                    )
+                else:
+                    self.mostrar_toast(
+                        f"✅ Consulta finalizada - Pago {resultado.get('numero_recibo')} creado",
+                        "success"
+                    )
+
+                # 🔄 FORZAR INVALIDACIÓN DE CACHE DE COMPUTED VARS
+                # Limpiar listas base para forzar recálculo
+                self.lista_consultas = []
+                self.consultas_hoy = []
+
+                # ✅ Recargar datos forzando refresh (sin cache)
+                await self.cargar_consultas_hoy(forzar_refresco=True)
+
+                # 🔄 REFRESCAR TAMBIÉN ODONTÓLOGOS (afecta contadores)
+                await self.cargar_odontologos_disponibles()
+
+        except ValueError as ve:
+            logger.error(f"Error completando consulta: {ve}")
+            if hasattr(self, 'mostrar_toast'):
+                self.mostrar_toast(f"❌ {str(ve)}", "error")
+        except Exception as e:
+            logger.error(f"Error inesperado: {e}")
+            if hasattr(self, 'mostrar_toast'):
+                self.mostrar_toast("Error completando consulta", "error")
+        finally:
+            # 🛡️ Limpiar flags de protección
+            self.finalizando_consulta = False
+            self.consulta_siendo_finalizada = ""
+            self.cargando_consultas = False

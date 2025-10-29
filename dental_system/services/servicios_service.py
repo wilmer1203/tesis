@@ -113,14 +113,11 @@ class ServiciosService(BaseService):
                 codigo=form_data["codigo"],
                 nombre=form_data["nombre"],
                 categoria=form_data["categoria"],
-                precio_base_bs=form_data["precio_base_bs"],
                 precio_base_usd=form_data["precio_base_usd"],
+                alcance_servicio=form_data.get("alcance_servicio", "superficie_especifica"),
                 descripcion=form_data.get("descripcion"),
-                subcategoria=form_data.get("subcategoria"),
-                duracion_estimada=form_data.get("duracion_estimada", "30 minutes"),
                 material_incluido=form_data.get("material_incluido"),
-                instrucciones_pre=form_data.get("instrucciones_pre"),
-                instrucciones_post=form_data.get("instrucciones_post"),
+                condicion_resultante=form_data.get("condicion_resultante"),
                 creado_por=user_id
             )
             

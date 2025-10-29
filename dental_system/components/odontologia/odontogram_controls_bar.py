@@ -15,7 +15,7 @@ from dental_system.styles.medical_design_system import DARK_COLORS
 
 def odontogram_controls_bar(
     patient_name: str = "",
-    patient_id: str = "",
+    patient_hc: str = "",
     show_timeline: bool = False,
     has_odontogram_changes: bool = False,
     has_selected_services: bool = False,
@@ -58,9 +58,9 @@ def odontogram_controls_bar(
                     font_size="15px",
                 ),
                 rx.cond(
-                    patient_id != "",
+                    patient_hc != "",
                     rx.text(
-                        f"HC: {patient_id}",
+                        f"HC: {patient_hc}",
                         font_size="12px",
                         color=DARK_COLORS["text_secondary"],
                     ),

@@ -111,10 +111,10 @@ def validar_duracion(duracion: str) -> Optional[str]:
 def validar_categoria(categoria: str) -> Optional[str]:
     """
     Valida la categoría del servicio
-    
+
     Args:
         categoria: Categoría a validar
-        
+
     Returns:
         Mensaje de error o None si es válido
     """
@@ -123,14 +123,62 @@ def validar_categoria(categoria: str) -> Optional[str]:
         'endodoncia', 'protesis', 'ortodoncia', 'implantes',
         'pediatrica', 'diagnostico', 'emergencia', 'otro'
     }
-    
+
     if not categoria:
         return "La categoría es requerida"
-        
+
     if len(categoria) > 50:
         return "La categoría no puede exceder 50 caracteres"
-        
+
     if categoria.lower() not in CATEGORIAS_VALIDAS:
         return "Categoría inválida"
-    
+
+    return None
+
+def validar_alcance_servicio(alcance: str) -> Optional[str]:
+    """
+    Valida el alcance del servicio según constraint de BD:
+    chk_alcance_servicio check (alcance_servicio IN ('superficie_especifica', 'diente_completo', 'boca_completa'))
+
+    Args:
+        alcance: Alcance a validar
+
+    Returns:
+        Mensaje de error o None si es válido
+    """
+    ALCANCES_VALIDOS = {'superficie_especifica', 'diente_completo', 'boca_completa'}
+
+    if not alcance:
+        return "El alcance del servicio es requerido"
+
+    if alcance not in ALCANCES_VALIDOS:
+        return "Alcance inválido. Debe ser 'superficie_especifica', 'diente_completo' o 'boca_completa'"
+
+    return None
+
+def validar_condicion_resultante(condicion: Optional[str]) -> Optional[str]:
+    """
+    Valida la condición resultante del servicio según constraint de BD:
+    check_condicion_resultante_valida
+
+    Args:
+        condicion: Condición a validar (puede ser None para servicios preventivos)
+
+    Returns:
+        Mensaje de error o None si es válido
+    """
+    # NULL es válido (servicios preventivos)
+    if condicion is None or condicion == "":
+        return None
+
+    CONDICIONES_VALIDAS = {
+        'sano', 'caries', 'obturacion', 'corona', 'puente', 'implante',
+        'ausente', 'extraccion_indicada', 'endodoncia', 'protesis', 'fractura',
+        'mancha', 'desgaste', 'sensibilidad', 'movilidad', 'impactado',
+        'en_erupcion', 'retenido', 'supernumerario', 'otro'
+    }
+
+    if condicion not in CONDICIONES_VALIDAS:
+        return "Condición resultante inválida"
+
     return None

@@ -88,7 +88,7 @@ def odontogram_legend() -> rx.Component:
 
 def professional_odontogram_grid(
     selected_tooth: int = None,
-    teeth_data: Dict[int, Dict[str, Any]] = None,
+    teeth_data: Dict[int, Dict[str, Any]] = {},
     on_tooth_click = None,
 ) -> rx.Component:
     """
@@ -107,15 +107,13 @@ def professional_odontogram_grid(
         Grid completo con 32 dientes + leyenda lateral
     """
 
-    # Default data si no se proporciona
-    if teeth_data is None:
-        teeth_data = {}
 
     def render_quadrant(tooth_numbers: List[int], reverse: bool = False) -> rx.Component:
         """Renderizar un cuadrante de 8 dientes"""
         # Aplicar reverse antes de iterar
         teeth_list = tooth_numbers[::-1] if reverse else tooth_numbers
 
+        
         return rx.hstack(
             *[
                 tooth_with_tooltip(

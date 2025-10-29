@@ -111,7 +111,7 @@ class EstadoPacientes(rx.State,mixin=True):
     # ==========================================
     
     @rx.event
-    async def cargar_lista_pacientes(self, forzar_refresco: bool = False):
+    async def cargar_lista_pacientes(self):
         """
         📋 CARGAR LISTA COMPLETA DE PACIENTES CON CACHE
         
@@ -119,11 +119,6 @@ class EstadoPacientes(rx.State,mixin=True):
             forzar_refresco: Forzar recarga desde BD ignorando cache
         """
         print("👥 Cargando lista de pacientes...")
-        
-        # REMOVED - [2025-01-04] - Referencias a cache comentadas
-        # if not forzar_refresco and self._cache_pacientes_valido():
-        #     print("✅ Usando cache de pacientes válido")
-        #     return
         
         self.cargando_lista_pacientes = True
         
@@ -141,11 +136,6 @@ class EstadoPacientes(rx.State,mixin=True):
             # Convertir a modelos tipados y actualizar estado
             self.lista_pacientes = pacientes_data
             self.total_pacientes = len(pacientes_data)
-            
-            # UNUSED - [2025-01-04] - Referencias a cache comentadas
-            # self.cache_pacientes_activos = [p for p in pacientes_data if p.activo]
-            # self.cache_timestamp_activos = datetime.now().isoformat()
-            
             # Calcular paginación
             self._actualizar_paginacion()
             
@@ -155,13 +145,7 @@ class EstadoPacientes(rx.State,mixin=True):
             error_msg = f"Error cargando pacientes: {str(e)}"
             logger.error(error_msg)
             print(f"❌ {error_msg}")
-            
-            # UNUSED - [2025-01-04] - Referencias a cache comentadas
-            # if self.cache_pacientes_activos:
-            #     self.lista_pacientes = self.cache_pacientes_activos
-            #     self.total_pacientes = len(self.cache_pacientes_activos)
-            #     print("🔄 Usando datos del cache por error de conexión")
-        
+
         finally:
             self.cargando_lista_pacientes = False
     
@@ -193,18 +177,7 @@ class EstadoPacientes(rx.State,mixin=True):
             )
             
             # Actualizar lista local
-            self.lista_pacientes.append(paciente_nuevo)
-            self.total_pacientes += 1
-            
-            # REMOVED - [2025-01-04] - Referencias a cache comentadas
-            # self._invalidar_cache_pacientes()
-            
-            # Mostrar feedback de éxito (ya disponible por mixin)
-            if hasattr(self, 'mostrar_toast'):
-                self.mostrar_toast(
-                    f"Paciente {paciente_nuevo.primer_nombre} {paciente_nuevo.primer_apellido} creado exitosamente",
-                    "success"
-                )
+            await self.cargar_lista_pacientes()
             
             print(f"✅ Paciente creado: {paciente_nuevo.numero_historia}")
             return paciente_nuevo
@@ -779,7 +752,7 @@ class EstadoPacientes(rx.State,mixin=True):
         return {
             "paciente": self.paciente_seleccionado,
             "edad": self._calcular_edad(self.paciente_seleccionado.fecha_nacimiento),
-            "tiene_contacto_emergencia": bool(self.paciente_seleccionado.contacto_emergencia_nombre),
+            "tiene_contacto_emergencia": bool(self.paciente_seleccionado.contacto_emergencia.get("nombre", "")),
             "total_consultas": 0,  # Se calculará en otro substate
             "ultima_consulta": None,  # Se calculará en otro substate
         }
@@ -840,7 +813,6 @@ class EstadoPacientes(rx.State,mixin=True):
         self.total_pacientes = 0
         self.paciente_seleccionado = PacienteModel()
         self.id_paciente_seleccionado = ""
-        self.formulario_paciente = {}
         self.formulario_paciente = PacienteFormModel()
         self.errores_validacion_paciente = {}
         self.paciente_para_eliminar = None
@@ -881,7 +853,6 @@ class EstadoPacientes(rx.State,mixin=True):
                 # Modo crear: limpiar selección
                 self.paciente_seleccionado = PacienteModel()
                 self.id_paciente_seleccionado = ""
-                self.formulario_paciente = {}
                 self.formulario_paciente = PacienteFormModel()
                 self.errores_validacion_paciente = {}
                 # Abrir modal crear

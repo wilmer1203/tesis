@@ -19,7 +19,6 @@ import logging
 
 # Servicios relacionados con autenticación
 from dental_system.supabase.auth import auth
-from dental_system.services.cache_invalidation_hooks import CacheInvalidationHooks
 
 logger = logging.getLogger(__name__)
 
@@ -195,15 +194,7 @@ class EstadoAuth(rx.State, mixin=True):
         self.ultima_actividad = ""
         self.error_login = ""
         
-        # Invalidar cache completo al logout
-        # NOTA: La invalidación automática se maneja por los decoradores en services
-        # No es necesario forzar invalidación manual aquí
-        # try:
-        #     CacheInvalidationHooks.force_refresh_all_dashboard_cache()
-        #     print("🗑️ Cache invalidado al cerrar sesión")
-        # except Exception as e:
-        #     print(f"⚠️ Error invalidando cache al logout: {e}")
-        
+   
         print("✅ Sesión cerrada correctamente")
         return rx.redirect("/login")
     

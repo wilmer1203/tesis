@@ -160,28 +160,7 @@ class PacientesService(BaseService):
             
             if result:
                 # Crear modelo tipado del resultado
-                paciente_model = PacienteModel.from_dict(result)
-                
-                # 🗑️ INVALIDAR CACHE después de crear paciente
-                try:
-                    invalidate_after_patient_operation()
-                except Exception as cache_error:
-                    logger.warning(f"Error invalidando cache tras crear paciente: {cache_error}")
-                
-                logger.info(f"✅ Paciente creado: {paciente_model.nombre_completo}")
-
-                # 🦷 INICIALIZAR ECOSISTEMA COMPLETO DEL PACIENTE
-                try:
-                    await self._inicializar_ecosistema_paciente_completo(
-                        paciente_model.numero_historia,
-                        paciente_model.id,
-                        user_id
-                    )
-                    logger.info(f"✅ Ecosistema del paciente {paciente_model.nombre_completo} inicializado correctamente")
-                except Exception as eco_error:
-                    logger.warning(f"⚠️ Error inicializando ecosistema del paciente {paciente_model.nombre_completo}: {eco_error}")
-                    # No fallar la creación del paciente por este error, pero registrarlo
-
+                paciente_model = PacienteModel.from_dict(result)    
                 return paciente_model
             else:
                 raise ValueError("Error creando paciente en la base de datos")
@@ -466,8 +445,8 @@ class PacientesService(BaseService):
         try:
             logger.info(f"🦷 Inicializando ecosistema completo para paciente {numero_historia}")
 
-            # 1. Crear odontograma inicial con 32 dientes como "sanos"
-            odontograma_creado = await self._crear_odontograma_inicial_completo(numero_historia, paciente_id, user_id)
+            # # 1. Crear odontograma inicial con 32 dientes como "sanos"
+            # odontograma_creado = await self._crear_odontograma_inicial_completo(numero_historia, paciente_id, user_id)
 
             # 2. Crear historial médico inicial
             historial_creado = await self._crear_historial_medico_inicial(paciente_id, user_id)
@@ -501,7 +480,6 @@ class PacientesService(BaseService):
         """
         try:
             # Importar aquí para evitar circular imports
-            from .odontograma_service import odontograma_service
             from .personal_service import personal_service
 
             # Obtener personal_id usando la función existente
@@ -509,21 +487,6 @@ class PacientesService(BaseService):
 
             if not personal_id:
                 logger.error(f"❌ No se encontró personal asociado al usuario {user_id}")
-                return False
-
-            # Crear odontograma inicial completo
-            odontograma = await odontograma_service.crear_odontograma_inicial_completo(
-                numero_historia,
-                paciente_id,
-                user_id,      # Para registrado_por (FK usuarios)
-                personal_id   # Para odontologo_id (FK personal)
-            )
-
-            if odontograma:
-                logger.info(f"✅ Odontograma inicial creado para {numero_historia} (ID: {odontograma.id})")
-                return True
-            else:
-                logger.error(f"❌ No se pudo crear odontograma inicial para {numero_historia}")
                 return False
 
         except Exception as e:

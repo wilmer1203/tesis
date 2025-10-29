@@ -3,129 +3,70 @@
 
 import reflex as rx
 from dental_system.state.app_state import AppState
-from dental_system.components.common import page_header, secondary_button
+from dental_system.components.common import  secondary_button
 from dental_system.components.odontologia.consulta_card import (
-    lista_consultas_asignadas,
     lista_consultas_disponibles,
     lista_consultas_compactas,
     estadisticas_cola_odontologo,
     seccion_header
 )
 from dental_system.styles.themes import (
-    COLORS, SHADOWS, RADIUS, SPACING,ANIMATIONS,
+    COLORS, RADIUS, SPACING,ANIMATIONS,
     dark_crystal_card, dark_header_style, dark_page_background,
     DARK_THEME
 )
-
+from dental_system.components.common import medical_page_layout
 # ==========================================
-# 🎨 ESTILOS PROFESIONALES TEMA OSCURO
+# 🎨 ESTILOS PROFESIONALES TEMA OSCURO V2.0
 # ==========================================
 
-def medical_crystal_card(color: str = None) -> dict:
-    """💎 Card médica con glassmorphism profesional"""
-    return dark_crystal_card(
-        color=color or COLORS["primary"]["500"],
-        hover_lift="4px",
-        padding=SPACING["6"],
-        width="100%",
-        height="calc(100vh - 200px)",
-        overflow="hidden"
-    )
+def odontologia_column_card(color: str = None, hover_lift: str = "4px") -> dict:
+    """
+    💎 Card estandarizado para columnas de odontología
 
-def medical_scrollable_content() -> dict:
-    """📜 Contenido scrolleable para información médica"""
+    MEJORAS V2.0:
+    - Sin altura fija (usa flex para adaptarse)
+    - Padding consistente
+    - Display flex para contenido interno
+    """
     return {
-        "height": "calc(100% - 60px)",
+        **dark_crystal_card(
+            color=color or COLORS["primary"]["500"],
+            hover_lift=hover_lift,
+            padding=SPACING["5"],  # ✅ Padding estandarizado
+        ),
+        # ✅ MEJORA: Usar flex en vez de altura fija
+        "display": "flex",
+        "flex_direction": "column",
+        "min_height": "500px",
+        "max_height": "calc(100vh - 280px)",  # Espacio para header y stats
+        "width": "100%",
+        "overflow": "hidden"
+    }
+
+def medical_scrollable_content_v2() -> dict:
+    """
+    📜 Contenido scrolleable mejorado V2.0
+
+    MEJORAS:
+    - Usa flex: 1 para tomar espacio disponible
+    - No depende de cálculos de altura
+    - Scroll más suave
+    """
+    return {
+        "flex": "1",  # ✅ Toma todo el espacio disponible
         "overflow_y": "auto",
         "overflow_x": "hidden",
         "padding_right": SPACING["2"],
         "scrollbar_width": "thin",
-        "scrollbar_color": f"{DARK_THEME['colors']['accent']} {DARK_THEME['colors']['surface']}"
+        "scrollbar_color": f"{DARK_THEME['colors']['accent']} {DARK_THEME['colors']['surface']}",
+        # ✅ Scroll behavior suave
+        "scroll_behavior": "smooth"
     }
 
 # ==========================================
 # 🚨 COMPONENTES MÉDICOS ESPECIALIZADOS
 # ==========================================
-
-def accesos_rapidos_odontologicos() -> rx.Component:
-    """🦷 Accesos rápidos específicos para odontólogos"""
-    return rx.hstack(
-        # Acceso directo a odontograma
-        rx.button(
-            rx.hstack(
-                rx.icon("activity", size=18),
-                rx.text("Odontograma", font_weight="600"),
-                spacing="2"
-            ),
-            on_click=lambda: AppState.navigate_to("intervencion"),
-            style={
-                "background": f"linear-gradient(135deg, {COLORS['primary']['500']} 0%, {COLORS['primary']['400']} 100%)",
-                "color": "white",
-                "border": "none",
-                "border_radius": RADIUS["lg"],
-                "padding": "12px 16px",
-                "_hover": {
-                    "transform": "translateY(-2px)",
-                    "box_shadow": f"0 8px 25px {COLORS['primary']['500']}40"
-                },
-                "transition": ANIMATIONS["easing"]["smooth"] 
-            }
-        ),
-        
-        # Historial del día
-        rx.button(
-            rx.hstack(
-                rx.icon("calendar", size=18),
-                rx.text("Mis Intervenciones", font_weight="600"),
-                spacing="2"
-            ),
-            style={
-                "background": f"linear-gradient(135deg, {COLORS['success']['500']} 0%, {COLORS['success']['400']} 100%)",
-                "color": "white",
-                "border": "none",
-                "border_radius": RADIUS["lg"],
-                "padding": "12px 16px",
-                "_hover": {
-                    "transform": "translateY(-2px)",
-                    "box_shadow": f"0 8px 25px {COLORS['success']['500']}40"
-                },
-                "transition":ANIMATIONS["easing"]["smooth"]  
-            }
-        ),
-        
-        # Pacientes urgentes
-        rx.cond(
-            AppState.estadisticas_odontologo_tiempo_real["pacientes_urgentes"] > 0,
-            rx.button(
-                rx.hstack(
-                    rx.icon("triangle-alert", size=18),
-                    rx.text(
-                        f"URGENTES ({AppState.estadisticas_odontologo_tiempo_real['pacientes_urgentes']})",
-                        font_weight="700"
-                    ),
-                    spacing="2"
-                ),
-                style={
-                    "background": f"linear-gradient(135deg, {COLORS['error']['500']} 0%, {COLORS['error']['400']} 100%)",
-                    "color": "white",
-                    "border": "none",
-                    "border_radius": RADIUS["lg"],
-                    "padding": "12px 16px",
-                    "animation": "pulse 2s infinite",
-                    "_hover": {
-                        "transform": "translateY(-2px)",
-                        "box_shadow": f"0 8px 25px {COLORS['error']['500']}40"
-                    },
-                    "transition": ANIMATIONS["easing"]["smooth"] 
-                },
-                on_click=AppState.alternar_mostrar_urgencias
-            )
-        ),
-        
-        spacing="3",
-        justify="center",
-        wrap="wrap"
-    )
 
 def stat_card_odontologo(titulo: str, valor: str, color: str = "blue") -> rx.Component:
     """📊 Tarjeta de estadística simple para odontólogo"""
@@ -173,7 +114,7 @@ def estadisticas_odontologo_superiores() -> rx.Component:
         # 2. En espera
         stat_card_odontologo(
             "En Espera",
-            AppState.estadisticas_odontologo_tiempo_real["consultas_programadas"].to_string(),
+            AppState.estadisticas_odontologo_tiempo_real["consultas_en_espera"].to_string(),
             "yellow"
         ),
 
@@ -194,16 +135,9 @@ def estadisticas_odontologo_superiores() -> rx.Component:
         # 5. En progreso
         stat_card_odontologo(
             "En Progreso",
-            AppState.estadisticas_odontologo_tiempo_real["consultas_en_progreso"].to_string(),
+            AppState.estadisticas_odontologo_tiempo_real["consultas_en_atencion"].to_string(),
             "red"
         ),
-
-        # 6. Urgentes
-        # stat_card_odontologo(
-        #     "Urgentes",
-        #     AppState.estadisticas_odontologo_tiempo_real["pacientes_urgentes"].to_string(),
-        #     "blue"
-        # ),
 
         columns="6",
         spacing="3",
@@ -268,7 +202,6 @@ def barra_busqueda_y_filtros() -> rx.Component:
                 on_click=[
                     AppState.cargar_pacientes_asignados,
                     AppState.cargar_consultas_disponibles_otros,
-                    AppState.cargar_estadisticas_dia
                 ]
             ),
             
@@ -373,7 +306,8 @@ def odontologia_page() -> rx.Component:
     - Componentes reutilizables y tipados
     - Navegación fluida y UX mejorada
     """
-    return rx.vstack(
+    return medical_page_layout(
+    rx.vstack(
         # Header profesional con tema oscuro
         rx.box(
             rx.vstack(
@@ -426,10 +360,12 @@ def odontologia_page() -> rx.Component:
             width="100%"
         ),
         
-        # Layout principal de dos columnas 50/50
-        rx.hstack(
+        # ==========================================
+        # 🎨 LAYOUT PRINCIPAL V2.0 - GRID RESPONSIVE
+        # ==========================================
+        rx.grid(
             # ==========================================
-            # COLUMNA IZQUIERDA: MIS CONSULTAS COMPACTAS (50%)
+            # COLUMNA IZQUIERDA: MIS CONSULTAS COMPACTAS
             # ==========================================
             rx.box(
                 rx.vstack(
@@ -449,21 +385,20 @@ def odontologia_page() -> rx.Component:
                         width="100%"
                     ),
 
-                    # Lista compacta scrolleable
+                    # Lista compacta scrolleable con función V2
                     rx.box(
                         lista_consultas_compactas(),
-                        style=medical_scrollable_content()
+                        style=medical_scrollable_content_v2()
                     ),
 
                     spacing="4",
                     height="100%"
                 ),
-                style=medical_crystal_card(COLORS["blue"]["500"]),
-                width="50%"  # Exactamente 50%
+                style=odontologia_column_card(COLORS["blue"]["500"])
             ),
-            
-            # ==========================================  
-            # COLUMNA DERECHA: DISPONIBLES (50%)
+
+            # ==========================================
+            # COLUMNA DERECHA: DISPONIBLES
             # ==========================================
             rx.box(
                 rx.vstack(
@@ -474,24 +409,32 @@ def odontologia_page() -> rx.Component:
                         icono="🔄",
                         color="success"
                     ),
-                    
-                    # Contenido scrolleable
+
+                    # Contenido scrolleable con función V2
                     rx.box(
                         lista_consultas_disponibles(),
-                        style=medical_scrollable_content()
+                        style=medical_scrollable_content_v2()
                     ),
-                    
-                    spacing="0",
+
+                    spacing="4",
                     height="100%"
                 ),
-                style=medical_crystal_card(COLORS["success"]["500"]),
-                width="50%"  # Exactamente 50%
+                style=odontologia_column_card(COLORS["success"]["500"])
             ),
-            
+
+            # ✅ GRID CONFIG: Responsive y flexible
+            columns="2",
             spacing="6",
             width="100%",
-            align_items="start",
-            height="calc(100vh - 200px)"
+            style={
+                "grid_template_columns": "1fr 1fr",  # 50/50 flexible
+                "align_items": "start",
+                # ✅ Responsive breakpoints
+                "@media (max-width: 1280px)": {
+                    "grid_template_columns": "1fr",  # 1 columna en pantallas pequeñas
+                    "gap": SPACING["4"]
+                }
+            }
         ),
         
         # Footer con tema oscuro profesional
@@ -605,4 +548,9 @@ def odontologia_page() -> rx.Component:
         width="100%",
         min_height="100vh",
         style=dark_page_background(),
+        on_mount=[
+                    AppState.cargar_pacientes_asignados,
+                    AppState.cargar_consultas_disponibles_otros,
+                ]
+    )
     )

@@ -17,19 +17,12 @@ from dental_system.state.app_state import AppState
 from dental_system.state.estado_consultas import EstadoConsultas
 from dental_system.components.forms import (
     enhanced_form_field, enhanced_form_field_dinamico, form_section_header, 
-    success_feedback, loading_feedback, form_navigation_buttons
+    success_feedback, loading_feedback
 )
 from dental_system.styles.themes import (
     COLORS, SHADOWS, RADIUS, SPACING, ANIMATIONS, 
     GRADIENTS, GLASS_EFFECTS, DARK_THEME
 )
-
-# ==========================================
-# 🎨 ESTILOS ENTERPRISE CON TEMA OSCURO
-# ==========================================
-
-# ✅ MIGRADO A DARK_THEME - Consistente con forms.py
-# Se eliminan MODAL_STYLES hardcodeados y se usa el sistema unificado
 
 # ==========================================
 # 📝 COMPONENTES DEL FORMULARIO MEJORADO
@@ -116,23 +109,11 @@ def buscador_paciente() -> rx.Component:
                     "border_radius": RADIUS["lg"],
                     "max_height": "200px",
                     "overflow_y": "auto",
-                    "margin_top": SPACING["2"],
                     "box_shadow": SHADOWS["md"]
                 }
             ),
             rx.box()
-        ),
-        
-        # Paciente seleccionado con feedback visual mejorado
-        rx.cond(
-            AppState.consulta_form_paciente_seleccionado.nombre_completo != "",
-            success_feedback(
-                f"Paciente seleccionado: {AppState.consulta_form_paciente_seleccionado.nombre_completo} (CC: {AppState.consulta_form_paciente_seleccionado.numero_documento})",
-                "user-check"
-            ),
-            rx.box()
-        ),
-        
+        ),     
         spacing="4",
         width="100%",
         align="start"
@@ -239,24 +220,21 @@ def campos_adicionales() -> rx.Component:
                 field_type="select",
                 options=["general", "control", "urgencia", "emergencia"],
                 icon="activity",
-                help_text="Tipo de atención médica"
             ),
             
             # Prioridad como campo select mejorado
             enhanced_form_field(
                 label="Prioridad",
                 field_name="prioridad",
-                value=rx.cond(AppState.consulta_form_prioridad, AppState.consulta_form_prioridad, "normal"),
-                # 🔄 CORREGIDO: crear lambda que devuelve valor
-                on_change=lambda field, value: AppState.gestionar_formulario_unificado("set_campo", "prioridad", value),
+                value=rx.cond(AppState.formulario_consulta_data, AppState.formulario_consulta_data.prioridad, "normal"),
+                on_change=lambda field, value: AppState.set_formulario_consulta_field(field, value),
                 field_type="select",
                 options=["baja", "normal", "alta", "urgente"],
                 icon="triangle-alert",
-                help_text="Nivel de prioridad médica"
             ),
             
             columns=rx.breakpoints(initial="1", sm="2"),
-            spacing="4",
+            spacing="5",
             width="100%"
         ),
         
@@ -270,10 +248,10 @@ def campos_adicionales() -> rx.Component:
             placeholder="¿Por qué viene el paciente? (opcional)",
             icon="file-text",
             help_text="Descripción del motivo de la consulta",
-            max_length=500
+            max_length=400
         ),
         
-        spacing="6",
+        spacing="4",
         width="100%",
         align="start"
     )
@@ -290,11 +268,12 @@ def modal_nueva_consulta() -> rx.Component:
             rx.vstack(
                 rx.hstack(
                     form_section_header(
-                        rx.cond(
-                            AppState.modal_editar_consulta_abierto,
-                            "Editar Consulta",
-                            "Nueva Consulta"
-                        ),
+                        # rx.cond(
+                        #     AppState.modal_editar_consulta_abierto,
+                        #     "Editar Consulta",
+                        #     "Nueva Consulta"
+                        # ),
+                        "Nueva Consulta",
                         "Registrar consulta por orden de llegada",
                         "calendar-plus",
                         COLORS["primary"]["500"]
@@ -316,7 +295,8 @@ def modal_nueva_consulta() -> rx.Component:
                     align="center"
                 ),
                 spacing="4",
-                width="100%"
+                width="100%",
+                margin_bottom=SPACING["6"]
             ),
             
             # Formulario mejorado
@@ -422,25 +402,23 @@ def modal_nueva_consulta() -> rx.Component:
                                 AppState.guardar_consulta_modal
                             ),
                             disabled=AppState.cargando_crear_consulta
-                        ),
-                        
+                        ),  
                         width="100%",
-                        align="center",
-                        margin_top=SPACING["8"]
+                        align="center"
                     ),
                     
-                    spacing="6",
+                    spacing="4",
                     width="100%",
                     align="start"
                 ),
             ),
             
             style={
-                "max_width": "700px",
-                "width": "90vw",
-                "max_height": "90vh",
-                "padding": SPACING["8"],
-                "border_radius": RADIUS["3xl"],
+                "max_width": "600px",
+                # "width": "90vw",
+                # "max_height": "90vh",
+                "padding": SPACING["4"],
+                "border_radius": RADIUS["xl"],
                 **GLASS_EFFECTS["strong"],
                 "box_shadow": SHADOWS["2xl"],
                 "border": f"1px solid {COLORS['primary']['200']}30",

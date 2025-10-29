@@ -8,7 +8,7 @@ from decimal import Decimal
 from datetime import date, datetime
 from .base_service import BaseService
 from dental_system.supabase.tablas import payments_table
-from dental_system.models import PagoModel
+from dental_system.models import PagoModel, ServicioFormateado, ConsultaPendientePago
 from .cache_invalidation_hooks import invalidate_after_payment_operation, track_cache_invalidation
 import logging
 
@@ -148,7 +148,7 @@ class PagosService(BaseService):
                 consulta_id=form_data.get("consulta_id") if form_data.get("consulta_id") else None,
                 metodo_pago=form_data["metodo_pago"],
                 referencia_pago=form_data.get("referencia_pago", "").strip() or None,
-                descuento_aplicado=descuento_aplicado,
+                # descuento_aplicado=descuento_aplicado,
                 motivo_descuento=form_data.get("motivo_descuento", "").strip() or None,
                 impuestos=impuestos,
                 autorizado_por=form_data.get("autorizado_por") if form_data.get("autorizado_por") else None,
@@ -300,50 +300,86 @@ class PagosService(BaseService):
             self.handle_error("Error creando pago dual", e)
             raise ValueError(f"Error inesperado: {str(e)}")
 
-    async def update_payment(self, payment_id: str, form_data: Dict[str, str]) -> Optional[Dict[str, Any]]:
+    async def get_pago_by_consulta(self, consulta_id: str) -> Optional[Dict[str, Any]]:
         """
-        Actualiza un pago existente (limitado a ciertos campos)
-        
+        Obtiene el pago asociado a una consulta
+
+        Args:
+            consulta_id: ID de la consulta
+
+        Returns:
+            Pago encontrado o None
+        """
+        try:
+            response = self.table.table.select("*").eq("consulta_id", consulta_id).execute()
+            if response.data and len(response.data) > 0:
+                logger.info(f"✅ Pago encontrado para consulta {consulta_id}")
+                return response.data[0]
+            else:
+                logger.warning(f"⚠️ No se encontró pago para consulta {consulta_id}")
+                return None
+        except Exception as e:
+            logger.error(f"❌ Error buscando pago por consulta: {str(e)}")
+            return None
+
+    async def update_payment(self, payment_id: str, form_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        Actualiza un pago existente
+
         Args:
             payment_id: ID del pago
-            form_data: Datos del formulario
-            
+            form_data: Datos a actualizar
+
         Returns:
             Pago actualizado o None si hay error
         """
         try:
             logger.info(f"Actualizando pago: {payment_id}")
-            
+
             # Verificar permisos
             self.require_permission("pagos", "actualizar")
-            
+
             # Obtener pago original
             original = self.table.get_by_id(payment_id)
             if not original:
                 raise ValueError("Pago no encontrado")
-            
-            # Solo permitir actualizar ciertos campos por seguridad
-            allowed_updates = {
-                "referencia_pago": form_data.get("referencia_pago", "").strip() or None,
-                "observaciones": form_data.get("observaciones", "").strip() or None,
-            }
-            
+
+            # Preparar datos de actualización (permitir todos los campos del form_data)
+            allowed_updates = {}
+
+            # Campos numéricos
+            for field in ["monto_pagado_usd", "monto_pagado_bs", "saldo_pendiente_usd",
+                         "saldo_pendiente_bs", "tasa_cambio_bs_usd", "descuento_usd", "monto_total_bs"]:
+                if field in form_data:
+                    allowed_updates[field] = float(form_data[field])
+
+            # Campos de texto
+            for field in ["observaciones", "motivo_descuento", "estado_pago"]:
+                if field in form_data:
+                    allowed_updates[field] = form_data[field]
+
+            # Campo JSONB
+            if "metodos_pago" in form_data:
+                allowed_updates["metodos_pago"] = form_data["metodos_pago"]
+
+            logger.info(f"Actualizando con datos: {allowed_updates}")
+
             # Actualizar
             result = self.table.update(payment_id, allowed_updates)
-            
+
             if result:
                 logger.info(f"✅ Pago actualizado: {original.get('numero_recibo', payment_id)}")
-                
+
                 # 🗑️ INVALIDAR CACHE - pago actualizado puede afectar estadísticas
                 try:
                     invalidate_after_payment_operation()
                 except Exception as cache_error:
                     logger.warning(f"Error invalidando cache tras actualizar pago: {cache_error}")
-                
+
                 return result
             else:
                 raise ValueError("Error actualizando pago en la base de datos")
-                
+
         except PermissionError:
             logger.warning("Usuario sin permisos para actualizar pagos")
             raise
@@ -681,57 +717,79 @@ class PagosService(BaseService):
             self.handle_error("Error obteniendo todos los pagos", e)
             return []
 
-    async def get_consultas_pendientes_pago(self) -> List[Dict[str, Any]]:
-        """
-        🏥 Obtener consultas completadas pendientes de facturación
-
-        Returns:
-            Lista de consultas con información para facturación
-        """
+    async def get_consultas_pendientes_pago(self) -> List[ConsultaPendientePago]:
         try:
-            # Verificar permisos
+        
             self.require_permission("pagos", "leer")
 
             # Query especializada para consultas pendientes de pago
-            consultas_pendientes = self.table.get_consultas_pendientes_facturacion()
-
-            # Procesar y enriquecer datos para la UI
-            consultas_procesadas = []
-
+            consultas_pendientes = self.table.get_consultas_pendientes_facturacion() 
+            resultado: List[ConsultaPendientePago] = []
+            
             for consulta in consultas_pendientes:
-                consulta_data = {
-                    "consulta_id": consulta.get("id"),
-                    "numero_consulta": consulta.get("numero_consulta", "CONS-000"),
-                    "paciente_id": consulta.get("paciente_id"),
-                    "paciente_nombre": f"{consulta.get('paciente_nombre', '')} {consulta.get('paciente_apellido', '')}".strip(),
-                    "paciente_documento": consulta.get("paciente_documento", ""),
-                    "odontologo_id": consulta.get("primer_odontologo_id"),
-                    "odontologo_nombre": consulta.get("odontologo_nombre", "Dr. Sistema"),
-                    "fecha_consulta": consulta.get("fecha_llegada", ""),
-                    "servicios_realizados": consulta.get("servicios_detalle", []),
-                    "servicios_count": consulta.get("servicios_count", 0),
-                    "total_usd": float(consulta.get("total_usd", 0.0)),
-                    "total_bs": float(consulta.get("total_bs", 0.0)),
-                    "concepto": f"Consulta {consulta.get('numero_consulta', 'CONS-000')} - {consulta.get('servicios_count', 0)} servicios",
-                    "estado_consulta": consulta.get("estado", "completada"),
-                    "dias_pendiente": consulta.get("dias_pendiente", 0),
-                    "prioridad": "alta" if consulta.get("dias_pendiente", 0) > 7 else "normal"
-                }
-                consultas_procesadas.append(consulta_data)
+                # Calcular días pendientes
+                fecha_consulta_str = consulta.get("fecha_consulta", "")
+                dias_pendiente = 0
+                if fecha_consulta_str:
+                    try:
+                        if isinstance(fecha_consulta_str, str):
+                            fecha_consulta = datetime.fromisoformat(fecha_consulta_str.replace('Z', '+00:00')).date()
+                        else:
+                            fecha_consulta = fecha_consulta_str
+                        dias_pendiente = (date.today() - fecha_consulta).days
+                    except:
+                        dias_pendiente = 0
 
-            # Ordenar por fecha más reciente primero
-            consultas_procesadas.sort(
-                key=lambda x: x.get("fecha_consulta", ""),
-                reverse=True
-            )
+                # Determinar prioridad
+                if dias_pendiente > 3:
+                    prioridad = "alta"
+                elif dias_pendiente > 0:
+                    prioridad = "media"
+                else:
+                    prioridad = "baja"
+                servicios_detalle_raw = consulta.get("servicios_detalle", [])  # ✅ CORREGIDO: era servicios_realizados
+                servicios_count = len(servicios_detalle_raw)
 
-            logger.info(f"✅ {len(consultas_procesadas)} consultas pendientes de pago obtenidas")
-            return consultas_procesadas
+                # ✅ FORMATEAR SERVICIOS PARA UI (lista tipada con modelo)
+                servicios_formateados: List[ServicioFormateado] = []
+                for srv in servicios_detalle_raw:
+                    servicios_formateados.append(ServicioFormateado(
+                        nombre=str(srv.get("nombre", "Servicio")),
+                        odontologo=str(srv.get("odontologo", "Odontólogo")),
+                        precio_usd=f"{float(srv.get('precio_usd', 0)):.2f}",
+                        precio_bs=f"{float(srv.get('precio_bs', 0)):,.0f}"
+                    ))
 
-        except Exception as e:
+                # 🔍 EXTRAER PAGO_ID del array de pagos
+                pagos_array = consulta.get("pagos", [])
+                pago_id = ""
+                if pagos_array and len(pagos_array) > 0:
+                    pago_id = str(pagos_array[0].get("id", ""))
+
+                # ✅ CREAR INSTANCIA DEL MODELO (no diccionario)
+                resultado.append(ConsultaPendientePago(
+                    pago_id=pago_id,  # ✅ ID del pago pendiente
+                    consulta_id=consulta.get("id", ""),
+                    numero_consulta=consulta.get("numero_consulta", ""),
+                    paciente_id=consulta.get("paciente_id", ""),
+                    paciente_nombre=consulta.get("paciente_nombre", ""),
+                    paciente_documento=consulta.get("paciente_documento", ""),
+                    paciente_numero_historia=consulta.get("paciente_numero_historia", ""),  # ✨ NUEVO
+                    paciente_telefono=consulta.get("paciente_telefono", ""),  # ✨ NUEVO
+                    odontologo_nombre=consulta.get("odontologo_nombre", ""),
+                    fecha_consulta=consulta.get("fecha_llegada", ""),
+                    dias_pendiente=dias_pendiente,
+                    prioridad=prioridad,
+                    servicios_count=servicios_count,
+                    total_usd=float(consulta.get("total_usd", 0)),
+                    total_bs=float(consulta.get("total_bs", 0)),
+                    servicios_formateados=servicios_formateados  # ✅ Lista tipada
+                ))
+            return resultado
+        except Exception as e: 
             self.handle_error("Error obteniendo consultas pendientes de pago", e)
-            return []
-
+            return [] 
+     
 
 # Instancia única para importar
 pagos_service = PagosService()

@@ -1621,60 +1621,43 @@ def service_form_fields() -> rx.Component:
             COLORS["secondary"]["500"]
         ),
 
-        # Categoría y duración
-        rx.grid(
-            enhanced_form_field_select(
-                label="Categoría",
-                field_name="categoria",
-                value=AppState.formulario_servicio.categoria,
-                on_change=AppState.actualizar_campo_formulario_servicio,
-                options=AppState.categorias_servicios,
-                placeholder="Seleccionar categoría",
-                required=True,
-                icon="grid"
-            ),
-            enhanced_form_field(
-                label="Duración (min)",
-                field_name="duracion_estimada",
-                value=AppState.formulario_duracion_value,
-                on_change=AppState.actualizar_campo_formulario_servicio,
-                field_type="number",
-                placeholder="30",
-                required=True,
-                icon="clock"
-            ),
-            columns=rx.breakpoints(initial="1", sm="2"),
-            spacing="4",
-            width="100%"
+        # Categoría
+        enhanced_form_field_select(
+            label="Categoría",
+            field_name="categoria",
+            value=AppState.formulario_servicio.categoria,
+            on_change=AppState.actualizar_campo_formulario_servicio,
+            options=AppState.categorias_servicios,
+            placeholder="Seleccionar categoría",
+            required=True,
+            icon="grid"
         ),
 
-        # Precios
-        rx.grid(
-            enhanced_form_field(
-                label="Precio Base USD",
-                field_name="precio_base_usd",
-                value=AppState.formulario_precio_usd_value,
-                on_change=AppState.actualizar_campo_formulario_servicio,
-                field_type="number",
-                placeholder="50.00",
-                required=True,
-                icon="dollar-sign",
-                validation_error=rx.cond(AppState.errores_validacion_servicio, AppState.errores_validacion_servicio.get("precio_base_usd", ""), "")
-            ),
-            enhanced_form_field(
-                label="Precio Base BS",
-                field_name="precio_base_bs",
-                value=AppState.formulario_precio_bs_value,
-                on_change=AppState.actualizar_campo_formulario_servicio,
-                field_type="number",
-                placeholder="1800.00",
-                required=True,
-                icon="banknote",
-                validation_error=rx.cond(AppState.errores_validacion_servicio, AppState.errores_validacion_servicio.get("precio_base_bs", ""), "")
-            ),
-            columns=rx.breakpoints(initial="1", sm="2"),
-            spacing="4",
-            width="100%"
+        # Alcance del Servicio
+        enhanced_form_field_select(
+            label="Alcance del Servicio",
+            field_name="alcance_servicio",
+            value=AppState.formulario_servicio.alcance_servicio,
+            on_change=AppState.actualizar_campo_formulario_servicio,
+            options=["superficie_especifica", "diente_completo", "boca_completa"],
+            placeholder="Seleccionar alcance",
+            required=True,
+            icon="target",
+            help_text="Superficie específica: una cara del diente | Diente completo: todo el diente | Boca completa: todo el odontograma"
+        ),
+
+        # Precio Base USD
+        enhanced_form_field(
+            label="Precio Base USD",
+            field_name="precio_base_usd",
+            value=AppState.formulario_precio_usd_value,
+            on_change=AppState.actualizar_campo_formulario_servicio,
+            field_type="number",
+            placeholder="50.00",
+            required=True,
+            icon="dollar-sign",
+            help_text="El precio en Bolívares se calculará automáticamente usando la tasa de cambio actual",
+            validation_error=rx.cond(AppState.errores_validacion_servicio, AppState.errores_validacion_servicio.get("precio_base_usd", ""), "")
         ),
 
         # Material incluido
@@ -1685,6 +1668,55 @@ def service_form_fields() -> rx.Component:
             on_change=AppState.actualizar_campo_formulario_servicio,
             placeholder="Ej: Amalgama, anestesia local",
             icon="package"
+        ),
+
+        # ==========================================
+        # 🦷 V3.0: CONDICIÓN DENTAL RESULTANTE
+        # ==========================================
+        form_section_header(
+            "Condición Dental Resultante",
+            "¿Este servicio modifica el odontograma del paciente?",
+            "tooth",
+            COLORS["success"]["500"]
+        ),
+
+        rx.vstack(
+            rx.text(
+                "Si el servicio modifica la condición de un diente, selecciona la condición resultante. "
+                "Los servicios preventivos (limpiezas, consultas) no modifican el odontograma.",
+                style={
+                    "font_size": "0.9rem",
+                    "color": COLORS["gray"]["400"],
+                    "line_height": "1.5",
+                    "margin_bottom": SPACING["3"]
+                }
+            ),
+            enhanced_form_field_select(
+                label="Condición Resultante",
+                field_name="condicion_resultante",
+                value=AppState.formulario_servicio.condicion_resultante,
+                on_change=AppState.actualizar_campo_formulario_servicio,
+                options=[
+                    "",  # Preventivo (sin condición)
+                    "sano",
+                    "caries",
+                    "obturacion",
+                    "endodoncia",
+                    "corona",
+                    "puente",
+                    "implante",
+                    "protesis",
+                    "ausente",
+                    "fractura",
+                    "extraccion_indicada"
+                ],
+                placeholder="Preventivo (no modifica)",
+                required=False,
+                icon="activity",
+                help_text="Deja vacío para servicios preventivos"
+            ),
+            spacing="3",
+            width="100%"
         ),
 
         # Mostrar errores
@@ -2191,110 +2223,4 @@ def loading_feedback(message: str = "Procesando...") -> rx.Component:
             "border_radius": RADIUS["lg"],
             "padding": f"{SPACING['3']} {SPACING['4']}"
         }
-    )
-
-# ==========================================
-# 📅 FORMULARIO DE CONSULTAS - CORRECTO
-# ==========================================
-
-def consultation_form() -> rx.Component:
-    """📅 Formulario de consulta siguiendo el patrón correcto"""
-    
-    return rx.dialog.root(
-        rx.dialog.content(
-            rx.dialog.title("Nueva Consulta"),
-            
-            rx.vstack(
-                # Selector de paciente
-                rx.vstack(
-                    rx.text("Paciente *", font_weight="600"),
-                    form_field(
-                        field_name="paciente_id",
-                        field_type="text",
-                        placeholder="ID del paciente...",
-                        value=rx.cond(AppState.formulario_consulta_data, AppState.formulario_consulta_data.paciente_id, ""),
-                        on_change=AppState.update_consulta_form,
-                        required=True
-                    ),
-                    align="start",
-                    width="100%"
-                ),
-                
-                # Selector de odontólogo
-                rx.vstack(
-                    rx.text("Odontólogo *", font_weight="600"),
-                    form_field(
-                        field_name="primer_odontologo_id",
-                        field_type="text",
-                        placeholder="ID del odontólogo...",
-                        value=rx.cond(AppState.formulario_consulta_data, AppState.formulario_consulta_data.primer_odontologo_id, ""),
-                        on_change=AppState.update_consulta_form,
-                        required=True
-                    ),
-                    align="start",
-                    width="100%"
-                ),
-                
-                # Tipo de consulta
-                rx.vstack(
-                    rx.text("Tipo de Consulta", font_weight="600"),
-                    form_field(
-                        field_name="tipo_consulta",
-                        field_type="text",
-                        placeholder="Tipo de consulta...",
-                        value=rx.cond(AppState.formulario_consulta_data, AppState.formulario_consulta_data.tipo_consulta, "general"),
-                        on_change=AppState.update_consulta_form
-                    ),
-                    align="start",
-                    width="100%"
-                ),
-                
-                # Motivo de consulta
-                rx.vstack(
-                    rx.text("Motivo (opcional)", font_weight="600"),
-                    form_field(
-                        field_name="motivo_consulta",
-                        field_type="textarea",
-                        placeholder="¿Por qué viene el paciente?",
-                        value=rx.cond(AppState.formulario_consulta_data, AppState.formulario_consulta_data.motivo_consulta, ""),
-                        on_change=AppState.update_consulta_form,
-                        rows="3"
-                    ),
-                    align="start",
-                    width="100%"
-                ),
-                
-                # Botones de acción
-                rx.hstack(
-                    rx.dialog.close(
-                        rx.button(
-                            "Cancelar",
-                            style={"background": "#6b7280", "color": "white"}
-                        )
-                    ),
-                    rx.button(
-                        "Crear Consulta",
-                        style={"background": "#2563eb", "color": "white"},
-                        loading=AppState.cargando_crear_consulta,
-                        on_click=AppState.guardar_consulta_modal
-                    ),
-                    spacing="3",
-                    justify="end",
-                    width="100%"
-                ),
-                
-                spacing="4",
-                width="100%",
-                align="start"
-            ),
-            
-            style={
-                "padding": "2rem",
-                "max_width": "500px",
-                "max_height": "80vh",
-                "overflow_y": "auto"
-            }
-        ),
-        open=AppState.modal_crear_consulta_abierto,
-        on_open_change=lambda x: AppState.cerrar_todos_los_modales()
     )

@@ -15,9 +15,32 @@ class PaymentsTable(BaseTable):
     """
     Maneja todas las operaciones CRUD para la tabla pagos
     """
-    
+
     def __init__(self):
         super().__init__('pagos')
+
+    @handle_supabase_error
+    def get_all(self) -> List[Dict[str, Any]]:
+        """
+        Obtiene todos los pagos con información completa de pacientes
+        Sobrescribe el método heredado para incluir relaciones necesarias
+
+        Returns:
+            Lista de pagos con datos enriquecidos
+        """
+        response = self.table.select("""
+            *,
+            pacientes(
+                id,
+                numero_historia,
+                primer_nombre,
+                primer_apellido,
+                numero_documento
+            )
+        """).order("fecha_pago", desc=True).execute()
+
+        logger.info(f"✅ {len(response.data)} pagos obtenidos con relaciones completas")
+        return response.data
     
     @handle_supabase_error
     def create_payment(self,
@@ -56,26 +79,35 @@ class PaymentsTable(BaseTable):
             Pago creado con número de recibo generado
         """
         # Calcular saldo pendiente
-        saldo_pendiente = float(monto_total) - float(monto_pagado)
-        
+        saldo_pendiente_usd = float(monto_total) - float(monto_pagado) - float(descuento_aplicado)
+
+        # Método de pago como JSONB array
+        metodos_pago_json = [{
+            "tipo": metodo_pago,
+            "moneda": "USD",
+            "monto": float(monto_pagado),
+            "referencia": referencia_pago
+        }]
+
         data = {
             "paciente_id": paciente_id,
-            "monto_total": float(monto_total),
-            "monto_pagado": float(monto_pagado),
-            "saldo_pendiente": saldo_pendiente,
+            "monto_total_usd": float(monto_total),
+            "monto_total_bs": 0.0,
+            "monto_pagado_usd": float(monto_pagado),
+            "monto_pagado_bs": 0.0,
+            "saldo_pendiente_usd": max(0, saldo_pendiente_usd),
+            "saldo_pendiente_bs": 0.0,
+            "tasa_cambio_bs_usd": 36.50,  # Tasa por defecto
             "concepto": concepto,
             "procesado_por": procesado_por,
-            "metodo_pago": metodo_pago,
-            "descuento_aplicado": float(descuento_aplicado),
-            "impuestos": float(impuestos),
-            "estado_pago": "completado" if saldo_pendiente <= 0 else "pendiente"
+            "metodos_pago": metodos_pago_json,
+            "descuento_usd": float(descuento_aplicado),
+            "estado_pago": "completado" if saldo_pendiente_usd <= 0 else "pendiente"
         }
-        
+
         # Agregar campos opcionales
         if consulta_id:
             data["consulta_id"] = consulta_id
-        if referencia_pago:
-            data["referencia_pago"] = referencia_pago
         if motivo_descuento and descuento_aplicado > 0:
             data["motivo_descuento"] = motivo_descuento
         if autorizado_por:
@@ -138,7 +170,7 @@ class PaymentsTable(BaseTable):
         estado_pago = "completado" if saldo_pendiente_usd <= 0.01 else "pendiente"
 
         data = {
-            # 💰 CAMPOS DUALES USD/BS
+            # 💰 CAMPOS DUALES USD/BS (según tabla real de Supabase)
             "monto_total_usd": float(monto_total_usd),
             "monto_total_bs": monto_total_bs,
             "monto_pagado_usd": float(pago_usd),
@@ -150,19 +182,12 @@ class PaymentsTable(BaseTable):
             # 🎛️ MÉTODOS DE PAGO MÚLTIPLES (JSONB)
             "metodos_pago": metodos_pago,
 
-            # 📋 CAMPOS TRADICIONALES (BACKWARD COMPATIBILITY)
-            "monto_total": float(monto_total_usd),  # Alias USD
-            "monto_pagado": total_pagado_usd,       # Total pagado en USD equivalente
-            "saldo_pendiente": saldo_pendiente_usd, # Saldo en USD
-            "metodo_pago": metodos_pago[0].get("tipo", "efectivo") if metodos_pago else "efectivo",
-
             # 📊 INFORMACIÓN BÁSICA
             "paciente_id": paciente_id,
             "concepto": concepto,
             "procesado_por": procesado_por,
             "estado_pago": estado_pago,
-            "descuento_aplicado": float(descuento_usd),
-            "impuestos": 0.0  # No aplica en este sistema
+            "descuento_usd": float(descuento_usd)
         }
 
         # Agregar campos opcionales
@@ -576,7 +601,8 @@ class PaymentsTable(BaseTable):
             Lista de consultas con pagos pendientes e información relacionada
         """
         try:
-            # Query compleja para obtener consultas completadas con pagos pendientes
+            # ✅ CORREGIDO: Buscar consultas completadas sin pago O con pago pendiente
+            # LEFT JOIN permite consultas sin pagos creados aún Y sin intervenciones
             query = self.client.table("consultas").select("""
                 id,
                 numero_consulta,
@@ -584,27 +610,32 @@ class PaymentsTable(BaseTable):
                 primer_odontologo_id,
                 fecha_llegada,
                 estado,
-                pacientes!inner(primer_nombre, primer_apellido, numero_documento),
+                pacientes!inner(primer_nombre, primer_apellido, numero_documento, numero_historia, celular_1),
                 personal!primer_odontologo_id(primer_nombre, primer_apellido),
                 intervenciones(
                     id,
+                    odontologo_id,
                     total_usd,
                     total_bs,
                     procedimiento_realizado,
                     intervenciones_servicios(
                         cantidad,
+                        precio_unitario_usd,
+                        precio_unitario_bs,
                         servicios(nombre)
-                    )
+                    ),
+                    personal!odontologo_id(primer_nombre, primer_apellido)
                 ),
-                pagos!inner(
+                pagos(
                     id,
                     estado_pago,
                     monto_total_usd,
                     monto_total_bs,
                     saldo_pendiente_usd,
-                    saldo_pendiente_bs
+                    saldo_pendiente_bs,
+                    fecha_pago
                 )
-            """).eq("estado", "completada").eq("pagos.estado_pago", "pendiente")
+            """).eq("estado", "completada")
 
             response = query.execute()
 
@@ -615,19 +646,59 @@ class PaymentsTable(BaseTable):
             consultas_procesadas = []
 
             for consulta in response.data:
-                # Calcular totales de intervenciones
-                total_usd = sum(float(i.get("total_usd", 0)) for i in consulta.get("intervenciones", []))
-                total_bs = sum(float(i.get("total_bs", 0)) for i in consulta.get("intervenciones", []))
+                # ✅ FILTRAR: Solo incluir si NO hay pago O si tiene pago pendiente
+                pagos_consulta = consulta.get("pagos", [])
 
-                # Contar servicios realizados
+                # 🔧 MEJORA: Si hay múltiples pagos, ordenar por fecha y filtrar
+                if pagos_consulta:
+                    # Ordenar por fecha_pago descendente (más reciente primero)
+                    pagos_consulta_sorted = sorted(
+                        pagos_consulta,
+                        key=lambda p: p.get("fecha_pago", ""),
+                        reverse=True
+                    )
+
+                    # Verificar que al menos uno esté pendiente
+                    tiene_pago_pendiente = any(
+                        pago.get("estado_pago") == "pendiente"
+                        for pago in pagos_consulta_sorted
+                    )
+                    # Si todos están completados, saltar esta consulta
+                    if not tiene_pago_pendiente:
+                        continue
+
+                    # Usar pagos ordenados para el resultado
+                    pagos_consulta = pagos_consulta_sorted
+
+                # Calcular totales de intervenciones
+                intervenciones_list = consulta.get("intervenciones", [])
+                total_usd = sum(float(i.get("total_usd", 0)) for i in intervenciones_list)
+                total_bs = sum(float(i.get("total_bs", 0)) for i in intervenciones_list)
+
+                # ⚠️ VALIDACIÓN: Advertir si consulta completada sin intervenciones o sin monto
+                if not intervenciones_list:
+                    logger.warning(f"⚠️ Consulta {consulta.get('numero_consulta')} completada SIN intervenciones registradas")
+                    # Incluir de todos modos para que aparezca en lista (puede ser error de registro)
+                elif total_usd == 0 and total_bs == 0:
+                    logger.warning(f"⚠️ Consulta {consulta.get('numero_consulta')} con intervenciones pero SIN monto calculado")
+
+                # Contar servicios realizados con precios
                 servicios_count = 0
                 servicios_detalle = []
                 for intervencion in consulta.get("intervenciones", []):
+                    odontologo = intervencion.get("personal", {})
                     for is_item in intervencion.get("intervenciones_servicios", []):
-                        servicios_count += is_item.get("cantidad", 1)
+                        cantidad = is_item.get("cantidad", 1)
+                        precio_unit_usd = float(is_item.get("precio_unitario_usd", 0))
+                        precio_unit_bs = float(is_item.get("precio_unitario_bs", 0))
+
+                        servicios_count += cantidad
                         servicios_detalle.append({
                             "nombre": is_item.get("servicios", {}).get("nombre", "Servicio"),
-                            "cantidad": is_item.get("cantidad", 1)
+                            "odontologo": f"Dr. {odontologo.get('primer_nombre', '')} {odontologo.get('primer_apellido', '')}".strip(),
+                            "cantidad": cantidad,
+                            "precio_usd": precio_unit_usd * cantidad,
+                            "precio_bs": precio_unit_bs * cantidad
                         })
 
                 # Información del paciente
@@ -659,6 +730,8 @@ class PaymentsTable(BaseTable):
                     "paciente_nombre": paciente_nombre,
                     "paciente_apellido": paciente.get("primer_apellido", ""),
                     "paciente_documento": paciente.get("numero_documento", ""),
+                    "paciente_numero_historia": paciente.get("numero_historia", ""),  # ✨ NUEVO
+                    "paciente_telefono": paciente.get("celular_1", ""),  # ✨ NUEVO
                     "primer_odontologo_id": consulta["primer_odontologo_id"],
                     "odontologo_nombre": odontologo_nombre,
                     "fecha_llegada": consulta.get("fecha_llegada", ""),
@@ -667,11 +740,12 @@ class PaymentsTable(BaseTable):
                     "total_bs": total_bs,
                     "servicios_count": servicios_count,
                     "servicios_detalle": servicios_detalle,
-                    "dias_pendiente": dias_pendiente
+                    "dias_pendiente": dias_pendiente,
+                    "pagos": pagos_consulta  # ⭐ CRÍTICO: Array de pagos ordenados (más reciente primero)
                 }
 
                 consultas_procesadas.append(consulta_data)
-
+                print(f"🔍 Consulta pendiente procesada: {consulta_data['numero_consulta']} - Total USD: {total_usd}, Pagos asociados: {len(consulta_data['pagos'])}")
             logger.info(f"✅ {len(consultas_procesadas)} consultas pendientes de facturación obtenidas")
             return consultas_procesadas
 

@@ -15,8 +15,6 @@ Desarrollado para Reflex.dev con patrones modernos
 
 import reflex as rx
 from dental_system.state.app_state import AppState
-from dental_system.models import PacienteModel
-from dental_system.components.common import page_header, primary_button, secondary_button
 from dental_system.components.table_components import patients_table
 from dental_system.components.forms import multi_step_patient_form
 from dental_system.styles.themes import (
@@ -276,68 +274,9 @@ def delete_paciente_confirmation_modal() -> rx.Component:
             }
         ),
         open=AppState.modal_confirmacion_abierto,
-        on_open_change=AppState.cerrar_modal
+        on_open_change=AppState.cerrar_todos_los_modales
     )
-
-def reactivate_confirmation_modal() -> rx.Component:
-    """✅ Modal de confirmación de reactivación"""
-    return rx.dialog.root(
-        rx.dialog.content(
-            rx.dialog.title("Confirmar Reactivación"),
-            
-            rx.vstack(
-                rx.icon("refresh-cw", size=48, color="green.500"),
-                rx.text(
-                    "¿Estás seguro de que quieres reactivar este paciente?",
-                    size="3",
-                    text_align="center"
-                ),
-                rx.text(
-                    rx.cond(
-                        AppState.paciente_to_reactivate,
-                        f"Paciente: {AppState.paciente_to_reactivate.primer_nombre} {AppState.paciente_to_reactivate.primer_apellido}",
-                        "Paciente seleccionado"
-                    ),
-                    size="2",
-                    weight="medium",
-                    text_align="center"
-                ),
-                rx.text(
-                    "El paciente volverá a estar disponible para nuevas consultas.",
-                    size="2",
-                    color="gray.500",
-                    text_align="center"
-                ),
-                spacing="3",
-                align="center"
-            ),
-            
-            rx.hstack(
-                rx.button(
-                    "Cancelar",
-                    variant="soft",
-                    color_scheme="gray",
-                    on_click=AppState.cerrar_todos_los_modales
-                ),
-                rx.button(
-                    "Reactivar",
-                    color_scheme="green",
-                    on_click=AppState.ejecutar_reactivar_paciente,
-                    loading=AppState.cargando_pacientes
-                ),
-                spacing="3",
-                justify="end",
-                width="100%",
-                margin_top="4"
-            ),
-            
-            max_width="400px",
-            padding="6"
-        ),
-        open=AppState.modal_confirmacion_abierto,
-        on_open_change=AppState.cerrar_modal
-    )
-        
+      
 # ==========================================
 # 📋 PÁGINA PRINCIPAL - USANDO COMPONENTES GENÉRICOS
 # ==========================================
@@ -437,8 +376,6 @@ def pacientes_page() -> rx.Component:
             }
         ),
         multi_step_patient_form(),  # ✅ Formulario multi-step reactivado
-        delete_paciente_confirmation_modal(),  # ✅ Modal de eliminación reactivado
-        # reactivate_confirmation_modal(),  # TODO: Arreglar modal de reactivación
         style={
             **dark_page_background(),
             "padding": f"{SPACING['4']} {SPACING['6']}",

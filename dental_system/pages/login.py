@@ -5,9 +5,8 @@
 
 import reflex as rx
 from dental_system.state.app_state import AppState
-from dental_system.state.estado_auth import EstadoAuth
 from ..styles.themes import (
-    COLORS, SHADOWS, SPACING, RADIUS,
+    COLORS, SPACING, RADIUS,
     glassmorphism_card, glassmorphism_input, primary_button
 )
 

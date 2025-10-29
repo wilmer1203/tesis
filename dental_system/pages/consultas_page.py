@@ -1,53 +1,20 @@
 """
-🌙 PÁGINA DE CONSULTAS V4.1 - INSPIRADA EN REACT QUEUE DASHBOARD
+🌙 PÁGINA DE CONSULTAS V4
 ============================================================
-
-🎯 MEJORAS IMPLEMENTADAS BASADAS EN LA PLANTILLA DE REACT:
-1. ✅ Tarjetas de Paciente Mejoradas - Posición, tiempo espera, prioridad
-2. ✅ Sistema de Prioridades - Normal/Alta/Urgente con colores
-3. ✅ Estadísticas por Columna - Total pacientes, urgentes, tiempo promedio
-
-Características nuevas:
-- Posición en cola (#1, #2, #3...)
-- Tiempo de espera visual con colores
-- Sistema de prioridades con badges
-- Estadísticas por odontólogo en tiempo real
-- Costos estimados por paciente
-- Información de seguros
-- Estados visuales mejorados
 """
 
 import reflex as rx
 from dental_system.state.app_state import AppState
 from dental_system.components.modal_nueva_consulta import modal_nueva_consulta
 from dental_system.components.common import medical_page_layout
-from dental_system.styles.themes import SPACING, RADIUS, SHADOWS,ROLE_THEMES, GRADIENTS, DARK_THEME, dark_header_style, COLORS
-
-# 🌙 COLORES TEMA OSCURO PROFESIONAL + PRIORIDADES
-DARK_COLORS = {
-    "background": "#0f1419",           # Fondo principal muy oscuro
-    "surface": "#1a1f2e",             # Superficie de cards
-    "surface_hover": "#252b3a",       # Surface al hover
-    "border": "#2d3748",              # Bordes sutiles
-    "border_hover": "#4a5568",        # Bordes en hover
-    "text_primary": "#f7fafc",        # Texto principal
-    "text_secondary": "#a0aec0",      # Texto secundario
-    "text_muted": "#718096",          # Texto apagado
-    "accent_blue": "#3182ce",         # Azul principal
-    "accent_green": "#38a169",        # Verde éxito
-    "accent_yellow": "#d69e2e",       # Amarillo advertencia
-    "accent_red": "#e53e3e",          # Rojo error
-    "glass_bg": "rgba(26, 31, 46, 0.8)",      # Efecto vidrio
-    "glass_border": "rgba(255, 255, 255, 0.1)", # Borde vidrio
-    
-    # Colores de Prioridad (NUEVOS)
-    "priority_urgent": "#dc2626",     # Rojo intenso para urgente
-    "priority_high": "#ea580c",       # Naranja para alta
-    "priority_normal": "#6b7280",     # Gris para normal
-    "priority_urgent_bg": "rgba(220, 38, 38, 0.1)",
-    "priority_high_bg": "rgba(234, 88, 12, 0.1)",
-    "priority_normal_bg": "rgba(107, 114, 128, 0.1)",
-}
+from dental_system.components.forms import (
+        enhanced_form_field, enhanced_form_field_dinamico, form_section_header, 
+        success_feedback
+    )
+from dental_system.styles.themes import (
+    SPACING, RADIUS, ROLE_THEMES, GRADIENTS, DARK_THEME,SHADOWS,GLASS_EFFECTS, COLORS, ANIMATIONS, 
+    dark_header_style, glassmorphism_card
+)
 
 # ==========================================
 # 📊 QUEUE CONTROL BAR - PANEL SUPERIOR NUEVO
@@ -55,21 +22,27 @@ DARK_COLORS = {
 
 def stat_card_simple(titulo: str, valor, color: str = "blue") -> rx.Component:
     """📊 Tarjeta de estadística simple"""
+    # Mapeo de colores a COLORS del sistema
+    color_map = {
+        "blue": COLORS["primary"]["500"],
+        "yellow": COLORS["warning"]["500"],
+        "green": COLORS["success"]["500"],
+        "red": COLORS["error"]["500"]
+    }
+    accent_color = color_map.get(color, COLORS["primary"]["500"])
+
     return rx.box(
         rx.vstack(
-            rx.text(titulo, size="2", color=DARK_COLORS["text_muted"]),
-            rx.text(valor, size="4", weight="bold", color=DARK_COLORS["text_primary"]),
+            rx.text(titulo, size="2", color=DARK_THEME["colors"]["text_muted"]),
+            rx.text(valor, size="4", weight="bold", color=DARK_THEME["colors"]["text_primary"]),
             spacing="1",
             align="center"
         ),
         style={
-            "background": DARK_COLORS["glass_bg"],
-            "border": f"1px solid {DARK_COLORS['glass_border']}",
-            "border_radius": RADIUS["lg"],
+            **glassmorphism_card(opacity="80", blur="10px"),
             "padding": SPACING["4"],
-            "backdrop_filter": "blur(10px)",
             "min_width": "100px",
-            "border_left": f"4px solid {DARK_COLORS[f'accent_{color}']}"
+            "border_left": f"4px solid {accent_color}"
         }
     )
 
@@ -78,7 +51,7 @@ def queue_control_bar_simple() -> rx.Component:
     return rx.box(
         rx.vstack(
             # Título
-            rx.heading("📋 Panel de Control - Consultas del Día", size="4", color=DARK_COLORS["text_primary"]),
+            rx.heading("📋 Panel de Control - Consultas del Día", size="4", color=DARK_THEME["colors"]["text_primary"]),
             
             # Stats en grid
             rx.grid(
@@ -86,53 +59,21 @@ def queue_control_bar_simple() -> rx.Component:
                 stat_card_simple("Total", AppState.total_consultas_dashboard.to_string()),
                 stat_card_simple("En Espera", AppState.total_en_espera_dashboard.to_string(), "yellow"),
                 stat_card_simple("En Atención", AppState.total_en_atencion_dashboard.to_string(), "green"),
-                stat_card_simple("Urgentes", AppState.total_urgentes_dashboard.to_string(), "red"),
+                stat_card_simple("Canceladas", AppState.total_canceladas_dashboard.to_string(), "red"),
                 stat_card_simple("Completadas", AppState.total_completadas_dashboard.to_string(), "blue"),
                 stat_card_simple("Dentistas", AppState.total_odontologos_activos_dashboard.to_string(), "blue"),
                 columns="6",
                 spacing="3",
                 width="100%"
-            ),
-            
-            # Botones de acción
-            rx.hstack(
-                rx.button(
-                    "🚨 Consulta Urgente",
-                    # 🔄 ACTUALIZADO: Usar operacion_consulta_master
-                    on_click=lambda: AppState.operacion_consulta_master("crear", datos={"prioridad": "urgente"}),
-                    style={
-                        "background": f"linear-gradient(135deg, {DARK_COLORS['accent_red']} 0%, #fc8181 100%)",
-                        "color": DARK_COLORS["text_primary"],
-                        "border": "none",
-                        "border_radius": RADIUS["md"],
-                        "padding": f"{SPACING['2']} {SPACING['4']}"
-                    }
-                ),
-                rx.button(
-                    "🔄 Refrescar",
-                    on_click=AppState.refrescar_tiempo_real,
-                    style={
-                        "background": f"linear-gradient(135deg, {DARK_COLORS['accent_blue']} 0%, #4f9cf9 100%)",
-                        "color": DARK_COLORS["text_primary"],
-                        "border": "none",
-                        "border_radius": RADIUS["md"],
-                        "padding": f"{SPACING['2']} {SPACING['4']}"
-                    }
-                ),
-                 spacing="3",
-            ),
-            
+            ), 
              spacing="4",
             width="100%"
         ),
         style={
-            "background": DARK_COLORS["glass_bg"],
-            "border": f"1px solid {DARK_COLORS['glass_border']}",
-            "border_radius": RADIUS["xl"],
+            **glassmorphism_card(opacity="80", blur="15px"),
             "padding": SPACING["6"],
             "margin": f"{SPACING['4']} 0",
-            "width": "100%",
-            "backdrop_filter": "blur(15px)"
+            "width": "100%"
         }
     )
 
@@ -140,16 +81,15 @@ def boton_nueva_consulta_flotante() -> rx.Component:
     """🚀 Botón flotante con efecto glassmorphism - TEMA OSCURO"""
     return rx.button(
         rx.hstack(
-            rx.icon("calendar-plus", size=20, color=DARK_COLORS["text_primary"]),
-            rx.text("Nueva Consulta", font_weight="600", color=DARK_COLORS["text_primary"]),
+            rx.icon("calendar-plus", size=20, color=DARK_THEME["colors"]["text_primary"]),
+            rx.text("Nueva Consulta", font_weight="600", color=DARK_THEME["colors"]["text_primary"]),
             spacing="2",
             align="center"
         ),
         style={
-            
             "background": ROLE_THEMES['gerente']['gradient'],
-            "color": DARK_COLORS["text_primary"],
-            "border": f"1px solid {DARK_COLORS['glass_border']}",
+            "color": DARK_THEME["colors"]["text_primary"],
+            "border": f"1px solid rgba(255, 255, 255, 0.1)",
             "border_radius": RADIUS["xl"],
             "padding": f"{SPACING['4']} {SPACING['8']}",
             "position": "fixed",
@@ -157,156 +97,23 @@ def boton_nueva_consulta_flotante() -> rx.Component:
             "right": SPACING["8"],
             "z_index": "1000",
             "backdrop_filter": "blur(10px)",
-            "box_shadow": f"0 8px 32px rgba(49, 130, 206, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
+            "box_shadow": f"0 8px 32px {COLORS['primary']['500']}30, inset 0 1px 0 rgba(255, 255, 255, 0.1)",
             "transition": "all 0.3s ease",
             "_hover": {
-                "background": f"linear-gradient(135deg, #2b6cb8 0%, {DARK_COLORS['accent_blue']} 100%)",
-                "transform": "translateY(-3px)",
-                "box_shadow": f"0 12px 40px rgba(49, 130, 206, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)"
+                "background": f"linear-gradient(135deg, {COLORS['blue']['600']} 0%, {COLORS['primary']['500']} 100%)",
+                "transform": "translateY(-2px)",
+                "box_shadow": f"0 12px 40px {COLORS['primary']['500']}40, inset 0 1px 0 rgba(255, 255, 255, 0.2)"
             }
         },
         # 🔄 ACTUALIZADO: Usar método directo de abrir modal
         on_click=AppState.abrir_modal_nueva_consulta
     )
-
-def estadisticas_columna_odontologo(doctor_id: str) -> rx.Component:
-    """📊 NUEVO: Estadísticas por columna como en React"""
-    return rx.box(
-        rx.vstack(
-            # Header de estadísticas
-            rx.hstack(
-                rx.icon("bar-chart-3", size=14, color=DARK_COLORS["accent_blue"]),
-                rx.text(
-                    "Estadísticas de Cola",
-                    font_weight="600", 
-                    size="2", 
-                    color=DARK_COLORS["text_secondary"]
-                ),
-                spacing="2",
-                align="center"
-            ),
-            
-            # Grid de estadísticas (como en React)
-            rx.hstack(
-                # Total pacientes
-                rx.box(
-                    rx.vstack(
-                        rx.text(
-                            # 🔄 ACTUALIZADO: Total por odontólogo específico
-                            AppState.totales_por_odontologo_dict.get(doctor_id, 0),
-                            font_weight="800",
-                            size="2",
-                            color=DARK_COLORS["text_primary"],
-                            style={"line_height": "1"}
-                        ),
-                        rx.text(
-                            "Total",
-                            font_size="0.7rem",
-                            color=DARK_COLORS["text_muted"],
-                            style={"text_transform": "uppercase", "letter_spacing": "0.05em"}
-                        ),
-                        spacing="1",
-                        align="center"
-                    ),
-                    style={
-                        "background": DARK_COLORS["surface_hover"],
-                        "border": f"1px solid {DARK_COLORS['border']}",
-                        "border_radius": RADIUS["lg"],
-                        "padding": SPACING["3"],
-                        "text_align": "center",
-                        "flex": "1",
-                        "backdrop_filter": "blur(5px)"
-                    }
-                ),
-                
-                # Pacientes urgentes (NUEVO)
-                rx.box(
-                    rx.vstack(
-                        rx.text(
-                            # 🔄 ACTUALIZADO: Urgentes por odontólogo específico
-                            AppState.urgentes_por_odontologo_dict.get(doctor_id, 0),
-                            font_weight="800",
-                            size="2",
-                            color=DARK_COLORS["priority_urgent"],
-                            style={"line_height": "1"}
-                        ),
-                        rx.text(
-                            "Urgentes",
-                            font_size="0.7rem",
-                            color=DARK_COLORS["text_muted"],
-                            style={"text_transform": "uppercase", "letter_spacing": "0.05em"}
-                        ),
-                        spacing="1",
-                        align="center"
-                    ),
-                    style={
-                        "background": DARK_COLORS["surface_hover"],
-                        "border": f"1px solid {DARK_COLORS['border']}",
-                        "border_radius": RADIUS["lg"],
-                        "padding": SPACING["3"],
-                        "text_align": "center",
-                        "flex": "1",
-                        "backdrop_filter": "blur(5px)"
-                    }
-                ),
-                
-                # Tiempo promedio espera (NUEVO)
-                rx.box(
-                    rx.vstack(
-                        rx.text(
-                            # 🔄 ACTUALIZADO: Tiempo fijo por ahora
-                            "25min",
-                            font_weight="800",
-                            size="2",
-                            color=DARK_COLORS["accent_yellow"],
-                            style={"line_height": "1"}
-                        ),
-                        rx.text(
-                            "Espera",
-                            font_size="0.7rem",
-                            color=DARK_COLORS["text_muted"],
-                            style={"text_transform": "uppercase", "letter_spacing": "0.05em"}
-                        ),
-                        spacing="1",
-                        align="center"
-                    ),
-                    style={
-                        "background": DARK_COLORS["surface_hover"],
-                        "border": f"1px solid {DARK_COLORS['border']}",
-                        "border_radius": RADIUS["lg"],
-                        "padding": SPACING["3"],
-                        "text_align": "center",
-                        "flex": "1",
-                        "backdrop_filter": "blur(5px)"
-                    }
-                ),
-                
-                spacing="3",
-                width="100%"
-            ),
-            
-            spacing="3",
-            width="100%"
-        ),
-        style={
-            "width" : "100%",
-            "margin_bottom": SPACING["4"],
-            "padding": SPACING["4"],
-            "background": f"rgba({DARK_COLORS['glass_bg']}, 0.3)",
-            "border": f"1px solid {DARK_COLORS['glass_border']}",
-            "border_radius": RADIUS["lg"],
-            "backdrop_filter": "blur(10px)"
-        }
-    )
-
 # ==========================================
-# 🏷️ BADGE CONSULTAS UNIFICADO - OPTIMIZADO
+# 🏷️ BADGE CONSULTAS UNIFICADO 
 # ==========================================
 def badge_consultas_unificado(
     doctor_id: str,
-    theme: str = "dark",
     size: str = "md", 
-    show_description: bool = True,
     badge_type: str = "total"
 ) -> rx.Component:
     """🏷️ Badge unificado para todos los contextos de consultas"""
@@ -320,81 +127,59 @@ def badge_consultas_unificado(
     
     config = size_config[size]
     
-    # Obtener contador según tipo
-    if badge_type == "total":
-        # 🔄 ACTUALIZADO: Total por odontólogo específico
-        count = AppState.totales_por_odontologo_dict.get(doctor_id, 0)
-        description_text = rx.cond(
-            count == 0, "Sin cola",
-            rx.cond(count == 1, "1 paciente", f"{count} pacientes")
-        )
-    elif badge_type == "urgentes":
-        # 🔄 ACTUALIZADO: Urgentes por odontólogo específico
-        count = AppState.urgentes_por_odontologo_dict.get(doctor_id, 0)
-        description_text = rx.cond(
-            count == 0, "Sin urgentes",
-            rx.cond(count == 1, "1 urgente", f"{count} urgentes")
-        )
-    else:
-        count = 0
-        description_text = "Error"
-    
+    # # Obtener contador según tipo
+    # if badge_type == "total":
+    #     # 🔄 ACTUALIZADO: Total por odontólogo específico
+    #     count = AppState.totales_por_odontologo_dict.get(doctor_id, 0)
+    #     description_text = rx.cond(
+    #         count == 0, "Sin cola",
+    #         rx.cond(count == 1, "1 paciente", f"{count} pacientes")
+    #     )
+    # elif badge_type == "urgentes":
+    #     # 🔄 ACTUALIZADO: Urgentes por odontólogo específico
+    #     count = AppState.urgentes_por_odontologo_dict.get(doctor_id, 0)
+    #     description_text = rx.cond(
+    #         count == 0, "Sin urgentes",
+    #         rx.cond(count == 1, "1 urgente", f"{count} urgentes")
+    #     )
+    # else:
+    count = 0
+
+    count = AppState.totales_por_odontologo_dict.get(doctor_id, 0)
     return rx.vstack(
         # Contador principal
         rx.box(
             rx.text(
-                count.to_string() if badge_type == "total" else count,
+                count.to_string(),
                 font_weight="800",
                 font_size=config["font_size"],
-                color=DARK_COLORS["text_primary"],
+                color=DARK_THEME["colors"]["text_primary"],
                 style={"text_shadow": "0 0 10px rgba(255, 255, 255, 0.5)"}
             ),
             style={
                 "background": rx.cond(
-                    badge_type == "urgentes",
+                    count > 3,
+                    f"linear-gradient(135deg, {COLORS['error']['500']} 0%, {COLORS['error']['400']} 100%)",
                     rx.cond(
                         count > 0,
-                        f"linear-gradient(135deg, {DARK_COLORS['priority_urgent']} 0%, #ef4444 100%)",
-                        DARK_COLORS["surface_hover"]
-                    ),
-                    rx.cond(
-                        count > 3,
-                        f"linear-gradient(135deg, {DARK_COLORS['accent_red']} 0%, #fc8181 100%)",
-                        rx.cond(
-                            count > 0,
-                            f"linear-gradient(135deg, {DARK_COLORS['accent_yellow']} 0%, #f6e05e 100%)",
-                            f"linear-gradient(135deg, {DARK_COLORS['border']} 0%, {DARK_COLORS['surface_hover']} 100%)"
-                        )
-                    )
+                        f"linear-gradient(135deg, {COLORS['warning']['500']} 0%, {COLORS['warning']['400']} 100%)",
+                        f"linear-gradient(135deg, {DARK_THEME['colors']['border']} 0%, {DARK_THEME['colors']['surface_secondary']} 100%)"
+                    )  
                 ),
-                "border": f"1px solid {DARK_COLORS['glass_border']}",
+                "border": f"1px solid rgba(255, 255, 255, 0.1)",
                 "border_radius": RADIUS["xl"],
                 "padding": config["padding"],
                 "text_align": "center",
                 "backdrop_filter": "blur(10px)",
                 "transition": "all 0.3s ease",
                 "animation": rx.cond(
-                    (badge_type == "urgentes") & (count > 0),
+                    count > 0,
                     "pulse 2s infinite",
                     "none"
                 ),
                 "_hover": {"transform": "scale(1.05)"}
             }
-        ),
-        
-        # Descripción contextual
-        rx.cond(
-            show_description,
-            rx.text(
-                description_text,
-                font_size="0.65rem",
-                color=DARK_COLORS["text_muted"],
-                font_weight="600",
-                style={"text_transform": "uppercase", "letter_spacing": "0.05em"}
-            ),
-            rx.box()
-        ),
-        
+        ), 
         spacing="2",
         align="center"
     )
@@ -418,12 +203,12 @@ def badge_prioridad(prioridad: rx.Var[str]) -> rx.Component:
                  align="center"
              ),
              style={
-                 "background": DARK_COLORS["priority_urgent"],
-                 "border": f"1px solid {DARK_COLORS['priority_urgent']}",
+                 "background": COLORS["error"]["600"],
+                 "border": f"1px solid {COLORS['error']['600']}",
                  "border_radius": RADIUS["sm"],
                  "padding": f"{SPACING['1']} {SPACING['2']}",
                  "backdrop_filter": "blur(10px)",
-                 "box_shadow": f"0 2px 8px rgba(220, 38, 38, 0.3)",
+                 "box_shadow": f"0 2px 8px {COLORS['error']['600']}30",
                  "animation": "pulse 2s infinite"
              }
          )),
@@ -442,12 +227,12 @@ def badge_prioridad(prioridad: rx.Var[str]) -> rx.Component:
                  align="center"
              ),
              style={
-                 "background": DARK_COLORS["priority_high"],
-                 "border": f"1px solid {DARK_COLORS['priority_high']}",
+                 "background": COLORS["warning"]["700"],
+                 "border": f"1px solid {COLORS['warning']['700']}",
                  "border_radius": RADIUS["sm"],
                  "padding": f"{SPACING['1']} {SPACING['2']}",
                  "backdrop_filter": "blur(10px)",
-                 "box_shadow": f"0 2px 8px rgba(234, 88, 12, 0.3)"
+                 "box_shadow": f"0 2px 8px {COLORS['warning']['700']}30"
              }
          )),
         ("normal",
@@ -456,28 +241,41 @@ def badge_prioridad(prioridad: rx.Var[str]) -> rx.Component:
                  "Normal",
                  font_weight="600",
                  font_size="0.65rem",
-                 color=DARK_COLORS["text_muted"],
+                 color=DARK_THEME["colors"]["text_muted"],
                  style={"letter_spacing": "0.05em"}
              ),
              style={
-                 "background": DARK_COLORS["priority_normal_bg"],
-                 "border": f"1px solid {DARK_COLORS['priority_normal']}",
+                 "background": f"{COLORS['gray']['600']}10",
+                 "border": f"1px solid {COLORS['gray']['600']}",
                  "border_radius": RADIUS["sm"],
                  "padding": f"{SPACING['1']} {SPACING['2']}",
                  "backdrop_filter": "blur(5px)"
              }
          )),
-        rx.box()
+        ("baja",
+         rx.box(
+             rx.hstack(
+                 rx.icon("arrow-down", size=10, color="white"),
+                 rx.text(
+                     "BAJA",
+                     font_weight="700",
+                     font_size="0.65rem",
+                     color="white",
+                     style={"letter_spacing": "0.05em"}
+                 ),
+                 spacing="1",
+                 align="center"
+             ),
+             style={
+                 "background": COLORS["success"]["600"],
+                 "border": f"1px solid {COLORS['success']['600']}",
+                 "border_radius": RADIUS["sm"],
+                 "padding": f"{SPACING['1']} {SPACING['2']}",
+                 "backdrop_filter": "blur(5px)",
+                 "box_shadow": f"0 2px 8px {COLORS['success']['600']}30"
+             }
+         )),
     )
-
-def get_tiempo_espera_color(minutos: int) -> str:
-    """🕒 Color según tiempo de espera"""
-    if minutos > 60:
-        return DARK_COLORS["priority_urgent"]
-    elif minutos > 30:
-        return DARK_COLORS["priority_high"]
-    else:
-        return DARK_COLORS["text_secondary"]
 
 def consulta_card_mejorada_v41(consulta_data: rx.Var, posicion: int) -> rx.Component:
     """🎯 TARJETA DE PACIENTE MEJORADA - Inspirada en React"""
@@ -485,7 +283,7 @@ def consulta_card_mejorada_v41(consulta_data: rx.Var, posicion: int) -> rx.Compo
         rx.vstack(
             # Header mejorado con posición y prioridad
             rx.hstack(
-                # Número de posición (NUEVO - como en React)
+                # Número de posición 
                 rx.box(
                     rx.text(
                         posicion.to_string(),
@@ -497,10 +295,10 @@ def consulta_card_mejorada_v41(consulta_data: rx.Var, posicion: int) -> rx.Compo
                     style={
                         "background": rx.cond(
                             posicion == 1,
-                            f"linear-gradient(135deg, {DARK_COLORS['accent_green']} 0%, #48bb78 100%)",
-                            f"linear-gradient(135deg, {DARK_COLORS['accent_blue']} 0%, #4299e1 100%)"
+                            f"linear-gradient(135deg, {COLORS["success"]["500"]} 0%, #48bb78 100%)",
+                            f"linear-gradient(135deg, {COLORS["primary"]["500"]} 0%, #4299e1 100%)"
                         ),
-                        "border": f"1px solid {DARK_COLORS['glass_border']}",
+                        "border": f"1px solid {"rgba(255, 255, 255, 0.1)"}",
                         "border_radius": "50%",
                         "width": "36px",
                         "height": "36px",
@@ -523,7 +321,7 @@ def consulta_card_mejorada_v41(consulta_data: rx.Var, posicion: int) -> rx.Compo
                         consulta_data.paciente_nombre,
                         font_weight="700",
                         size="3",
-                        color=DARK_COLORS["text_primary"]
+                        color=DARK_THEME["colors"]["text_primary"]
                     ),
                     spacing="1",
                     align="start"
@@ -538,70 +336,35 @@ def consulta_card_mejorada_v41(consulta_data: rx.Var, posicion: int) -> rx.Compo
                 align="center"
             ),
             
-            # Información detallada (MEJORADA)
-            rx.vstack(
-                # Tiempo de espera con color dinámico (NUEVO)
-                rx.hstack(
-                    rx.icon("clock", size=14, color=DARK_COLORS["text_secondary"]),
-                    rx.text(
-                        f"Esperando: {consulta_data.tiempo_espera_estimado}",
-                        font_weight="600",
-                        size="2",
-                        color=DARK_COLORS["text_secondary"]
-                    ),
-                    spacing="2",
-                    align="center"
-                ),            
-                # Hora de llegada
-                rx.text(
-                    f"Llegada: {consulta_data.fecha_llegada}",
-                    color=DARK_COLORS["text_muted"],
-                    size="1"
-                ),
-                
-                spacing="3",
-                width="100%",
-                align="start"
-            ),
-            
             # Botones de acción mejorados - usando los existentes
             rx.match(
                 consulta_data.estado,
                 ("en_espera",
                  rx.hstack(
-                     rx.button(
+                     rx.box(
                          rx.hstack(
-                             rx.icon("play", size=14, color="white"),
-                             rx.text("Iniciar", font_weight="500", color="white"),
+                             rx.icon("clock", size=14, color="white"),
+                             rx.text("En Espera", size="1", color="white"),
                              spacing="2",
                              align="center"
                          ),
                          style={
-                             "background": f"linear-gradient(135deg, {DARK_COLORS['accent_green']} 0%, #48bb78 100%)",
-                             "border": f"1px solid {DARK_COLORS['glass_border']}",
+                             "background": f"linear-gradient(135deg, {COLORS["success"]["500"]} 0%, #48bb78 100%)",
+                             "border": f"1px solid {"rgba(255, 255, 255, 0.1)"}",
                              "border_radius": RADIUS["lg"],
-                             "padding": f"{SPACING['2.5']} {SPACING['5']}",
-                             "backdrop_filter": "blur(10px)",
-                             "transition": "all 0.3s ease",
-                             "flex": "1",
-                             "_hover": {
-                                 "transform": "translateY(-2px)",
-                                 "box_shadow": f"0 8px 25px rgba(56, 161, 105, 0.4)"
-                             }
+                             "padding": f"{SPACING['1']}",
+                             "backdrop_filter": "blur(10px)"
                          },
-                         # 🔄 ACTUALIZADO: Usar operacion_consulta_master
-                         on_click=lambda: AppState.operacion_consulta_master("cambiar_estado", consulta_data.id, {"estado": "en_atencion"}),
-                         loading=AppState.cargando_consultas
                      ),
                      
                      # Botón de transferir (NUEVO) - FUNCIONAL
                      rx.button(
-                         rx.icon("arrow-left-right", size=14, color=DARK_COLORS["accent_blue"]),
+                         rx.icon("arrow-left-right", size=14, color=COLORS["primary"]["500"]),
                          # 🔄 ACTUALIZADO: Usar gestionar_modal_operacion
                          on_click=lambda: AppState.gestionar_modal_operacion("abrir_transferencia", consulta_data.id),
                          style={
                              "background": "transparent",
-                             "border": f"1px solid {DARK_COLORS['accent_blue']}",
+                             "border": f"1px solid {COLORS["primary"]["500"]}",
                              "border_radius": RADIUS["lg"],
                              "padding": SPACING["2.5"],
                              "backdrop_filter": "blur(10px)",
@@ -618,12 +381,12 @@ def consulta_card_mejorada_v41(consulta_data: rx.Var, posicion: int) -> rx.Compo
                      
                      # NUEVO: Botones de orden en cola
                      rx.button(
-                         rx.icon("chevron-up", size=12, color=DARK_COLORS["accent_green"]),
+                         rx.icon("chevron-up", size=12, color=COLORS["success"]["500"]),
                          # ℹ️ LEGACY: subir_en_cola - mantener si existe o crear wrapper
                          on_click=lambda: AppState.subir_en_cola(consulta_data.id),
                          style={
                              "background": "transparent",
-                             "border": f"1px solid {DARK_COLORS['accent_green']}",
+                             "border": f"1px solid {COLORS["success"]["500"]}",
                              "border_radius": RADIUS["md"],
                              "padding": SPACING["1.5"],
                              "backdrop_filter": "blur(10px)",
@@ -637,12 +400,12 @@ def consulta_card_mejorada_v41(consulta_data: rx.Var, posicion: int) -> rx.Compo
                      ),
                      
                      rx.button(
-                         rx.icon("chevron-down", size=12, color=DARK_COLORS["accent_yellow"]),
+                         rx.icon("chevron-down", size=12, color=COLORS["warning"]["500"]),
                          # ℹ️ LEGACY: bajar_en_cola - mantener si existe o crear wrapper
                          on_click=lambda: AppState.bajar_en_cola(consulta_data.id),
                          style={
                              "background": "transparent",
-                             "border": f"1px solid {DARK_COLORS['accent_yellow']}",
+                             "border": f"1px solid {COLORS["warning"]["500"]}",
                              "border_radius": RADIUS["md"],
                              "padding": SPACING["1.5"],
                              "backdrop_filter": "blur(10px)",
@@ -656,10 +419,10 @@ def consulta_card_mejorada_v41(consulta_data: rx.Var, posicion: int) -> rx.Compo
                      ),
                      
                      rx.button(
-                         rx.icon("x", size=14, color=DARK_COLORS["accent_red"]),
+                         rx.icon("x", size=14, color=COLORS["error"]["500"]),
                          style={
                              "background": "transparent",
-                             "border": f"1px solid {DARK_COLORS['accent_red']}",
+                             "border": f"1px solid {COLORS["error"]["500"]}",
                              "border_radius": RADIUS["lg"],
                              "padding": SPACING["2.5"],
                              "backdrop_filter": "blur(10px)",
@@ -678,7 +441,7 @@ def consulta_card_mejorada_v41(consulta_data: rx.Var, posicion: int) -> rx.Compo
                      width="100%",
                      align="center"
                  )),
-                ("en_atencion",
+                ("entre_odontologos",
                  rx.hstack(
                      rx.button(
                          rx.hstack(
@@ -688,8 +451,8 @@ def consulta_card_mejorada_v41(consulta_data: rx.Var, posicion: int) -> rx.Compo
                              align="center"
                          ),
                          style={
-                             "background": f"linear-gradient(135deg, {DARK_COLORS['accent_blue']} 0%, #4299e1 100%)",
-                             "border": f"1px solid {DARK_COLORS['glass_border']}",
+                             "background": f"linear-gradient(135deg, {COLORS["primary"]["500"]} 0%, #4299e1 100%)",
+                             "border": f"1px solid {"rgba(255, 255, 255, 0.1)"}",
                              "border_radius": RADIUS["lg"],
                              "padding": f"{SPACING['2.5']} {SPACING['5']}",
                              "backdrop_filter": "blur(10px)",
@@ -700,14 +463,36 @@ def consulta_card_mejorada_v41(consulta_data: rx.Var, posicion: int) -> rx.Compo
                                  "box_shadow": f"0 8px 25px rgba(49, 130, 206, 0.4)"
                              }
                          },
-                         # 🔄 ACTUALIZADO: Usar operacion_consulta_master
-                         on_click=lambda: AppState.operacion_consulta_master("cambiar_estado", consulta_data.id, {"estado": "completada"}),
-                         loading=AppState.cargando_consultas
+                         # 🔄 ACTUALIZADO: Usar completar_consulta_completa con protección anti-doble-clic
+                        on_click=lambda: AppState.completar_consulta_completa(consulta_data.id),
+                        loading=AppState.cargando_consultas,
+                        disabled=AppState.finalizando_consulta  # 🛡️ Deshabilitar durante ejecución
                      ),
                      spacing="2",
                      width="100%",
                      align="center"
                  )),
+                ("en_atencion",
+                rx.box(
+                    rx.hstack(
+                        rx.icon("activity", size=14, color=COLORS["success"]["500"]),
+                        rx.text(
+                            "En Atención Médica",
+                            font_weight="700",
+                            size="3",
+                            color=COLORS["success"]["500"]
+                        ),
+                        spacing="2"
+                    ),
+                    style={
+                        "background": f"rgba(56, 161, 105, 0.1)",
+                        "border": f"2px solid {COLORS['success']['500']}",
+                        "border_radius": RADIUS["lg"],
+                        "padding": f"{SPACING['3']} {SPACING['6']}",
+                        "backdrop_filter": "blur(10px)",
+                        "animation": "pulse 2s infinite"  # Indicador visual de atención activa
+                    }
+                )),
                 rx.box()
             ),
             
@@ -718,13 +503,13 @@ def consulta_card_mejorada_v41(consulta_data: rx.Var, posicion: int) -> rx.Compo
         style={
             "background": rx.cond(
                 posicion == 1,
-                f"linear-gradient(135deg, {DARK_COLORS['glass_bg']} 0%, rgba(56, 161, 105, 0.1) 100%)",
-                DARK_COLORS["glass_bg"]
+                f"linear-gradient(135deg, {"rgba(26, 31, 46, 0.8)"} 0%, rgba(56, 161, 105, 0.1) 100%)",
+                f"rgba(26, 31, 46, 0.8)"
             ),
             "border": rx.cond(
                 posicion == 1,
-                f"2px solid {DARK_COLORS['accent_green']}",
-                f"1px solid {DARK_COLORS['glass_border']}"
+                f"2px solid {COLORS["success"]["500"]}",
+                f"1px solid {"rgba(255, 255, 255, 0.1)"}"
             ),
             "border_radius": RADIUS["xl"],
             "padding": SPACING["6"],
@@ -737,7 +522,7 @@ def consulta_card_mejorada_v41(consulta_data: rx.Var, posicion: int) -> rx.Compo
             "transition": "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
             "cursor": "grab",
             "_hover": {
-                "transform": "translateY(-6px) scale(1.02)",
+                "transform": "translateY(-4px) scale(1.02)",
                 "box_shadow": "0 20px 60px rgba(14, 165, 233, 0.25), 0 0 0 1px rgba(14, 165, 233, 0.3)",
                 "cursor": "grab"
             },
@@ -768,17 +553,17 @@ def lista_consultas_mejorada_v41(doctor_id: str) -> rx.Component:
         # Estado vacío mejorado
         rx.box(
             rx.vstack(
-                rx.icon("calendar-x", size=40, color=DARK_COLORS["text_muted"]),
+                rx.icon("calendar-x", size=40, color=DARK_THEME["colors"]["text_muted"]),
                 rx.text(
                     "No hay pacientes en cola",
-                    color=DARK_COLORS["text_muted"],
+                    color=DARK_THEME["colors"]["text_muted"],
                     size="3",
                     font_weight="600",
                     style={"text_align": "center"}
                 ),
                 rx.text(
                     "La cola está vacía en este momento",
-                    color=DARK_COLORS["text_muted"],
+                    color=DARK_THEME["colors"]["text_muted"],
                     size="2",
                     style={"text_align": "center", "opacity": "0.7"}
                 ),
@@ -788,9 +573,9 @@ def lista_consultas_mejorada_v41(doctor_id: str) -> rx.Component:
             style={
                 "padding": SPACING["12"],
                 "text_align": "center",
-                "border": f"2px dashed {DARK_COLORS['border']}",
+                "border": f"2px dashed {DARK_THEME["colors"]["border"]}",
                 "border_radius": RADIUS["xl"],
-                "background": f"rgba({DARK_COLORS['surface']}, 0.3)",
+                "background": f"rgba({DARK_THEME["colors"]["surface"]}, 0.3)",
                 "backdrop_filter": "blur(10px)"
             }
         )
@@ -805,9 +590,9 @@ def doctor_header(doctor: rx.Var) -> rx.Component:
     return rx.hstack(
         # Avatar con estado
         rx.box(
-            rx.icon("user-round", size=24, color=DARK_COLORS["text_primary"]),
+            rx.icon("user-round", size=24, color=DARK_THEME["colors"]["text_primary"]),
             style={
-                "background": f"linear-gradient(135deg, {DARK_COLORS['accent_blue']} 0%, #48bb78 100%)",
+                "background": f"linear-gradient(135deg, {COLORS["primary"]["500"]} 0%, #48bb78 100%)",
                 "border_radius": "50%",
                 "padding": SPACING["3"],
                 "display": "flex",
@@ -827,11 +612,11 @@ def doctor_header(doctor: rx.Var) -> rx.Component:
                 "Dr(a). " + doctor.primer_nombre + " " + doctor.primer_apellido,
                 font_weight="600",
                 size="2",
-                color=DARK_COLORS["text_primary"]
+                color=DARK_THEME["colors"]["text_primary"]
             ),
             rx.text(
                 doctor.especialidad,
-                color=DARK_COLORS["text_secondary"],
+                color=DARK_THEME["colors"]["text_secondary"],
                 size="1",
                 font_weight="500"
             ),
@@ -844,12 +629,12 @@ def doctor_header(doctor: rx.Var) -> rx.Component:
         # Estado disponibilidad
         rx.box(
             rx.hstack(
-                rx.icon("circle-check", size=9, color=DARK_COLORS["accent_green"]),
+                rx.icon("circle-check", size=9, color=COLORS["success"]["500"]),
                 rx.text(
                     "Disponible",
                     font_weight="600",
                     font_size="0.6rem",
-                    color=DARK_COLORS["accent_green"]
+                    color=COLORS["success"]["500"]
                 ),
                 spacing="1",
                 align="center"
@@ -868,31 +653,26 @@ def doctor_header(doctor: rx.Var) -> rx.Component:
         width="100%"
     )
 
-def doctor_metrics(doctor_id: str) -> rx.Component:
-    """📊 Métricas y badges de consultas usando badge_consultas_unificado"""
-    return estadisticas_columna_odontologo(doctor_id)
-
 def patient_queue_header(doctor_id: str) -> rx.Component:
     """📋 Header de la cola de pacientes con contador"""
     return rx.hstack(
-        rx.icon("users", size=16, color=DARK_COLORS["accent_blue"]),
+        rx.icon("users", size=16, color=COLORS["primary"]["500"]),
         rx.text(
             "Cola de Pacientes",
             font_weight="700",
-            color=DARK_COLORS["text_primary"],
+            color=DARK_THEME["colors"]["text_primary"],
             size="3"
         ),
         # Contador en header usando badge_consultas_unificado
         badge_consultas_unificado(
             doctor_id=doctor_id,
             size="sm",
-            show_description=False,
             badge_type="total"
         ),
         spacing="2",
         align="center",
         width="100%",
-        justify="start"
+        justify="center"
     )
 
 def patient_queue_area(doctor_id: str) -> rx.Component:
@@ -907,74 +687,21 @@ def patient_queue_area(doctor_id: str) -> rx.Component:
             "transition": "all 0.3s ease",
             "position": "relative",
             "_hover": {
-                "border_color": f"{DARK_COLORS['accent_blue']}40",
+                "border_color": f"{COLORS["primary"]["500"]}40",
                 "background": f"rgba(14, 165, 233, 0.05)"
             }
         }
     )
 
-def patient_queue(doctor_id: str) -> rx.Component:
-    """👥 Sección completa de cola de pacientes"""
-    return rx.vstack(
-        patient_queue_header(doctor_id),
-        patient_queue_area(doctor_id),
-        spacing="4",
-        width="100%",
-        align="start"
-    )
-
-def doctor_actions(doctor_id: str) -> rx.Component:
-    """🎯 Botones de acción del doctor (agregar paciente, ver cola)"""
-    return rx.hstack(
-        rx.button(
-            rx.hstack(
-                rx.icon("user-plus", size=16, color="white"),
-                rx.text("Agregar", font_weight="600", color="white"),
-                spacing="2",
-                align="center"
-            ),
-            # 🔄 ACTUALIZADO: Usar gestionar_modal_operacion
-            on_click=lambda: AppState.gestionar_modal_operacion("preparar_nuevo_formulario", datos={"odontologo_id": doctor_id}),
-            style={
-                "background": f"linear-gradient(135deg, {DARK_COLORS['accent_blue']} 0%, #4299e1 100%)",
-                "border": f"1px solid {DARK_COLORS['glass_border']}",
-                "border_radius": RADIUS["lg"],
-                "padding": f"{SPACING['2.5']} {SPACING['5']}",
-                "backdrop_filter": "blur(10px)",
-                "transition": "all 0.3s ease",
-                "flex": "1",
-                "_hover": {
-                    "transform": "translateY(-2px)",
-                    "box_shadow": f"0 8px 25px rgba(49, 130, 206, 0.4)"
-                }
-            }
-        ),
-        rx.button(
-            rx.hstack(
-                rx.icon("eye", size=16, color="white"),
-                rx.text("Ver Cola", font_weight="600", color="white"),
-                spacing="2",
-                align="center"
-            ),
-            # ℹ️ LEGACY: set_doctor_seleccionado - mantener si existe
-            on_click=lambda: AppState.set_doctor_seleccionado(doctor_id),
-            style={
-                "background": f"linear-gradient(135deg, {DARK_COLORS['accent_green']} 0%, #48bb78 100%)",
-                "border": f"1px solid {DARK_COLORS['glass_border']}",
-                "border_radius": RADIUS["lg"],
-                "padding": f"{SPACING['2.5']} {SPACING['5']}",
-                "backdrop_filter": "blur(10px)",
-                "transition": "all 0.3s ease",
-                "flex": "1",
-                "_hover": {
-                    "transform": "translateY(-2px)",
-                    "box_shadow": f"0 8px 25px rgba(56, 161, 105, 0.4)"
-                }
-            }
-        ),
-        spacing="2",
-        width="100%"
-    )
+# def patient_queue(doctor_id: str) -> rx.Component:
+#     """👥 Sección completa de cola de pacientes"""
+#     return rx.vstack(
+#         patient_queue_header(doctor_id),
+#         patient_queue_area(doctor_id),
+#         spacing="4",
+#         width="100%",
+#         align="CENTER"
+#     )
 
 def doctor_card_v41(doctor: rx.Var) -> rx.Component:
     """👨‍⚕️ Card de doctor modular v4.1 - Componente contenedor principal"""
@@ -982,29 +709,26 @@ def doctor_card_v41(doctor: rx.Var) -> rx.Component:
         rx.vstack(
             # Header con avatar, nombre, especialidad y estado
             doctor_header(doctor),
-            
-            # Métricas y estadísticas
-            doctor_metrics(doctor.id),
-            
             # Divider
-            rx.divider(
-                margin=f"{SPACING['4']} 0", 
-                style={"border_color": DARK_COLORS["border"], "opacity": "0.3"}
+            rx.box(
+                width="100%",
+                height="2px",
+                background=f"linear-gradient(90deg, transparent 0%, {COLORS['primary']['400']}80 50%, transparent 100%)",
+                border_radius="2px",
+                box_shadow=f"0 0 8px {COLORS['primary']['400']}40"
             ),
             
             # Cola de pacientes
-            patient_queue(doctor.id),
-            
-            # Botones de acción (comentados temporalmente para mantener funcionalidad original)
-            # doctor_actions(doctor.id),
-            
-            spacing="0",
+            # patient_queue(doctor.id),
+            patient_queue_header(doctor.id),
+            patient_queue_area(doctor.id),
+            spacing="3",
             width="100%",
-            align="start"
+            align="center"
         ),
         style={
-            "background": DARK_COLORS["glass_bg"],
-            "border": f"1px solid {DARK_COLORS['glass_border']}",
+            "background": f"rgba(26, 31, 46, 0.8)",
+            "border": f"1px solid {"rgba(255, 255, 255, 0.1)"}",
             "border_radius": RADIUS["xl"],
             "padding": SPACING["5"],
             "min_height": "500px",
@@ -1014,7 +738,7 @@ def doctor_card_v41(doctor: rx.Var) -> rx.Component:
             "_hover": {
                 "transform": "translateY(-4px)",
                 "box_shadow": f"0 20px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15)",
-                "border_color": DARK_COLORS["border_hover"]
+                "border_color": DARK_THEME["colors"]["border_strong"]
             },
             "_before": {
                 "content": "''",
@@ -1033,15 +757,6 @@ def doctor_card_v41(doctor: rx.Var) -> rx.Component:
 
 def modal_transferir_paciente() -> rx.Component:
     """🔄 MODAL PARA TRANSFERIR PACIENTE - VERSIÓN ENTERPRISE MEJORADA"""
-    from dental_system.components.forms import (
-        enhanced_form_field, enhanced_form_field_dinamico, form_section_header, 
-        success_feedback, loading_feedback
-    )
-    from dental_system.styles.themes import (
-        COLORS, SHADOWS, RADIUS, SPACING, ANIMATIONS, 
-        GRADIENTS, GLASS_EFFECTS, DARK_THEME
-    )
-    
     return rx.dialog.root(
         rx.dialog.content(
             # Header elegante con glassmorphism
@@ -1220,7 +935,6 @@ def modal_transferir_paciente() -> rx.Component:
             }
         ),
         open=AppState.modal_transferir_paciente_abierto,
-        # 🔄 CORREGIDO: cerrar_modal_transferir_paciente → gestionar_modal_operacion
         on_open_change=lambda open: rx.cond(~open, AppState.gestionar_modal_operacion("cerrar_transferencia"), rx.noop())
     )
 
@@ -1306,17 +1020,17 @@ def consultas_page_v41() -> rx.Component:
                     # Estado vacío
                     rx.box(
                         rx.vstack(
-                            rx.icon("user-x", size=64, color=DARK_COLORS["text_muted"]),
+                            rx.icon("user-x", size=64, color=DARK_THEME["colors"]["text_muted"]),
                             rx.text(
                                 "No hay odontólogos disponibles",
-                                color=DARK_COLORS["text_primary"],
+                                color=DARK_THEME["colors"]["text_primary"],
                                 size="5",
                                 font_weight="700",
                                 style={"text_align": "center"}
                             ),
                             rx.text(
                                 "Contacte al administrador para configurar el personal médico",
-                                color=DARK_COLORS["text_secondary"],
+                                color=DARK_THEME["colors"]["text_secondary"],
                                 size="3",
                                 style={"text_align": "center"}
                             ),
@@ -1326,8 +1040,8 @@ def consultas_page_v41() -> rx.Component:
                         style={
                             "padding": SPACING["16"],
                             "text_align": "center",
-                            "background": DARK_COLORS["glass_bg"],
-                            "border": f"2px dashed {DARK_COLORS['border']}",
+                            "background": f"rgba(26, 31, 46, 0.8)",
+                            "border": f"2px dashed {DARK_THEME["colors"]["border"]}",
                             "border_radius": RADIUS["2xl"],
                             "backdrop_filter": "blur(10px)",
                             "margin": f"{SPACING['8']} 0"

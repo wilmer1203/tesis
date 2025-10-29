@@ -23,25 +23,25 @@ class ServicesTable(BaseTable):
                       codigo: str,
                       nombre: str,
                       categoria: str,
-                      precio_base_bs: Decimal,
                       precio_base_usd: Decimal,
+                      alcance_servicio: str = "superficie_especifica",
                       descripcion: Optional[str] = None,
-                      subcategoria: Optional[str] = None,
-                      duracion_estimada: str = "30 minutes",
                       material_incluido: Optional[List[str]] = None,
-                      instrucciones_pre: Optional[str] = None,
-                      instrucciones_post: Optional[str] = None,
+                      condicion_resultante: Optional[str] = None,
                       creado_por: Optional[str] = None) -> Dict[str, Any]:
         """
-        Crea un nuevo servicio odontológico con dual currency
+        Crea un nuevo servicio odontológico
 
         Args:
-            codigo: Código único del servicio
+            codigo: Código único del servicio (ej: SER015)
             nombre: Nombre del servicio
-            categoria: Categoría (Consulta, Preventiva, Restaurativa, etc.)
-            precio_base_bs: Precio base en Bolívares
+            categoria: Categoría (Preventiva, Restaurativa, Endodoncia, etc.)
             precio_base_usd: Precio base en Dólares
-            ... otros campos opcionales
+            alcance_servicio: Alcance del servicio (superficie_especifica, diente_completo, boca_completa)
+            descripcion: Descripción detallada (opcional)
+            material_incluido: Lista de materiales incluidos (opcional)
+            condicion_resultante: Condición resultante si modifica odontograma (opcional, NULL = preventivo)
+            creado_por: ID del usuario que crea el servicio (opcional)
 
         Returns:
             Servicio creado
@@ -50,27 +50,22 @@ class ServicesTable(BaseTable):
             "codigo": codigo,
             "nombre": nombre,
             "categoria": categoria,
-            "precio_base_bs": float(precio_base_bs),
             "precio_base_usd": float(precio_base_usd),
-            "duracion_estimada": duracion_estimada,
+            "alcance_servicio": alcance_servicio,
             "activo": True
         }
 
         # Agregar campos opcionales
         if descripcion:
             data["descripcion"] = descripcion
-        if subcategoria:
-            data["subcategoria"] = subcategoria
         if material_incluido:
             data["material_incluido"] = material_incluido
-        if instrucciones_pre:
-            data["instrucciones_pre"] = instrucciones_pre
-        if instrucciones_post:
-            data["instrucciones_post"] = instrucciones_post
+        if condicion_resultante:
+            data["condicion_resultante"] = condicion_resultante
         if creado_por:
             data["creado_por"] = creado_por
-        
-        logger.info(f"Creando servicio: {nombre}")
+
+        logger.info(f"Creando servicio: {nombre} (alcance: {alcance_servicio})")
         return self.create(data)
     
     @handle_supabase_error

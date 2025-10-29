@@ -7,7 +7,6 @@ from typing import Dict, List, Optional, Any
 from datetime import date, datetime
 from .base_service import BaseService
 from dental_system.supabase.tablas import consultas_table, personal_table, services_table
-from dental_system.supabase.tablas.cola_atencion import cola_atencion_table
 from dental_system.models import ConsultaModel, PersonalModel, ConsultaFormModel
 from .cache_invalidation_hooks import invalidate_after_consultation_operation
 import logging
@@ -25,12 +24,11 @@ class ConsultasService(BaseService):
         self.consultas_table = consultas_table
         self.personal_table = personal_table
         self.services_table = services_table
-        self.cola_atencion_table = cola_atencion_table
     
     async def get_today_consultations(self, 
                                     odontologo_id: str = None) -> List[ConsultaModel]:
         """
-        Obtiene consultas del día - REEMPLAZA 150+ líneas duplicadas
+        Obtiene consultas del día 
         
         Args:
             odontologo_id: Filtrar por odontólogo (opcional)
@@ -83,87 +81,7 @@ class ConsultasService(BaseService):
             self.handle_error("Error obteniendo consultas del día", e)
             return []
     
-    async def get_filtered_consultations(self,
-                                       estado: str = None,
-                                       odontologo_id: str = None,
-                                       search: str = None,
-                                       fecha_inicio: date = None,
-                                       fecha_fin: date = None) -> List[ConsultaModel]:
-        """
-        Obtiene consultas filtradas
-        
-        Args:
-            estado: Filtro por estado
-            odontologo_id: Filtro por odontólogo
-            search: Término de búsqueda
-            fecha_inicio: Fecha de inicio del rango
-            fecha_fin: Fecha de fin del rango
-            
-        Returns:
-            Lista de consultas filtradas
-        """
-        try:
-            logger.info("Obteniendo consultas filtradas")
-            
-            # Verificar permisos
-            self.require_permission("consultas", "leer")
-            
-            # Si no se especifican fechas, usar hoy por defecto
-            if not fecha_inicio and not fecha_fin:
-                today = date.today()
-                consultas_data = self.consultas_table.get_today_consultations(odontologo_id)
-            else:
-                # Usar rango de fechas
-                fecha_inicio = fecha_inicio or date.today()
-                fecha_fin = fecha_fin or date.today()
-                consultas_data = self.consultas_table.get_by_date_range(
-                    fecha_inicio, fecha_fin, odontologo_id, estado
-                )
-            
-            # Convertir a modelos
-            consultas_models = []
-            for item in consultas_data:
-                try:
-                    model = ConsultaModel.from_dict(item)
-                    consultas_models.append(model)
-                except Exception as e:
-                    logger.warning(f"Error convirtiendo consulta: {e}")
-                    continue
-            
-            # Aplicar filtro de búsqueda en memoria si es necesario
-            if search and search.strip():
-                consultas_models = self._apply_search_filter(consultas_models, search.strip())
-            
-            # Aplicar filtro de estado en memoria si es necesario
-            if estado and estado != "todos":
-                consultas_models = [c for c in consultas_models if c.estado == estado]
-            
-            logger.info(f"✅ Consultas filtradas obtenidas: {len(consultas_models)} registros")
-            return consultas_models
-            
-        except Exception as e:
-            self.handle_error("Error obteniendo consultas filtradas", e)
-            return []
-    
-    def _apply_search_filter(self, consultas: List[ConsultaModel], search_term: str) -> List[ConsultaModel]:
-        """Aplica filtro de búsqueda en memoria"""
-        search_lower = search_term.lower()
-        filtered = []
-        
-        for consulta in consultas:
-            # Campos donde buscar
-            search_fields = [
-                consulta.paciente_nombre.lower(),
-                consulta.odontologo_nombre.lower(),
-                consulta.numero_consulta.lower(),
-                (consulta.motivo_consulta or "").lower()
-            ]
-            
-            # Si algún campo contiene el término
-            if any(search_lower in field for field in search_fields):
-                filtered.append(consulta)
-        
-        return filtered
+
     
     async def create_consultation(self, consulta_data: Dict[str, Any] = None, user_id: str = None) -> Optional[ConsultaModel]:
         """
@@ -193,10 +111,8 @@ class ConsultasService(BaseService):
                 datos_consulta = {
                     "paciente_id": consulta_data.paciente_id,
                     "primer_odontologo_id": consulta_data.primer_odontologo_id,
-                    "odontologo_preferido_id": consulta_data.odontologo_preferido_id,
                     "motivo_consulta": consulta_data.motivo_consulta,
                     "observaciones": consulta_data.observaciones,
-                    "notas_internas": consulta_data.notas_internas,
                     "tipo_consulta": consulta_data.tipo_consulta or "general",
                     "prioridad": consulta_data.prioridad or "normal"
                 }
@@ -215,7 +131,6 @@ class ConsultasService(BaseService):
             result = self.consultas_table.create_consultation(
                 paciente_id=datos_consulta["paciente_id"],
                 primer_odontologo_id=datos_consulta.get("primer_odontologo_id") or datos_consulta.get("odontologo_id"),
-                odontologo_preferido_id=datos_consulta.get("odontologo_preferido_id"),
                 fecha_llegada=datetime.now(),  # Momento de llegada real
                 orden_llegada_general=orden_general,
                 orden_cola_odontologo=orden_cola_doctor,
@@ -223,7 +138,6 @@ class ConsultasService(BaseService):
                 tipo_consulta=datos_consulta.get("tipo_consulta", "general"),
                 motivo_consulta=datos_consulta.get("motivo_consulta"),
                 observaciones=datos_consulta.get("observaciones"),
-                notas_internas=datos_consulta.get("notas_internas"),
                 prioridad=datos_consulta.get("prioridad", "normal"),
                 creada_por=user_id
             )
@@ -276,13 +190,7 @@ class ConsultasService(BaseService):
             if validation_errors:
                 error_msg = f"Errores de validación: {validation_errors}"
                 raise ValueError(error_msg)
-            
-            # Debug para ver qué datos recibimos
-            logger.info(f"[DEBUG] Actualizando consulta {consultation_id}")
-            logger.info(f"[DEBUG] primer_odontologo_id: {getattr(consulta_form, 'primer_odontologo_id', 'No existe')}")
-            logger.info(f"[DEBUG] odontologo_id: {getattr(consulta_form, 'odontologo_id', 'No existe')}")
-            logger.info(f"[DEBUG] paciente_id: {getattr(consulta_form, 'paciente_id', 'No existe')}")
-            
+        
             # Preparar datos de actualización
             data = {
                 "motivo_consulta": consulta_form.motivo_consulta if consulta_form.motivo_consulta else None,
@@ -298,16 +206,12 @@ class ConsultasService(BaseService):
             
             # Solo permitir cambiar odontólogo si está en estado programada o en_espera
             current_consulta = self.consultas_table.get_by_id(consultation_id)
-            logger.info(f"[DEBUG] Consulta actual estado: {current_consulta.get('estado') if current_consulta else 'No encontrada'}")
-            
+
             if current_consulta and current_consulta.get("estado") in ["programada", "en_espera"]:
                 # Usar el campo correcto del esquema v4.1
                 nuevo_odontologo = consulta_form.primer_odontologo_id or getattr(consulta_form, 'odontologo_id', None)
                 odontologo_actual = current_consulta.get("primer_odontologo_id") or current_consulta.get("odontologo_id")
-                
-                logger.info(f"[DEBUG] Nuevo odontólogo: {nuevo_odontologo}")
-                logger.info(f"[DEBUG] Odontólogo actual: {odontologo_actual}")
-                
+
                 if nuevo_odontologo and nuevo_odontologo != odontologo_actual:
                     data["primer_odontologo_id"] = nuevo_odontologo
                     logger.info(f"[DEBUG] ✅ Cambiando odontólogo de {odontologo_actual} a {nuevo_odontologo}")
@@ -319,9 +223,7 @@ class ConsultasService(BaseService):
             if result:
                 # Crear modelo tipado del resultado
                 consulta_model = ConsultaModel.from_dict(result)
-                
-                logger.info(f"✅ Consulta actualizada correctamente")
-                
+
                 # 🗑️ INVALIDAR CACHE - consulta actualizada afecta estadísticas
                 try:
                     invalidate_after_consultation_operation()
@@ -339,55 +241,6 @@ class ConsultasService(BaseService):
             self.handle_error("Error actualizando consulta", e)
             raise ValueError(f"Error inesperado: {str(e)}")
 
-    async def obtener_cola_odontologo(self, odontologo_id: str) -> List[Dict[str, Any]]:
-        """
-        Obtener cola de pacientes de un odontólogo específico
-
-        Args:
-            odontologo_id: ID del odontólogo
-
-        Returns:
-            Lista de consultas en cola ordenadas por prioridad y orden de llegada
-        """
-        try:
-            logger.info(f"Obteniendo cola del odontólogo {odontologo_id}")
-
-            # Verificar permisos
-            self.require_permission("consultas", "leer")
-
-            # Obtener cola usando la tabla especializada
-            cola_data = self.cola_atencion_table.obtener_cola_odontologo(odontologo_id)
-
-            return cola_data
-
-        except Exception as e:
-            self.handle_error("Error obteniendo cola de odontólogo", e)
-            return []
-
-    async def obtener_proximo_paciente(self, odontologo_id: str) -> Optional[Dict[str, Any]]:
-        """
-        Obtener el próximo paciente en la cola del odontólogo
-
-        Args:
-            odontologo_id: ID del odontólogo
-
-        Returns:
-            Datos del próximo paciente o None
-        """
-        try:
-            logger.info(f"Obteniendo próximo paciente para odontólogo {odontologo_id}")
-
-            # Verificar permisos
-            self.require_permission("consultas", "leer")
-
-            # Usar función especializada de cola_atencion
-            proximo_paciente = self.cola_atencion_table.obtener_proximo_paciente(odontologo_id)
-
-            return proximo_paciente
-
-        except Exception as e:
-            self.handle_error("Error obteniendo próximo paciente", e)
-            return None
 
     async def transferir_consulta(self,
                                  consulta_id: str,
@@ -443,60 +296,6 @@ class ConsultasService(BaseService):
             self.handle_error("Error transfiriendo consulta", e)
             return False
 
-    async def obtener_estadisticas_colas(self) -> Dict[str, Any]:
-        """
-        Obtener estadísticas de todas las colas de odontólogos
-
-        Returns:
-            Diccionario con estadísticas por odontólogo
-        """
-        try:
-            logger.info("Obteniendo estadísticas de colas")
-
-            # Verificar permisos
-            self.require_permission("consultas", "leer")
-
-            # Obtener estadísticas usando tabla especializada
-            estadisticas = self.cola_atencion_table.obtener_estadisticas_colas()
-
-            return estadisticas
-
-        except Exception as e:
-            self.handle_error("Error obteniendo estadísticas de colas", e)
-            return {}
-
-    async def obtener_estadisticas_optimizadas(self) -> Dict[str, Any]:
-        """
-        Obtener estadísticas usando vistas y funciones optimizadas de BD
-
-        Returns:
-            Diccionario con estadísticas completas del sistema
-        """
-        try:
-            logger.info("Obteniendo estadísticas usando funciones optimizadas")
-
-            # Verificar permisos
-            self.require_permission("consultas", "leer")
-
-            # Usar vista optimizada de colas
-            estadisticas_colas = self.consultas_table.get_vista_cola_odontologos()
-
-            # Procesar estadísticas para el formato esperado
-            estadisticas_procesadas = {
-                'colas_por_odontologo': estadisticas_colas,
-                'resumen_global': {
-                    'total_odontologos': len(estadisticas_colas),
-                    'total_esperando': sum(cola.get('pacientes_esperando', 0) for cola in estadisticas_colas),
-                    'total_atendiendo': sum(cola.get('pacientes_atendiendo', 0) for cola in estadisticas_colas),
-                    'total_atendidos_hoy': sum(cola.get('pacientes_atendidos_hoy', 0) for cola in estadisticas_colas)
-                }
-            }
-
-            return estadisticas_procesadas
-
-        except Exception as e:
-            self.handle_error("Error obteniendo estadísticas optimizadas", e)
-            return {}
 
     async def change_consultation_status(self, consultation_id: str, nuevo_estado: str, notas: str = None) -> bool:
         """
@@ -518,7 +317,7 @@ class ConsultasService(BaseService):
             # Validar transición de estado
             consulta_actual = self.consultas_table.get_by_id(consultation_id)
             print(consulta_actual)
-            if consulta_actual.get("estado") != "en_progreso":
+            if consulta_actual.get("estado") != "en_atencion":
                 if consulta_actual and not self._is_valid_status_transition(consulta_actual.get("estado"), nuevo_estado):
                     raise ValueError(f"Transición de estado no válida")
             
@@ -562,31 +361,6 @@ class ConsultasService(BaseService):
         
         return nuevo_estado in valid_transitions.get(estado_actual, [])
     
-    async def get_support_data(self) -> List[PersonalModel]:
-        """
-        Obtiene datos de apoyo para consultas (odontólogos)
-        REEMPLAZA múltiples métodos duplicados
-        
-        Returns:
-            Lista de PersonalModel con odontólogos activos
-        """
-        try:
-            logger.info("Obteniendo datos de apoyo para consultas")
-            
-            # Obtener odontólogos activos
-            odontologos_data = self.personal_table.get_dentists(incluir_inactivos=False)
-            
-            # ✅ Convertir a modelos PersonalModel
-            odontologos_models = [
-                PersonalModel.from_dict(odontologo_data) 
-                for odontologo_data in odontologos_data
-            ]
-            
-            return odontologos_models
-                
-        except Exception as e:
-            self.handle_error("Error obteniendo datos de apoyo", e)
-            return []
     
     
     async def get_consultation_by_id(self, consultation_id: str) -> Optional[ConsultaModel]:
@@ -611,15 +385,7 @@ class ConsultasService(BaseService):
         except Exception as e:
             self.handle_error("Error obteniendo consulta por ID", e)
             return None
-    
-    
-    async def confirm_consultation(self, consultation_id: str) -> bool:
-        """Confirma una consulta programada"""
-        return await self.change_consultation_status(consultation_id, "confirmada")
-    
-    async def mark_no_show(self, consultation_id: str) -> bool:
-        """Marca una consulta como no asistida"""
-        return await self.change_consultation_status(consultation_id, "no_asistio")
+
 
 
     async def cancel_consultation(self, consultation_id: str, motivo: str = None) -> bool:
@@ -657,13 +423,13 @@ class ConsultasService(BaseService):
             result = self.consultas_table.update(consultation_id, data)
             
             if result:
-                logger.info(f"✅ Consulta cancelada: {consultation_id}")
+                print(f"✅ Consulta cancelada: {consultation_id}")
                 return True
             else:
                 raise ValueError("Error actualizando consulta en la base de datos")
                 
         except PermissionError:
-            logger.warning("Usuario sin permisos para cancelar consultas")
+            print("Usuario sin permisos para cancelar consultas")
             raise
         except Exception as e:
             self.handle_error("Error cancelando consulta", e)
@@ -725,437 +491,293 @@ class ConsultasService(BaseService):
             logger.warning(f"Error calculando orden cola doctor: {e}")
             return 1
     
-    async def obtener_cola_odontologo_tipada(self, odontologo_id: str) -> List[ConsultaModel]:
-        """
-        👨‍⚕️ OBTENER COLA ESPECÍFICA DE UN ODONTÓLOGO usando modelos tipados
-        
-        Args:
-            odontologo_id: ID del odontólogo
-            
-        Returns:
-            List[ConsultaModel]: Consultas en cola ordenadas
-        """
-        try:
-            logger.info(f"📋 Obteniendo cola tipada del Dr. {odontologo_id}...")
-            
-            # Verificar permisos
-            self.require_permission("consultas", "leer")
-            
-            # Obtener todas las consultas del día del odontólogo usando método tipado
-            consultas_doctor: List[ConsultaModel] = await self.get_today_consultations(odontologo_id)
-            
-            # Filtrar solo las que están en proceso usando estados v4.1
-            cola_activa = [
-                c for c in consultas_doctor 
-                if c.estado in ["en_espera", "en_atencion"] and
-                c.primer_odontologo_id == odontologo_id
-            ]
-            
-            # Ordenar por posición en cola usando campo v4.1
-            cola_activa.sort(key=lambda c: c.orden_cola_odontologo or 0)
-            
-            logger.info(f"✅ Cola tipada Dr. {odontologo_id}: {len(cola_activa)} consultas")
-            return cola_activa
-            
-        except Exception as e:
-            logger.error(f"❌ Error obteniendo cola tipada: {str(e)}")
-            return []
-    
-    async def iniciar_atencion_consulta_tipada(self, 
-                                             consulta_id: str, 
-                                             odontologo_id: str) -> bool:
-        """
-        🏥 INICIAR ATENCIÓN DE CONSULTA usando modelos tipados - v4.1
-        
-        Args:
-            consulta_id: ID de la consulta
-            odontologo_id: ID del odontólogo
-            
-        Returns:
-            bool: True si se inició correctamente
-        """
-        try:
-            logger.info(f"🏥 Iniciando atención tipada consulta {consulta_id}...")
-            
-            # Verificar permisos
-            self.require_permission("consultas", "actualizar")
-            
-            # Validar que el odontólogo no tenga otra consulta en curso usando modelos tipados
-            cola_doctor: List[ConsultaModel] = await self.obtener_cola_odontologo_tipada(odontologo_id)
-            en_atencion = [c for c in cola_doctor if c.estado == "en_atencion"]
-            
-            if len(en_atencion) > 0:
-                raise ValueError("El odontólogo ya tiene una consulta en atención")
-            
-            # Cambiar estado usando estados v4.1
-            success = await self.change_consultation_status(
-                consulta_id, 
-                "en_atencion",
-                f"Iniciada atención por Dr. {odontologo_id}"
-            )
-            
-            if success:
-                logger.info(f"✅ Consulta tipada {consulta_id} iniciada por Dr. {odontologo_id}")
-            
-            return success
-            
-        except Exception as e:
-            logger.error(f"❌ Error iniciando atención tipada: {str(e)}")
-            return False
-    
-    async def completar_consulta_tipada(self, 
-                                      consulta_id: str, 
-                                      datos_finalizacion: Dict[str, Any] = None) -> bool:
-        """
-        ✅ COMPLETAR CONSULTA usando modelos tipados - v4.1
-        
-        Args:
-            consulta_id: ID de la consulta
-            datos_finalizacion: Datos adicionales de finalización
-            
-        Returns:
-            bool: True si se completó correctamente
-        """
-        try:
-            logger.info(f"✅ Completando consulta tipada {consulta_id}...")
-            
-            # Verificar permisos
-            self.require_permission("consultas", "actualizar")
-            
-            # Obtener consulta actual usando modelo tipado
-            consulta_actual: Optional[ConsultaModel] = await self.get_consultation_by_id(consulta_id)
-            if not consulta_actual:
-                raise ValueError("Consulta no encontrada")
-            
-            # Validar estado usando estados v4.1
-            if consulta_actual.estado != "en_atencion":
-                raise ValueError("Solo se pueden completar consultas en atención")
-            
-            # Preparar notas de finalización
-            notas_finalizacion = "Consulta completada"
-            if datos_finalizacion and datos_finalizacion.get("observaciones"):
-                notas_finalizacion += f" - {datos_finalizacion['observaciones']}"
-            
-            # Cambiar estado usando estados v4.1
-            success = await self.change_consultation_status(
-                consulta_id,
-                "completada", 
-                notas_finalizacion
-            )
-            
-            if success:
-                logger.info(f"✅ Consulta tipada {consulta_id} completada exitosamente")
-            
-            return success
-            
-        except Exception as e:
-            logger.error(f"❌ Error completando consulta tipada: {str(e)}")
-            return False
-    
-    async def obtener_metricas_cola_tiempo_real_tipadas(self, odontologo_id: str = None) -> Dict[str, Any]:
-        """
-        📊 MÉTRICAS DE COLA EN TIEMPO REAL usando modelos tipados
-        
-        Args:
-            odontologo_id: ID específico o None para todos
-            
-        Returns:
-            Dict con métricas de cola
-        """
-        try:
-            logger.info("📊 Generando métricas tipadas de cola tiempo real...")
-            
-            # Verificar permisos
-            self.require_permission("consultas", "leer")
-            
-            if odontologo_id:
-                # Métricas de un odontólogo específico usando modelos tipados
-                cola: List[ConsultaModel] = await self.obtener_cola_odontologo_tipada(odontologo_id)
-                
-                metricas = {
-                    "odontologo_id": odontologo_id,
-                    "total_en_cola": len(cola),
-                    "en_espera": len([c for c in cola if c.estado == "en_espera"]),
-                    "en_atencion": len([c for c in cola if c.estado == "en_atencion"]),
-                    "tiempo_espera_promedio": self._calcular_tiempo_espera_promedio_tipado(cola),
-                    "consultas": [
-                        {
-                            "id": c.id,
-                            "paciente": c.paciente_nombre,
-                            "estado": c.estado,
-                            "orden": c.orden_cola_odontologo,
-                            "tiempo_espera": c.tiempo_espera_estimado,
-                            "es_urgente": c.es_urgente
-                        }
-                        for c in cola[:10]  # Primeras 10 usando propiedades del modelo
-                    ]
-                }
-            else:
-                # Métricas globales usando modelos tipados
-                consultas_hoy: List[ConsultaModel] = await self.get_today_consultations()
-                
-                metricas = {
-                    "total_consultas_hoy": len(consultas_hoy),
-                    "en_espera": len([c for c in consultas_hoy if c.estado == "en_espera"]),
-                    "en_atencion": len([c for c in consultas_hoy if c.estado == "en_atencion"]),
-                    "completadas": len([c for c in consultas_hoy if c.estado == "completada"]),
-                    "canceladas": len([c for c in consultas_hoy if c.estado == "cancelada"]),
-                    "por_odontologo": {}
-                }
-                
-                # Agrupar por odontólogo usando campos v4.1
-                odontologos_con_consultas = set(
-                    c.primer_odontologo_id for c in consultas_hoy if c.primer_odontologo_id
-                )
-                
-                for odontologo_id_actual in odontologos_con_consultas:
-                    cola_doctor = [c for c in consultas_hoy if c.primer_odontologo_id == odontologo_id_actual]
-                    metricas["por_odontologo"][odontologo_id_actual] = {
-                        "total": len(cola_doctor),
-                        "en_espera": len([c for c in cola_doctor if c.estado == "en_espera"]),
-                        "en_atencion": len([c for c in cola_doctor if c.estado == "en_atencion"])
-                    }
-            
-            logger.info("✅ Métricas tipadas de cola generadas")
-            return metricas
-            
-        except Exception as e:
-            logger.error(f"❌ Error generando métricas tipadas: {str(e)}")
-            return {}
-    
-    def _calcular_tiempo_espera_promedio_tipado(self, cola: List[ConsultaModel]) -> float:
-        """⏰ Calcular tiempo de espera promedio usando modelos tipados"""
-        consultas_espera = [c for c in cola if c.estado == "en_espera"]
-        if not consultas_espera:
-            return 0.0
-        
-        tiempos = []
-        for consulta in consultas_espera:
-            try:
-                # Usar campos v4.1 del modelo tipado
-                if consulta.fecha_llegada:
-                    llegada = datetime.fromisoformat(consulta.fecha_llegada.replace('Z', '+00:00'))
-                    espera_minutos = (datetime.now() - llegada).total_seconds() / 60
-                    tiempos.append(max(0, espera_minutos))
-            except Exception as e:
-                logger.warning(f"Error calculando tiempo espera tipado: {e}")
-                continue
-        
-        return sum(tiempos) / len(tiempos) if tiempos else 0.0
-    
-    async def change_consultation_dentist(self, 
-                                        consulta_id: str, 
-                                        nuevo_odontologo_id: str, 
-                                        motivo: str) -> Optional[ConsultaModel]:
-        """
-        🔄 Cambiar odontólogo de una consulta
-        
-        Args:
-            consulta_id: ID de la consulta
-            nuevo_odontologo_id: ID del nuevo odontólogo
-            motivo: Motivo del cambio (obligatorio)
-            
-        Returns:
-            ConsultaModel actualizada o None
-        """
-        try:
-            logger.info(f"🔄 Cambiando odontólogo de consulta {consulta_id} a {nuevo_odontologo_id}")
-            
-            # Verificar permisos
-            self.require_permission("consultas", "actualizar")
-            
-            # Validar parámetros
-            if not consulta_id or not nuevo_odontologo_id or not motivo:
-                raise ValueError("Todos los parámetros son obligatorios")
-            
-            if len(motivo.strip()) < 10:
-                raise ValueError("El motivo debe tener al menos 10 caracteres")
-            
-            # Obtener consulta actual
-            consulta_actual = await self.get_consultation_by_id(consulta_id)
-            if not consulta_actual:
-                raise ValueError("Consulta no encontrada")
-            
-            # Validar que se pueda cambiar
-            if consulta_actual.estado in ["completada", "cancelada"]:
-                raise ValueError("No se puede cambiar odontólogo de una consulta completada o cancelada")
-            
-            # Calcular nueva posición en cola del nuevo odontólogo
-            nueva_posicion_cola = await self._calcular_siguiente_orden_cola_doctor(nuevo_odontologo_id)
-            
-            # Preparar datos de actualización
-            datos_actualizacion = {
-                "primer_odontologo_id": nuevo_odontologo_id,
-                "orden_cola_odontologo": nueva_posicion_cola,
-                "estado": "en_espera",  # Resetear a espera en nueva cola
-                "observaciones": f"{consulta_actual.observaciones or ''}\n[CAMBIO ODONTÓLOGO] {motivo}".strip(),
-                "notas_internas": f"{consulta_actual.notas_internas or ''}\n[CAMBIO] {consulta_actual.odontologo_nombre} → Dr. {nuevo_odontologo_id}: {motivo}".strip()
-            }
-            
-            # Actualizar en base de datos
-            result = self.consultas_table.update(consulta_id, datos_actualizacion)
-            
-            if result:
-                # Obtener consulta actualizada con datos completos
-                consulta_actualizada = await self.get_consultation_by_id(consulta_id)
-                
-                logger.info(f"✅ Odontólogo cambiado: {consulta_id} → Dr. {nuevo_odontologo_id} (posición {nueva_posicion_cola})")
-                
-                # Invalidar cache
-                try:
-                    invalidate_after_consultation_operation()
-                except Exception as cache_error:
-                    logger.warning(f"Error invalidando cache tras cambio: {cache_error}")
-                
-                return consulta_actualizada
-            else:
-                raise ValueError("Error actualizando consulta en la base de datos")
-                
-        except PermissionError:
-            logger.warning("Usuario sin permisos para cambiar odontólogo")
-            raise
-        except ValueError as e:
-            logger.warning(f"Error de validación en cambio: {e}")
-            raise
-        except Exception as e:
-            self.handle_error("Error cambiando odontólogo de consulta", e)
-            raise ValueError(f"Error inesperado: {str(e)}")
-
     async def intercambiar_orden_cola(self,
-                                    consulta_id: str,
-                                    odontologo_id: str,
-                                    orden_actual: int,
-                                    orden_nuevo: int) -> Dict[str, Any]:
+                                  consulta_id: str,
+                                  odontologo_id: str,
+                                  orden_actual: int,
+                                  orden_nuevo: int) -> Dict[str, Any]:
         """
-        🔄 Intercambiar posiciones de dos pacientes en la cola del odontólogo
-
-        Args:
-            consulta_id: ID de la consulta a mover
-            odontologo_id: ID del odontólogo (para validación)
-            orden_actual: Posición actual en cola
-            orden_nuevo: Nueva posición deseada
-
-        Returns:
-            Dict con resultado de la operación
+        🔄 Intercambiar posiciones de dos pacientes en la cola del odontólogo.
+        Usa el método robusto de intercambio de valores de orden_cola_odontologo.
         """
         try:
-            logger.info(f"🔄 Intercambiando orden en cola: {consulta_id} de {orden_actual} a {orden_nuevo}")
-
-            # Verificar permisos
             self.require_permission("consultas", "actualizar")
 
-            # Validar parámetros
             if orden_actual == orden_nuevo:
-                return {"success": False, "message": "Las posiciones son iguales"}
+                return {"success": False, "message": "Las posiciones son iguales."}
 
-            # Obtener consultas del día del odontólogo usando método tipado
+            await self.reindexar_cola_doctor(odontologo_id)
+            
             consultas_doctor: List[ConsultaModel] = await self.get_today_consultations(odontologo_id)
 
-            # Filtrar solo las consultas en espera del odontólogo específico (usar estado correcto)
             cola_activa = [
                 c for c in consultas_doctor
                 if c.estado in ["programada", "en_espera"] and c.primer_odontologo_id == odontologo_id
             ]
-
-            # Ordenar por posición actual en cola
             cola_activa.sort(key=lambda c: c.orden_cola_odontologo or 0)
 
-            # Validar que hay suficientes pacientes para intercambiar
-            if len(cola_activa) < 2:
-                return {"success": False, "message": "No hay suficientes pacientes para reordenar"}
-
-            # Encontrar la consulta que se quiere mover
-            consulta_a_mover = None
-            for consulta in cola_activa:
-                if consulta.id == consulta_id:
-                    consulta_a_mover = consulta
-                    break
+            consulta_a_mover = next((c for c in cola_activa if c.id == consulta_id), None)
+            consulta_destino = next((c for c in cola_activa if c.orden_cola_odontologo == orden_nuevo), None)
 
             if not consulta_a_mover:
-                return {"success": False, "message": "Consulta no encontrada en la cola"}
-
-            # Validar que el orden_actual coincide con el de la consulta
-            if consulta_a_mover.orden_cola_odontologo != orden_actual:
-                logger.warning(f"⚠️ Orden actual inconsistente: esperado {orden_actual}, real {consulta_a_mover.orden_cola_odontologo}")
-                orden_actual = consulta_a_mover.orden_cola_odontologo
-
-            # Validar límites de movimiento basándose en las posiciones reales
-            ordenes_existentes = sorted([c.orden_cola_odontologo for c in cola_activa if c.orden_cola_odontologo])
-            if not ordenes_existentes:
-                return {"success": False, "message": "No hay órdenes válidos en la cola"}
-
-            orden_min = min(ordenes_existentes)
-            orden_max = max(ordenes_existentes)
-
-            if orden_nuevo < orden_min:
-                orden_nuevo = orden_min
-            elif orden_nuevo > orden_max:
-                orden_nuevo = orden_max
-
-            # Buscar la consulta que está en la posición destino
-            consulta_destino = None
-            for consulta in cola_activa:
-                if consulta.orden_cola_odontologo == orden_nuevo:
-                    consulta_destino = consulta
-                    break
-
+                return {"success": False, "message": "Consulta a mover no encontrada en la cola activa."}
             if not consulta_destino:
-                return {"success": False, "message": f"No hay consulta en la posición {orden_nuevo}"}
+                # Si falla aquí tras la reindexación, es un error de límite o DB.
+                return {"success": False, "message": f"No hay consulta en la posición destino ({orden_nuevo})."}
 
-            if consulta_a_mover.id == consulta_destino.id:
-                return {"success": False, "message": "Ya está en esa posición"}
-
-            # Intercambiar las posiciones en la base de datos usando transacción implícita
-            orden_temp = orden_actual
-            orden_destino_temp = consulta_destino.orden_cola_odontologo
-
-            # Actualizar consulta que se mueve a la nueva posición
             resultado_1 = self.consultas_table.update(consulta_a_mover.id, {
-                "orden_cola_odontologo": orden_destino_temp
+                "orden_cola_odontologo": consulta_destino.orden_cola_odontologo # El paciente A toma la orden de B
             })
 
-            # Actualizar consulta que cede su posición
             resultado_2 = self.consultas_table.update(consulta_destino.id, {
-                "orden_cola_odontologo": orden_temp
+                "orden_cola_odontologo": consulta_a_mover.orden_cola_odontologo # El paciente B toma la orden de A
             })
 
             if resultado_1 and resultado_2:
-                paciente_movido = getattr(consulta_a_mover, 'paciente_nombre', 'Paciente')
-                paciente_destino = getattr(consulta_destino, 'paciente_nombre', 'Paciente')
-
-                logger.info(f"✅ Intercambio exitoso: {paciente_movido} ↔ {paciente_destino}")
-
-                # Invalidar cache
-                try:
-                    invalidate_after_consultation_operation()
-                except Exception as cache_error:
-                    logger.warning(f"Error invalidando cache tras intercambio: {cache_error}")
-
-                return {
-                    "success": True,
-                    "message": f"Paciente movido de posición {orden_actual} a {orden_nuevo}",
-                    "consulta_movida": {
-                        "id": consulta_a_mover.id,
-                        "paciente": paciente_movido,
-                        "posicion_anterior": orden_actual,
-                        "posicion_nueva": orden_nuevo
-                    },
-                    "consulta_intercambiada": {
-                        "id": consulta_destino.id,
-                        "paciente": consulta_destino.paciente_nombre,
-                        "posicion_anterior": consulta_destino.orden_cola_odontologo,
-                        "posicion_nueva": consulta_a_mover.orden_cola_odontologo
-                    }
-                }
+                logger.info(f"✅ Intercambio exitoso: {consulta_a_mover.paciente_nombre} ↔ {consulta_destino.paciente_nombre}")
+                return {"success": True, "message": f"Paciente {consulta_a_mover.paciente_nombre} movido a posición {orden_nuevo}"}
             else:
-                raise ValueError("Error actualizando posiciones en la base de datos")
-                
+                raise ValueError("Error actualizando posiciones en la base de datos. Falla en el UPDATE.")
+
         except PermissionError:
             logger.warning("Usuario sin permisos para reordenar cola")
-            raise
+            return {"success": False, "message": "Permiso denegado."}
         except Exception as e:
             logger.error(f"❌ Error intercambiando orden en cola: {str(e)}")
-            return {"success": False, "message": f"Error: {str(e)}"}
+            # Aquí puedes llamar a self.handle_error si es una función de tu clase
+            return {"success": False, "message": f"Error inesperado: {str(e)}"}
+
+    async def reindexar_cola_doctor(self, odontologo_id: str) -> bool:
+        """Sanea la columna 'orden_cola_odontologo' del doctor a 1, 2, 3..."""
+        try:
+            logger.info(f"🔄 Saneando/Reindexando cola para odontólogo: {odontologo_id}")
+            
+            # 1. Obtener todas las consultas en cola para ese odontólogo HOY.
+            # Usa el método que trae las consultas del día (asume que están ordenadas por orden_llegada si la orden_cola es None)
+            consultas_raw: List[ConsultaModel] = await self.get_today_consultations(odontologo_id)
+            
+            # 2. Filtrar solo las que están en el estado de cola.
+            cola_activa = [
+                c for c in consultas_raw
+                if c.estado in ["programada", "en_espera"] and c.primer_odontologo_id == odontologo_id
+            ]
+            
+            # 3. Ordenar por la hora de llegada (fecha_llegada) como criterio secundario
+            # y por el orden_cola_odontologo actual como criterio principal.
+            cola_activa.sort(key=lambda c: (c.orden_cola_odontologo or 99999, c.fecha_llegada))
+            
+            updates = []
+            
+            # 4. Iterar y crear una lista de actualizaciones (i+1)
+            for i, consulta in enumerate(cola_activa, 1):
+                if consulta.orden_cola_odontologo != i:
+                    updates.append({
+                        "id": consulta.id,
+                        "orden_cola_odontologo": i
+                    })
+            
+            # 5. Ejecutar la actualización en masa (si tu capa lo permite) o individual
+            if updates:
+                # Asumiendo que self.consultas_table tiene un método update_many
+                # Si no, usa un bucle for para actualizaciones individuales:
+                for item in updates:
+                    self.consultas_table.update(item["id"], {"orden_cola_odontologo": item["orden_cola_odontologo"]})
+                
+                logger.info(f"✅ Reindexación completa. {len(updates)} consultas reordenadas.")
+            else:
+                logger.info("✅ Cola ya estaba saneada. No se requirieron cambios.")
+                
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Fallo crítico en reindexación de cola: {str(e)}")
+            return False
+
+    async def complete_consultation_with_payment(self, consultation_id: str, user_id: str) -> Dict[str, Any]:
+        """
+        🏥 COMPLETAR CONSULTA + CREAR PAGO PENDIENTE (TRANSACCIONAL)
+
+        Ejecuta atómicamente:
+        1. Validar consulta en estado "entre_odontologos"
+        2. Calcular monto total de servicios realizados
+        3. Actualizar estado consulta a "completada"
+        4. Crear registro en pagos con estado "pendiente"
+
+        Args:
+            consultation_id: ID de la consulta a completar
+            user_id: ID del usuario que finaliza (Gerente/Admin)
+
+        Returns:
+            {
+                "consulta": {...},
+                "pago": {...},
+                "monto_total_bs": 1500.00,
+                "monto_total_usd": 50.00
+            }
+
+        Raises:
+            ValueError: Si consulta no existe o estado incorrecto
+            PermissionError: Si usuario sin permisos
+        """
+        try:
+            logger.info(f"🏥 Completando consulta {consultation_id} con pago...")
+
+            # ✅ PASO 1: Verificar permisos
+            self.require_permission("consultas", "actualizar")
+            # self.require_permission("pagos", "crear")
+
+            # ✅ PASO 2: Validar consulta existe y está en "entre_odontologos"
+            consulta = self.consultas_table.get_by_id(consultation_id)
+            if not consulta:
+                raise ValueError(f"Consulta {consultation_id} no encontrada")
+
+            if consulta.get("estado") != "entre_odontologos":
+                raise ValueError(
+                    f"Consulta debe estar en estado 'entre_odontologos'. "
+                    f"Estado actual: {consulta.get('estado')}"
+                )
+
+            paciente_id = consulta.get("paciente_id")
+            if not paciente_id:
+                raise ValueError("Consulta sin paciente asignado")
+
+            # 🛡️ PROTECCIÓN ANTI-DUPLICADOS: Verificar que NO existe ya un pago para esta consulta
+            from dental_system.supabase.tablas import pagos_table
+            from dental_system.supabase.client import supabase_client
+
+            client = supabase_client.get_client()
+            existing_payment = client.table('pagos')\
+                .select('id, numero_recibo')\
+                .eq('consulta_id', consultation_id)\
+                .execute()
+
+            if existing_payment.data and len(existing_payment.data) > 0:
+                logger.warning(f"⚠️ Ya existe un pago para la consulta {consultation_id}: {existing_payment.data[0].get('numero_recibo')}")
+                # Retornar el pago existente sin crear duplicado
+                return {
+                    "success": True,
+                    "consulta": consulta,
+                    "pago": existing_payment.data[0],
+                    "monto_total_bs": existing_payment.data[0].get('monto_total_bs', 0),
+                    "monto_total_usd": existing_payment.data[0].get('monto_total_usd', 0),
+                    "numero_recibo": existing_payment.data[0].get('numero_recibo'),
+                    "mensaje": "Pago ya existía - no se creó duplicado"
+                }
+
+            # ✅ PASO 3: Calcular monto total de servicios
+            monto_total = await self._calcular_monto_total_servicios(consultation_id)
+            total_bs = monto_total.get("total_bs", 0)
+            total_usd = monto_total.get("total_usd", 0)
+
+            logger.info(f"💰 Monto total calculado: BS {total_bs} | USD {total_usd}")
+
+            # ✅ PASO 4: TRANSACCIÓN - Cambiar estado + Crear pago
+            # Nota: Supabase Python client no tiene transacciones explícitas,
+            # pero podemos hacer rollback manual si algo falla
+
+            # 4.1 - Actualizar estado consulta
+            consulta_updated = self.consultas_table.update_status(
+                consultation_id,
+                "completada",
+                "Consulta finalizada - Pago pendiente creado"
+            )
+
+            if not consulta_updated:
+                raise ValueError("Error actualizando estado de consulta")
+
+            # 4.2 - Crear pago pendiente
+            pago_data = {
+                "consulta_id": consultation_id,
+                "paciente_id": paciente_id,
+                "monto_total_bs": float(total_bs),
+                "monto_total_usd": float(total_usd),
+                "monto_pagado_bs": 0,
+                "monto_pagado_usd": 0,
+                "saldo_pendiente_bs": float(total_bs),
+                "saldo_pendiente_usd": float(total_usd),
+                "metodos_pago": "pendiente",  # Sin pago aún
+                "estado_pago": "pendiente",
+                "concepto": f"Consulta #{consulta.get('numero_consulta')} - Servicios odontológicos",
+                "procesado_por": user_id,
+                "observaciones": "Pago pendiente generado automáticamente al completar consulta"
+            }
+
+            pago_creado = pagos_table.create(pago_data)
+
+            if not pago_creado:
+                # ❌ ROLLBACK: Revertir estado consulta
+                logger.error("Error creando pago - Revirtiendo estado consulta")
+                self.consultas_table.update_status(
+                    consultation_id,
+                    "entre_odontologos",
+                    "Rollback: error creando pago"
+                )
+                raise ValueError("Error creando registro de pago")
+
+            logger.info(f"✅ Consulta completada + Pago {pago_creado.get('numero_recibo')} creado")
+
+            # 🗑️ INVALIDAR CACHE
+            try:
+                invalidate_after_consultation_operation()
+            except Exception as cache_error:
+                logger.warning(f"Error invalidando cache: {cache_error}")
+
+            # ✅ RETORNAR RESULTADO COMPLETO
+            return {
+                "success": True,
+                "consulta": consulta_updated,
+                "pago": pago_creado,
+                "monto_total_bs": float(total_bs),
+                "monto_total_usd": float(total_usd),
+                "numero_recibo": pago_creado.get("numero_recibo")
+            }
+
+        except PermissionError:
+            logger.warning("Usuario sin permisos para completar consulta")
+            raise
+        except ValueError as ve:
+            logger.error(f"Error de validación: {ve}")
+            raise
+        except Exception as e:
+            self.handle_error("Error completando consulta con pago", e)
+            raise ValueError(f"Error inesperado: {str(e)}")
+
+
+    async def _calcular_monto_total_servicios(self, consulta_id: str) -> Dict[str, float]:
+        """
+        🧮 Calcular monto total de servicios de una consulta
+
+        Args:
+            consulta_id: ID de la consulta
+
+        Returns:
+            {"total_bs": 1500.00, "total_usd": 50.00}
+        """
+        try:
+            from dental_system.supabase.client import supabase_client
+            client = supabase_client.get_client()
+            intervenciones = client.table('intervenciones')\
+                .select('total_bs, total_usd')\
+                .eq('consulta_id', consulta_id)\
+                .execute()
+                    
+            total_bs = 0
+            total_usd = 0
+                
+            for serv in intervenciones.data:
+                total_bs += serv.get('total_bs', 0)
+                total_usd += serv.get('total_usd', 0)
+
+            return {"total_bs": total_bs, "total_usd": total_usd}
+
+
+        except Exception as e:
+            logger.error(f"Error calculando monto total: {e}")
+            # En caso de error, retornar 0 (consulta sin servicios registrados)
+            return {"total_bs": 0, "total_usd": 0}
+
+
+
 
 # Instancia única para importar
 consultas_service = ConsultasService()
