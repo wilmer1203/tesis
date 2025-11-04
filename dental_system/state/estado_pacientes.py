@@ -666,10 +666,11 @@ class EstadoPacientes(rx.State,mixin=True):
             await self.seleccionar_paciente(id_paciente)
 
             # 2. Cargar historial completo del paciente desde el servicio
-            from dental_system.services.pacientes_service import pacientes_service
+            
             pacientes_service.set_user_context(self.id_usuario, self.perfil_usuario)
             self.historial_completo = await pacientes_service.get_historial_completo_paciente(id_paciente)
-
+            
+            self.paciente_actual = self.paciente_seleccionado
             # 4. Cargar odontograma del paciente
             try:
                 await self.cargar_odontograma_paciente_actual()
@@ -700,3 +701,28 @@ class EstadoPacientes(rx.State,mixin=True):
             c for c in self.lista_consultas
             if c.paciente_id == self.id_paciente_seleccionado
         ]
+
+    # ==========================================
+    # COMPUTED VARS PARA HISTORIAL DEL PACIENTE
+    # ==========================================
+
+    @rx.var(cache=True)
+    def contacto_emergencia_nombre(self) -> str:
+        """Nombre del contacto de emergencia"""
+        if not self.paciente_seleccionado or not self.paciente_seleccionado.contacto_emergencia:
+            return "No registrado"
+        return self.paciente_seleccionado.contacto_emergencia.get("nombre", "No registrado")
+
+    @rx.var(cache=True)
+    def contacto_emergencia_relacion(self) -> str:
+        """Relación del contacto de emergencia"""
+        if not self.paciente_seleccionado or not self.paciente_seleccionado.contacto_emergencia:
+            return "No registrado"
+        return self.paciente_seleccionado.contacto_emergencia.get("relacion", "No registrado")
+
+    @rx.var(cache=True)
+    def contacto_emergencia_telefono(self) -> str:
+        """Teléfono del contacto de emergencia"""
+        if not self.paciente_seleccionado or not self.paciente_seleccionado.contacto_emergencia:
+            return "No registrado"
+        return self.paciente_seleccionado.contacto_emergencia.get("telefono", "No registrado")

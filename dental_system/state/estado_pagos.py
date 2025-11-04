@@ -26,7 +26,6 @@ from dental_system.constants import METODOS_PAGO, ESTADOS_PAGO
 from dental_system.models import (
     PagoModel,
     PagosStatsModel,
-    BalanceGeneralModel,
     CuentaPorCobrarModel,
     PagoFormModel,
     ConsultaPendientePago,
@@ -58,6 +57,10 @@ class EstadoPagos(rx.State,mixin=True):
     lista_pagos: List[PagoModel] = []
     total_pagos: int = 0
     errores_validacion_pago: Dict[str, str] = {}
+
+    # Pago seleccionado para ver detalle
+    pago_seleccionado: Optional[PagoModel] = None
+    modal_detalle_pago_abierto: bool = False
 
     # Variables auxiliares para operaciones
     cargando_lista_pagos: bool = False
@@ -157,7 +160,6 @@ class EstadoPagos(rx.State,mixin=True):
     
     # Estadísticas principales
     estadisticas_pagos: PagosStatsModel = PagosStatsModel()
-    balance_general: BalanceGeneralModel = BalanceGeneralModel()
     ultima_actualizacion_stats: str = ""
     
     # Métricas financieras rápidas
@@ -240,6 +242,53 @@ class EstadoPagos(rx.State,mixin=True):
         """🔍 BUSCAR PAGOS"""
         self.termino_busqueda_pagos = query.strip()
         logger.info(f"🔍 Búsqueda de pagos: '{query}'")
+
+    def filtrar_por_estado_pago(self, estado: str):
+        """🎯 Filtrar pagos por estado"""
+        self.filtro_estado_pago = estado
+        logger.info(f"🎯 Filtro estado pago: {estado}")
+
+    def filtrar_por_metodo_pago(self, metodo: str):
+        """💳 Filtrar pagos por método de pago"""
+        self.filtro_metodo_pago = metodo
+        logger.info(f"💳 Filtro método pago: {metodo}")
+
+    def filtrar_por_periodo(self, periodo: str):
+        """📅 Filtrar pagos por período"""
+        from datetime import timedelta
+        hoy = date.today()
+
+        if periodo == "hoy":
+            self.rango_fecha_inicio = hoy.isoformat()
+            self.rango_fecha_fin = hoy.isoformat()
+        elif periodo == "semana":
+            inicio = hoy - timedelta(days=7)
+            self.rango_fecha_inicio = inicio.isoformat()
+            self.rango_fecha_fin = hoy.isoformat()
+        elif periodo == "mes":
+            inicio = hoy - timedelta(days=30)
+            self.rango_fecha_inicio = inicio.isoformat()
+            self.rango_fecha_fin = hoy.isoformat()
+        elif periodo == "año":
+            inicio = hoy - timedelta(days=365)
+            self.rango_fecha_inicio = inicio.isoformat()
+            self.rango_fecha_fin = hoy.isoformat()
+        else:  # personalizado
+            pass  # El usuario definirá las fechas
+
+        logger.info(f"📅 Filtro período: {periodo} ({self.rango_fecha_inicio} - {self.rango_fecha_fin})")
+
+    def exportar_pagos(self):
+        """📥 Exportar historial de pagos (placeholder)"""
+        logger.info("📥 Exportando pagos...")
+        # TODO: Implementar exportación a CSV/Excel
+        self.mostrar_toast("Exportación de pagos en desarrollo", "info")
+
+    def imprimir_recibo(self, pago_id: str):
+        """🖨️ Imprimir recibo de pago (placeholder)"""
+        logger.info(f"🖨️ Imprimiendo recibo: {pago_id}")
+        # TODO: Implementar impresión de recibo
+        self.mostrar_toast("Impresión de recibo en desarrollo", "info")
 
     # ==========================================
     # 💰 MÉTODOS SISTEMA DUAL USD/BS
@@ -610,7 +659,7 @@ class EstadoPagos(rx.State,mixin=True):
          
             pagos_service.set_user_context(self.id_usuario, self.perfil_usuario)
             consultas_pendientes = await pagos_service.get_consultas_pendientes_pago()
-            print(consultas_pendientes)
+
             if consultas_pendientes:
                 # Actualizar lista interna para computed vars
                 self.consultas_pendientes_pagar = consultas_pendientes
@@ -670,7 +719,40 @@ class EstadoPagos(rx.State,mixin=True):
             logger.error(f"❌ Error seleccionando consulta: {str(e)}")
             self.errores_validacion_pago["general"] = f"Error: {str(e)}"
 
-    
+    async def ver_detalle_pago(self, pago_id: str):
+        """👁️ Ver detalle completo de un pago procesado"""
+        try:
+            # Buscar el pago en pagos_historial_formateados
+            pago_encontrado = next(
+                (p for p in self.pagos_historial_formateados if p.get("id") == pago_id),
+                None
+            )
+
+            if pago_encontrado:
+                # Buscar el pago completo en lista_pagos para tener todos los datos
+                pago_completo = next(
+                    (p for p in self.lista_pagos if p.id == pago_id),
+                    None
+                )
+
+                if pago_completo:
+                    self.pago_seleccionado = pago_completo
+                    self.modal_detalle_pago_abierto = True
+                    logger.info(f"✅ Pago seleccionado: {pago_completo.numero_recibo}")
+                else:
+                    logger.warning(f"⚠️ Pago completo no encontrado: {pago_id}")
+            else:
+                logger.warning(f"⚠️ Pago no encontrado en historial: {pago_id}")
+
+        except Exception as e:
+            logger.error(f"❌ Error viendo detalle de pago: {str(e)}")
+
+    def cerrar_modal_detalle_pago(self):
+        """✖️ Cerrar modal de detalle de pago"""
+        self.modal_detalle_pago_abierto = False
+        self.pago_seleccionado = None
+
+
     # ==========================================
     # 🏥 COMPUTED VARS PARA CONSULTAS PENDIENTES
     # ==========================================

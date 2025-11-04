@@ -100,7 +100,7 @@ def enhanced_form_field_dinamico(
                         "_focus": {
                             "outline": "none",
                             "border_color": COLORS["primary"]["400"],
-                            "box_shadow": f"0 0 0 3px {COLORS['primary']['100']}",
+                            "box_shadow": f"0 0 0 3px {COLORS['primary']['200']}",
                             "background": DARK_THEME["colors"]["surface_elevated"]
                         },
                         "_hover": {

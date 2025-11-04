@@ -297,15 +297,6 @@ def formulario_pago_dual() -> rx.Component:
         rx.grid(
             # Columna USD
             rx.vstack(
-                rx.text(
-                    "💵 Pago en USD",
-                    style={
-                        "font_size": "0.9rem",
-                        "font_weight": "600",
-                        "color": COLORS["success"]["400"],
-                        "margin_bottom": SPACING["2"]
-                    }
-                ),
                 enhanced_form_field(
                     label="Monto USD",
                     field_name="monto_pagado_usd",
@@ -339,15 +330,6 @@ def formulario_pago_dual() -> rx.Component:
 
             # Columna BS
             rx.vstack(
-                rx.text(
-                    "💸 Pago en BS",
-                    style={
-                        "font_size": "0.9rem",
-                        "font_weight": "600",
-                        "color": COLORS["primary"]["400"],
-                        "margin_bottom": SPACING["2"]
-                    }
-                ),
                 enhanced_form_field(
                     label="Monto BS",
                     field_name="monto_pagado_bs",

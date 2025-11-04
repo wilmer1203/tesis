@@ -325,24 +325,8 @@ def seccion_principal_premium() -> rx.Component:
 
 def panel_informacion_paciente() -> rx.Component:
     """
-    🏥 PANEL MÉDICO PREMIUM - INFORMACIÓN DEL PACIENTE
-    
-    ✨ CARACTERÍSTICAS PREMIUM IMPLEMENTADAS:
-    - 🔮 Glassmorphism médico avanzado con efectos cristal multicapa
-    - 🎨 Gradientes dinámicos y bordes luminosos profesionales
-    - 💎 Avatar premium con anillo de estado animado
-    - 🚨 Alertas médicas críticas con efectos de urgencia
-    - 📊 Estadísticas en tiempo real con micro-animaciones
-    - 🌊 Micro-interacciones fluidas y transiciones premium
-    - 📱 Diseño responsive adaptativo médico
-    - 🎯 Integración completa con sistema de design themes.py
-    
-    🚀 MEJORAS TÉCNICAS:
-    - Uso de create_medical_card_style() para alertas
-    - dark_crystal_card() para efectos glassmorphism
-    - MEDICAL_COLORS y DARK_THEME consistente
-    - Sistema SPACING y TYPOGRAPHY profesional
-    - ANIMATIONS presets para micro-interacciones
+    🏥 PANEL MÉDICO PREMIUM - INFORMACIÓN DEL PACIENTE 
+
     """
     return rx.box(
         # Efectos de fondo médico
@@ -378,7 +362,7 @@ def panel_informacion_paciente() -> rx.Component:
                                 rx.hstack(
                                     rx.icon("triangle_alert", size=20, color=COLORS["error"]["300"]),
                                     rx.vstack(
-                                        rx.text("🚨 ALERGIAS CRÍTICAS", weight="bold", size="3", color=COLORS["error"]["200"]),
+                                        rx.text("🚨 ALERGIAS CRÍTICAS", weight="bold", size="3", color=COLORS["error"]["300"]),
                                         rx.flex(
                                             rx.foreach(
                                                 AppState.paciente_actual.alergias,

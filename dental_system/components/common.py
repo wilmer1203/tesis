@@ -2,7 +2,7 @@ import reflex as rx
 from typing import List, Dict, Optional
 from ..state.app_state import AppState
 from dental_system.styles.themes import (
-    COLORS, SHADOWS, ROLE_THEMES, RADIUS, GRADIENTS, ANIMATIONS, SPACING, dark_page_background
+    COLORS, SHADOWS, RADIUS, GRADIENTS, ANIMATIONS, SPACING, DARK_THEME,dark_crystal_card,dark_header_style,create_dark_style
 )
 
 # ==========================================
@@ -105,6 +105,65 @@ def secondary_button(
     )
 
 
+def refresh_button(
+    text: str = "Actualizar datos",
+    icon: str = "refresh-cw",
+    on_click = None,
+    loading: bool = False,
+    size: str = "md"
+) -> rx.Component:
+    """Botón de actualización con tema oscuro y animación de rotación"""
+    return rx.button(
+        rx.cond(
+            loading,
+            rx.hstack(
+                rx.icon(
+                    icon,
+                    size=16,
+                    style={
+                        "animation": "spin 1s linear infinite",
+                        "@keyframes spin": {
+                            "from": {"transform": "rotate(0deg)"},
+                            "to": {"transform": "rotate(360deg)"}
+                        }
+                    }
+                ),
+                rx.text("Actualizando...", size="2", weight="medium"),
+                spacing="2",
+                align="center"
+            ),
+            rx.hstack(
+                rx.icon(icon, size=16),
+                rx.text(text, size="2", weight="medium"),
+                spacing="2",
+                align="center"
+            )
+        ),
+        on_click=on_click,
+        disabled=loading,
+        variant="outline",
+        color_scheme="cyan",
+        size="2" if size == "sm" else "3",
+        style={
+            "background": "rgba(6, 182, 212, 0.1)",
+            "border": f"1px solid {COLORS['primary']['400']}40",
+            "border_radius": RADIUS["xl"],
+            "padding": "10px 16px" if size == "md" else "8px 12px",
+            "cursor": "pointer",
+            "transition": ANIMATIONS["presets"]["crystal_hover"],
+            "_hover": {
+                "background": "rgba(6, 182, 212, 0.2)",
+                "border_color": f"{COLORS['primary']['400']}60",
+                "transform": "translateY(-2px)",
+                "box_shadow": f"0 4px 12px {COLORS['primary']['500']}30"
+            },
+            "_active": {
+                "transform": "translateY(0)"
+            }
+        }
+    )
+
+
 def eliminar_button(
     text: str,
     icon: Optional[str] = None,
@@ -148,191 +207,59 @@ def eliminar_button(
     )
 
 # ==========================================
-# COMPONENTES DE FORMULARIOS
-# ==========================================
-
-def form_field(
-    label: str,
-    field_name: str,
-    value: str,
-    on_change,
-    field_type: str = "text",
-    options: Optional[List[str]] = None,
-    required: bool = False,
-    placeholder: str = ""
-) -> rx.Component:
-    """Campo de formulario reutilizable"""
-    return rx.vstack(
-        rx.text(
-            label + ("*" if required else ""),
-            size="3",
-            weight="medium",
-            color=COLORS["gray"]["700"]
-        ),
-        rx.cond(
-            field_type == "select",
-            rx.select.root(
-                rx.select.trigger(
-                    placeholder=placeholder or f"Seleccionar {label.lower()}",
-                    width="100%"
-                ),
-                rx.select.content(
-                    rx.foreach(
-                        options or [],
-                        lambda option: rx.select.item(option, value=option)
-                    )
-                ),
-                value=value,
-                on_change=lambda val: on_change(field_name, val),
-                width="100%"
-            ),
-            rx.cond(
-                field_type == "textarea",
-                rx.text_area(
-                    value=value,
-                    on_change=lambda val: on_change(field_name, val),
-                    placeholder=placeholder,
-                    width="100%",
-                    min_height="80px"
-                ),
-                rx.input(
-                    value=value,
-                    on_change=lambda val: on_change(field_name, val),
-                    placeholder=placeholder,
-                    type=field_type,
-                    width="100%"
-                )
-            )
-        ),
-        spacing="1",
-        align_items="start",
-        width="100%"
-    )
-
-# ==========================================
-# COMPONENTES DE ALERTAS
-# ==========================================
-
-def success_alert(message: str) -> rx.Component:
-    """Alerta de éxito"""
-    return rx.cond(
-        message != "",
-        rx.box(
-            rx.hstack(
-                rx.icon("check", size=20, color=COLORS["success"]),
-                rx.text(message, color="#1B5E20", size="3"),
-                spacing="2",
-                align="center"
-            ),
-            padding="12px 16px",
-            background="#E8F5E8",
-            border=f"1px solid {COLORS['success']}",
-            border_radius="8px",
-            margin_bottom="16px"
-        ),
-        rx.box()
-    )
-
-def error_alert(message: str) -> rx.Component:
-    """Alerta de error"""
-    return rx.cond(
-        message != "",
-        rx.box(
-            rx.hstack(
-                rx.icon("triangle-alert", size=20, color=COLORS["error"]),
-                rx.text(message, color="#C62828", size="3"),
-                spacing="2",
-                align="center"
-            ),
-            padding="12px 16px",
-            background="#FFEBEE",
-            border=f"1px solid {COLORS['error']}",
-            border_radius="8px",
-            margin_bottom="16px"
-        ),
-        rx.box()
-    )
-
-
-
-
-
-
-
-# ==========================================
 # COMPONENTES DE ESTADÍSTICAS
 # ==========================================
 
 
 def stat_card(
-    title: str, 
-    value: str, 
-    icon: str, 
+    title: str,
+    value: str,
+    icon: str,
     color: str = "",
     trend: Optional[str] = None,
     trend_value: Optional[str] = None
 ) -> rx.Component:
-    """Tarjeta de estadística con trend opcional"""
+    """Tarjeta de estadística con trend opcional - Tema oscuro"""
     final_color = color if color else COLORS["primary"]["500"]
     trend_var = rx.Var.create(trend_value)
-    return rx.card(
+    return rx.box(
         rx.vstack(
+            # Layout superior: Icono a la izquierda, Número a la derecha
             rx.hstack(
-                rx.box(
-                    rx.icon(icon, size=30, color="white"),
-                    padding="12px",
-                    border_radius="16px",
-                    background=final_color
+                # Icono pequeño a la izquierda
+                rx.icon(icon, size=24, color=color),
+                # Título
+                rx.text(
+                    title,
+                    style={
+                        "font_size": "1rem",
+                        "font_weight": "600",
+                        "color": DARK_THEME["colors"]["text_primary"],
+                        "text_align": "stretch",
+                    }
                 ),
-                rx.spacer(),
-                rx.cond(
-                    trend is not None,
-                    rx.hstack(
-                        rx.icon(
-                            rx.cond(trend == "up", "trending-up", "trending-down"),
-                            size=16,
-                            color=rx.cond(trend == "up", COLORS["success"], COLORS["error"])
-                        ),
-                        
-                        rx.text(
-                            rx.cond(
-                                trend_var.is_none(),
-                                "0%",
-                                trend_var,
-                            ),
-                            size="2",
-                            color=rx.cond(trend == "up", COLORS["success"], COLORS["error"]),
-                            weight="medium"
-                        ),
-                        spacing="1",
-                        align="center"
-                    ),
-                    rx.box()
-                ),
+                spacing="2",
+                justify="center",
                 align="center",
                 width="100%"
             ),
-            rx.vstack(
-                rx.text(value, size="6", weight="bold", color=COLORS["gray"]["800"]),
-                rx.text(title, size="3", color=COLORS["gray"]["600"]),
-                spacing="1",
-                align_items="start",
-                width="100%"
+            rx.text(
+                value,
+                style={
+                    "font_size": "2.5rem",
+                    "font_weight": "700",
+                    "color": color,
+                    "line_height": "1"
+                }
             ),
-            spacing="4",
-            align_items="stretch",
+            spacing="2",
+            align="center",
             width="100%"
         ),
-        padding="24px",
-        background="white",
-        border_radius="16px",
-        border=f"1px solid {COLORS['gray']['200']}",
-        box_shadow=SHADOWS["lg"],
-        _hover={
-            "box_shadow": SHADOWS["xl"],
-            "transform": "translateY(-2px)"
+        style={
+            **dark_crystal_card(color=color, hover_lift="6px"),
+            "padding": "24px"
         },
-        transition="all 0.2s ease",
         width="100%"
     )
 
@@ -349,19 +276,29 @@ def page_header(
     return rx.box(
         rx.hstack(
             rx.vstack(
-                rx.text(
+                rx.heading(
                     title,
-                    size="7",
-                    weight="bold",
-                    color=COLORS["gray"]["800"]
+                    style={
+                        "font_size": "2.75rem",
+                        "font_weight": "800",
+                        "background": GRADIENTS["text_gradient_primary"],
+                        "background_clip": "text",
+                        "color": "transparent",
+                        "line_height": "1.2",
+                        "text_align": "left"
+                    }
                 ),
                 rx.text(
                     subtitle,
-                    size="4",
-                    color=COLORS["gray"]["600"]
+                    style={
+                        "font_size": "1.125rem",
+                        "color": DARK_THEME["colors"]["text_secondary"],
+                        "line_height": "1.5"
+                    }
                 ),
                 spacing="1",
-                align_items="start"
+                justify="start",
+                align="start"
             ),
             rx.spacer(),
             rx.hstack(
@@ -372,12 +309,8 @@ def page_header(
             width="100%",
             align="center"
         ),
-        padding="12px 24px",
-        background="white",
-        border_bottom=f"1px solid {COLORS['gray']['200']}",
-        position="sticky",
-        top="0",
-        z_index="100"
+        style=dark_header_style(),
+        width="100%"
     )
     
     
@@ -439,7 +372,12 @@ def sidebar() -> rx.Component:
             # Navegación moderna
             rx.box(
                 rx.vstack(
-                    _modern_nav_item("Dashboard", "home", "dashboard"),
+                    # Dashboard diferenciado por rol
+                    rx.cond(
+                        AppState.rol_usuario == "odontologo",
+                        _modern_nav_item("Dashboard", "home", "dashboard-odontologo"),  # 🦷 Dashboard Odontólogo
+                        _modern_nav_item("Dashboard", "home", "dashboard")  # Dashboard general (gerente/admin)
+                    ),
                     _modern_nav_item("Pacientes", "users", "pacientes"),
 
                     # Consultas solo para gerente y administrador
@@ -587,30 +525,6 @@ def _modern_logout_button() -> rx.Component:
         },
         on_click=AppState.cerrar_sesion
     )
-    
-def _nav_item(label: str, icon: str, page: str) -> rx.Component:
-    """🧭 Item de navegación"""
-    is_active = AppState.current_page == page
-    
-    return rx.box(
-        rx.hstack(
-            rx.icon(icon, size=18),
-            rx.text(label, size="3",weight="medium"),
-            spacing="3",
-            align="center"
-        ),
-        padding="12px 16px",
-        border_radius="8px",
-        background=rx.cond(is_active, f"{ROLE_THEMES['gerente']['gradient']}", "transparent"),
-        color=rx.cond(is_active,  "white", COLORS["gray"]["600"]),
-        cursor="pointer",
-        width="100%",
-        transition="all 0.2s ease",
-        _hover={
-            "background": rx.cond(is_active,f"{ROLE_THEMES['gerente']['gradient']}",  COLORS["gray"]["50"])
-        },
-        on_click=lambda: AppState.navigate_to(page) # type: ignore
-    )
 
 # ==========================================
 # LAYOUT Y PÁGINAS MÉDICAS
@@ -618,9 +532,7 @@ def _nav_item(label: str, icon: str, page: str) -> rx.Component:
 
 def medical_page_layout(children) -> rx.Component:
     """🏥 Wrapper universal para todas las páginas médicas
-    
     Aplica el fondo estándar y layout consistente.
-    Usar en todas las páginas para mantener diseño uniforme.
     """
     return rx.box(
         rx.box(
@@ -631,7 +543,7 @@ def medical_page_layout(children) -> rx.Component:
             }
         ),
         style={
-            **dark_page_background(),
+            **create_dark_style("page_background"),
             "padding": f"{SPACING['3']} {SPACING['5']}",
             "min_height": "100vh"
         },
@@ -760,38 +672,7 @@ def medical_toast_container() -> rx.Component:
         }
     )
 
-# CSS para animaciones
-def toast_animations_css() -> rx.Component:
-    """🎬 CSS para animaciones de toasts"""
-    return rx.script("""
-        if (!document.getElementById('toast-animations')) {
-            const style = document.createElement('style');
-            style.id = 'toast-animations';
-            style.textContent = `
-                @keyframes slideInRight {
-                    from {
-                        opacity: 0;
-                        transform: translateX(100%);
-                    }
-                    to {
-                        opacity: 1;
-                        transform: translateX(0);
-                    }
-                }
-                @keyframes fadeOut {
-                    from {
-                        opacity: 1;
-                        transform: translateX(0) scale(1);
-                    }
-                    to {
-                        opacity: 0;
-                        transform: translateX(100%) scale(0.95);
-                    }
-                }
-            `;
-            document.head.appendChild(style);
-        }
-    """)
+
 
 # ==========================================
 # MODAL DE CONFIRMACIÓN GENÉRICO
@@ -816,7 +697,7 @@ def confirmation_modal() -> rx.Component:
                     rx.icon("triangle-alert", size=48, color=COLORS["error"]["500"]),
                     padding=SPACING["4"],
                     border_radius=RADIUS["full"],
-                    background=COLORS["error"]["50"]
+                    background=COLORS["gray"]["200"]
                 ),
                 rx.heading(
                     AppState.titulo_modal_confirmacion,
@@ -899,7 +780,7 @@ def confirmation_modal() -> rx.Component:
                 "border_radius": RADIUS["3xl"],
                 "background": f"linear-gradient(135deg, white 0%, {COLORS['gray']['50']} 100%)",
                 "box_shadow": SHADOWS["crystal_xl"],
-                "border": f"1px solid {COLORS['error']['200']}40",
+                "border": f"1px solid {COLORS['error']['300']}40",
             }
         ),
         open=AppState.modal_confirmacion_abierto,

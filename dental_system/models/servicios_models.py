@@ -71,61 +71,12 @@ class ServicioModel(rx.Base):
             fecha_creacion=str(data.get("fecha_creacion", "")),
             creado_por=str(data.get("creado_por", "") if data.get("creado_por") else "")
         )
-    
-    @property
-    def precio_base_display(self) -> str:
-        """Precio base formateado para mostrar (USD)"""
-        return f"${self.precio_base_usd:,.2f}"
-
-    @property
-    def material_incluido_display(self) -> str:
-        """Material incluido formateado"""
-        if self.material_incluido:
-            return ", ".join(self.material_incluido)
-        return "No especificado"
-    
-
-    @property
-    def alcance_display(self) -> str:
-        """Alcance del servicio formateado para UI"""
-        alcances_map = {
-            "superficie_especifica": "🎯 Superficie específica",
-            "diente_completo": "🦷 Diente completo",
-            "boca_completa": "👄 Boca completa"
-        }
-        return alcances_map.get(self.alcance_servicio, "🎯 Superficie específica")
-
-    @property
-    def requiere_seleccion_superficies(self) -> bool:
-        """Indica si el servicio requiere selección de superficies"""
-        return self.alcance_servicio == "superficie_especifica"
-
-    @property
-    def requiere_seleccion_diente(self) -> bool:
-        """Indica si el servicio requiere selección de diente"""
-        return self.alcance_servicio in ["superficie_especifica", "diente_completo"]
-
-    @property
-    def aplica_toda_boca(self) -> bool:
-        """Indica si el servicio se aplica a toda la boca"""
-        return self.alcance_servicio == "boca_completa"
-
     # ✨ V3.0: Métodos para condición resultante
-    def modifica_odontograma(self) -> bool:
-        """¿Este servicio modifica el odontograma?"""
-        return self.condicion_resultante is not None
 
     @property
     def es_preventivo(self) -> bool:
         """Indica si es un servicio preventivo (no modifica odontograma)"""
         return self.condicion_resultante is None
-
-    @property
-    def tipo_servicio_display(self) -> str:
-        """Tipo de servicio formateado según condición resultante"""
-        if self.condicion_resultante:
-            return f"🦷 Restaurativo → {self.condicion_resultante.title()}"
-        return "⭕ Preventivo"
 
     @property
     def condicion_display(self) -> str:
@@ -153,38 +104,6 @@ class ServicioModel(rx.Base):
             self.condicion_resultante.replace("_", " ").title()
         )
 
-
-class CategoriaServicioModel(rx.Base):
-    """Modelo para categorías de servicios"""
-    id: str = ""
-    nombre: str = ""
-    descripcion: str = ""
-    icono: str = ""
-    color: str = "#007bff"
-    orden: int = 0
-    activa: bool = True
-    
-    # Estadísticas
-    cantidad_servicios: int = 0
-    ingresos_mes_actual: float = 0.0
-    
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "CategoriaServicioModel":
-        """Crear instancia desde diccionario"""
-        if not data or not isinstance(data, dict):
-            return cls()
-        
-        return cls(
-            id=str(data.get("id", "")),
-            nombre=str(data.get("nombre", "")),
-            descripcion=str(data.get("descripcion", "")),
-            icono=str(data.get("icono", "📋")),
-            color=str(data.get("color", "#007bff")),
-            orden=int(data.get("orden", 0)),
-            activa=bool(data.get("activa", True)),
-            cantidad_servicios=int(data.get("cantidad_servicios", 0)),
-            ingresos_mes_actual=float(data.get("ingresos_mes_actual", 0))
-        )
 
 
 class ServicioFormModel(rx.Base):
@@ -476,17 +395,7 @@ class IntervencionModel(rx.Base):
             return ", ".join(self.materiales_utilizados)
         return "No especificado"
     
-    @property
-    def estado_display(self) -> str:
-        """Estado formateado para mostrar"""
-        estados_map = {
-            "pendiente": "⏳ Pendiente",
-            "en_progreso": "🔄 En Progreso",
-            "completada": "✅ Completada",
-            "suspendida": "⏸️ Suspendida"
-        }
-        return estados_map.get(self.estado, self.estado.capitalize())
-    
+
     @property
     def duracion_display(self) -> str:
         """Duración real formateada"""

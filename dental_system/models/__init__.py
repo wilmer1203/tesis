@@ -7,8 +7,6 @@ Organización modular de modelos por área funcional del sistema
 from .pacientes_models import (
     PacienteModel,
     PacientesStatsModel,
-    ContactoEmergenciaModel,
-    AlergiaModel,
     PacienteFormModel,
     # Modelos para historial completo
     ServicioHistorial,
@@ -36,7 +34,6 @@ from .personal_models import (
 
 from .servicios_models import (
     ServicioModel,
-    CategoriaServicioModel,
     ServicioStatsModel,
     EstadisticaCategoriaModel,
     IntervencionModel,
@@ -47,7 +44,6 @@ from .pagos_models import (
     PagoModel,
     PagosStatsModel,
     ConsultaPendientePago,
-    BalanceGeneralModel,
     CuentaPorCobrarModel,
     PagoFormModel,
     ServicioFormateado
@@ -61,12 +57,7 @@ from .ui_models import (
 
 from .odontologia_models import (
     OdontogramaModel,
-    DienteModel,
-    CondicionDienteModel,
-    CondicionCatalogoModel,  # ✨ V3.0: Catálogo de condiciones
-    ActualizacionOdontogramaResult,  # ✨ V3.0: Resultado batch
-    HistorialClinicoModel,
-    PlanTratamientoModel,
+    ActualizacionOdontogramaResult,  
     IntervencionFormModel,
     HistorialMedicoModel,
     HistorialServicioModel
@@ -94,8 +85,6 @@ __all__ = [
     # ✅ PACIENTES
     "PacienteModel",
     "PacientesStatsModel",
-    "ContactoEmergenciaModel",
-    "AlergiaModel",
     "ServicioHistorial",
     "IntervencionHistorial",
     "ConsultaHistorial",
@@ -116,7 +105,6 @@ __all__ = [
     
     # ✅ SERVICIOS E INTERVENCIONES  
     "ServicioModel",
-    "CategoriaServicioModel",
     "ServicioStatsModel",
     "EstadisticaCategoriaModel",
     "IntervencionModel",
@@ -126,17 +114,11 @@ __all__ = [
     "PagosStatsModel", 
     "ConsultaPendientePago",
     "ServicioFormateado",
-    "BalanceGeneralModel",
     "CuentaPorCobrarModel",
     
     # ✅ ODONTOLOGÍA ESPECIALIZADA
     "OdontogramaModel",
-    "DienteModel",
-    "CondicionDienteModel",
-    "CondicionCatalogoModel",  # ✨ V3.0
     "ActualizacionOdontogramaResult",  # ✨ V3.0
-    "HistorialClinicoModel",
-    "PlanTratamientoModel",
     "HistorialMedicoModel",
     "HistorialServicioModel",
     

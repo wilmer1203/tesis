@@ -15,6 +15,7 @@ Desarrollado para Reflex.dev con patrones modernos
 
 import reflex as rx
 from dental_system.state.app_state import AppState
+from dental_system.components.common import stat_card, page_header, medical_page_layout, refresh_button
 from dental_system.components.table_components import patients_table
 from dental_system.components.modal_paciente import multi_step_patient_form
 from dental_system.styles.themes import (
@@ -26,9 +27,8 @@ from dental_system.styles.themes import (
     GRADIENTS,
     GLASS_EFFECTS,
     DARK_THEME,
-    dark_page_background,
     dark_crystal_card,
-    dark_table_container,
+    create_dark_style,
     dark_header_style
 )
 
@@ -74,96 +74,26 @@ def clean_patients_header() -> rx.Component:
         width="100%"
     )
 
-def minimal_patients_stat_card(
-    title: str,
-    value: str, 
-    icon: str,
-    color: str,
-    subtitle: str = ""
-) -> rx.Component:
-    """🎯 Card de estadística minimalista para pacientes (patrón Personal)"""
-    return rx.box(
-        rx.vstack(
-            # Layout superior: Icono a la izquierda, Número a la derecha
-            rx.hstack(
-                # Icono pequeño a la izquierda
-                rx.box(
-                    rx.icon(icon, size=24, color=color),
-                    style={
-                        "width": "50px",
-                        "height": "50px",
-                        "background": f"{color}100",
-                        "border_radius": RADIUS["xl"],
-                        "display": "flex",
-                        "align_items": "center",
-                        "justify_content": "center",
-                        "border": f"1px solid {color}35"
-                    }
-                ),
-                
-                rx.spacer(),
-                
-                # Número grande a la derecha
-                rx.text(
-                    value,
-                    style={
-                        "font_size": "2.5rem",
-                        "font_weight": "800",
-                        "color": color,
-                        "line_height": "1"
-                    }
-                ),
-                
-                align="center",
-                width="100%"
-            ),
-            
-            # Título descriptivo abajo
-            rx.text(
-                title,
-                style={
-                    "font_size": "1rem",
-                    "font_weight": "600",
-                    "color": DARK_THEME["colors"]["text_primary"],
-                    "text_align": "center",
-                    "margin_top": SPACING["1"]
-                }
-            ),
-            
-            spacing="3",
-            align="stretch",
-            width="100%",
-            padding=SPACING["3"]
-        ),
-        
-        # Utilizar función utilitaria de cristal reutilizable
-        style=dark_crystal_card(color=color, hover_lift="6px"),
-        width="100%"
-    )
-
 def patients_stats() -> rx.Component:
     """📈 Grid de estadísticas minimalistas y elegantes para pacientes"""
     return rx.grid(
-        minimal_patients_stat_card(
+        stat_card(
             title="Total Pacientes",
             value=AppState.lista_pacientes.length().to_string(),
             icon="users",
-            color=COLORS["primary"]["600"],
-            subtitle="Registrados en el sistema"
+            color=COLORS["primary"]["600"]
         ),
-        minimal_patients_stat_card(
+        stat_card(
             title="Pacientes Activos",
             value=AppState.total_pacientes_activos.to_string(),
             icon="user-check",
-            color=COLORS["success"]["600"],
-            subtitle="Con estado activo"
+            color=COLORS["success"]["600"]
         ),
-        minimal_patients_stat_card(
+        stat_card(
             title="Nuevos Este Mes",
             value="47",  # Podrías conectar con AppState
             icon="user-plus",
-            color=COLORS["secondary"]["600"],
-            subtitle="Registros recientes"
+            color=COLORS["secondary"]["600"]
         ),
         columns=rx.breakpoints(initial="1", sm="2", md="2", lg="3"),
         spacing="6",
@@ -277,66 +207,6 @@ def delete_paciente_confirmation_modal() -> rx.Component:
         on_open_change=AppState.cerrar_todos_los_modales
     )
       
-# ==========================================
-# 📋 PÁGINA PRINCIPAL - USANDO COMPONENTES GENÉRICOS
-# ==========================================
-
-def modern_alerts() -> rx.Component:
-    """🚨 Sistema de alertas moderno para pacientes"""
-    return rx.vstack(
-        # Alerta de éxito
-        rx.cond(
-            AppState.mensaje_modal_confirmacion != "",
-            rx.box(
-                rx.hstack(
-                    rx.icon("check", size=20, color=COLORS["success"]["500"]),
-                    rx.text(
-                        AppState.mensaje_modal_confirmacion,
-                        color=COLORS["success"]["700"],
-                        font_weight="500"
-                    ),
-                    spacing="3",
-                    align="center"
-                ),
-                style={
-                    "background": COLORS["success"]["50"],
-                    "border": f"1px solid {COLORS['success']['200']}",
-                    "border_left": f"4px solid {COLORS['success']['500']}",
-                    "border_radius": RADIUS["lg"],
-                    "padding": f"{SPACING['4']} {SPACING['5']}",
-                    "margin_bottom": SPACING["4"]
-                }
-            ),
-            rx.box()
-        ),
-        # Alerta de error
-        rx.cond(
-            AppState.mensaje_modal_alerta != "",
-            rx.box(
-                rx.hstack(
-                    rx.icon("circle_alert", size=20, color=COLORS["error"]["500"]),
-                    rx.text(
-                        AppState.mensaje_modal_alerta,
-                        color=COLORS["error"]["700"],
-                        font_weight="500"
-                    ),
-                    spacing="3",
-                    align="center"
-                ),
-                style={
-                    "background": COLORS["error"]["50"],
-                    "border": f"1px solid {COLORS['error']['200']}",
-                    "border_left": f"4px solid {COLORS['error']['500']}",
-                    "border_radius": RADIUS["lg"],
-                    "padding": f"{SPACING['4']} {SPACING['5']}",
-                    "margin_bottom": SPACING["4"]
-                }
-            ),
-            rx.box()
-        ),
-        width="100%",
-        spacing="0"
-    )
 
 def pacientes_page() -> rx.Component:
     """
@@ -350,36 +220,33 @@ def pacientes_page() -> rx.Component:
     - Tema oscuro con efectos cristal
     - Animaciones suaves y micro-interacciones
     """
-    return rx.box(
-        rx.box(
+    return rx.fragment(
+        medical_page_layout(
             rx.vstack(
                 # Header limpio y elegante
-                clean_patients_header(),
-                # Sistema de alertas mejorado
-                modern_alerts(),
-                    
+                page_header(
+                    "Gestión de Pacientes",
+                    "Administra el registro completo de pacientes con historial médico digital",
+                    actions=[
+                        refresh_button(
+                            text="Actualizar datos",
+                            on_click=AppState.cargar_lista_pacientes,
+                            loading=AppState.cargando_lista_pacientes
+                        )
+                    ]
+                ),
                 # Estadísticas con cards modernos
                 patients_stats(),
                     
                 # Tabla de pacientes con diseño actualizado - Usar función utilitaria
                 rx.box(
                     patients_table(),
-                    style=dark_table_container(),
+                    style=create_dark_style("dark_table"),
                     width="100%"
                 ),
                 spacing="3",
                 width="100%"
             ),
-            style={
-                "position": "relative",
-                "z_index": "10"
-            }
         ),
         multi_step_patient_form(),  # ✅ Formulario multi-step reactivado
-        style={
-            **dark_page_background(),
-            "padding": f"{SPACING['4']} {SPACING['6']}",
-            "min_height": "100vh"
-        },   
-        width="100%"
     )

@@ -361,8 +361,8 @@ def _staff_form_step_3() -> rx.Component:
                         align="center"
                     ),
                     style={
-                        "background": COLORS["blue"]["50"],
-                        "border": f"1px solid {COLORS['blue']['200']}",
+                        "background": COLORS["gray"]["200"],
+                        "border": f"1px solid {COLORS['primary']['200']}",
                         "border_radius": RADIUS["lg"],
                         "padding": SPACING["3"],
                         "margin_top": SPACING["2"]
@@ -441,7 +441,7 @@ def _staff_form_step_3() -> rx.Component:
                     spacing="3"
                 ),
                 style={
-                    "background": f"linear-gradient(135deg, {COLORS['primary']['50']} 0%, {COLORS['primary']['100']} 100%)",  # primary 100 existe
+                    "background": f"linear-gradient(135deg, {COLORS['gray']['200']} 0%, {COLORS['primary']['200']} 100%)",  # primary 100 existe
                     "border": f"1px solid {COLORS['primary']['200']}",
                     "border_radius": RADIUS["xl"],
                     "padding": SPACING["4"],

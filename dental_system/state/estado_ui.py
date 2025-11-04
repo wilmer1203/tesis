@@ -295,6 +295,10 @@ class EstadoUI(rx.State, mixin=True):
                 await self.ejecutar_accion_personal()
             elif accion == "desactivar_personal":
                 await self.ejecutar_accion_personal()
+            elif accion == "activar_servicio":
+                await self.ejecutar_accion_servicio()
+            elif accion == "desactivar_servicio":
+                await self.ejecutar_accion_servicio()
             elif accion == "eliminar_paciente":
                 # Aquí iría la lógica para eliminar paciente
                 pass
@@ -813,53 +817,151 @@ class EstadoUI(rx.State, mixin=True):
     pacientes_data = []
     ingresos_data = []
     consultas_data = []
-    
-    
+
+    # 🧪 TOGGLE PARA TESTING (temporal)
+    usar_datos_reales_dashboard: bool = True
+
+    # 📊 DATOS REALES DEL DASHBOARD
+    pacientes_data_real = []
+    ingresos_data_real = []
+    consultas_data_real = []
+
+    # 📈 STATS DEL GERENTE
+    dashboard_stats: Dict[str, Any] = {}
+
+
     def toggle_areachart(self):
         """Alterna entre gráfico de área y barras."""
         self.area_toggle = not self.area_toggle
-    
+
     def set_selected_tab(self, selected_tab: Union[str, List[str]]):
         """Cambia la pestaña seleccionada."""
         if isinstance(selected_tab, list):
             self.selected_tab = selected_tab[0]
         else:
             self.selected_tab = selected_tab
-    
+
+    @rx.event
+    def toggle_datos_dashboard(self):
+        """🧪 TOGGLE TEMPORAL: Alternar entre datos reales y random (solo para testing)"""
+        self.usar_datos_reales_dashboard = not self.usar_datos_reales_dashboard
+        print(f"🧪 Datos dashboard: {'REALES' if self.usar_datos_reales_dashboard else 'RANDOM'}")
+
     @rx.var(cache=False)
     def get_current_data(self) -> list:
-        match self.selected_tab:
-            case "Pacientes":
-                return self.pacientes_data
-            case "Ingresos":
-                return self.ingresos_data
-            case "Consultas":
-                return self.consultas_data
+        """📊 Obtener datos actuales según tab seleccionado y modo (real/random)"""
+        if self.usar_datos_reales_dashboard:
+            # Usar datos reales
+            match self.selected_tab:
+                case "Pacientes":
+                    return self.pacientes_data_real
+                case "Ingresos":
+                    return self.ingresos_data_real
+                case "Consultas":
+                    return self.consultas_data_real
+        else:
+            # Usar datos random (testing)
+            match self.selected_tab:
+                case "Pacientes":
+                    return self.pacientes_data
+                case "Ingresos":
+                    return self.ingresos_data
+                case "Consultas":
+                    return self.consultas_data
         return []
-    
+
+    async def cargar_stats_gerente_dashboard(self):
+        """📊 CARGAR ESTADÍSTICAS DEL GERENTE PARA DASHBOARD"""
+        try:
+            from dental_system.services.dashboard_service import dashboard_service
+
+            print("📊 Cargando stats del gerente...")
+            self.cargando_dashboard = True
+
+            # Llamar al service
+            stats = await dashboard_service.get_gerente_stats_simple()
+            self.dashboard_stats = stats
+
+            print(f"✅ Stats cargadas: {stats}")
+            self.cargando_dashboard = False
+
+        except Exception as e:
+            print(f"❌ Error cargando stats del gerente: {e}")
+            self.cargando_dashboard = False
+            self.dashboard_stats = {
+                "ingresos_mes": 0,
+                "ingresos_hoy_total": 0,
+                "ingresos_hoy_usd": 0,
+                "ingresos_hoy_bs": 0,
+                "consultas_hoy_total": 0,
+                "consultas_completadas": 0,
+                "consultas_en_espera": 0,
+                "servicios_aplicados": 0,
+                "promedio_servicios_consulta": 0,
+                "tiempo_promedio_minutos": 0,
+            }
+
+    async def cargar_datos_graficos_reales(self):
+        """📈 CARGAR DATOS REALES PARA GRÁFICOS (últimos 30 días)"""
+        try:
+            from dental_system.services.dashboard_service import dashboard_service
+
+            print("📈 Cargando datos reales para gráficos...")
+
+            # Obtener datos de los últimos 30 días
+            chart_data = await dashboard_service.get_chart_data_last_30_days("gerente")
+
+            # Asignar a variables de estado
+            self.pacientes_data_real = chart_data.get("pacientes_data", [])
+            self.ingresos_data_real = chart_data.get("ingresos_data", [])
+            self.consultas_data_real = chart_data.get("consultas_data", [])
+
+            print(f"✅ Datos gráficos cargados: {len(self.pacientes_data_real)} días")
+
+        except Exception as e:
+            print(f"❌ Error cargando datos de gráficos: {e}")
+            # Mantener arrays vacíos
+            self.pacientes_data_real = []
+            self.ingresos_data_real = []
+            self.consultas_data_real = []
+
+    async def cargar_dashboard_gerente_completo(self):
+        """🚀 CARGAR TODO EL DASHBOARD DEL GERENTE (stats + gráficos)"""
+        try:
+            print("🚀 Iniciando carga completa del dashboard...")
+
+            # Cargar en paralelo (si es posible) o secuencial
+            await self.cargar_stats_gerente_dashboard()
+            await self.cargar_datos_graficos_reales()
+
+            print("✅ Dashboard del gerente cargado completamente")
+
+        except Exception as e:
+            print(f"❌ Error en carga completa del dashboard: {e}")
+
     def randomize_data(self):
         import random
-        """Genera datos de ejemplo para gráficos"""
+        """Genera datos de ejemplo para gráficos (SOLO PARA TESTING)"""
         if self.pacientes_data:
             return
-        
+
         for i in range(30, -1, -1):
             date_str = (datetime.now() - timedelta(days=i)).strftime("%d-%m")
-            
+
             self.ingresos_data.append({
                 "name": date_str,
                 "Ingresos": random.randint(1000, 5000)
             })
-            
+
             self.consultas_data.append({
                 "name": date_str,
                 "Consultas": random.randint(10, 50)
             })
-            
+
             self.pacientes_data.append({
                 "name": date_str,
                 "Pacientes": random.randint(5, 20)
             })
-            
-            
+
+
     

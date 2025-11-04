@@ -145,34 +145,6 @@ class PacienteModel(rx.Base):
             return 0
 
     @property
-    def edad_display(self) -> str:
-        """Propiedad para mostrar la edad"""
-        # Usar edad de BD si existe, sino calcular desde fecha nacimiento
-        edad = self.edad if self.edad else self.edad_calculada
-        return f"{edad} años" if edad and edad > 0 else "N/A"
-
-    @property
-    def celular_display(self) -> str:
-        """Propiedad para mostrar el celular principal"""
-        if self.celular_1:
-            return self.celular_1
-        elif self.celular_2:
-            return self.celular_2
-        else:
-            return "Sin celular"
-
-    @property
-    def fecha_registro_display(self) -> str:
-        """Propiedad para mostrar la fecha de registro formateada"""
-        try:
-            if self.fecha_registro:
-                fecha_obj = datetime.fromisoformat(self.fecha_registro.replace('Z', '+00:00'))
-                return fecha_obj.strftime("%d/%m/%Y")
-            return "Sin fecha"
-        except:
-            return str(self.fecha_registro)
-
-    @property
     def contacto_display(self) -> str:
         """Propiedad para mostrar información de contacto resumida"""
         contactos = []
@@ -190,75 +162,6 @@ class PacienteModel(rx.Base):
         """Propiedad para mostrar alergias como string"""
         return ", ".join(self.alergias) if self.alergias else "Sin alergias conocidas"
 
-    @property
-    def medicamentos_display(self) -> str:
-        """Propiedad para mostrar medicamentos como string"""
-        return ", ".join(self.medicamentos_actuales) if self.medicamentos_actuales else "Sin medicamentos"
-
-    @property
-    def condiciones_display(self) -> str:
-        """Propiedad para mostrar condiciones médicas como string"""
-        return ", ".join(self.condiciones_medicas) if self.condiciones_medicas else "Sin condiciones reportadas"
-
-    @property
-    def contacto_emergencia_display(self) -> str:
-        """Propiedad para mostrar contacto de emergencia"""
-        if not self.contacto_emergencia or not isinstance(self.contacto_emergencia, dict):
-            return "Sin contacto emergencia"
-
-        nombre = self.contacto_emergencia.get("nombre", "")
-        telefono = self.contacto_emergencia.get("telefono", "")
-        relacion = self.contacto_emergencia.get("relacion", "")
-
-        if nombre and telefono:
-            return f"{nombre} ({relacion}) - {telefono}" if relacion else f"{nombre} - {telefono}"
-        elif nombre:
-            return f"{nombre} ({relacion})" if relacion else nombre
-        else:
-            return "Sin contacto emergencia"
-
-    @property
-    def tiene_alertas_medicas(self) -> bool:
-        """🚨 Verificar si el paciente tiene alertas médicas importantes"""
-        return bool(
-            self.alergias or
-            self.medicamentos_actuales or
-            self.condiciones_medicas
-        )
-
-    @property
-    def alergias_medicamentos(self) -> str:
-        """💊 Concatenar alergias y medicamentos para mostrar en alertas"""
-        alertas = []
-        if self.alergias:
-            alertas.append(f"Alergias: {', '.join(self.alergias)}")
-        if self.medicamentos_actuales:
-            alertas.append(f"Medicamentos: {', '.join(self.medicamentos_actuales)}")
-        if self.condiciones_medicas:
-            alertas.append(f"Condiciones: {', '.join(self.condiciones_medicas)}")
-
-        return " | ".join(alertas) if alertas else None
-
-    def matches_search(self, search_term: str) -> bool:
-        """Verificar si el paciente coincide con el término de búsqueda"""
-        if not search_term:
-            return True
-
-        search_lower = search_term.lower()
-        fields_to_search = [
-            self.primer_nombre.lower(),
-            self.segundo_nombre.lower() if self.segundo_nombre else "",
-            self.primer_apellido.lower(),
-            self.segundo_apellido.lower() if self.segundo_apellido else "",
-            self.numero_documento.lower(),
-            self.email.lower() if self.email else "",
-            self.celular_1.lower() if self.celular_1 else "",
-            self.celular_2.lower() if self.celular_2 else "",
-            self.numero_historia.lower()
-        ]
-
-        return any(search_lower in field for field in fields_to_search)
-
 
 class PacientesStatsModel(rx.Base):
     """Modelo para estadísticas de pacientes"""
@@ -275,48 +178,6 @@ class PacientesStatsModel(rx.Base):
     registros_ultima_semana: int = 0
 
 
-class ContactoEmergenciaModel(rx.Base):
-    """Modelo para datos de contacto de emergencia"""
-    nombre: str = ""
-    telefono: str = ""
-    relacion: str = ""  # Familiar, amigo, etc.
-    direccion: Optional[str] = ""
-
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ContactoEmergenciaModel":
-        """Crear instancia desde diccionario"""
-        if not data or not isinstance(data, dict):
-            return cls()
-
-        return cls(
-            nombre=str(data.get("nombre", "")),
-            telefono=str(data.get("telefono", "")),
-            relacion=str(data.get("relacion", "")),
-            direccion=str(data.get("direccion", "") if data.get("direccion") else "")
-        )
-
-
-class AlergiaModel(rx.Base):
-    """Modelo para datos de alergias específicas"""
-    nombre: str = ""
-    tipo: str = ""  # medicamento, alimento, ambiental, etc.
-    severidad: str = "leve"  # leve, moderada, severa
-    reaccion: str = ""
-    fecha_diagnostico: Optional[str] = ""
-
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "AlergiaModel":
-        """Crear instancia desde diccionario"""
-        if not data or not isinstance(data, dict):
-            return cls()
-
-        return cls(
-            nombre=str(data.get("nombre", "")),
-            tipo=str(data.get("tipo", "")),
-            severidad=str(data.get("severidad", "leve")),
-            reaccion=str(data.get("reaccion", "")),
-            fecha_diagnostico=str(data.get("fecha_diagnostico", "") if data.get("fecha_diagnostico") else "")
-        )
 
 
 # ==========================================

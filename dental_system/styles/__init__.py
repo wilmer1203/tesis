@@ -7,7 +7,6 @@ from .themes import COLORS, SHADOWS
 from .medical_design_system import (
     MEDICAL_COLORS,
     MEDICAL_SPACING,
-    MEDICAL_TYPOGRAPHY,
     MEDICAL_SHADOWS,
     MEDICAL_RADIUS,
     MEDICAL_TRANSITIONS,
@@ -28,7 +27,6 @@ __all__ = [
     # Medical Design System V3.0
     "MEDICAL_COLORS",
     "MEDICAL_SPACING",
-    "MEDICAL_TYPOGRAPHY",
     "MEDICAL_SHADOWS",
     "MEDICAL_RADIUS",
     "MEDICAL_TRANSITIONS",

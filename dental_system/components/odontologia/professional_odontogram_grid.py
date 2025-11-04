@@ -157,8 +157,8 @@ def professional_odontogram_grid(
             align="center",
         ),
 
-        # Grid principal: Odontograma (70%) + Leyenda (30%)
-        rx.hstack(
+        # Grid principal: Odontograma (sin leyenda lateral, 100% width)
+        rx.vstack(
             # Odontograma central
             rx.vstack(
                 # Maxilar superior (cuadrantes 1 y 2)
@@ -193,14 +193,55 @@ def professional_odontogram_grid(
                 background=DARK_COLORS["background"],
                 border=f"1px solid {DARK_COLORS['border']}",
                 border_radius="12px",
-                width="70%",
+                width="100%",
             ),
 
-            # Leyenda lateral
-            odontogram_legend(),
+            # Leyenda horizontal debajo (en vez de lateral)
+            rx.box(
+                rx.hstack(
+                    rx.text("Leyenda:", size="2", weight="bold", color=DARK_COLORS["foreground"]),
+                    *[
+                        rx.hstack(
+                            rx.box(
+                                width="16px",
+                                height="16px",
+                                background=get_tooth_color(status),
+                                border_radius="4px",
+                                border=f"1px solid {DARK_COLORS['border']}",
+                            ),
+                            rx.text(
+                                label,
+                                font_size="12px",
+                                color=DARK_COLORS["text_secondary"],
+                            ),
+                            spacing="1",
+                            align="center",
+                        )
+                        for status, label in [
+                            ("sano", "Sano"),
+                            ("caries", "Caries"),
+                            ("obturado", "Obturado"),
+                            ("corona", "Corona"),
+                            ("endodoncia", "Endodoncia"),
+                            ("ausente", "Ausente"),
+                            ("fractura", "Fractura"),
+                            ("implante", "Implante"),
+                        ]
+                    ],
+                    spacing="3",
+                    align="center",
+                    wrap="wrap"
+                ),
+                padding="12px",
+                background=DARK_COLORS["surface"],
+                border=f"1px solid {DARK_COLORS['border']}",
+                border_radius="8px",
+                margin_top="12px",
+                width="100%"
+            ),
 
-            spacing="6",
-            align="start",
+            spacing="4",
+            align="center",
             width="100%",
         ),
 

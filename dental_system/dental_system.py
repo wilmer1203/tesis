@@ -5,6 +5,7 @@ import reflex as rx
 from dental_system.state.app_state import AppState
 from dental_system.styles.themes import COLORS, SHADOWS
 from dental_system.pages.dashboard import dashboard_page
+from dental_system.pages.dashboard_odontologo import dashboard_odontologo_page  # 🦷 Dashboard Odontólogo
 from dental_system.pages.pacientes_page import pacientes_page
 from dental_system.pages.personal_page import personal_page
 from dental_system.pages.consultas_page import consultas_page_v41
@@ -13,6 +14,7 @@ from dental_system.pages.pagos_page import pagos_page
 from dental_system.pages.odontologia_page import odontologia_page
 from dental_system.pages.intervencion_page import intervencion_page_v2
 from dental_system.pages.login import login_page
+from dental_system.pages.historial_paciente_page import historial_paciente_page
 from dental_system.components.common import sidebar
 from dental_system.utils.route_guard import (
     boss_only_component,
@@ -20,10 +22,7 @@ from dental_system.utils.route_guard import (
     dentist_component
 )
 
-# 🎨 PÁGINAS MOCKUP (para desarrollo de UI)
-from dental_system.pages.mockup.pagos_page_mockup import pagos_mockup_page
-from dental_system.pages.mockup.pagos_page_mockup_v2 import pagos_mockup_v2_page
-from dental_system.pages.historial_paciente_page import historial_paciente_page
+
 
 
 # ==========================================
@@ -87,6 +86,7 @@ def main_content() -> rx.Component:
     return rx.match(
         AppState.current_page,
         ("dashboard", dashboard_page()),
+        ("dashboard-odontologo", dashboard_odontologo_page()),  # 🦷 Dashboard Odontólogo
         ("pacientes", pacientes_page()),
         ("historial-paciente", historial_paciente_page()),  # 🆕 Historial del paciente
         ("consultas", consultas_page_v41()),  # 🔄 VERSIÓN ORIGINAL (FUNCIONA)
@@ -247,16 +247,10 @@ def create_app() -> rx.App:
     # 🎯 RUTAS ESPECÍFICAS POR ROL - COMO QUERÍAS
     # app.add_page(index_page, route="/")           # Redirige según rol
     app.add_page(login_page, route="/login")                    # Login público
-    # app.add_page(odontograma_test_page, route="/odontograma-test")  # 🦷 Prueba Odontograma V2.0
-    # app.add_page(odontograma_professional_page, route="/odontograma-clinico")  # 🏥 Odontograma Profesional V3.0
     app.add_page(boss_page, route="/boss")                    # Gerente
     app.add_page(admin_page, route="/admin")                  # Administrador
     app.add_page(dentist_page, route="/dentist")              # Odontólogo
 
-    # 🎨 PÁGINAS MOCKUP DE DESARROLLO
-    app.add_page(pagos_mockup_page, route="/pagos-mockup")        # Mockup original con modal interactivo
-    # app.add_page(pagos_mockup_v2_page, route="/pagos-mockup-v2")  # ✨ Mockup V2.0 Híbrido (error en keys)
-    app.add_page(historial_paciente_page, route="/historial-paciente")  # 📋 Historial Completo del Paciente
 
     return app
 

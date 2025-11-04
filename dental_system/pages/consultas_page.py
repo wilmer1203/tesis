@@ -6,9 +6,9 @@
 import reflex as rx
 from dental_system.state.app_state import AppState
 from dental_system.components.modal_consulta import modal_nueva_consulta, modal_transferir_paciente
-from dental_system.components.common import medical_page_layout
+from dental_system.components.common import medical_page_layout, page_header, stat_card, refresh_button
 from dental_system.styles.themes import (
-    SPACING, RADIUS, ROLE_THEMES, GRADIENTS, DARK_THEME,SHADOWS,GLASS_EFFECTS, COLORS, ANIMATIONS, 
+    SPACING, RADIUS, GRADIENTS, DARK_THEME,SHADOWS,GLASS_EFFECTS, COLORS, ANIMATIONS, 
     dark_header_style, glassmorphism_card
 )
 
@@ -20,7 +20,7 @@ def stat_card_simple(titulo: str, valor, color: str = "blue") -> rx.Component:
     """📊 Tarjeta de estadística simple"""
     # Mapeo de colores a COLORS del sistema
     color_map = {
-        "blue": COLORS["primary"]["500"],
+        "blue": COLORS["text_gradient_primary"],
         "yellow": COLORS["warning"]["500"],
         "green": COLORS["success"]["500"],
         "red": COLORS["error"]["500"]
@@ -44,33 +44,17 @@ def stat_card_simple(titulo: str, valor, color: str = "blue") -> rx.Component:
 
 def queue_control_bar_simple() -> rx.Component:
     """📊 Panel de control superior simplificado"""
-    return rx.box(
-        rx.vstack(
-            # Título
-            rx.heading("📋 Panel de Control - Consultas del Día", size="4", color=DARK_THEME["colors"]["text_primary"]),
-            
-            # Stats en grid
-            rx.grid(
+    return rx.grid(
                 # 🔄 ACTUALIZADO: Usar computed vars específicos tipados
-                stat_card_simple("Total", AppState.total_consultas_dashboard.to_string()),
-                stat_card_simple("En Espera", AppState.total_en_espera_dashboard.to_string(), "yellow"),
-                stat_card_simple("En Atención", AppState.total_en_atencion_dashboard.to_string(), "green"),
-                stat_card_simple("Canceladas", AppState.total_canceladas_dashboard.to_string(), "red"),
-                stat_card_simple("Completadas", AppState.total_completadas_dashboard.to_string(), "blue"),
-                stat_card_simple("Dentistas", AppState.total_odontologos_activos_dashboard.to_string(), "blue"),
-                columns="6",
-                spacing="3",
-                width="100%"
-            ), 
-             spacing="4",
-            width="100%"
-        ),
-        style={
-            **glassmorphism_card(opacity="80", blur="15px"),
-            "padding": SPACING["6"],
-            "margin": f"{SPACING['4']} 0",
-            "width": "100%"
-        }
+                stat_card("Total", AppState.total_consultas_dashboard.to_string(),"activity",COLORS["primary"]["500"]),
+                stat_card("En Espera", AppState.total_en_espera_dashboard.to_string(),"clock",COLORS["secondary"]["600"]),
+                stat_card("En Atención", AppState.total_en_atencion_dashboard.to_string(),"stethoscope", COLORS["blue"]["500"]),
+                stat_card("Canceladas", AppState.total_canceladas_dashboard.to_string(), "circle_x",COLORS["error"]["700"]),
+                stat_card("Completadas", AppState.total_completadas_dashboard.to_string(), "circle_check", COLORS["success"]["500"]),
+                stat_card("Dentistas", AppState.total_odontologos_activos_dashboard.to_string(), "users",COLORS["info"]["500"]),
+        columns=rx.breakpoints(initial="1", sm="3", md="4", lg="6"),        
+        spacing="6",
+        width="100%"
     )
 
 def boton_nueva_consulta_flotante() -> rx.Component:
@@ -83,7 +67,7 @@ def boton_nueva_consulta_flotante() -> rx.Component:
             align="center"
         ),
         style={
-            "background": ROLE_THEMES['gerente']['gradient'],
+            "background": GRADIENTS['text_gradient_primary'],
             "color": DARK_THEME["colors"]["text_primary"],
             "border": f"1px solid rgba(255, 255, 255, 0.1)",
             "border_radius": RADIUS["xl"],
@@ -809,8 +793,18 @@ def consultas_page_v41() -> rx.Component:
         medical_page_layout(
             rx.vstack(
                 # Header limpio y elegante (igual que personal/pacientes)
-                clean_consultas_page_header(),
-                
+                # clean_consultas_page_header(),
+                page_header(
+                   "Gestión de Consultas",
+                    "Monitoreo en tiempo real del flujo de pacientes por orden de llegada",
+                    actions=[
+                        refresh_button(
+                            text="Actualizar datos",
+                            on_click=AppState.cargar_lista_consultas,
+                            loading=AppState.cargando_lista_consultas
+                        )
+                    ]
+                ),
                 # Panel de control superior con estadísticas
                 queue_control_bar_simple(),
                 

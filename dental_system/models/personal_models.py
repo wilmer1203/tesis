@@ -200,18 +200,7 @@ class PersonalModel(rx.Base):
             "Asistente": "asistente"
         }
         return mapping.get(self.tipo_personal, "administrador")
-    
-    @property
-    def estado_display(self) -> str:
-        """Estado laboral formateado para mostrar"""
-        estados_map = {
-            "activo": "Activo",
-            "vacaciones": "En Vacaciones",
-            "licencia": "En Licencia",
-            "inactivo": "Inactivo"
-        }
-        return estados_map.get(self.estado_laboral, self.estado_laboral.capitalize())
-    
+
     @property
     def tipo_display(self) -> str:
         """Tipo de personal formateado"""

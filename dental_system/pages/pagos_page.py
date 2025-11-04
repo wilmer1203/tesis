@@ -10,12 +10,14 @@ import reflex as rx
 from dental_system.state.app_state import AppState
 from dental_system.constants import METODOS_PAGO, ESTADOS_PAGO
 from dental_system.components.modal_pago import modal_factura_profesional
-
+from dental_system.components.common import page_header, medical_page_layout, stat_card, refresh_button
+from dental_system.components.table_components import pagos_table
+from dental_system.styles.themes import COLORS
 # ==========================================
 # 🎨 COLORES Y ESTILOS DEL SISTEMA
 # ==========================================
 
-COLORS = {
+COLORS_2 = {
     "primary": "#00BCD4",
     "primary_hover": "#00ACC1",
     "success": "#22C55E",
@@ -42,156 +44,32 @@ def estadisticas_financieras() -> rx.Component:
     return rx.box(
         rx.grid(
             # Card 1: Consultas pendientes
-            rx.box(
-                rx.vstack(
-                    rx.hstack(
-                        rx.icon("clock", size=24, color=COLORS["warning"]),
-                        rx.text("Pendientes", size="3", color=COLORS["text_secondary"]),
-                        spacing="2",
-                        align="center"
-                    ),
-                    rx.text(
-                        AppState.total_consultas_pendientes_pago,
-                        size="8",
-                        weight="bold",
-                        color=COLORS["warning"]
-                    ),
-                    rx.text("consultas", size="2", color=COLORS["text_secondary"]),
-                    spacing="2",
-                    align="center"
-                ),
-                style={
-                    "background": COLORS["surface"],
-                    "border": f"1px solid {COLORS['border']}",
-                    "border_radius": "16px",
-                    "padding": "24px",
-                    "text_align": "center",
-                    "transition": "all 0.3s ease",
-                    "_hover": {
-                        "background": COLORS["surface_hover"],
-                        "border_color": COLORS["warning"],
-                        "transform": "translateY(-2px)"
-                    }
-                }
+            stat_card(
+                "Consultas Pendientes",
+                f"{AppState.total_consultas_pendientes_pago}",
+                "clock",
+                color=COLORS["primary"]["600"]
             ),
-
-            # Card 2: Recaudado USD
-            rx.box(
-                rx.vstack(
-                    rx.hstack(
-                        rx.icon("dollar-sign", size=24, color=COLORS["success"]),
-                        rx.text("Recaudado USD", size="3", color=COLORS["text_secondary"]),
-                        spacing="2",
-                        align="center"
-                    ),
-                    rx.text(
-                        "$", AppState.recaudacion_usd_hoy,
-                        size="8",
-                        weight="bold",
-                        color=COLORS["success"]
-                    ),
-                    rx.text("dólares hoy", size="2", color=COLORS["text_secondary"]),
-                    spacing="2",
-                    align="center"
-                ),
-                style={
-                    "background": COLORS["surface"],
-                    "border": f"1px solid {COLORS['border']}",
-                    "border_radius": "16px",
-                    "padding": "24px",
-                    "text_align": "center",
-                    "transition": "all 0.3s ease",
-                    "_hover": {
-                        "background": COLORS["surface_hover"],
-                        "border_color": COLORS["success"],
-                        "transform": "translateY(-2px)"
-                    }
-                }
+            stat_card(
+                "Recaudado hoy USD",
+                f"$ {AppState.recaudacion_usd_hoy}",
+                "dollar-sign",
+                color=COLORS["success"]["500"]
             ),
-
-            # Card 3: Recaudado BS
-            rx.box(
-                rx.vstack(
-                    rx.hstack(
-                        rx.icon("banknote", size=24, color=COLORS["success"]),
-                        rx.text("Recaudado BS", size="3", color=COLORS["text_secondary"]),
-                        spacing="2",
-                        align="center"
-                    ),
-                    rx.text(
-                        AppState.recaudacion_bs_hoy,
-                        size="8",
-                        weight="bold",
-                        color=COLORS["success"]
-                    ),
-                    rx.text("bolívares hoy", size="2", color=COLORS["text_secondary"]),
-                    spacing="2",
-                    align="center"
-                ),
-                style={
-                    "background": COLORS["surface"],
-                    "border": f"1px solid {COLORS['border']}",
-                    "border_radius": "16px",
-                    "padding": "24px",
-                    "text_align": "center",
-                    "transition": "all 0.3s ease",
-                    "_hover": {
-                        "background": COLORS["surface_hover"],
-                        "border_color": COLORS["success"],
-                        "transform": "translateY(-2px)"
-                    }
-                }
+            stat_card(
+                "Recaudado hoy BS",
+                f"{AppState.recaudacion_bs_hoy}",
+                "banknote",
+                color=COLORS["warning"]["500"]
             ),
-
-            # Card 4: Tasa del día (editable)
-            rx.box(
-                rx.vstack(
-                    rx.hstack(
-                        rx.icon("trending-up", size=24, color=COLORS["primary"]),
-                        rx.text("Tasa BS/USD", size="3", color=COLORS["text_secondary"]),
-                        spacing="2",
-                        align="center"
-                    ),
-                    rx.hstack(
-                        rx.text(
-                            AppState.tasa_del_dia,
-                            size="8",
-                            weight="bold",
-                            color=COLORS["primary"]
-                        ),
-                        rx.button(
-                            rx.icon("edit", size=14),
-                            size="1",
-                            variant="soft",
-                            color_scheme="cyan",
-                            on_click=AppState.alternar_calculadora_conversion
-                        ),
-                        spacing="2",
-                        align="center"
-                    ),
-                    rx.text("BS por dólar", size="2", color=COLORS["text_secondary"]),
-                    spacing="2",
-                    align="center"
-                ),
-                style={
-                    "background": COLORS["surface"],
-                    "border": f"1px solid {COLORS['border']}",
-                    "border_radius": "16px",
-                    "padding": "24px",
-                    "text_align": "center",
-                    "transition": "all 0.3s ease",
-                    "_hover": {
-                        "background": COLORS["surface_hover"],
-                        "border_color": COLORS["primary"],
-                        "transform": "translateY(-2px)",
-                        "cursor": "pointer"
-                    }
-                },
-                on_click=AppState.alternar_calculadora_conversion
+            stat_card(
+                "Tasa BS/USD BS por dólar",
+                f"{ AppState.tasa_del_dia}",
+                "banknote",
+                color=COLORS["primary"]["600"]
             ),
-
             columns="4",
-            spacing="4",
+            spacing="6",
             width="100%"
         ),
         width="100%"
@@ -207,11 +85,11 @@ def consultas_pendientes_lista() -> rx.Component:
         # Header
         rx.hstack(
             rx.hstack(
-                rx.icon("clipboard-list", size=16, color=COLORS["primary"]),
+                rx.icon("clipboard-list", size=16, color=COLORS_2["primary"]),
                 rx.heading(
                     "Consultas Pendientes de Facturación",
                     size="4",
-                    color=COLORS["text_primary"],
+                    color=COLORS_2["text_primary"],
                     weight="bold"
                 ),
                 spacing="3"
@@ -236,8 +114,8 @@ def consultas_pendientes_lista() -> rx.Component:
                 "padding_right": "4px",
                 "::-webkit-scrollbar": {"width": "6px"},
                 "::-webkit-scrollbar-track": {"background": "transparent"},
-                "::-webkit-scrollbar-thumb": {"background": COLORS["border"], "border_radius": "4px"},
-                "::-webkit-scrollbar-thumb:hover": {"background": COLORS["primary"]}
+                "::-webkit-scrollbar-thumb": {"background": COLORS_2["border"], "border_radius": "4px"},
+                "::-webkit-scrollbar-thumb:hover": {"background": COLORS_2["primary"]}
             }
         ),
 
@@ -258,13 +136,13 @@ def consulta_card(consulta) -> rx.Component:
                             consulta.numero_consulta,  # ✅ Notación de punto
                             size="2",
                             weight="bold",
-                            color=COLORS["text_primary"]
+                            color=COLORS_2["text_primary"]
                         ),
                         style={
-                            "background": COLORS["primary"] + "20",
+                            "background": COLORS_2["primary"] + "20",
                             "border_radius": "6px",
                             "padding": "4px 8px",
-                            "border": f"1px solid {COLORS['primary']}30"
+                            "border": f"1px solid {COLORS_2['primary']}30"
                         }
                     ),
                     rx.text(
@@ -275,7 +153,7 @@ def consulta_card(consulta) -> rx.Component:
                     rx.text(
                         consulta.paciente_documento,  # ✅ Notación de punto
                         size="1",
-                        color=COLORS["text_secondary"]
+                        color=COLORS_2["text_secondary"]
                     ),
                     spacing="1",
                     align="start"
@@ -298,7 +176,7 @@ def consulta_card(consulta) -> rx.Component:
                     rx.badge(
                         rx.hstack(
                             rx.icon("clock", size=12),
-                            rx.text("Hoy", size="2", color=COLORS["text_primary"]),
+                            rx.text("Hoy", size="2", color=COLORS_2["text_primary"]),
                             spacing="1"
                         ),
                         color_scheme="blue",
@@ -313,11 +191,11 @@ def consulta_card(consulta) -> rx.Component:
             rx.accordion.root(
                 rx.accordion.item(
                     header=rx.hstack(
-                        rx.icon("list", size=14, color=COLORS["primary"]),
+                        rx.icon("list", size=14, color=COLORS_2["primary"]),
                         rx.text(
                             consulta.servicios_count, " servicio(s) - Ver detalle",  # ✅ Notación de punto
                             size="2",
-                            color=COLORS["primary"]
+                            color=COLORS_2["primary"]
                         ),
                         spacing="2",
                         width="100%",
@@ -334,20 +212,20 @@ def consulta_card(consulta) -> rx.Component:
                                         style={
                                             "width": "6px",
                                             "height": "6px",
-                                            "background": COLORS["primary"],
+                                            "background": COLORS_2["primary"],
                                             "border_radius": "50%"
                                         }
                                     ),
                                     rx.text(
                                         srv.nombre,  # ✅ Acceso con punto (atributo del modelo)
-                                        color=COLORS["text_primary"],
+                                        color=COLORS_2["text_primary"],
                                         size="2",
                                         flex="1"
                                     ),
                                     rx.hstack(
-                                        rx.text("$", srv.precio_usd, size="2", weight="bold", color=COLORS["success"]),
-                                        rx.text("|", size="2", color=COLORS["border"]),
-                                        rx.text(srv.precio_bs, " BS", size="2", color=COLORS["text_secondary"]),
+                                        rx.text("$", srv.precio_usd, size="2", weight="bold", color=COLORS_2["success"]),
+                                        rx.text("|", size="2", color=COLORS_2["border"]),
+                                        rx.text(srv.precio_bs, " BS", size="2", color=COLORS_2["text_secondary"]),
                                         spacing="1"
                                     ),
                                     spacing="2",
@@ -361,7 +239,7 @@ def consulta_card(consulta) -> rx.Component:
                         ),
                         style={
                             "background": "rgba(0, 188, 212, 0.05)",
-                            "border_left": f"2px solid {COLORS['primary']}",
+                            "border_left": f"2px solid {COLORS_2['primary']}",
                             "padding": "8px",
                             "border_radius": "6px",
                             "margin_top": "4px"
@@ -384,11 +262,11 @@ def consulta_card(consulta) -> rx.Component:
             # Fila 3: Totales y botón de acción
             rx.hstack(
                 rx.vstack(
-                    rx.text("TOTAL A PAGAR", size="1", color=COLORS["text_secondary"], weight="bold"),
+                    rx.text("TOTAL A PAGAR", size="1", color=COLORS_2["text_secondary"], weight="bold"),
                     rx.hstack(
-                        rx.text("$", consulta.total_usd, size="3", weight="bold", color=COLORS["success"]),  # ✅ Notación de punto
-                        rx.box(style={"width": "2px", "height": "40px", "background": COLORS["border"]}),
-                        rx.text(consulta.total_bs, " BS", size="3", weight="bold", color=COLORS["success"]),  # ✅ Notación de punto
+                        rx.text("$", consulta.total_usd, size="3", weight="bold", color=COLORS_2["success"]),  # ✅ Notación de punto
+                        rx.box(style={"width": "2px", "height": "40px", "background": COLORS_2["border"]}),
+                        rx.text(consulta.total_bs, " BS", size="3", weight="bold", color=COLORS_2["success"]),  # ✅ Notación de punto
                         spacing="2",
                         align="center"
                     ),
@@ -412,7 +290,7 @@ def consulta_card(consulta) -> rx.Component:
                         "transition": "all 0.2s ease",
                         "_hover": {
                             "transform": "translateY(-1px)",
-                            "box_shadow": f"0 4px 12px {COLORS['primary']}30"
+                            "box_shadow": f"0 4px 12px {COLORS_2['primary']}30"
                         }
                     }
                 ),
@@ -424,17 +302,17 @@ def consulta_card(consulta) -> rx.Component:
             width="100%"
         ),
         style={
-            "background": COLORS["surface"],
-            "border": f"1px solid {COLORS['border']}",
+            "background": COLORS_2["surface"],
+            "border": f"1px solid {COLORS_2['border']}",
             "border_radius": "8px",
             "padding": "12px",
             "position": "relative",
             "overflow": "hidden",
             "transition": "all 0.2s ease",
             "_hover": {
-                "background": COLORS["surface_hover"],
-                "border_color": COLORS["primary"] + "50",
-                "box_shadow": f"0 2px 8px {COLORS['primary']}15"
+                "background": COLORS_2["surface_hover"],
+                "border_color": COLORS_2["primary"] + "50",
+                "box_shadow": f"0 2px 8px {COLORS_2['primary']}15"
             },
             "_before": {
                 "content": "''",
@@ -443,135 +321,19 @@ def consulta_card(consulta) -> rx.Component:
                 "left": "0",
                 "right": "0",
                 "height": "2px",
-                "background": f"linear-gradient(90deg, transparent 0%, {COLORS['primary']} 50%, transparent 100%)",
+                "background": f"linear-gradient(90deg, transparent 0%, {COLORS_2['primary']} 50%, transparent 100%)",
                 "opacity": "0.9",
-                "box_shadow": f"0 0 8px {COLORS['primary']}60"
+                "box_shadow": f"0 0 8px {COLORS_2['primary']}60"
             },
         },
         width="100%"
     )
 
 # ==========================================
-# 📋 COMPONENTE: HISTORIAL DE PAGOS
+# 📋 COMPONENTE: HISTORIAL DE PAGOS (Ahora usa pagos_table de table_components.py)
 # ==========================================
-
-def historial_pagos() -> rx.Component:
-    """Historial de pagos procesados"""
-    return rx.vstack(
-        # Header con búsqueda
-        rx.hstack(
-            rx.hstack(
-                rx.icon("receipt", size=24, color=COLORS["primary"]),
-                rx.heading("Historial de Pagos", size="4", color=COLORS["text_primary"], weight="bold"),
-                spacing="3"
-            ),
-            rx.spacer(),
-            rx.input(
-                placeholder="Buscar por paciente o recibo...",
-                value=AppState.termino_busqueda_pagos,
-                on_change=AppState.buscar_pagos,
-                size="2",
-                width=["200px", "200px", "250px", "300px"],
-                style={
-                    "background": COLORS["surface"],
-                    "border": f"1px solid {COLORS['border']}",
-                    "color": COLORS["text_primary"]
-                }
-            ),
-            rx.button(
-                rx.icon("download", size=16),
-                variant="soft",
-                color_scheme="cyan",
-                size="2"
-            ),
-            width="100%",
-            align="center",
-            spacing="4"
-        ),
-
-        # Tabla de historial
-        rx.box(
-            rx.table.root(
-                rx.table.header(
-                    rx.table.row(
-                        rx.table.column_header_cell("Recibo", style={"color": COLORS["text_secondary"], "font_weight": "bold"}),
-                        rx.table.column_header_cell("Paciente", style={"color": COLORS["text_secondary"], "font_weight": "bold"}),
-                        rx.table.column_header_cell("USD", style={"color": COLORS["text_secondary"], "font_weight": "bold"}),
-                        rx.table.column_header_cell("BS", style={"color": COLORS["text_secondary"], "font_weight": "bold"}),
-                        rx.table.column_header_cell("Estado", style={"color": COLORS["text_secondary"], "font_weight": "bold"}),
-                        rx.table.column_header_cell("Fecha", style={"color": COLORS["text_secondary"], "font_weight": "bold"}),
-                        rx.table.column_header_cell("", style={"width": "50px"})
-                    )
-                ),
-                rx.table.body(
-                    rx.foreach(AppState.pagos_historial_formateados, fila_pago)
-                ),
-                variant="ghost",
-                size="2",
-                width="100%"
-            ),
-            style={
-                "background": "rgba(255, 255, 255, 0.02)",
-                "border": f"1px solid {COLORS['border']}",
-                "border_radius": "12px",
-                "padding": "20px",
-                "max_height": "calc(100vh - 400px)",
-                "overflow_y": "auto",
-                "::-webkit-scrollbar": {"width": "8px"},
-                "::-webkit-scrollbar-track": {"background": COLORS["surface"]},
-                "::-webkit-scrollbar-thumb": {"background": COLORS["border"], "border_radius": "4px"},
-                "::-webkit-scrollbar-thumb:hover": {"background": COLORS["primary"]}
-            }
-        ),
-
-        spacing="4",
-        width="100%"
-    )
-
-def fila_pago(pago) -> rx.Component:
-    """Fila individual del historial de pagos"""
-    return rx.table.row(
-        rx.table.cell(rx.text(pago["numero_recibo"], size="2", weight="bold", color=COLORS["primary"])),
-        rx.table.cell(
-            rx.vstack(
-                rx.text(pago["paciente_nombre"], size="2", color=COLORS["text_primary"], weight="medium"),
-                rx.text(pago["paciente_documento"], size="1", color=COLORS["text_secondary"]),
-                spacing="1",
-                align="start"
-            )
-        ),
-        rx.table.cell(
-            rx.cond(
-                pago["monto_pagado_usd"].to(float) > 0,
-                rx.text("$", pago["monto_pagado_usd"], size="2", weight="bold", color=COLORS["success"]),
-                rx.text("-", size="2", color=COLORS["text_secondary"])
-            )
-        ),
-        rx.table.cell(
-            rx.cond(
-                pago["monto_pagado_bs"].to(float) > 0,
-                rx.text(pago["monto_pagado_bs"], " BS", size="2", weight="bold", color=COLORS["success"]),
-                rx.text("-", size="2", color=COLORS["text_secondary"])
-            )
-        ),
-        rx.table.cell(
-            rx.badge(
-                pago["estado_pago"],
-                color_scheme=rx.cond(pago["estado_pago"] == "completado", "green", "yellow"),
-                variant="solid"
-            )
-        ),
-        rx.table.cell(rx.text(pago["fecha_pago"], size="2", color=COLORS["text_secondary"])),
-        rx.table.cell(
-            rx.button(
-                rx.icon("eye", size=14),
-                variant="ghost",
-                color_scheme="cyan",
-                size="1"
-            )
-        ),
-        style={"_hover": {"background": COLORS["surface"]}}
-    )
+# Las funciones historial_pagos() y fila_pago() han sido reemplazadas por
+# pagos_table() de table_components.py para mayor consistencia y reutilización
 
 # ==========================================
 # 🧮 MODAL CALCULADORA DE CONVERSIÓN
@@ -584,7 +346,7 @@ def modal_pago_dual() -> rx.Component:
             rx.vstack(
                 # Header
                 rx.hstack(
-                    rx.icon("credit-card", size=24, color=COLORS["success"]),
+                    rx.icon("credit-card", size=24, color=COLORS_2["success"]),
                     rx.text("Procesar Pago", size="6", weight="bold"),
                     rx.spacer(),
                     rx.dialog.close(
@@ -602,22 +364,22 @@ def modal_pago_dual() -> rx.Component:
                     rx.box(
                         rx.vstack(
                             rx.hstack(
-                                rx.text("Consulta:", size="2", color=COLORS["text_secondary"]),
+                                rx.text("Consulta:", size="2", color=COLORS_2["text_secondary"]),
                                 rx.text(AppState.formulario_pago_dual.numero_consulta, size="2", weight="bold"),
                                 spacing="2"
                             ),
                             rx.hstack(
-                                rx.text("Paciente:", size="2", color=COLORS["text_secondary"]),
+                                rx.text("Paciente:", size="2", color=COLORS_2["text_secondary"]),
                                 rx.text(AppState.formulario_pago_dual.paciente_nombre, size="2", weight="bold"),
                                 spacing="2"
                             ),
                             spacing="2"
                         ),
                         style={
-                            "background": f"{COLORS['primary']}15",
+                            "background": f"{COLORS_2['primary']}15",
                             "padding": "12px",
                             "border_radius": "8px",
-                            "border": f"1px solid {COLORS['primary']}40"
+                            "border": f"1px solid {COLORS_2['primary']}40"
                         }
                     )
                 ),
@@ -625,18 +387,18 @@ def modal_pago_dual() -> rx.Component:
                 # Totales
                 rx.grid(
                     rx.vstack(
-                        rx.text("Total USD", size="2", color=COLORS["text_secondary"]),
-                        rx.text(f"${AppState.formulario_pago_dual.monto_total_usd:.2f}", size="5", weight="bold", color=COLORS["success"]),
+                        rx.text("Total USD", size="2", color=COLORS_2["text_secondary"]),
+                        rx.text(f"${AppState.formulario_pago_dual.monto_total_usd:.2f}", size="5", weight="bold", color=COLORS_2["success"]),
                         spacing="1",
                         align="center",
-                        style={"background": f"{COLORS['success']}15", "padding": "12px", "border_radius": "8px"}
+                        style={"background": f"{COLORS_2['success']}15", "padding": "12px", "border_radius": "8px"}
                     ),
                     rx.vstack(
-                        rx.text(f"Total BS (x{AppState.formulario_pago_dual.tasa_cambio})", size="2", color=COLORS["text_secondary"]),
-                        rx.text(f"Bs. {AppState.formulario_pago_dual.monto_total_bs:,.0f}", size="5", weight="bold", color=COLORS["primary"]),
+                        rx.text(f"Total BS (x{AppState.formulario_pago_dual.tasa_cambio})", size="2", color=COLORS_2["text_secondary"]),
+                        rx.text(f"Bs. {AppState.formulario_pago_dual.monto_total_bs:,.0f}", size="5", weight="bold", color=COLORS_2["primary"]),
                         spacing="1",
                         align="center",
-                        style={"background": f"{COLORS['primary']}15", "padding": "12px", "border_radius": "8px"}
+                        style={"background": f"{COLORS_2['primary']}15", "padding": "12px", "border_radius": "8px"}
                     ),
                     columns="2",
                     spacing="3",
@@ -646,7 +408,7 @@ def modal_pago_dual() -> rx.Component:
                 # Pago USD
                 rx.box(
                     rx.vstack(
-                        rx.text("💵 Pago en USD", size="3", weight="bold", color=COLORS["success"]),
+                        rx.text("💵 Pago en USD", size="3", weight="bold", color=COLORS_2["success"]),
                         rx.input(
                             placeholder="Monto en USD",
                             value=AppState.formulario_pago_dual.monto_pagado_usd,
@@ -669,18 +431,18 @@ def modal_pago_dual() -> rx.Component:
                         ),
                         rx.cond(
                             AppState.errores_validacion_pago.get("metodo_usd", "") != "",
-                            rx.text(AppState.errores_validacion_pago.get("metodo_usd", ""), size="1", color=COLORS["error"])
+                            rx.text(AppState.errores_validacion_pago.get("metodo_usd", ""), size="1", color=COLORS_2["error"])
                         ),
                         spacing="2",
                         width="100%"
                     ),
-                    style={"background": f"{COLORS['success']}10", "padding": "12px", "border_radius": "8px"}
+                    style={"background": f"{COLORS_2['success']}10", "padding": "12px", "border_radius": "8px"}
                 ),
 
                 # Pago BS
                 rx.box(
                     rx.vstack(
-                        rx.text("💰 Pago en BS", size="3", weight="bold", color=COLORS["primary"]),
+                        rx.text("💰 Pago en BS", size="3", weight="bold", color=COLORS_2["primary"]),
                         rx.input(
                             placeholder="Monto en BS",
                             value=AppState.formulario_pago_dual.monto_pagado_bs,
@@ -703,12 +465,12 @@ def modal_pago_dual() -> rx.Component:
                         ),
                         rx.cond(
                             AppState.errores_validacion_pago.get("metodo_bs", "") != "",
-                            rx.text(AppState.errores_validacion_pago.get("metodo_bs", ""), size="1", color=COLORS["error"])
+                            rx.text(AppState.errores_validacion_pago.get("metodo_bs", ""), size="1", color=COLORS_2["error"])
                         ),
                         spacing="2",
                         width="100%"
                     ),
-                    style={"background": f"{COLORS['primary']}10", "padding": "12px", "border_radius": "8px"}
+                    style={"background": f"{COLORS_2['primary']}10", "padding": "12px", "border_radius": "8px"}
                 ),
 
                 # Auto-cálculos
@@ -717,7 +479,7 @@ def modal_pago_dual() -> rx.Component:
                     rx.text(
                         f"${AppState.formulario_pago_dual.monto_pagado_usd:.2f} USD = Bs. {AppState.equivalente_bs_de_usd_pagado:,.2f}",
                         size="2",
-                        color=COLORS["text_secondary"]
+                        color=COLORS_2["text_secondary"]
                     )
                 ),
                 rx.cond(
@@ -725,7 +487,7 @@ def modal_pago_dual() -> rx.Component:
                     rx.text(
                         f"Bs. {AppState.formulario_pago_dual.monto_pagado_bs:,.2f} = ${AppState.equivalente_usd_de_bs_pagado:.2f} USD",
                         size="2",
-                        color=COLORS["text_secondary"]
+                        color=COLORS_2["text_secondary"]
                     )
                 ),
 
@@ -755,7 +517,7 @@ def modal_pago_dual() -> rx.Component:
                         spacing="2",
                         width="100%"
                     ),
-                    style={"background": COLORS["surface"], "padding": "12px", "border_radius": "8px"}
+                    style={"background": COLORS_2["surface"], "padding": "12px", "border_radius": "8px"}
                 ),
 
                 # Notas
@@ -779,34 +541,34 @@ def modal_pago_dual() -> rx.Component:
                             width="100%"
                         ),
                         rx.hstack(
-                            rx.text("Pagando:", size="2", color=COLORS["success"]),
+                            rx.text("Pagando:", size="2", color=COLORS_2["success"]),
                             rx.spacer(),
                             rx.text(
                                 f"${AppState.total_pagando_usd:.2f}",
                                 size="2",
                                 weight="bold",
-                                color=COLORS["success"]
+                                color=COLORS_2["success"]
                             ),
                             width="100%"
                         ),
                         rx.hstack(
-                            rx.text("Saldo pendiente:", size="2", color=COLORS["warning"]),
+                            rx.text("Saldo pendiente:", size="2", color=COLORS_2["warning"]),
                             rx.spacer(),
                             rx.text(
                                 f"${AppState.saldo_pendiente_calculado:.2f}",
                                 size="2",
                                 weight="bold",
-                                color=COLORS["warning"]
+                                color=COLORS_2["warning"]
                             ),
                             width="100%"
                         ),
                         spacing="2"
                     ),
                     style={
-                        "background": f"linear-gradient(135deg, {COLORS['success']}20, {COLORS['primary']}20)",
+                        "background": f"linear-gradient(135deg, {COLORS_2['success']}20, {COLORS_2['primary']}20)",
                         "padding": "16px",
                         "border_radius": "8px",
-                        "border": f"2px solid {COLORS['success']}"
+                        "border": f"2px solid {COLORS_2['success']}"
                     }
                 ),
 
@@ -859,7 +621,7 @@ def modal_calculadora_conversion() -> rx.Component:
             rx.vstack(
                 # Header
                 rx.hstack(
-                    rx.icon("calculator", size=24, color=COLORS["primary"]),
+                    rx.icon("calculator", size=24, color=COLORS_2["primary"]),
                     rx.heading("Calculadora USD ⇄ BS", size="6", weight="bold"),
                     rx.spacer(),
                     rx.dialog.close(
@@ -873,15 +635,15 @@ def modal_calculadora_conversion() -> rx.Component:
                 # Tasa del día
                 rx.box(
                     rx.hstack(
-                        rx.icon("trending-up", size=16, color=COLORS["success"]),
-                        rx.text("Tasa del día:", size="3", weight="medium", color=COLORS["text_primary"]),
-                        rx.text("1 USD = ", AppState.tasa_del_dia, " BS", size="3", weight="bold", color=COLORS["success"]),
+                        rx.icon("trending-up", size=16, color=COLORS_2["success"]),
+                        rx.text("Tasa del día:", size="3", weight="medium", color=COLORS_2["text_primary"]),
+                        rx.text("1 USD = ", AppState.tasa_del_dia, " BS", size="3", weight="bold", color=COLORS_2["success"]),
                         spacing="2",
                         align="center"
                     ),
                     style={
                         "background": "rgba(34, 197, 94, 0.1)",
-                        "border": f"1px solid {COLORS['success']}40",
+                        "border": f"1px solid {COLORS_2['success']}40",
                         "border_radius": "8px",
                         "padding": "12px"
                     }
@@ -889,7 +651,7 @@ def modal_calculadora_conversion() -> rx.Component:
 
                 # Convertidor USD → BS
                 rx.vstack(
-                    rx.text("💵 USD → BS", size="4", weight="bold", color=COLORS["primary"]),
+                    rx.text("💵 USD → BS", size="4", weight="bold", color=COLORS_2["primary"]),
                     rx.input(
                         placeholder="Ingrese monto en USD...",
                         value=AppState.monto_calculadora_usd,
@@ -900,16 +662,16 @@ def modal_calculadora_conversion() -> rx.Component:
                         size="3"
                     ),
                     rx.hstack(
-                        rx.icon("arrow-down", size=20, color=COLORS["primary"]),
-                        rx.text("=", size="5", weight="bold", color=COLORS["primary"]),
+                        rx.icon("arrow-down", size=20, color=COLORS_2["primary"]),
+                        rx.text("=", size="5", weight="bold", color=COLORS_2["primary"]),
                         spacing="2"
                     ),
                     rx.box(
-                        rx.text(AppState.monto_calculadora_bs, " BS", size="5", weight="bold", color=COLORS["success"]),
+                        rx.text(AppState.monto_calculadora_bs, " BS", size="5", weight="bold", color=COLORS_2["success"]),
                         style={
                             "padding": "12px",
                             "background": "rgba(34, 197, 94, 0.1)",
-                            "border": f"2px solid {COLORS['success']}60",
+                            "border": f"2px solid {COLORS_2['success']}60",
                             "border_radius": "8px",
                             "text_align": "center",
                             "width": "100%"
@@ -924,7 +686,7 @@ def modal_calculadora_conversion() -> rx.Component:
 
                 # Convertidor BS → USD
                 rx.vstack(
-                    rx.text("💰 BS → USD", size="4", weight="bold", color=COLORS["primary"]),
+                    rx.text("💰 BS → USD", size="4", weight="bold", color=COLORS_2["primary"]),
                     rx.input(
                         placeholder="Ingrese monto en BS...",
                         value=AppState.monto_calculadora_bs,
@@ -935,16 +697,16 @@ def modal_calculadora_conversion() -> rx.Component:
                         size="3"
                     ),
                     rx.hstack(
-                        rx.icon("arrow-down", size=20, color=COLORS["primary"]),
-                        rx.text("=", size="5", weight="bold", color=COLORS["primary"]),
+                        rx.icon("arrow-down", size=20, color=COLORS_2["primary"]),
+                        rx.text("=", size="5", weight="bold", color=COLORS_2["primary"]),
                         spacing="2"
                     ),
                     rx.box(
-                        rx.text("$", AppState.monto_calculadora_usd, " USD", size="5", weight="bold", color=COLORS["primary"]),
+                        rx.text("$", AppState.monto_calculadora_usd, " USD", size="5", weight="bold", color=COLORS_2["primary"]),
                         style={
                             "padding": "12px",
                             "background": "rgba(6, 182, 212, 0.1)",
-                            "border": f"2px solid {COLORS['primary']}60",
+                            "border": f"2px solid {COLORS_2['primary']}60",
                             "border_radius": "8px",
                             "text_align": "center",
                             "width": "100%"
@@ -983,8 +745,8 @@ def modal_calculadora_conversion() -> rx.Component:
             style={
                 "max_width": "450px",
                 "padding": "24px",
-                "background": COLORS["bg_dark"],
-                "border": f"1px solid {COLORS['border']}",
+                "background": COLORS_2["bg_dark"],
+                "border": f"1px solid {COLORS_2['border']}",
                 "backdrop_filter": "blur(12px)"
             }
         ),
@@ -998,35 +760,20 @@ def modal_calculadora_conversion() -> rx.Component:
 def pagos_page() -> rx.Component:
     """Página principal de gestión de pagos"""
     return rx.box(
-        rx.hstack(
+        medical_page_layout(
             rx.vstack(
                 # Header principal
-                rx.hstack(
-                    rx.vstack(
-                        rx.heading(
-                            "💳 Gestión de Pagos",
-                            size="8",
-                            weight="bold",
-                            background="linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                            background_clip="text",
-                            style={"-webkit-background-clip": "text", "-webkit-text-fill-color": "transparent"}
-                        ),
-                        rx.text(
-                            "Sistema dual USD/BS para facturación y control de pagos",
-                            size="4",
-                            color=COLORS["text_secondary"],
-                            weight="medium"
-                        ),
-                        spacing="1",
-                        align="start",
-                        width="100%"
-                    ),
-                    rx.button(rx.text("actualizar datos"), on_click=AppState.recargar_todo_pagos, variant="outline", color_scheme="cyan", size="3"),
-                    width="100%",
-                    align="center",
-                    spacing="4"
+                page_header(
+                    "Gestión de Pagos",
+                    "Sistema dual USD/BS para facturación y control de pagos",
+                    actions=[
+                        refresh_button(
+                            text="Actualizar datos",
+                            on_click=AppState.recargar_todo_pagos,
+                            loading=AppState.procesando_pago
+                        )
+                    ]
                 ),
-
                 # Estadísticas superiores
                 estadisticas_financieras(),
 
@@ -1037,7 +784,7 @@ def pagos_page() -> rx.Component:
                         consultas_pendientes_lista(),
                         style={
                             "background": "rgba(255, 255, 255, 0.02)",
-                            "border": f"1px solid {COLORS['border']}",
+                            "border": f"1px solid {COLORS_2['border']}",
                             "border_radius": "12px",
                             "padding": "20px",
                             "height": "fit-content",
@@ -1045,38 +792,26 @@ def pagos_page() -> rx.Component:
                         }
                     ),
 
-                    # Columna derecha: Historial de pagos
+                    # Columna derecha: Historial de pagos (tabla reutilizable)
                     rx.box(
-                        historial_pagos(),
+                        pagos_table(),  # ✅ Nueva tabla reutilizable
                         style={
                             "background": "rgba(255, 255, 255, 0.02)",
-                            "border": f"1px solid {COLORS['border']}",
+                            "border": f"1px solid {COLORS_2['border']}",
                             "border_radius": "12px",
-                            "padding": "20px",
                             "min_height": "500px"
                         }
                     ),
-                    columns=rx.breakpoints(initial="1", md="1", lg="1fr 2fr", xl="1fr 2fr"),
+                    columns=rx.breakpoints(initial="1", md="1", lg="1fr 3fr", xl="1fr 3fr"),
                     spacing="6",
                     width="100%",
                     align_items="start"
                 ),
-
                 spacing="6",
-                width="100%",
-                padding="32px",
-                max_width="1800px",
-                margin="0 auto"
+                width="100%"
             ),
-            width="100%",
-            align_items="start"
         ),
         modal_factura_profesional(),  # ✨ NUEVO MODAL PROFESIONAL
         modal_calculadora_conversion(),
-        style={
-            "background": COLORS["bg_gradient"],
-            "min_height": "100vh",
-            "color": COLORS["text_primary"]
-        },
         on_mount=AppState.cargar_datos_pagos_page
     )

@@ -88,21 +88,8 @@ CONSULTA_CARD_BASE_STYLE = {
     }
 }
 
-
-CONSULTA_DISPONIBLE_STYLE = {
-    **CONSULTA_CARD_BASE_STYLE,
-    "border_color": COLORS["success"]["200"],
-    "background": "white",
-    "_hover": {
-        **CONSULTA_CARD_BASE_STYLE["_hover"],
-        "border_color": COLORS["success"]["400"],
-        "background": COLORS["success"]["25"]
-    }
-}
-
-
 BADGE_DISPONIBLE_STYLE = {
-    "background": COLORS["success"]["100"],
+    "background": COLORS["success"]["500"],
     "color": COLORS["success"]["700"],
     "padding": f"{SPACING['1']} {SPACING['2']}",
     "border_radius": RADIUS["full"],
@@ -355,7 +342,7 @@ def consulta_disponible_card(paciente: rx.Var[PacienteModel], consulta_id: str) 
             rx.vstack(
                 # Edad del paciente
                 rx.text(
-                    f"🎂 {paciente.edad_display}",
+                    f"🎂 {paciente.edad}",
                     font_size="12px",
                     color=COLORS["blue"]["500"],
                     font_weight="medium"
@@ -413,7 +400,7 @@ def consulta_disponible_card(paciente: rx.Var[PacienteModel], consulta_id: str) 
             spacing="4",
             width="100%"
         ),
-        style=CONSULTA_DISPONIBLE_STYLE
+       
     )
 
 # ==========================================
@@ -624,7 +611,7 @@ def seccion_header(titulo: str, cantidad: rx.Var, icono: str, color: str = "gray
     }
     
     badge_color = color_mapping.get(color, color)
-    text_color = COLORS.get(color, COLORS["gray"])["700"]
+    text_color = COLORS.get(color, COLORS["gray"]["700"])
     
     return rx.hstack(
         rx.hstack(

@@ -7,8 +7,28 @@ import reflex as rx
 from dental_system.state.app_state import AppState
 from ..styles.themes import (
     COLORS, SPACING, RADIUS,
-    glassmorphism_card, glassmorphism_input, primary_button
+    glassmorphism_card, primary_button
 )
+
+def glassmorphism_input() -> dict:
+    """🔮 Input glassmorphism para formularios"""
+    return {
+        "background": f"{COLORS['gray']['800']}60",
+        "backdrop_filter": "blur(10px)",
+        "border": f"1px solid {COLORS['primary']['500']}30",
+        "border_radius": RADIUS["md"],
+        "color": COLORS["gray"]["50"],
+        "_focus": {
+            "border_color": COLORS["primary"]["400"],
+            "box_shadow": f"0 0 0 3px {COLORS['primary']['500']}20",
+            "background": f"{COLORS['gray']['700']}80"
+        },
+        "_hover": {
+            "border_color": COLORS["primary"]["500"],
+            "background": f"{COLORS['gray']['700']}70"
+        }
+    }
+
 
 
 def fondo_medico() -> rx.Component:

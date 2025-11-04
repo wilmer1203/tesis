@@ -20,7 +20,7 @@ from typing import Dict, List, Optional, Callable, Any
 from dental_system.state.app_state import AppState
 from dental_system.styles.themes import (
     COLORS, SHADOWS, RADIUS, SPACING, ANIMATIONS, 
-    GRADIENTS, GLASS_EFFECTS, DARK_THEME, get_color
+    GRADIENTS, GLASS_EFFECTS, DARK_THEME
 )
 
 
@@ -219,7 +219,7 @@ def _get_field_style() -> Dict[str, str]:
         "_focus": {
             "outline": "none",
             "border_color": COLORS["primary"]["400"],
-            "box_shadow": f"0 0 0 3px {COLORS['primary']['100']}",
+            "box_shadow": f"0 0 0 3px {COLORS['primary']['200']}",
             "background": DARK_THEME["colors"]["surface_elevated"]
         },
         "_hover": {
@@ -582,7 +582,7 @@ def service_form_fields() -> rx.Component:
                 value=AppState.formulario_servicio.condicion_resultante,
                 on_change=AppState.actualizar_campo_formulario_servicio,
                 options=[
-                    "",  # Preventivo (sin condición)
+                    "preventivo",  # Preventivo (sin condición) - cambiado de "" a "preventivo"
                     "sano",
                     "caries",
                     "obturacion",
@@ -595,10 +595,10 @@ def service_form_fields() -> rx.Component:
                     "fractura",
                     "extraccion_indicada"
                 ],
-                placeholder="Preventivo (no modifica)",
+                placeholder="Selecciona una condición",
                 required=False,
                 icon="activity",
-                help_text="Deja vacío para servicios preventivos"
+                help_text="Selecciona 'preventivo' para servicios que no modifican el odontograma"
             ),
             spacing="3",
             width="100%"
@@ -700,7 +700,7 @@ def enhanced_form_field_select(
                 "transition": "all 200ms ease",
                 "_focus": {
                     "border_color": COLORS["primary"]["400"],
-                    "box_shadow": f"0 0 0 3px {COLORS['primary']['100']}"
+                    "box_shadow": f"0 0 0 3px {COLORS['primary']['200']}"
                 }
             }
         ),
@@ -938,7 +938,7 @@ def smart_input_with_validation(
                 "_focus": {
                     "outline": "none",
                     "border_color": COLORS["primary"]["400"],
-                    "box_shadow": f"0 0 0 3px {COLORS['primary']['100']}",
+                    "box_shadow": f"0 0 0 3px {COLORS['primary']['200']}",
                     "background": "white"
                 }
             }
@@ -1110,7 +1110,7 @@ def form_step_indicator(current_step: int, total_steps: int, step_titles: List[s
                             ),
                             "box_shadow": rx.cond(
                                 current_step == i,
-                                f"0 0 0 4px {COLORS['primary']['100']}, 0 0 20px {COLORS['primary']['300']}40",
+                                f"0 0 0 4px {COLORS['primary']['200']}, 0 0 20px {COLORS['primary']['300']}40",
                                 "none"
                             ),
                             "transition": "all 250ms cubic-bezier(0.4, 0, 0.2, 1)"

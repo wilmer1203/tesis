@@ -1,6 +1,6 @@
 from ..state.app_state import AppState
 import reflex as rx
-from dental_system.styles.themes import (COLORS, SHADOWS)
+from dental_system.styles.themes import (COLORS, SHADOWS, dark_crystal_card)
 # =============================================
 # Componentes Reutilizables
 # =============================================
@@ -106,23 +106,51 @@ def render_chart(key: str, color: str, gradient_id: str) -> rx.Component:
     
 def graficas_resume() -> rx.Component:
     """
-    📊 COMPONENTE PRINCIPAL DE GRÁFICOS - MEJORADO
-    
-    MEJORAS:
-    - Botón para cargar datos reales
-    - Adaptación por rol de usuario  
+    📊 COMPONENTE PRINCIPAL DE GRÁFICOS - CON TOGGLE REAL/RANDOM
+
+    MEJORAS V2.0:
+    - Datos reales desde dashboard_service
+    - Toggle temporal para testing (icono pequeño)
+    - Adaptación por rol de usuario
     - Mejor manejo de errores
-    - Estadísticas resumidas
     """
     return rx.box(
         rx.hstack(
             chart_toggle(),
-            custom_segmented_control(),      
+            rx.spacer(),
+            custom_segmented_control(),
+            rx.spacer(),
+            # 🧪 TOGGLE TEMPORAL PARA TESTING (eliminar después)
+            rx.tooltip(
+                rx.icon_button(
+                    rx.cond(
+                        AppState.usar_datos_reales_dashboard,
+                        rx.icon("database", size=16),  # Icono base de datos (datos reales)
+                        rx.icon("test-tube", size=16)  # Icono laboratorio (datos de prueba)
+                    ),
+                    on_click=AppState.toggle_datos_dashboard,
+                    variant="ghost",
+                    size="2",
+                    color_scheme=rx.cond(
+                        AppState.usar_datos_reales_dashboard,
+                        "green",  # Verde para datos reales
+                        "orange"  # Naranja para datos random
+                    )
+                ),
+                content=rx.cond(
+                    AppState.usar_datos_reales_dashboard,
+                    "Datos Reales (click para random)",
+                    "Datos Random (click para reales)"
+                ),
+            ),
+            align="center",
+            width="100%",
+            margin_bottom="1em"
         ),
         rx.match(
             AppState.selected_tab,
             (
-                "Pacientes", 
+                "Pacientes",
                 render_chart(
                     key="Pacientes",
                     color="blue",
@@ -130,7 +158,7 @@ def graficas_resume() -> rx.Component:
                 )
             ),
             (
-                "Ingresos", 
+                "Ingresos",
                 render_chart(
                     key="Ingresos",
                     color="green",
@@ -138,7 +166,7 @@ def graficas_resume() -> rx.Component:
                 )
             ),
             (
-                "Consultas", 
+                "Consultas",
                 render_chart(
                     key="Consultas",
                     color="orange",
@@ -146,10 +174,7 @@ def graficas_resume() -> rx.Component:
                 )
             ),
         ),
+        **dark_crystal_card(color=COLORS["primary"]["500"], hover_lift="4px"),
         padding="24px",
-        background="white",
-        border_radius="16px",
-        border=f"1px solid {COLORS['gray']['200']}",
-        box_shadow= SHADOWS["xl"],
         width="100%"
     )

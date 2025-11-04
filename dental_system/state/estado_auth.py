@@ -180,15 +180,6 @@ class EstadoAuth(rx.State, mixin=True):
         self.usuario_actual = {}
         self.permisos_usuario = []
         
-        # UNUSED - [2025-01-04] - Limpiar estados de formulario comentados
-        # self.paso_formulario_paciente = 0
-        # self.errores_formulario_paciente = {}
-        # self.puede_continuar_form_paciente = True
-        
-        # self.paso_formulario_personal = 0
-        # self.errores_formulario_personal = {}
-        # self.puede_continuar_form_personal = True
-        
         # Control de sesión
         self.token_sesion = ""
         self.ultima_actividad = ""
@@ -363,7 +354,7 @@ class EstadoAuth(rx.State, mixin=True):
                 "consultas": ["crear", "leer", "actualizar"],  # Solo sus consultas
                 "personal": [],
                 "servicios": ["leer"],
-                "pagos": [],
+                "pagos": ["leer"],
                 "odontologia": ["crear", "leer", "actualizar"]
             },
             "asistente": {

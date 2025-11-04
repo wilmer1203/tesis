@@ -53,167 +53,12 @@ class DashboardService(BaseService):
             logger.info(f"🚀 Obteniendo stats optimizadas para rol: {user_role}")
             
             # 📊 ESTADÍSTICAS BASE (mix real-time + cache)
-            base_stats = await self._get_optimized_base_statistics()
+            # base_stats = await self._get_optimized_base_statistics()
             
             if user_role == "gerente":
-                # 👔 Estadísticas completas para gerente
-                extended_stats = await self._get_cached_manager_statistics()
-                return {**base_stats, **extended_stats}
-            
-            elif user_role == "administrador":
-                # 👤 Estadísticas administrativas
-                admin_stats = await self._get_cached_admin_statistics()
-                return {**base_stats, **admin_stats}
-            
-            else:
-                # 🦷 Estadísticas básicas para odontólogos/asistentes
-                return base_stats
-                
-        except Exception as e:
-            self.handle_error("Error obteniendo estadísticas del dashboard", e)
-            return self._get_default_stats()
-    
-    async def _get_optimized_base_statistics(self) -> Dict[str, Any]:
-        """
-        🚀 ESTADÍSTICAS BASE OPTIMIZADAS - VERSIÓN 2.0
-        
-        SEPARACIÓN INTELIGENTE:
-        - REAL-TIME: consultas_hoy (cambia cada llegada de paciente)
-        - CACHED: total_pacientes, personal_activo, servicios_activos
-        """
-        try:
-            # 📊 REAL-TIME STATS (siempre frescos)
-            realtime_stats = await self._get_realtime_base_stats()
-            
-            # 💾 CACHED STATS (con TTL optimizado) - Temporalmente deshabilitado
-            cached_stats = await self._fetch_cached_base_stats()
-            
-            # Combinar ambos
-            return {**realtime_stats, **cached_stats}
-            
-        except Exception as e:
-            logger.error(f"❌ Error obteniendo estadísticas base optimizadas: {e}")
-            return self._get_default_base_stats()
-    
-    async def _get_realtime_base_stats(self) -> Dict[str, Any]:
-        """
-        ⚡ MÉTRICAS REAL-TIME (sin cache)
-        
-        Estas métricas cambian frecuentemente y necesitan estar siempre actualizadas
-        """
-        try:
-            today = date.today().isoformat()
-            
-            # 📅 CONSULTAS DE HOY (real-time - cada llegada de paciente)
-            consultas_response = self.client.table('consultas').select('id', count='exact').gte(
-                'fecha_llegada', today
-            ).lt('fecha_llegada', f"{today}T23:59:59").execute()
-            consultas_hoy = consultas_response.count or 0
-            
-            # ⏰ CONSULTAS EN CURSO (real-time - estado actual)
-            consultas_activas = self.client.table('consultas').select('id', count='exact').eq(
-                'estado', 'en_progreso'
-            ).execute()
-            consultas_en_curso = consultas_activas.count or 0
-            
-            logger.debug(f"⚡ Real-time stats: consultas_hoy={consultas_hoy}, en_curso={consultas_en_curso}")
-            
-            return {
-                "consultas_hoy": consultas_hoy,
-                "consultas_en_curso": consultas_en_curso
-            }
-            
-        except Exception as e:
-            logger.error(f"❌ Error obteniendo stats real-time: {e}")
-            return {
-                "consultas_hoy": 0,
-                "consultas_en_curso": 0
-            }
-    
-    async def _fetch_cached_base_stats(self) -> Dict[str, Any]:
-        """
-        💾 MÉTRICAS CACHEADAS (TTL: 15 minutos)
-        
-        Estas métricas cambian poco y pueden ser cacheadas para mejor performance
-        """
-        try:
-            # 👥 TOTAL PACIENTES (cambia poco - cache 15 min)
-            pacientes_response = self.client.table('pacientes').select('id', count='exact').eq('activo', True).execute()
-            total_pacientes = pacientes_response.count or 0
-            
-            # 👨‍⚕️ PERSONAL ACTIVO (cambia muy poco - cache 30 min)
-            personal_response = self.client.table('vista_personal_completo').select('id', count='exact').eq(
-                'completamente_activo', True
-            ).execute()
-            personal_activo = personal_response.count or 0
-            
-            # 🏥 SERVICIOS ACTIVOS (casi nunca cambia - cache 1 hora)
-            servicios_response = self.client.table('servicios').select('id', count='exact').eq('activo', True).execute()
-            servicios_activos = servicios_response.count or 0
-            
-            logger.debug(f"💾 Cached stats: pacientes={total_pacientes}, personal={personal_activo}, servicios={servicios_activos}")
-            
-            return {
-                "total_pacientes": total_pacientes,
-                "personal_activo": personal_activo,
-                "servicios_activos": servicios_activos
-            }
-            
-        except Exception as e:
-            logger.error(f"❌ Error obteniendo stats cacheadas: {e}")
-            return {
-                "total_pacientes": 0,
-                "personal_activo": 0,
-                "servicios_activos": 0
-            }
-    
-    def _get_default_base_stats(self) -> Dict[str, Any]:
-        """📊 Stats por defecto en caso de error"""
-        return {
-            "total_pacientes": 0,
-            "consultas_hoy": 0,
-            "consultas_en_curso": 0,
-            "personal_activo": 0,
-            "servicios_activos": 0
-        }
-    
-    async def _get_cached_manager_statistics(self) -> Dict[str, Any]:
-        """
-        👔 ESTADÍSTICAS PARA GERENTE - VERSIÓN CACHEADA 2.0
-        
-        SEPARACIÓN INTELIGENTE:
-        - REAL-TIME: pagos_pendientes (cada pago cambia esto)
-        - CACHED: ingresos_mes, total_odontologos
-        """
-        try:
-            # 💳 REAL-TIME: Pagos pendientes (cambia con cada pago)
-            realtime_payments = await self._get_realtime_payment_stats()
-            
-            # 💾 CACHED: Ingresos mensuales y personal - Temporalmente deshabilitado
-            cached_manager = await self._fetch_cached_manager_stats()
-            
-            return {**realtime_payments, **cached_manager}
-            
-        except Exception as e:
-            logger.error(f"❌ Error obteniendo estadísticas del gerente: {e}")
-            return self._get_default_manager_stats()
-    
-    async def _get_realtime_payment_stats(self) -> Dict[str, Any]:
-        """
-        💳 ESTADÍSTICAS REAL-TIME DE PAGOS
-        
-        Solo pagos pendientes que cambian frecuentemente
-        """
-        try:
-            # 💰 PAGOS PENDIENTES (real-time - cada pago cambia esto)
-            pagos_pendientes_response = self.client.table('pagos').select('id', count='exact').eq(
-                'estado_pago', 'pendiente'
-            ).execute()
-            pagos_pendientes = pagos_pendientes_response.count or 0
-            
-            logger.debug(f"💳 Payment real-time: pagos_pendientes={pagos_pendientes}")
-            
-            return {"pagos_pendientes": pagos_pendientes}
+                base_stats = await self.get_gerente_stats_simple()
+
+            return base_stats
             
         except Exception as e:
             logger.error(f"❌ Error obteniendo stats real-time de pagos: {e}")
@@ -409,14 +254,14 @@ class DashboardService(BaseService):
 
             total_mes = sum([(pago.get('monto_pagado_usd', 0) or 0) + (pago.get('monto_pagado_bs', 0) or 0) for pago in pagos_mes.data]) if pagos_mes.data else 0
             
-            # Pendientes
-            pendientes = self.client.table('pagos').select('monto_total', 'monto_pagado').eq(
-                'estado_pago', 'pendiente'
-            ).execute()
-            
+            # Pendientes (saldos pendientes en USD + BS)
+            pendientes = self.client.table('pagos').select(
+                'saldo_pendiente_usd, saldo_pendiente_bs'
+            ).eq('estado_pago', 'pendiente').execute()
+
             total_pendientes = sum([
-                pago['monto_total'] - pago['monto_pagado'] 
-                for pago in pendientes.data
+                (p.get('saldo_pendiente_usd', 0) or 0) + (p.get('saldo_pendiente_bs', 0) or 0)
+                for p in pendientes.data
             ]) if pendientes.data else 0
             
             return {
@@ -550,16 +395,19 @@ class DashboardService(BaseService):
                 
                 pacientes_count = pacientes_response.count or 0
                 
-                # 💰 INGRESOS DEL DÍA
+                # 💰 INGRESOS DEL DÍA (USD + BS)
                 pagos_response = self.client.table('pagos').select(
-                    'monto_pagado'
+                    'monto_pagado_usd, monto_pagado_bs'
                 ).gte(
                     'fecha_pago', f"{date_info['date_sql']}T00:00:00"
                 ).lt(
                     'fecha_pago', f"{date_info['date_sql']}T23:59:59"
                 ).eq('estado_pago', 'completado').execute()
-                
-                ingresos_total = sum([p['monto_pagado'] for p in pagos_response.data]) if pagos_response.data else 0
+
+                ingresos_total = sum([
+                    (p.get('monto_pagado_usd', 0) or 0) + (p.get('monto_pagado_bs', 0) or 0)
+                    for p in pagos_response.data
+                ]) if pagos_response.data else 0
                 
                 # Agregar a los arrays
                 consultas_data.append({
@@ -639,20 +487,21 @@ class DashboardService(BaseService):
             
             # Obtener pagos del odontólogo (a través de sus consultas)
             pagos_response = self.client.table('pagos').select(
-                'monto_pagado, metodo_pago, fecha_pago'
+                'monto_pagado_usd, monto_pagado_bs, metodos_pago, fecha_pago'
             ).gte('fecha_pago', fecha_30_dias).eq(
                 'estado_pago', 'completado'
             ).execute()
-            
+
             # Filtrar pagos del odontólogo (esto requiere JOIN, simplificado por ahora)
             # TODO: Mejorar esta consulta con JOIN
-            
-            # Agrupar por método de pago
+
+            # Agrupar por método de pago (nota: metodos_pago es JSONB array)
             ingresos_por_metodo = {}
             for pago in pagos_response.data if pagos_response.data else []:
-                metodo = pago['metodo_pago']
-                monto = pago['monto_pagado']
-                
+                # metodos_pago es un array JSONB, por ahora simplificamos
+                metodo = "mixto"  # Por ahora agrupar todo como mixto
+                monto = (pago.get('monto_pagado_usd', 0) or 0) + (pago.get('monto_pagado_bs', 0) or 0)
+
                 if metodo not in ingresos_por_metodo:
                     ingresos_por_metodo[metodo] = 0
                 ingresos_por_metodo[metodo] += monto
@@ -759,10 +608,10 @@ class DashboardService(BaseService):
             
             # Total ingresos últimos 30 días
             pagos_response = self.client.table('pagos').select(
-                'monto_pagado'
+                'monto_total_usd'
             ).gte('fecha_pago', fecha_30_dias).eq('estado_pago', 'completado').execute()
             
-            total_ingresos = sum([p['monto_pagado'] for p in pagos_response.data]) if pagos_response.data else 0
+            total_ingresos = sum([p['monto_total_usd'] for p in pagos_response.data]) if pagos_response.data else 0
             
             return {
                 "consultas_30_dias": consultas_response.count or 0,
@@ -777,6 +626,496 @@ class DashboardService(BaseService):
                 "pacientes_nuevos_30_dias": 0,
                 "ingresos_30_dias": 0.0
             }    
+
+    async def get_gerente_stats_simple(self) -> Dict[str, Any]:
+                """
+                📊 ESTADÍSTICAS SIMPLIFICADAS PARA GERENTE
+
+                Stats para los 5 cards principales:
+                1. Ingresos del Mes
+                2. Ingresos Hoy (USD + BS)
+                3. Consultas Hoy
+                4. Servicios Aplicados Hoy
+                5. Tiempo Promedio Atención
+                """
+                try:
+                    logger.info("📊 Obteniendo stats simplificadas para gerente")
+
+                    today = date.today().isoformat()
+                    current_month = datetime.now().strftime('%Y-%m')
+
+                    # 1️⃣ INGRESOS DEL MES
+                    pagos_mes = self.client.table('pagos').select(
+                        'monto_pagado_usd, monto_pagado_bs'
+                    ).gte(
+                        'fecha_pago', f"{current_month}-01"
+                    ).eq('estado_pago', 'completado').execute()
+
+                    ingresos_mes_total = sum([
+                        (p.get('monto_pagado_usd', 0) or 0) + (p.get('monto_pagado_bs', 0) or 0)
+                        for p in (pagos_mes.data or [])
+                    ])
+
+                    # 2️⃣ INGRESOS HOY (USD + BS desglosado)
+                    pagos_hoy = self.client.table('pagos').select(
+                        'monto_pagado_usd, monto_pagado_bs, tasa_cambio_bs_usd'
+                    ).gte(
+                        'fecha_pago', f"{today}T00:00:00"
+                    ).lt(
+                        'fecha_pago', f"{today}T23:59:59"
+                    ).eq('estado_pago', 'completado').execute()
+
+                    ingresos_hoy_usd = 0
+                    ingresos_hoy_bs = 0
+                    for pago in (pagos_hoy.data or []):
+                        ingresos_hoy_usd += pago.get('monto_pagado_usd', 0) or 0
+                        ingresos_hoy_bs += pago.get('monto_pagado_bs', 0) or 0
+
+                    ingresos_hoy_total = ingresos_hoy_usd + ingresos_hoy_bs
+
+                    # 3️⃣ CONSULTAS HOY (totales y por estado)
+                    consultas_hoy_total_resp = self.client.table('consultas').select(
+                        'id', count='exact'
+                    ).gte(
+                        'fecha_llegada', f"{today}T00:00:00"
+                    ).lt(
+                        'fecha_llegada', f"{today}T23:59:59"
+                    ).execute()
+
+                    consultas_hoy_total = consultas_hoy_total_resp.count or 0
+
+                    completadas_resp = self.client.table('consultas').select(
+                        'id', count='exact'
+                    ).gte(
+                        'fecha_llegada', f"{today}T00:00:00"
+                    ).lt(
+                        'fecha_llegada', f"{today}T23:59:59"
+                    ).eq('estado', 'completada').execute()
+
+                    en_espera_resp = self.client.table('consultas').select(
+                        'id', count='exact'
+                    ).gte(
+                        'fecha_llegada', f"{today}T00:00:00"
+                    ).lt(
+                        'fecha_llegada', f"{today}T23:59:59"
+                    ).eq('estado', 'en_espera').execute()
+
+                    consultas_completadas = completadas_resp.count or 0
+                    consultas_en_espera = en_espera_resp.count or 0
+
+                    # 4️⃣ SERVICIOS APLICADOS HOY
+                    servicios_hoy_response = self.client.table('intervenciones_servicios').select(
+                        'id', count='exact'
+                    ).gte(
+                        'fecha_registro', f"{today}T00:00:00"
+                    ).lt(
+                        'fecha_registro', f"{today}T23:59:59"
+                    ).execute()
+
+                    servicios_aplicados = servicios_hoy_response.count or 0
+                    promedio_servicios = (servicios_aplicados / consultas_hoy_total) if consultas_hoy_total > 0 else 0
+
+                    # 5️⃣ TIEMPO PROMEDIO ATENCIÓN (fecha_creacion → fecha_actualizacion cuando completada)
+                    consultas_completadas_hoy = self.client.table('consultas').select(
+                        'fecha_creacion, fecha_actualizacion'
+                    ).eq('estado', 'completada').gte(
+                        'fecha_actualizacion', f"{today}T00:00:00"
+                    ).lt(
+                        'fecha_actualizacion', f"{today}T23:59:59"
+                    ).execute()
+
+                    tiempos = []
+                    for consulta in (consultas_completadas_hoy.data or []):
+                        if consulta.get('fecha_creacion') and consulta.get('fecha_actualizacion'):
+                            try:
+                                inicio = datetime.fromisoformat(consulta['fecha_creacion'].replace('Z', '+00:00'))
+                                fin = datetime.fromisoformat(consulta['fecha_actualizacion'].replace('Z', '+00:00'))
+                                diferencia_minutos = (fin - inicio).total_seconds() / 60
+                                if diferencia_minutos > 0:
+                                    tiempos.append(diferencia_minutos)
+                            except Exception:
+                                continue
+
+                    tiempo_promedio = sum(tiempos) / len(tiempos) if tiempos else 0
+
+                    logger.info(f"✅ Stats gerente: Ingresos mes=${ingresos_mes_total:.2f}, Hoy=${ingresos_hoy_total:.2f}, Consultas={consultas_hoy_total}")
+
+                    return {
+                        # Card 1: Ingresos del Mes
+                        "ingresos_mes": round(ingresos_mes_total, 2),
+
+                        # Card 2: Ingresos Hoy (con desglose)
+                        "ingresos_hoy_total": round(ingresos_hoy_total, 2),
+                        "ingresos_hoy_usd": round(ingresos_hoy_usd, 2),
+                        "ingresos_hoy_bs": round(ingresos_hoy_bs, 2),
+
+                        # Card 3: Consultas Hoy
+                        "consultas_hoy_total": consultas_hoy_total,
+                        "consultas_completadas": consultas_completadas,
+                        "consultas_en_espera": consultas_en_espera,
+
+                        # Card 4: Servicios Aplicados Hoy
+                        "servicios_aplicados": servicios_aplicados,
+                        "promedio_servicios_consulta": round(promedio_servicios, 1),
+
+                        # Card 5: Tiempo Promedio Atención
+                        "tiempo_promedio_minutos": round(tiempo_promedio, 0),
+                    }
+
+                except Exception as e:
+                    logger.error(f"❌ Error obteniendo stats del gerente: {e}")
+                    return {
+                        "ingresos_mes": 0,
+                        "ingresos_hoy_total": 0,
+                        "ingresos_hoy_usd": 0,
+                        "ingresos_hoy_bs": 0,
+                        "consultas_hoy_total": 0,
+                        "consultas_completadas": 0,
+                        "consultas_en_espera": 0,
+                        "servicios_aplicados": 0,
+                        "promedio_servicios_consulta": 0,
+                        "tiempo_promedio_minutos": 0,
+                    }
+
+    # ==========================================
+    # 🦷 MÉTODOS PARA DASHBOARD DEL ODONTÓLOGO
+    # ==========================================
+
+    async def get_odontologo_stats_simple(self, odontologo_id: str) -> Dict[str, Any]:
+        """
+        🦷 ESTADÍSTICAS SIMPLIFICADAS PARA ODONTÓLOGO
+
+        Stats para los 5 cards principales:
+        1. Ingresos del Mes (USD total generado por este odontólogo)
+        2. Ingresos Hoy (USD total de hoy)
+        3. Consultas Hoy (intervenciones realizadas por este odontólogo)
+        4. Servicios Aplicados (count de servicios únicos aplicados hoy)
+        5. Tiempo Promedio Atención (minutos por consulta completada)
+
+        Args:
+            odontologo_id: UUID del odontólogo (id de personal)
+
+        Returns:
+            Dict con estadísticas para los 5 cards
+        """
+        try:
+            logger.info(f"🦷 Obteniendo stats para odontólogo: {odontologo_id}")
+
+            today = date.today().isoformat()
+            current_month = datetime.now().strftime('%Y-%m')
+
+            # 1️⃣ INGRESOS DEL MES (solo del odontólogo)
+            # Necesitamos obtener intervenciones del odontólogo y sumar sus ingresos
+            intervenciones_mes = self.client.table('intervenciones').select(
+                'id'
+            ).eq('odontologo_id', odontologo_id).gte(
+                'fecha_registro', f"{current_month}-01"
+            ).execute()
+
+            intervenciones_ids = [i['id'] for i in (intervenciones_mes.data or [])]
+
+            ingresos_mes_total = 0
+            if intervenciones_ids:
+                # Obtener servicios de esas intervenciones
+                servicios_mes = self.client.table('intervenciones_servicios').select(
+                    'precio_total_usd, precio_total_bs'
+                ).in_('intervencion_id', intervenciones_ids).execute()
+
+                # ingresos_mes_total = sum([
+                #     (s.get('precio_total_usd', 0) or 0) + (s.get('precio_total_bs', 0) or 0)
+                #     for s in (servicios_mes.data or [])
+                # ])
+                ingresos_mes_total = sum([
+                    (s.get('precio_total_usd', 0))
+                    for s in (servicios_mes.data or [])
+                ])
+
+            # 2️⃣ INGRESOS HOY (solo del odontólogo)
+            intervenciones_hoy = self.client.table('intervenciones').select(
+                'id'
+            ).eq('odontologo_id', odontologo_id).gte(
+                'fecha_registro', f"{today}T00:00:00"
+            ).lt(
+                'fecha_registro', f"{today}T23:59:59"
+            ).execute()
+
+            intervenciones_hoy_ids = [i['id'] for i in (intervenciones_hoy.data or [])]
+
+            ingresos_hoy_total = 0
+            if intervenciones_hoy_ids:
+                servicios_hoy = self.client.table('intervenciones_servicios').select(
+                    'precio_total_usd, precio_total_bs'
+                ).in_('intervencion_id', intervenciones_hoy_ids).execute()
+
+                # ingresos_hoy_total = sum([
+                #     (s.get('precio_total_usd', 0) or 0) + (s.get('precio_total_bs', 0) or 0)
+                #     for s in (servicios_hoy.data or [])
+                # ])
+                ingresos_hoy_total = sum([
+                    (s.get('precio_total_usd', 0))
+                    for s in (servicios_hoy.data or [])
+                ])
+
+            # 3️⃣ CONSULTAS HOY (intervenciones del odontólogo, no consultas)
+            consultas_hoy_count = len(intervenciones_hoy_ids)
+
+            # 4️⃣ SERVICIOS APLICADOS HOY (count de servicios)
+            servicios_aplicados = 0
+            if intervenciones_hoy_ids:
+                servicios_aplicados_resp = self.client.table('intervenciones_servicios').select(
+                    'id', count='exact'
+                ).in_('intervencion_id', intervenciones_hoy_ids).execute()
+
+                servicios_aplicados = servicios_aplicados_resp.count or 0
+
+            # 5️⃣ TIEMPO PROMEDIO ATENCIÓN
+            # Calcular desde hora_inicio hasta hora_fin de intervenciones completadas hoy
+            intervenciones_completadas_hoy = self.client.table('intervenciones').select(
+                'hora_inicio, hora_fin, duracion_real'
+            ).eq('odontologo_id', odontologo_id).eq('estado', 'completada').gte(
+                'fecha_registro', f"{today}T00:00:00"
+            ).lt(
+                'fecha_registro', f"{today}T23:59:59"
+            ).execute()
+
+            tiempos = []
+            for interv in (intervenciones_completadas_hoy.data or []):
+                # Priorizar duracion_real si existe
+                if interv.get('duracion_real'):
+                    tiempos.append(interv['duracion_real'])
+                elif interv.get('hora_inicio') and interv.get('hora_fin'):
+                    try:
+                        # Parsear tiempos
+                        inicio = datetime.fromisoformat(interv['hora_inicio'].replace('Z', '+00:00'))
+                        fin = datetime.fromisoformat(interv['hora_fin'].replace('Z', '+00:00'))
+                        diferencia_minutos = (fin - inicio).total_seconds() / 60
+                        if diferencia_minutos > 0:
+                            tiempos.append(diferencia_minutos)
+                    except Exception:
+                        continue
+
+            tiempo_promedio = sum(tiempos) / len(tiempos) if tiempos else 0
+
+            logger.info(f"✅ Stats odontólogo: Ingresos mes=${ingresos_mes_total:.2f}, Hoy=${ingresos_hoy_total:.2f}, Consultas={consultas_hoy_count}")
+
+            return {
+                # Card 1: Ingresos del Mes
+                "ingresos_mes": round(ingresos_mes_total, 2),
+
+                # Card 2: Ingresos Hoy
+                "ingresos_hoy": round(ingresos_hoy_total, 2),
+
+                # Card 3: Consultas Hoy (intervenciones)
+                "consultas_hoy": consultas_hoy_count,
+
+                # Card 4: Servicios Aplicados
+                "servicios_aplicados": servicios_aplicados,
+
+                # Card 5: Tiempo Promedio
+                "tiempo_promedio_minutos": round(tiempo_promedio, 0),
+            }
+
+        except Exception as e:
+            logger.error(f"❌ Error obteniendo stats del odontólogo: {e}")
+            return {
+                "ingresos_mes": 0,
+                "ingresos_hoy": 0,
+                "consultas_hoy": 0,
+                "servicios_aplicados": 0,
+                "tiempo_promedio_minutos": 0,
+            }
+
+    async def get_odontologo_chart_data(self, odontologo_id: str) -> Dict[str, list[Dict[str, Any]]]:
+        """
+        📈 DATOS PARA GRÁFICOS DEL ODONTÓLOGO (últimos 30 días)
+
+        Genera 2 arrays de datos:
+        1. Consultas por día (intervenciones realizadas)
+        2. Ingresos por día (en USD)
+
+        Args:
+            odontologo_id: UUID del odontólogo
+
+        Returns:
+            Dict con arrays: consultas_data, ingresos_data
+        """
+        try:
+            logger.info(f"📈 Obteniendo datos de gráficos para odontólogo: {odontologo_id}")
+
+            # Preparar fechas (últimos 30 días)
+            dates = []
+            for i in range(30, -1, -1):
+                date_obj = datetime.now() - timedelta(days=i)
+                dates.append({
+                    'date_obj': date_obj.date(),
+                    'date_str': date_obj.strftime("%d-%m"),
+                    'date_sql': date_obj.strftime("%Y-%m-%d")
+                })
+
+            consultas_data = []
+            ingresos_data = []
+
+            # Obtener datos para cada día
+            for date_info in dates:
+                # 📅 INTERVENCIONES DEL DÍA
+                intervenciones_dia = self.client.table('intervenciones').select(
+                    'id'
+                ).eq('odontologo_id', odontologo_id).gte(
+                    'fecha_registro', f"{date_info['date_sql']}T00:00:00"
+                ).lt(
+                    'fecha_registro', f"{date_info['date_sql']}T23:59:59"
+                ).execute()
+
+                intervenciones_count = len(intervenciones_dia.data or [])
+                intervenciones_ids = [i['id'] for i in (intervenciones_dia.data or [])]
+
+                # 💰 INGRESOS DEL DÍA
+                ingresos_dia = 0
+                if intervenciones_ids:
+                    servicios_dia = self.client.table('intervenciones_servicios').select(
+                        'precio_total_usd, precio_total_bs'
+                    ).in_('intervencion_id', intervenciones_ids).execute()
+
+                    ingresos_dia = sum([
+                        (s.get('precio_total_usd', 0) or 0) + (s.get('precio_total_bs', 0) or 0)
+                        for s in (servicios_dia.data or [])
+                    ])
+
+                # Agregar a los arrays
+                consultas_data.append({
+                    "name": date_info['date_str'],
+                    "Consultas": intervenciones_count
+                })
+
+                ingresos_data.append({
+                    "name": date_info['date_str'],
+                    "Ingresos": float(ingresos_dia)
+                })
+
+            return {
+                "consultas_data": consultas_data,
+                "ingresos_data": ingresos_data
+            }
+
+        except Exception as e:
+            logger.error(f"❌ Error obteniendo datos de gráficos del odontólogo: {e}")
+            return self._get_empty_chart_data_odontologo()
+
+    async def get_odontologo_top_servicios(self, odontologo_id: str, limit: int = 5) -> list[Dict[str, Any]]:
+        """
+        📊 TOP SERVICIOS MÁS APLICADOS POR EL ODONTÓLOGO (hoy)
+
+        Agrupa los servicios aplicados hoy y retorna los top N con:
+        - Nombre del servicio
+        - Cantidad de veces aplicado
+        - Total de ingresos generados
+
+        Args:
+            odontologo_id: UUID del odontólogo
+            limit: Número máximo de servicios a retornar (default: 5)
+
+        Returns:
+            List de dicts con: servicio_nombre, count, total_ingresos
+        """
+        try:
+            logger.info(f"📊 Obteniendo top {limit} servicios para odontólogo: {odontologo_id}")
+
+            today = date.today().isoformat()
+
+            # 1. Obtener intervenciones del día
+            intervenciones_hoy = self.client.table('intervenciones').select(
+                'id'
+            ).eq('odontologo_id', odontologo_id).gte(
+                'fecha_registro', f"{today}T00:00:00"
+            ).lt(
+                'fecha_registro', f"{today}T23:59:59"
+            ).execute()
+
+            intervenciones_ids = [i['id'] for i in (intervenciones_hoy.data or [])]
+
+            if not intervenciones_ids:
+                return []
+
+            # 2. Obtener servicios aplicados en esas intervenciones
+            servicios_aplicados = self.client.table('intervenciones_servicios').select(
+                'servicio_id, precio_total_usd, precio_total_bs, cantidad'
+            ).in_('intervencion_id', intervenciones_ids).execute()
+
+            if not servicios_aplicados.data:
+                return []
+
+            # 3. Agrupar por servicio_id
+            servicios_agrupados = {}
+            for servicio in servicios_aplicados.data:
+                servicio_id = servicio.get('servicio_id')
+                if not servicio_id:
+                    continue
+
+                if servicio_id not in servicios_agrupados:
+                    servicios_agrupados[servicio_id] = {
+                        'servicio_id': servicio_id,
+                        'count': 0,
+                        'total_ingresos': 0
+                    }
+
+                servicios_agrupados[servicio_id]['count'] += servicio.get('cantidad', 1)
+                servicios_agrupados[servicio_id]['total_ingresos'] += (
+                    (servicio.get('precio_total_usd', 0) or 0) +
+                    (servicio.get('precio_total_bs', 0) or 0)
+                )
+
+            # 4. Obtener nombres de los servicios
+            servicio_ids = list(servicios_agrupados.keys())
+            servicios_info = self.client.table('servicios').select(
+                'id, nombre'
+            ).in_('id', servicio_ids).execute()
+
+            # Crear diccionario id -> nombre
+            nombres_servicios = {
+                s['id']: s['nombre']
+                for s in (servicios_info.data or [])
+            }
+
+            # 5. Construir resultado final
+            resultado = []
+            for servicio_id, datos in servicios_agrupados.items():
+                resultado.append({
+                    'servicio_nombre': nombres_servicios.get(servicio_id, 'Servicio Desconocido'),
+                    'count': datos['count'],
+                    'total_ingresos': round(datos['total_ingresos'], 2)
+                })
+
+            # 6. Ordenar por count (descendente) y limitar
+            resultado_ordenado = sorted(resultado, key=lambda x: x['count'], reverse=True)[:limit]
+
+            logger.info(f"✅ Top {len(resultado_ordenado)} servicios obtenidos")
+
+            return resultado_ordenado
+
+        except Exception as e:
+            logger.error(f"❌ Error obteniendo top servicios del odontólogo: {e}")
+            return []
+
+    def _get_empty_chart_data_odontologo(self) -> Dict[str, list]:
+        """📊 DATOS VACÍOS PARA GRÁFICOS DEL ODONTÓLOGO"""
+        empty_data_consultas = []
+        empty_data_ingresos = []
+
+        for i in range(30, -1, -1):
+            date_str = (datetime.now() - timedelta(days=i)).strftime("%d-%m")
+            empty_data_consultas.append({
+                "name": date_str,
+                "Consultas": 0
+            })
+            empty_data_ingresos.append({
+                "name": date_str,
+                "Ingresos": 0
+            })
+
+        return {
+            "consultas_data": empty_data_consultas,
+            "ingresos_data": empty_data_ingresos
+        }
 
 # Instancia única para importar
 dashboard_service = DashboardService()

@@ -12,8 +12,8 @@ from dental_system.components.odontologia.consulta_card import (
 )
 from dental_system.styles.themes import (
     COLORS, RADIUS, SPACING,ANIMATIONS,
-    dark_crystal_card, dark_header_style, dark_page_background,
-    DARK_THEME
+    dark_crystal_card, dark_header_style,
+    DARK_THEME,  create_dark_style
 )
 from dental_system.components.common import medical_page_layout
 # ==========================================
@@ -547,7 +547,7 @@ def odontologia_page() -> rx.Component:
         padding="6",
         width="100%",
         min_height="100vh",
-        style=dark_page_background(),
+        style=create_dark_style("page_background"),
         on_mount=[
                     AppState.cargar_pacientes_asignados,
                     AppState.cargar_consultas_disponibles_otros,

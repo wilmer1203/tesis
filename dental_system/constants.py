@@ -13,9 +13,7 @@ METODOS_PAGO = [
     "tarjeta_credito",
     "tarjeta_debito",
     "transferencia_bancaria",
-    "cheque",
     "pago_movil",
-    "zelle",
     "otros"
 ]
 

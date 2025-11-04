@@ -16,8 +16,6 @@ PATRÓN HÍBRIDO: Computed vars → acceso directo → sin async
 """
 
 import reflex as rx
-from datetime import date, datetime
-from typing import List, Dict, Any, Optional, Union
 import logging
 import asyncio
 
@@ -32,9 +30,6 @@ from .estado_servicios import EstadoServicios
 from .estado_pagos import EstadoPagos
 from .estado_intervencion_servicios import EstadoIntervencionServicios
 # REFACTOR FASE 4: estado_odontograma_avanzado eliminado - funcionalidad en EstadoOdontologia
-
-# ✅ MODELOS TIPADOS PARA COMPUTED VARS
-from dental_system.models import ( PersonalModel, ConsultaModel)
 
 logger = logging.getLogger(__name__)
 
@@ -53,41 +48,6 @@ class AppState(EstadoIntervencionServicios,EstadoServicios,EstadoPagos,EstadoCon
     - EstadoServicios: Catálogo de servicios
     - EstadoOdontologia: Módulo dental
     """
-
-    # ==========================================
-    # 🦷 VARIABLES ESPECÍFICAS DEL APPSTATE
-    # ==========================================
-
-    # Tab activo en página de intervención odontológica
-    active_intervention_tab: str = "intervencion"
-
-    # ==========================================
-    # 📊 EVENT HANDLERS BÁSICOS PARA COMPATIBILIDAD
-    # ==========================================
-    
-    # ==========================================
-    # 📊 MÉTODOS ADICIONALES PARA DASHBOARD
-    # ==========================================
-    
-    @rx.event
-    async def cargar_estadisticas_dashboard(self):
-        """📊 Cargar estadísticas del dashboard usando servicio"""
-        try:
-            from ..services.dashboard_service import DashboardService
-            dashboard_service = DashboardService()
-            
-            # Usar rol actual del usuario autenticado
-            rol_usuario = self.rol_usuario
-            
-            # Cargar estadísticas del servicio
-            stats = await dashboard_service.get_dashboard_stats(rol_usuario)
-            print(f"📊 Estadísticas cargadas para rol: {rol_usuario}")
-            return stats
-            
-        except Exception as e:
-            print(f"❌ Error cargando estadísticas: {str(e)}")
-            return {}
-    
     @rx.event
     async def post_login_inicializacion(self):
         """🚀 INICIALIZACIÓN COMPLETA DESPUÉS DEL LOGIN - POR ROL
@@ -98,10 +58,16 @@ class AppState(EstadoIntervencionServicios,EstadoServicios,EstadoPagos,EstadoCon
         try:
             print("🚀 Iniciando carga de datos post-login...")
 
+            # 🎯 ESTABLECER PÁGINA INICIAL SEGÚN ROL
+            if self.rol_usuario == "odontologo" or self.rol_usuario == "asistente":
+                self.current_page = "dashboard-odontologo"
+            else:
+                self.current_page = "dashboard"
+
+            print(f"📄 Página inicial establecida: {self.current_page}")
+
             # Datos básicos que TODOS los roles necesitan
-            datos_basicos = [
-                self.cargar_estadisticas_dashboard(),
-            ]
+            datos_basicos = []
 
             # Datos específicos por rol
             if self.rol_usuario == "gerente":
@@ -142,7 +108,7 @@ class AppState(EstadoIntervencionServicios,EstadoServicios,EstadoPagos,EstadoCon
                 datos_especificos = []
 
             # Cargar datos en paralelo para máxima velocidad
-            todas_las_tareas = datos_basicos + datos_especificos
+            todas_las_tareas = datos_especificos
             await asyncio.gather(*todas_las_tareas, return_exceptions=True)
 
             print("✅ Inicialización post-login completada")
@@ -209,64 +175,4 @@ class AppState(EstadoIntervencionServicios,EstadoServicios,EstadoPagos,EstadoCon
             ])
         except Exception:
             return 0
-
-    # ==========================================
-    # 🔗 NAVEGACIÓN ENTRE MÓDULOS
-    # ==========================================
-    
-    # @rx.event
-    # async def navegar_a_odontologia_consulta(self, consulta_id: str, paciente_id: Optional[str] = None):
-    #     """
-    #     🦷 NAVEGAR A MÓDULO DE ODONTOLOGÍA CON CONSULTA ESPECÍFICA
-
-    #     Delega al método especializado seleccionar_paciente_consulta() que:
-    #     1. Busca y carga paciente + consulta
-    #     2. Cambia estado de consulta a "en_atencion"
-    #     3. Carga odontograma última versión
-    #     4. Carga intervenciones previas
-    #     5. Navega a página de intervención
-
-    #     Args:
-    #         consulta_id: ID de la consulta a atender
-    #     """
-    #     try:
-    #         logger.info(f"🦷 Iniciando navegación a odontología con consulta: {consulta_id}")
-
-    #         # Buscar la consulta en ambas listas
-    #         consulta_encontrada = None
-
-    #         # Buscar en lista_consultas (EstadoConsultas)
-    #         for consulta in self.lista_consultas:
-    #             if consulta.id == consulta_id:
-    #                 consulta_encontrada = consulta
-    #                 break
-
-    #         # Buscar en consultas_asignadas (EstadoOdontologia)
-    #         if not consulta_encontrada:
-    #             for consulta in self.consultas_asignadas:
-    #                 if consulta.id == consulta_id:
-    #                     consulta_encontrada = consulta
-    #                     break
-
-    #         if not consulta_encontrada:
-    #             logger.warning(f"❌ Consulta no encontrada: {consulta_id}")
-    #             return
-
-    #         # Obtener paciente_id de la consulta
-    #         paciente_id = consulta_encontrada.paciente_id
-
-    #         if not paciente_id:
-    #             logger.error(f"❌ Consulta sin paciente_id: {consulta_id}")
-    #             return
-
-    #         # Usar el método especializado que maneja todo el flujo
-    #         await self.seleccionar_paciente_consulta(paciente_id, consulta_id)
-
-    #         logger.info(f"✅ Navegación completada exitosamente")
-
-    #     except Exception as e:
-    #         logger.error(f"❌ Error navegando a odontología: {str(e)}")
-    #         import traceback
-    #         traceback.print_exc()
-    
 

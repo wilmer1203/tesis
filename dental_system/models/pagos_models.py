@@ -123,18 +123,7 @@ class PagoModel(rx.Base):
             paciente_nombre=paciente_nombre,
             paciente_documento=str(paciente_data.get("numero_documento", "") if paciente_data else ""),
         )
-    
-    @property
-    def estado_display(self) -> str:
-        """Propiedad para mostrar el estado del pago"""
-        estados_map = {
-            "pendiente": "⏳ Pendiente",
-            "completado": "✅ Completado",
-            "anulado": "❌ Anulado",
-            "reembolsado": "🔄 Reembolsado"
-        }
-        return estados_map.get(self.estado_pago, self.estado_pago.capitalize())
-    
+
     @property
     def monto_total_display(self) -> str:
         """Propiedad para mostrar el monto total formateado"""
@@ -149,31 +138,8 @@ class PagoModel(rx.Base):
     def saldo_pendiente_display(self) -> str:
         """Propiedad para mostrar el saldo pendiente formateado"""
         return f"${self.saldo_pendiente:,.2f}"
-    
-    @property
-    def fecha_display(self) -> str:
-        """Propiedad para mostrar la fecha formateada"""
-        try:
-            if self.fecha_pago:
-                fecha_obj = datetime.fromisoformat(self.fecha_pago.replace('Z', '+00:00'))
-                return fecha_obj.strftime("%d/%m/%Y")
-            return "Sin fecha"
-        except:
-            return str(self.fecha_pago)
-    
-    @property
-    def metodo_pago_display(self) -> str:
-        """Método de pago formateado para mostrar"""
-        metodos_map = {
-            "efectivo": "💵 Efectivo",
-            "tarjeta_credito": "💳 Tarjeta de Crédito",
-            "tarjeta_debito": "💳 Tarjeta Débito",
-            "transferencia": "🏦 Transferencia",
-            "cheque": "📄 Cheque",
-            "otro": "📋 Otro"
-        }
-        return metodos_map.get(self.metodo_pago, self.metodo_pago.title())
-    
+
+
     @property
     def descuento_display(self) -> str:
         """Descuento formateado para mostrar"""
@@ -291,45 +257,7 @@ class PagoModel(rx.Base):
             "usd": round(pct_usd, 1),
             "bs": round(pct_bs, 1)
         }
-
-    @property
-    def metodos_pago_display(self) -> str:
-        """Métodos de pago formateados para mostrar"""
-        if not self.metodos_pago:
-            return self.metodo_pago_display  # Fallback a método legacy
-
-        metodos_texto = []
-        for metodo in self.metodos_pago:
-            tipo = metodo.get("tipo", "")
-            moneda = metodo.get("moneda", "")
-            monto = metodo.get("monto", 0)
-
-            if moneda == "USD":
-                texto = f"${monto:.2f} por {tipo}"
-            elif moneda == "BS":
-                texto = f"{monto:,.0f} BS por {tipo}"
-            else:
-                texto = f"{monto} por {tipo}"
-
-            metodos_texto.append(texto)
-
-        return " | ".join(metodos_texto) if metodos_texto else "Sin métodos registrados"
-
-    @property
-    def preferencia_moneda(self) -> str:
-        """Moneda preferida según el pago realizado"""
-        if self.monto_pagado_usd > 0 and self.monto_pagado_bs == 0:
-            return "USD"
-        elif self.monto_pagado_bs > 0 and self.monto_pagado_usd == 0:
-            return "BS"
-        elif self.es_pago_mixto:
-            # Determinar cuál fue mayor en términos de USD
-            bs_equivalente_usd = self.monto_pagado_bs / self.tasa_cambio_bs_usd if self.tasa_cambio_bs_usd > 0 else 0
-            return "USD" if self.monto_pagado_usd >= bs_equivalente_usd else "BS"
-        else:
-            return "N/A"
-
-
+        
 class PagosStatsModel(rx.Base):
     """Modelo para estadísticas de pagos"""
     total_mes: float = 0.0
@@ -349,32 +277,6 @@ class PagosStatsModel(rx.Base):
     # Promedio
     monto_promedio: float = 0.0
 
-
-class BalanceGeneralModel(rx.Base):
-    """Modelo para balance general de pagos"""
-    fecha_desde: str = ""
-    fecha_hasta: str = ""
-    
-    # Ingresos
-    total_ingresos: float = 0.0
-    ingresos_efectivo: float = 0.0
-    ingresos_tarjetas: float = 0.0
-    ingresos_transferencias: float = 0.0
-    ingresos_otros: float = 0.0
-    
-    # Pendientes
-    total_pendientes: float = 0.0
-    cantidad_pendientes: int = 0
-    
-    # Descuentos
-    total_descuentos: float = 0.0
-    
-    # Impuestos
-    total_impuestos: float = 0.0
-    
-    # Comparativa
-    crecimiento_vs_periodo_anterior: float = 0.0
-    porcentaje_cumplimiento_meta: float = 0.0
 
 
 class CuentaPorCobrarModel(rx.Base):

@@ -15,8 +15,7 @@ PATRÓN: Substate con get_estado_servicios() en AppState
 
 import reflex as rx
 from datetime import date, datetime
-from typing import Dict, Any, List, Optional, Union
-from decimal import Decimal
+from typing import Dict, Any, List, Optional
 import logging
 
 # Servicios y modelos
@@ -24,10 +23,8 @@ from dental_system.services.servicios_service import servicios_service
 from dental_system.models import (
     ServicioModel,
     ServicioStatsModel,
-    CategoriaServicioModel,
     EstadisticaCategoriaModel,
-    ServicioFormModel,
-    CondicionCatalogoModel  # V3.0: Catálogo de condiciones dentales
+    ServicioFormModel
 )
 
 logger = logging.getLogger(__name__)
@@ -73,12 +70,16 @@ class EstadoServicios(rx.State,mixin=True):
     # ==========================================
     formulario_servicio: ServicioFormModel = ServicioFormModel()
     errores_validacion_servicio: Dict[str, str] = {}
-    
+
     # Variables auxiliares para operaciones
     mostrar_solo_activos_servicios: bool = True
+
+    # ==========================================
+    # 🔄 VARIABLES TEMPORALES PARA ACCIONES (COMO PERSONAL)
+    # ==========================================
+    servicio_to_modify: Optional[ServicioModel] = None  # Servicio a activar/desactivar
+    accion_servicio: bool = False  # True = activar, False = desactivar
     
-    # Lista de categorías tipadas
-    lista_categorias_servicios: List[CategoriaServicioModel] = []
     
     # ==========================================
     # 🏥 CATEGORÍAS Y CLASIFICACIÓN
@@ -100,11 +101,6 @@ class EstadoServicios(rx.State,mixin=True):
     # ==========================================
     # 🦷 CATÁLOGO DE CONDICIONES V3.0
     # ==========================================
-
-    # Catálogo cargado desde BD (catalogo_condiciones table)
-    catalogo_condiciones: List[CondicionCatalogoModel] = []
-    condiciones_cargadas: bool = False
-    cargando_catalogo_condiciones: bool = False
 
     # Filtros por categoría
     filtro_categoria: str = "todas"
@@ -161,25 +157,6 @@ class EstadoServicios(rx.State,mixin=True):
     def opciones_categoria_completas(self) -> List[str]:
         """🏷️ Lista completa de opciones para select de categorías"""
         return ["todas"] + self.categorias_servicios
-
-    @rx.var(cache=True)
-    def opciones_condiciones_display(self) -> List[Dict[str, str]]:
-        """
-        🦷 V3.0 - Opciones de condiciones dentales para UI
-
-        Returns:
-            Lista de dicts con {value: codigo, label: nombre_display}
-            Incluye opción "preventivo" (sin condición)
-        """
-        opciones = [{"value": "", "label": "🔹 Preventivo (no modifica odontograma)"}]
-
-        for condicion in self.catalogo_condiciones:
-            opciones.append({
-                "value": condicion.codigo,
-                "label": condicion.nombre_display
-            })
-
-        return opciones
 
     @rx.var(cache=True)
     def servicios_filtrados_display(self) -> List[ServicioModel]:
@@ -463,48 +440,6 @@ class EstadoServicios(rx.State,mixin=True):
             logger.error(f"❌ Error cargando estadísticas servicios: {e}")
         finally:
             self.cargando_estadisticas_servicios = False
-
-    async def cargar_catalogo_condiciones(self):
-        """
-        🦷 V3.0 - Carga catálogo de condiciones dentales desde BD
-
-        Llamar al iniciar módulo de servicios para tener opciones disponibles
-        en formularios. Se carga una vez y se mantiene en estado.
-        """
-        # Evitar recargas innecesarias
-        if self.condiciones_cargadas:
-            logger.debug("ℹ️ Catálogo de condiciones ya cargado (usando cache)")
-            return
-
-        self.cargando_catalogo_condiciones = True
-
-        try:
-            from dental_system.services.odontologia_service import odontologia_service
-
-            # Establecer contexto de usuario
-            odontologia_service.set_user_context(self.id_usuario, self.perfil_usuario)
-
-            # Cargar catálogo desde BD
-            condiciones_data = await odontologia_service.get_catalogo_condiciones()
-
-            # Convertir a modelos tipados
-            self.catalogo_condiciones = [
-                CondicionCatalogoModel.from_dict(cond) for cond in condiciones_data
-            ]
-
-            self.condiciones_cargadas = True
-
-            logger.info(
-                f"✅ Catálogo de condiciones cargado: {len(self.catalogo_condiciones)} condiciones"
-            )
-
-        except Exception as e:
-            logger.error(f"❌ Error cargando catálogo de condiciones: {e}")
-            self.catalogo_condiciones = []
-            self.condiciones_cargadas = False
-
-        finally:
-            self.cargando_catalogo_condiciones = False
     
     # ==========================================
     # 🔍 MÉTODOS DE BÚSQUEDA Y FILTROS
@@ -668,50 +603,51 @@ class EstadoServicios(rx.State,mixin=True):
             self.cargando_operacion_servicio = False
     
     async def activar_desactivar_servicio(self, servicio_id: str, activar: bool):
-        """Activar o desactivar servicio (soft delete)"""
-        # Verificar permisos usando la propiedad correcta del mixin
-        if not self.rol_usuario == "gerente":
-            self.mostrar_toast("Solo el gerente puede cambiar el estado de servicios", "error")
-            return
+        """
+        🔄 Preparar activación o desactivación de servicio (PATRÓN PERSONAL)
 
+        Args:
+            servicio_id: ID del servicio a modificar
+            activar: True para activar, False para desactivar
+        """
         try:
-            # Llamar al método correcto según el parámetro activar
-            if activar:
-                success = await servicios_service.reactivate_service(
-                    service_id=servicio_id,
-                )
-            else:
-                success = await servicios_service.deactivate_service(
-                    service_id=servicio_id,
-                )
+            # Buscar el servicio en la lista
+            servicio_encontrado = None
+            for servicio in self.lista_servicios:
+                if servicio.id == servicio_id:
+                    servicio_encontrado = servicio
+                    print(f"servicio encontrado {servicio_encontrado}")
+                    break
 
-            if success:
-                # Actualizar en la lista
-                for i, serv in enumerate(self.lista_servicios):
-                    if serv.id == servicio_id:
-                        self.lista_servicios[i].activo = activar
-                        break
-                
-                # Obtener el nombre del servicio para el mensaje
-                servicio = next((s for s in self.lista_servicios if s.id == servicio_id), None)
-                nombre_servicio = servicio.nombre if servicio else "servicio"
-                
-                accion = "activado" if activar else "desactivado"
-                self.mostrar_toast(f"Servicio {nombre_servicio} {accion} exitosamente", "success")
-                
-                # Log del cambio
-                logger.info(f"✅ Servicio {nombre_servicio} {accion}")
-                
+            if servicio_encontrado:
+                # Establecer el servicio a modificar y la acción
+                self.servicio_to_modify = servicio_encontrado
+                self.accion_servicio = activar
+
+                nombre_completo = servicio_encontrado.nombre
+
+                # Mostrar modal apropiado según la acción
+                if activar:
+                    # Modal de reactivación (NO es async, quitar await)
+                    self.abrir_modal_confirmacion(
+                        "Confirmar Reactivación",
+                        f"¿Estás seguro de que deseas reactivar el servicio '{nombre_completo}'? El servicio estará disponible nuevamente en el catálogo.",
+                        "activar_servicio"
+                    )
+                else:
+                    # Modal de desactivación (NO es async, quitar await)
+                    self.abrir_modal_confirmacion(
+                        "Confirmar Desactivación",
+                        f"¿Estás seguro de que deseas desactivar el servicio '{nombre_completo}'? El servicio no estará disponible para nuevas intervenciones.",
+                        "desactivar_servicio"
+                    )
+                logger.info(f"❓ Confirmación {'activar' if activar else 'desactivar'} servicio: {servicio_id}")
             else:
-                raise ValueError(f"No se pudo cambiar el estado del servicio {servicio_id}")
-                
+                logger.warning(f"⚠️ Servicio {servicio_id} no encontrado")
+
         except Exception as e:
-            logger.error(f"❌ Error cambiando estado servicio: {e}")
-            self.mostrar_toast("Error al cambiar estado del servicio", "error")
-            
-        finally:
-            # Refrescar la lista para asegurar consistencia
-            await self.cargar_lista_servicios()
+            logger.error(f"❌ Error preparando acción de servicio: {e}")
+            self.mostrar_toast("Error al preparar la acción", "error")
 
     
     # ==========================================
@@ -970,6 +906,52 @@ class EstadoServicios(rx.State,mixin=True):
         except Exception as e:
             logger.error(f"❌ Error aplicando filtros servicios: {str(e)}")
     
+    async def ejecutar_accion_servicio(self):
+        """
+        ✅ EJECUTAR ACCIÓN DE ACTIVAR/DESACTIVAR SERVICIO (PATRÓN PERSONAL)
+
+        Ejecuta la acción almacenada en self.accion_servicio
+        sobre el servicio en self.servicio_to_modify
+        """
+        if self.servicio_to_modify and self.servicio_to_modify.id:
+            nombre_servicio = self.servicio_to_modify.nombre
+            servicio_id = self.servicio_to_modify.id
+            activar = self.accion_servicio
+
+            try:
+                # Establecer contexto de usuario en el servicio
+                servicios_service.set_user_context(
+                    user_id=self.id_usuario,
+                    user_profile=self.perfil_usuario
+                )
+
+                # Ejecutar la acción apropiada
+                if activar:
+                    success = await servicios_service.reactivate_service(servicio_id)
+                    accion_texto = "reactivado"
+                else:
+                    success = await servicios_service.deactivate_service(servicio_id)
+                    accion_texto = "desactivado"
+
+                if success:
+                    # Recargar lista para reflejar cambios
+                    await self.cargar_lista_servicios()
+
+                    # Mostrar éxito
+                    self.mostrar_toast(f"Servicio '{nombre_servicio}' {accion_texto} exitosamente", "success")
+
+                    logger.info(f"✅ Servicio '{nombre_servicio}' {accion_texto} exitosamente")
+
+                # Limpiar variables temporales
+                self.servicio_to_modify = None
+                self.accion_servicio = False
+
+            except Exception as e:
+                logger.error(f"❌ Error ejecutando acción de servicio: {e}")
+                self.mostrar_toast(f"Error al modificar el servicio '{nombre_servicio}'", "error")
+        else:
+            logger.warning("❌ No hay servicio seleccionado para modificar")
+
     def limpiar_datos(self):
         """🧹 LIMPIAR TODOS LOS DATOS - USADO EN LOGOUT"""
         self.lista_servicios = []
@@ -979,25 +961,28 @@ class EstadoServicios(rx.State,mixin=True):
         self.formulario_servicio = ServicioFormModel()
         self.errores_validacion_servicio = {}
         self.mostrar_solo_activos_servicios = True
-        self.lista_categorias_servicios = []
-        
+
+        # Limpiar variables temporales de acciones
+        self.servicio_to_modify = None
+        self.accion_servicio = False
+
         # Limpiar filtros
         self.filtro_categoria = "todas"
         self.filtro_estado_servicio = "activos"
         self.filtro_rango_precio_servicios = {"min": 0.0, "max": 999999.0}
         self.termino_busqueda_servicios = ""
         self.busqueda_activa_servicios = False
-        
+
         # Limpiar cache
         self.cache_servicios_populares = []
         self.cache_servicios_por_categoria = {}
         self.cache_timestamp_servicios = ""
-        
+
         # Estados de carga
         self.cargando_lista_servicios = False
         self.cargando_estadisticas_servicios = False
         self.cargando_operacion_servicio = False
-        
+
         logger.info("🧹 Datos de servicios limpiados")
 
 

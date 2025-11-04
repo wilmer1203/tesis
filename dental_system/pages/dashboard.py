@@ -1,79 +1,77 @@
 
 import reflex as rx
 from dental_system.state.app_state import AppState
-from dental_system.components.common import medical_page_layout
-from dental_system.components.common import stat_card, primary_button
+from dental_system.components.common import medical_page_layout, page_header, stat_card, refresh_button
 from dental_system.components.charts import graficas_resume
-from dental_system.styles.themes import COLORS, SHADOWS,GRADIENTS,dark_header_style,DARK_THEME
+from dental_system.styles.themes import COLORS, SHADOWS,GRADIENTS,dark_header_style,DARK_THEME, dark_crystal_card
 
 # ==========================================
 # COMPONENTES DEL DASHBOARD
 # ==========================================
 
 def quick_stats_grid() -> rx.Component:
-    """Grid de estadísticas rápidas - Solo 4 métricas principales"""
+    """Grid de estadísticas rápidas - 5 métricas principales con DATOS REALES"""
     return rx.grid(
+        # Card 1: Ingresos del Mes
         stat_card(
-            title="Total Pacientes",
-            value="100",   # BossState.dashboard_stats["total_pacientes"].to_string(),
-            icon="users",
-            color=COLORS["primary"]["500"],
-            trend="up",
-            # trend_value=rx.cond(
-            #     BossState.dashboard_stats["total_pacientes"] > 0,
-            #     "Registrados",
-            #     "Sin datos"
-            # )
+            title="Ingresos del Mes",
+            value=rx.cond(
+                AppState.dashboard_stats,
+                f"${AppState.dashboard_stats.get('ingresos_mes', 0):,.0f}",
+                "$0"
+            ),
+            icon="dollar-sign",
+            color=COLORS["success"]["500"],
+        ),
+        stat_card(
+            title="Ingresos Hoy",
+            value=rx.cond(
+                AppState.dashboard_stats,
+                f"${AppState.dashboard_stats.get('ingresos_hoy_total', 0):,.0f}",
+                "$0"
+            ),
+            icon="dollar-sign",
+            color=COLORS["secondary"]["500"]
         ),
         stat_card(
             title="Consultas Hoy",
-            value="100",   #BossState.dashboard_stats["consultas_hoy"].to_string(),
+            value=rx.cond(
+                AppState.dashboard_stats,
+                f"{AppState.dashboard_stats.get('consultas_completadas', 0)}/{AppState.dashboard_stats.get('consultas_hoy_total', 0)}",
+                "0/0"
+            ),
             icon="calendar",
-            color=COLORS["secondary"]["500"],
-            trend="up",
-            # trend_value=rx.cond(
-            #     BossState.dashboard_stats["consultas_hoy"] > 0,
-            #     "Programadas",
-            #     "Sin consultas"
-            # )
+            color=COLORS["primary"]["500"]
         ),
         stat_card(
-            title="Personal Activo",
-            value="100",   #BossState.dashboard_stats["personal_activo"].to_string(),
-            icon="user-check",
-            color=COLORS["blue"]["500"],
-            trend="up",
-            # trend_value=rx.cond(
-            #     BossState.dashboard_stats["personal_activo"] > 0,
-            #     "En servicio",
-            #     "Sin personal"
-            # )
+            title="Servicios Aplicados Hoy",
+            value=rx.cond(
+                AppState.dashboard_stats,
+                f"{AppState.dashboard_stats.get('servicios_aplicados', 0)}",
+                "0"
+            ),
+            icon="activity",
+            color=COLORS["blue"]["500"]
         ),
         stat_card(
-            title="Ingresos del Mes",
-           value="100",   #rx.cond(
-            #     BossState.dashboard_stats["ingresos_mes"] > 0,
-            #     f"${BossState.dashboard_stats['ingresos_mes']:,.0f}".replace(",", "."),
-            #     "$0"
-            # ),
-            icon="dollar-sign",
-            color=COLORS["success"]["500"],
-            trend="up",
-            # trend_value=rx.cond(
-            #     BossState.dashboard_stats["ingresos_mes"] > 0,
-            #     "Generados",
-            #     "Sin ingresos"
-            # )
+            title="Tiempo Promedio",
+            value=rx.cond(
+                AppState.dashboard_stats,
+                f"{AppState.dashboard_stats.get('tiempo_promedio_minutos', 0):.0f} min",
+                "0 min"
+            ),
+            icon="clock",
+            color=COLORS["warning"]["500"]
         ),
         grid_template_columns=[
             "1fr",                  # Móvil: 1 columna
             "repeat(1, 1fr)",       # Móvil grande: 1 columna
             "repeat(2, 1fr)",       # Tablet: 2 columnas
-            "repeat(2, 1fr)",       # Desktop pequeño: 2 columnas  
-            "repeat(4, 1fr)",       # Desktop: 4 columnas
+            "repeat(3, 1fr)",       # Desktop pequeño: 3 columnas
+            "repeat(5, 1fr)",       # Desktop: 5 columnas
         ],
-        
-        spacing="6",     
+
+        spacing="6",
         width="100%"
     )
 
@@ -163,74 +161,38 @@ def recent_activity_card() -> rx.Component:
             align_items="stretch",
             width="100%"
         ),
+        **dark_crystal_card(color=COLORS["warning"]["500"], hover_lift="4px"),
         padding="24px",
-        background="white",
-        border_radius="16px",
-        border=f"1px solid {COLORS['gray']['200']}",
-        box_shadow= SHADOWS["xl"],
         width="100%"
     )
-
-
-def page_header() -> rx.Component:
-    """📋 Header limpio para página de consultas (igual que personal/pacientes)"""
-    return rx.box(
-        rx.hstack(
-            rx.vstack(
-                # Título principal con gradiente (igual que personal)
-                rx.heading(
-                    "dashboard de Monitoreo",
-                    style={
-                        "font_size": "2.75rem",
-                        "font_weight": "800",
-                        "background": GRADIENTS["text_gradient_primary"],
-                        "background_clip": "text",
-                        "color": "transparent",
-                        "line_height": "1.2",
-                        "text_align": "left"
-                    }
-                ),
-                
-                # Subtítulo elegante (igual que personal)
-                rx.text(
-                    "Monitoreo en tiempo real del flujo de pacientes por orden de llegada",
-                    style={
-                        "font_size": "1.125rem",
-                        "color": DARK_THEME["colors"]["text_secondary"],
-                        "line_height": "1.5"
-                    }
-                ),
-                
-                spacing="1",
-                justify="start",
-                align="start"
-            ),
-            
-            width="100%",
-            align="center"
-        ),
-        style=dark_header_style(),
-        width="100%"
-    )
-
 
 # ==========================================
 # COMPONENTE PRINCIPAL DEL DASHBOARD
 # ==========================================
 
 def dashboard_page() -> rx.Component:
-    """Página principal del dashboard del gerente"""
+    """Página principal del dashboard del gerente - V2.0 CON DATOS REALES"""
     return medical_page_layout(
         rx.vstack(
         # Header de la página
-        page_header(),
+        page_header(
+            "Dashboard de Monitoreo",
+            "Monitoreo en tiempo real del flujo de pacientes por orden de llegada",
+            actions=[
+                refresh_button(
+                    text="Actualizar datos",
+                    on_click=AppState.cargar_dashboard_gerente_completo,
+                    loading=AppState.cargando_dashboard
+                )
+            ]
+        ),
         # Contenido principal
         rx.cond(
             AppState.cargando_dashboard,
             rx.center(
                 rx.vstack(
                     rx.spinner(size="3", color=COLORS["primary"]["500"]),
-                    rx.text("Cargando...", color=COLORS["gray"]["600"], size="3"),
+                    rx.text("Cargando datos reales...", color=COLORS["gray"]["600"], size="3"),
                     spacing="3",
                     align="center"
                 ),
@@ -238,37 +200,38 @@ def dashboard_page() -> rx.Component:
                 width="100%"
             ),
             rx.box(
-                # Grid de estadísticas principales
+                # Grid de estadísticas principales (5 cards con datos reales)
                 quick_stats_grid(),
-                
+
                 # Grid de información adicional
                 rx.grid(
-                    # Columna izquierda - Actividad reciente
-                    graficas_resume(),   
-                    # Columna derecha - Consultas del día
+                    # Columna izquierda - Gráficos con toggle real/random
+                    graficas_resume(),
+                    # Columna derecha - Actividad reciente
                     recent_activity_card(),
                     grid_template_columns=[
                         "1fr",                  # Móvil: 1 columna
                         "repeat(1, 1fr)",       # Móvil grande: 1 columna
                         "repeat(2, 1fr)",       # Tablet: 2 columnas
-                        "repeat(2, 1fr)",       # Desktop pequeño: 2 columnas  
+                        "repeat(2, 1fr)",       # Desktop pequeño: 2 columnas
                     ],
                     margin_top="24px",
                     spacing="6",
-                    width="100%",         
+                    width="100%",
                 ),
                 spacing="6",
                 padding="24px",
-                width="100%",  
+                width="100%",
             )
         ),
         spacing="3",
         width="100%",
         min_height="100vh",
-        on_mount=AppState.randomize_data()
+        # 🚀 CARGAR DATOS REALES AL MONTAR + mantener random para toggle
+        on_mount=[
+            AppState.cargar_dashboard_gerente_completo(),
+            AppState.randomize_data()
+        ]
     )
     )
-# ==========================================
-# FUNCIÓN PRINCIPAL
-# ==========================================
 

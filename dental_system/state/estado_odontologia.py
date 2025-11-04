@@ -28,10 +28,8 @@ from dental_system.models import (
     IntervencionModel,
     ServicioModel,
     OdontogramaModel,
-    DienteModel,
     IntervencionFormModel,
     OdontologoStatsModel,
-    CondicionDienteModel,
     HistorialServicioModel
 )
 # ✅ V2.0: Importar modelo unificado
@@ -78,9 +76,16 @@ class EstadoOdontologia(rx.State, mixin=True):
     # ==========================================
     # 📊 ESTADÍSTICAS DEL DASHBOARD
     # ==========================================
-    
+
     # Estadísticas del día para el odontólogo (modelo tipado)
     estadisticas_dia: OdontologoStatsModel = OdontologoStatsModel()
+
+    # 🦷 VARIABLES DASHBOARD ODONTÓLOGO (NUEVO 2025-10-30)
+    dashboard_stats_odontologo: Dict[str, Any] = {}  # Stats para 5 cards
+    consultas_data_odontologo: List[Dict[str, Any]] = []  # Gráfico consultas 30 días
+    ingresos_data_odontologo: List[Dict[str, Any]] = []  # Gráfico ingresos 30 días
+    top_servicios_odontologo: List[Dict[str, Any]] = []  # Top servicios aplicados hoy
+    cargando_dashboard_odontologo: bool = False  # Loading state
     
     # ==========================================
     # 📋 HISTORIAL CLÍNICO DEL PACIENTE ACTUAL
@@ -241,8 +246,6 @@ class EstadoOdontologia(rx.State, mixin=True):
     # 🦷 ODONTOGRAMA FDI (32 DIENTES)
     # ==========================================
     
-    # Estructura FDI de dientes
-    dientes_fdi: List[DienteModel] = []
     odontograma_actual: OdontogramaModel = OdontogramaModel()
     
     # Estado visual del odontograma
@@ -1513,3 +1516,58 @@ class EstadoOdontologia(rx.State, mixin=True):
             self.historial_filtrado_por_diente,
             f"Diente {self.historial_filtrado_por_diente}"
         )
+
+    # ==========================================
+    # 📊 MÉTODO PARA DASHBOARD ODONTÓLOGO (NUEVO 2025-10-30)
+    # ==========================================
+
+    @rx.event
+    async def cargar_dashboard_odontologo_completo(self):
+        """
+        🦷 CARGAR DASHBOARD COMPLETO DEL ODONTÓLOGO
+
+        Carga todas las estadísticas y datos para el dashboard:
+        - Stats para los 5 cards
+        - Datos de gráficos (últimos 30 días)
+        - Top servicios aplicados hoy
+        """
+        
+        try:
+                self.cargando_dashboard_odontologo = True
+                print(f"🦷 Cargando dashboard para odontólogo: {self.id_personal}")
+
+                # Importar el servicio de dashboard
+                from dental_system.services.dashboard_service import dashboard_service
+
+                # Validar que tengamos el id_personal
+                if not self.id_personal:
+                    logger.warning("⚠️ No hay id_personal disponible para cargar dashboard")
+                    self.mostrar_toast("Error: No se pudo identificar al odontólogo", "error")
+                    return
+
+                # 1. Cargar estadísticas para los 5 cards
+                stats = await dashboard_service.get_odontologo_stats_simple(self.id_personal)
+                self.dashboard_stats_odontologo = stats
+                print(f"✅ Stats cargadas: {len(stats)} métricas")
+
+                # 2. Cargar datos para gráficos (últimos 30 días)
+                chart_data = await dashboard_service.get_odontologo_chart_data(self.id_personal)
+                self.consultas_data_odontologo = chart_data.get("consultas_data", [])
+                self.ingresos_data_odontologo = chart_data.get("ingresos_data", [])
+                print(f"✅ Datos de gráficos cargados: {len(self.consultas_data_odontologo)} puntos")
+
+                # 3. Cargar top servicios aplicados hoy
+                top_servicios = await dashboard_service.get_odontologo_top_servicios(self.id_personal, limit=5)
+                self.top_servicios_odontologo = top_servicios
+                print(f"✅ Top servicios cargados: {len(top_servicios)} servicios")
+
+                print("✅ Dashboard del odontólogo cargado exitosamente")
+
+        except Exception as e:
+                logger.error(f"❌ Error cargando dashboard del odontólogo: {e}")
+                import traceback
+                traceback.print_exc()
+                self.mostrar_toast(f"Error cargando dashboard: {str(e)}", "error")
+
+        finally:
+                self.cargando_dashboard_odontologo = False
