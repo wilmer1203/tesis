@@ -50,11 +50,7 @@ class PagoModel(rx.Base):
     descuento_aplicado: float = 0.0        # Descuento en USD
     motivo_descuento: Optional[str] = ""
     impuestos: float = 0.0
-    numero_factura: Optional[str] = ""
-    fecha_facturacion: Optional[str] = ""
-    observaciones: Optional[str] = ""
     procesado_por: str = ""
-    autorizado_por: Optional[str] = ""
     
     # Información relacionada
     paciente_nombre: str = ""
@@ -113,11 +109,7 @@ class PagoModel(rx.Base):
             descuento_aplicado=float(data.get("descuento_aplicado", 0)),
             motivo_descuento=str(data.get("motivo_descuento", "") if data.get("motivo_descuento") else ""),
             impuestos=float(data.get("impuestos", 0)),
-            numero_factura=str(data.get("numero_factura", "") if data.get("numero_factura") else ""),
-            fecha_facturacion=str(data.get("fecha_facturacion", "") if data.get("fecha_facturacion") else ""),
-            observaciones=str(data.get("observaciones", "") if data.get("observaciones") else ""),
             procesado_por=str(data.get("procesado_por", "")),
-            autorizado_por=str(data.get("autorizado_por", "") if data.get("autorizado_por") else ""),
 
             # Información relacionada (usando la variable construida arriba)
             paciente_nombre=paciente_nombre,

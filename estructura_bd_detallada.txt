@@ -1,0 +1,24 @@
+                                                                     List of relations
+   Schema   |           Name           | Type  |     Owner      | Persistence | Access method |    Size    |                  Description                   
+------------+--------------------------+-------+----------------+-------------+---------------+------------+------------------------------------------------
+ extensions | pg_stat_statements       | view  | supabase_admin | permanent   |               | 0 bytes    | 
+ extensions | pg_stat_statements_info  | view  | supabase_admin | permanent   |               | 0 bytes    | 
+ public     | condiciones_diente       | table | postgres       | permanent   | heap          | 848 kB     | 
+ public     | consultas                | table | postgres       | permanent   | heap          | 48 kB      | 
+ public     | dientes                  | table | postgres       | permanent   | heap          | 48 kB      | 
+ public     | historial_medico         | table | postgres       | permanent   | heap          | 56 kB      | 
+ public     | imagenes_clinicas        | table | postgres       | permanent   | heap          | 8192 bytes | 
+ public     | intervenciones           | table | postgres       | permanent   | heap          | 32 kB      | 
+ public     | intervenciones_servicios | table | postgres       | permanent   | heap          | 32 kB      | 
+ public     | pacientes                | table | postgres       | permanent   | heap          | 64 kB      | 
+ public     | pagos                    | table | postgres       | permanent   | heap          | 32 kB      | 
+ public     | pagos_secuencias         | table | postgres       | permanent   | heap          | 8192 bytes | Secuencias atómicas para numero_recibo por mes
+ public     | personal                 | table | postgres       | permanent   | heap          | 48 kB      | 
+ public     | roles                    | table | postgres       | permanent   | heap          | 16 kB      | 
+ public     | servicios                | table | postgres       | permanent   | heap          | 16 kB      | 
+ public     | usuarios                 | table | postgres       | permanent   | heap          | 48 kB      | 
+ public     | verificacion_limpieza    | view  | postgres       | permanent   |               | 0 bytes    | 
+ public     | vista_cola_odontologos   | view  | postgres       | permanent   |               | 0 bytes    | 
+ public     | vista_personal_completo  | view  | postgres       | permanent   |               | 0 bytes    | 
+(19 rows)
+

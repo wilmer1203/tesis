@@ -6,7 +6,6 @@ Sigue el mismo patrón que PacientesService
 from typing import Dict, List, Optional, Any
 from decimal import Decimal
 from .base_service import BaseService
-from dental_system.supabase.tablas import services_table
 from dental_system.models import ServicioModel, ServicioFormModel
 from .cache_invalidation_hooks import invalidate_after_service_operation, track_cache_invalidation
 import logging
@@ -18,10 +17,9 @@ class ServiciosService(BaseService):
     Servicio que maneja toda la lógica de servicios odontológicos
     Usado por Jefe (CRUD completo) y otros roles según permisos
     """
-    
+
     def __init__(self):
         super().__init__()
-        self.table = services_table
     
     async def get_filtered_services(self, 
                                   search: str = None, 
@@ -42,21 +40,31 @@ class ServiciosService(BaseService):
             # Verificar permisos
             if not self.check_permission("servicios", "leer"):
                 raise PermissionError("Sin permisos para acceder a servicios")
-            # Si hay búsqueda, usar search
+
+            # Construir query base
+            query = self.client.table("servicios").select("*")
+
+            # Aplicar filtros
+            if activos_only:
+                query = query.eq("activo", True)
+
+            if categoria and categoria != "todas":
+                query = query.eq("categoria", categoria)
+
             if search and search.strip():
-                servicios_data = self.table.search_services(search.strip())
-            # Si hay categoría específica
-            elif categoria and categoria != "todas":
-                servicios_data = self.table.get_by_categoria(categoria)
-            # Por defecto, obtener activos
-            elif activos_only:
-                servicios_data = self.table.get_active_services()
-            else:
-                servicios_data = self.table.get_all()
-            
-            # Filtrar por activos si es necesario
-            if activos_only and not search:
-                servicios_data = [s for s in servicios_data if s.get("activo", True)]
+                search_term = search.strip()
+                query = query.or_(
+                    f"codigo.ilike.%{search_term}%,"
+                    f"nombre.ilike.%{search_term}%,"
+                    f"descripcion.ilike.%{search_term}%"
+                )
+
+            # Ordenar por nombre
+            query = query.order("nombre")
+
+            # Ejecutar query
+            response = query.execute()
+            servicios_data = response.data if response.data else []
             
             # Convertir a modelos tipados
             servicios_models = []
@@ -104,22 +112,24 @@ class ServiciosService(BaseService):
             form_data = servicio_form.to_dict()
 
             # Verificar que no exista el código
-            existing = self.table.get_by_codigo(form_data["codigo"])
-            if existing:
+            existing_response = self.client.table("servicios").select("id").eq("codigo", form_data["codigo"]).execute()
+            if existing_response.data:
                 raise ValueError("Ya existe un servicio con este código")
 
-            # Crear servicio usando el método de la tabla
-            result = self.table.create_service(
-                codigo=form_data["codigo"],
-                nombre=form_data["nombre"],
-                categoria=form_data["categoria"],
-                precio_base_usd=form_data["precio_base_usd"],
-                alcance_servicio=form_data.get("alcance_servicio", "superficie_especifica"),
-                descripcion=form_data.get("descripcion"),
-                material_incluido=form_data.get("material_incluido"),
-                condicion_resultante=form_data.get("condicion_resultante"),
-                creado_por=user_id
-            )
+            # Crear servicio
+            insert_data = {
+                "codigo": form_data["codigo"],
+                "nombre": form_data["nombre"],
+                "categoria": form_data["categoria"],
+                "precio_base_usd": form_data["precio_base_usd"],
+                "alcance_servicio": form_data.get("alcance_servicio", "superficie_especifica"),
+                "descripcion": form_data.get("descripcion"),
+                "condicion_resultante": form_data.get("condicion_resultante"),
+                "activo": True
+            }
+
+            response = self.client.table("servicios").insert(insert_data).execute()
+            result = response.data[0] if response.data else None
             
             if result:
                 logger.info(f"✅ Servicio creado: {form_data['nombre']}")
@@ -166,9 +176,10 @@ class ServiciosService(BaseService):
                 raise PermissionError("No tiene permisos para actualizar servicios")
 
             # Validar que exista el servicio
-            servicio_actual = self.table.get_by_id(service_id)
-            if not servicio_actual:
+            servicio_response = self.client.table("servicios").select("*").eq("id", service_id).execute()
+            if not servicio_response.data:
                 raise ValueError("Servicio no encontrado")
+            servicio_actual = servicio_response.data[0]
 
             # Validar formulario
             errores = servicio_form.validate_form()
@@ -177,23 +188,20 @@ class ServiciosService(BaseService):
 
             # Si se cambió el código, verificar que no exista
             if servicio_form.codigo != servicio_actual["codigo"]:
-                existing = self.table.get_by_codigo(servicio_form.codigo)
-                if existing:
+                existing_response = self.client.table("servicios").select("id").eq("codigo", servicio_form.codigo).execute()
+                if existing_response.data:
                     raise ValueError("Ya existe un servicio con este código")
 
             # Convertir formulario a diccionario
             data = servicio_form.to_dict()
-            
+
             # Mantener campos que no se actualizan
             data["activo"] = servicio_actual["activo"]
             data["fecha_creacion"] = servicio_actual["fecha_creacion"]
-            data["creado_por"] = servicio_actual["creado_por"]
-            
+
             # Actualizar
-            result = self.table.update(
-                service_id,
-                data
-            )
+            update_response = self.client.table("servicios").update(data).eq("id", service_id).execute()
+            result = update_response.data[0] if update_response.data else None
 
             if result:
                 # Invalidar caché
@@ -229,9 +237,10 @@ class ServiciosService(BaseService):
             self.require_permission("servicios", "eliminar")
             
             # TODO: Verificar que no tenga intervenciones activas
-            
+
             # Desactivar
-            result = self.table.update(service_id, {"activo": False})
+            update_response = self.client.table("servicios").update({"activo": False}).eq("id", service_id).execute()
+            result = update_response.data[0] if update_response.data else None
             
             if result:
                 logger.info(f"✅ Servicio desactivado correctamente")
@@ -268,8 +277,9 @@ class ServiciosService(BaseService):
             
             # Verificar permisos
             self.require_permission("servicios", "crear")  # Reactivar = crear de nuevo
-            
-            result = self.table.update(service_id, {"activo": True})
+
+            update_response = self.client.table("servicios").update({"activo": True}).eq("id", service_id).execute()
+            result = update_response.data[0] if update_response.data else None
             
             if result:
                 logger.info(f"✅ Servicio reactivado correctamente")
@@ -304,10 +314,10 @@ class ServiciosService(BaseService):
         try:
             # Verificar permisos
             self.require_permission("servicios", "leer")
-            
-            data = self.table.get_by_id(service_id)
-            if data:
-                return ServicioModel.from_dict(data)
+
+            response = self.client.table("servicios").select("*").eq("id", service_id).execute()
+            if response.data:
+                return ServicioModel.from_dict(response.data[0])
             return None
             
         except Exception as e:
@@ -324,8 +334,11 @@ class ServiciosService(BaseService):
         try:
             # Verificar permisos
             self.require_permission("servicios", "leer")
-            
-            categorias = self.table.get_categorias()
+
+            # Obtener categorías únicas
+            response = self.client.table("servicios").select("categoria").eq("activo", True).execute()
+            categorias = list(set([s["categoria"] for s in response.data if s.get("categoria")])) if response.data else []
+            categorias.sort()
             logger.info(f"Categorías obtenidas: {categorias}")
             return categorias
             
@@ -367,7 +380,8 @@ class ServiciosService(BaseService):
         """
         try:
             # Obtener todos los servicios
-            servicios = self.table.get_all()
+            response = self.client.table("servicios").select("*").execute()
+            servicios = response.data if response.data else []
 
             # Calcular estadísticas básicas
             total = len(servicios)
@@ -383,7 +397,7 @@ class ServiciosService(BaseService):
                     cat = servicio.get("categoria", "Sin categoría")
                     categorias[cat] = categorias.get(cat, 0) + 1
 
-                    precio = servicio.get("precio_base", 0)
+                    precio = servicio.get("precio_base_usd", 0)
                     if precio:
                         precios_totales.append(precio)
 

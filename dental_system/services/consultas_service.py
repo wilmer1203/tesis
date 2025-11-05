@@ -6,7 +6,6 @@ Elimina duplicación entre boss_state y admin_state
 from typing import Dict, List, Optional, Any
 from datetime import date, datetime
 from .base_service import BaseService
-from dental_system.supabase.tablas import consultas_table, personal_table, services_table
 from dental_system.models import ConsultaModel, ConsultaFormModel
 from .cache_invalidation_hooks import invalidate_after_consultation_operation
 import logging
@@ -21,9 +20,6 @@ class ConsultasService(BaseService):
     
     def __init__(self):
         super().__init__()
-        self.consultas_table = consultas_table
-        self.personal_table = personal_table
-        self.services_table = services_table
     
     async def get_today_consultations(self, 
                                     odontologo_id: str = None) -> List[ConsultaModel]:
@@ -43,19 +39,36 @@ class ConsultasService(BaseService):
             # Verificar permisos
             self.require_permission("consultas", "leer")
             
-            # Usar vista optimizada si está disponible, sino fallback a método estándar
-            try:
-                consultas_data = self.consultas_table.get_vista_consultas_dia()
+            # Query directa a consultas del día
+            today = date.today().isoformat()
 
-                # Filtrar por odontólogo si se especifica
+            # Intentar usar vista optimizada primero
+            try:
+                query = self.client.table("vista_consultas_dia").select("*")
+
                 if odontologo_id:
-                    consultas_data = [
-                        c for c in consultas_data
-                        if c.get('primer_odontologo_id') == odontologo_id
-                    ]
-            except Exception:
-                # Fallback al método estándar
-                consultas_data = self.consultas_table.get_today_consultations(odontologo_id)
+                    query = query.eq("primer_odontologo_id", odontologo_id)
+
+                response = query.execute()
+                consultas_data = response.data if response.data else []
+
+            except Exception as vista_error:
+                # Fallback a tabla consultas
+                logger.debug(f"Vista no disponible, usando tabla consultas: {vista_error}")
+
+                query = self.client.table("consultas").select("*, pacientes(*), personal(*)").gte(
+                    "fecha_llegada", f"{today}T00:00:00"
+                ).lt(
+                    "fecha_llegada", f"{today}T23:59:59"
+                )
+
+                if odontologo_id:
+                    query = query.eq("primer_odontologo_id", odontologo_id)
+
+                query = query.order("orden_llegada_general")
+
+                response = query.execute()
+                consultas_data = response.data if response.data else []
             
             # Convertir a modelos tipados
             consultas_models = []
@@ -127,20 +140,23 @@ class ConsultasService(BaseService):
                 datos_consulta.get("primer_odontologo_id") or datos_consulta.get("odontologo_id")
             )
             
-            # Crear consulta con esquema v4.1 usando método actualizado
-            result = self.consultas_table.create_consultation(
-                paciente_id=datos_consulta["paciente_id"],
-                primer_odontologo_id=datos_consulta.get("primer_odontologo_id") or datos_consulta.get("odontologo_id"),
-                fecha_llegada=datetime.now(),  # Momento de llegada real
-                orden_llegada_general=orden_general,
-                orden_cola_odontologo=orden_cola_doctor,
-                estado="en_espera",  # Estado inicial v4.1
-                tipo_consulta=datos_consulta.get("tipo_consulta", "general"),
-                motivo_consulta=datos_consulta.get("motivo_consulta"),
-                observaciones=datos_consulta.get("observaciones"),
-                prioridad=datos_consulta.get("prioridad", "normal"),
-                creada_por=user_id
-            )
+            # Crear consulta con esquema v4.1 - INSERT directo
+            consulta_data = {
+                "paciente_id": datos_consulta["paciente_id"],
+                "primer_odontologo_id": datos_consulta.get("primer_odontologo_id") or datos_consulta.get("odontologo_id"),
+                "fecha_llegada": datetime.now().isoformat(),
+                "orden_llegada_general": orden_general,
+                "orden_cola_odontologo": orden_cola_doctor,
+                "estado": "en_espera",  # Estado inicial v4.1
+                "tipo_consulta": datos_consulta.get("tipo_consulta", "general"),
+                "motivo_consulta": datos_consulta.get("motivo_consulta"),
+                "observaciones": datos_consulta.get("observaciones"),
+                "prioridad": datos_consulta.get("prioridad", "normal"),
+                "creada_por": user_id
+            }
+
+            response = self.client.table("consultas").insert(consulta_data).execute()
+            result = response.data[0] if response.data else None
             
             if result:
                 # Crear modelo tipado del resultado
@@ -205,7 +221,8 @@ class ConsultasService(BaseService):
                 logger.info(f"[DEBUG] Actualizando estado a: {consulta_form.estado}")
             
             # Solo permitir cambiar odontólogo si está en estado programada o en_espera
-            current_consulta = self.consultas_table.get_by_id(consultation_id)
+            response = self.client.table("consultas").select("*").eq("id", consultation_id).execute()
+            current_consulta = response.data[0] if response.data else None
 
             if current_consulta and current_consulta.get("estado") in ["programada", "en_espera"]:
                 # Usar el campo correcto del esquema v4.1
@@ -217,8 +234,10 @@ class ConsultasService(BaseService):
                     logger.info(f"[DEBUG] ✅ Cambiando odontólogo de {odontologo_actual} a {nuevo_odontologo}")
                 else:
                     logger.info(f"[DEBUG] ❌ No se cambiará odontólogo: nuevo={nuevo_odontologo}, actual={odontologo_actual}")
-            
-            result = self.consultas_table.update(consultation_id, data)
+
+            # UPDATE directo
+            update_response = self.client.table("consultas").update(data).eq("id", consultation_id).execute()
+            result = update_response.data[0] if update_response.data else None
             
             if result:
                 # Crear modelo tipado del resultado
@@ -272,7 +291,8 @@ class ConsultasService(BaseService):
             observaciones_previas = ""
 
             # Obtener observaciones actuales
-            consulta_actual = self.consultas_table.get_by_id(consulta_id)
+            response = self.client.table("consultas").select("observaciones").eq("id", consulta_id).execute()
+            consulta_actual = response.data[0] if response.data else None
             if consulta_actual and consulta_actual.get('observaciones'):
                 observaciones_previas = consulta_actual['observaciones'] + "\n\n"
 
@@ -281,7 +301,8 @@ class ConsultasService(BaseService):
                 'observaciones': f"{observaciones_previas}TRANSFERENCIA: {motivo} - {current_time}"
             }
 
-            consulta_actualizada = self.consultas_table.update(consulta_id, update_data)
+            update_response = self.client.table("consultas").update(update_data).eq("id", consulta_id).execute()
+            consulta_actualizada = update_response.data[0] if update_response.data else None
 
             if consulta_actualizada:
                 logger.info(f"✅ Consulta {consulta_id} transferida exitosamente")
@@ -315,13 +336,20 @@ class ConsultasService(BaseService):
             self.require_permission("consultas", "actualizar")
             
             # Validar transición de estado
-            consulta_actual = self.consultas_table.get_by_id(consultation_id)
+            response = self.client.table("consultas").select("estado").eq("id", consultation_id).execute()
+            consulta_actual = response.data[0] if response.data else None
             print(consulta_actual)
             if consulta_actual.get("estado") != "en_atencion":
                 if consulta_actual and not self._is_valid_status_transition(consulta_actual.get("estado"), nuevo_estado):
                     raise ValueError(f"Transición de estado no válida")
-            
-            result = self.consultas_table.update_status(consultation_id, nuevo_estado, notas)
+
+            # UPDATE estado con notas
+            update_data = {"estado": nuevo_estado}
+            if notas:
+                update_data["observaciones"] = notas
+
+            update_response = self.client.table("consultas").update(update_data).eq("id", consultation_id).execute()
+            result = update_response.data[0] if update_response.data else None
             
             if result:
                 logger.info(f"✅ Estado de consulta cambiado a: {nuevo_estado}")
@@ -376,8 +404,11 @@ class ConsultasService(BaseService):
         try:
             # Verificar permisos
             self.require_permission("consultas", "leer")
-            
-            data = self.consultas_table.get_consultation_details(consultation_id)
+
+            # Query con detalles completos (JOIN a pacientes y personal)
+            response = self.client.table("consultas").select("*, pacientes(*), personal(*)").eq("id", consultation_id).execute()
+            data = response.data[0] if response.data else None
+
             if data:
                 return ConsultaModel.from_dict(data)
             return None
@@ -406,21 +437,23 @@ class ConsultasService(BaseService):
             self.require_permission("consultas", "actualizar")
             
             # Obtener consulta actual para validar
-            consulta_actual = self.consultas_table.get_by_id(consultation_id)
+            response = self.client.table("consultas").select("estado").eq("id", consultation_id).execute()
+            consulta_actual = response.data[0] if response.data else None
             if not consulta_actual:
                 raise ValueError("Consulta no encontrada")
-            
+
             # Validar que se pueda cancelar
             if consulta_actual.get("estado") in ["completada"]:
                 raise ValueError("No se puede cancelar una consulta completada")
-            
+
             # Actualizar con motivo en observaciones
             data = {
                 "estado": "cancelada",
                 "observaciones": f"CANCELADA: {motivo}" if motivo else "CANCELADA"
             }
-            
-            result = self.consultas_table.update(consultation_id, data)
+
+            update_response = self.client.table("consultas").update(data).eq("id", consultation_id).execute()
+            result = update_response.data[0] if update_response.data else None
             
             if result:
                 print(f"✅ Consulta cancelada: {consultation_id}")
@@ -525,13 +558,15 @@ class ConsultasService(BaseService):
                 # Si falla aquí tras la reindexación, es un error de límite o DB.
                 return {"success": False, "message": f"No hay consulta en la posición destino ({orden_nuevo})."}
 
-            resultado_1 = self.consultas_table.update(consulta_a_mover.id, {
-                "orden_cola_odontologo": consulta_destino.orden_cola_odontologo # El paciente A toma la orden de B
-            })
+            response1 = self.client.table("consultas").update({
+                "orden_cola_odontologo": consulta_destino.orden_cola_odontologo
+            }).eq("id", consulta_a_mover.id).execute()
+            resultado_1 = response1.data[0] if response1.data else None
 
-            resultado_2 = self.consultas_table.update(consulta_destino.id, {
-                "orden_cola_odontologo": consulta_a_mover.orden_cola_odontologo # El paciente B toma la orden de A
-            })
+            response2 = self.client.table("consultas").update({
+                "orden_cola_odontologo": consulta_a_mover.orden_cola_odontologo
+            }).eq("id", consulta_destino.id).execute()
+            resultado_2 = response2.data[0] if response2.data else None
 
             if resultado_1 and resultado_2:
                 logger.info(f"✅ Intercambio exitoso: {consulta_a_mover.paciente_nombre} ↔ {consulta_destino.paciente_nombre}")
@@ -576,13 +611,13 @@ class ConsultasService(BaseService):
                         "orden_cola_odontologo": i
                     })
             
-            # 5. Ejecutar la actualización en masa (si tu capa lo permite) o individual
+            # 5. Ejecutar la actualización en masa (bucle de updates)
             if updates:
-                # Asumiendo que self.consultas_table tiene un método update_many
-                # Si no, usa un bucle for para actualizaciones individuales:
                 for item in updates:
-                    self.consultas_table.update(item["id"], {"orden_cola_odontologo": item["orden_cola_odontologo"]})
-                
+                    self.client.table("consultas").update({
+                        "orden_cola_odontologo": item["orden_cola_odontologo"]
+                    }).eq("id", item["id"]).execute()
+
                 logger.info(f"✅ Reindexación completa. {len(updates)} consultas reordenadas.")
             else:
                 logger.info("✅ Cola ya estaba saneada. No se requirieron cambios.")
@@ -627,7 +662,8 @@ class ConsultasService(BaseService):
             # self.require_permission("pagos", "crear")
 
             # ✅ PASO 2: Validar consulta existe y está en "entre_odontologos"
-            consulta = self.consultas_table.get_by_id(consultation_id)
+            response = self.client.table("consultas").select("*").eq("id", consultation_id).execute()
+            consulta = response.data[0] if response.data else None
             if not consulta:
                 raise ValueError(f"Consulta {consultation_id} no encontrada")
 
@@ -642,11 +678,7 @@ class ConsultasService(BaseService):
                 raise ValueError("Consulta sin paciente asignado")
 
             # 🛡️ PROTECCIÓN ANTI-DUPLICADOS: Verificar que NO existe ya un pago para esta consulta
-            from dental_system.supabase.tablas import pagos_table
-            from dental_system.supabase.client import supabase_client
-
-            client = supabase_client.get_client()
-            existing_payment = client.table('pagos')\
+            existing_payment = self.client.table('pagos')\
                 .select('id, numero_recibo')\
                 .eq('consulta_id', consultation_id)\
                 .execute()
@@ -676,11 +708,12 @@ class ConsultasService(BaseService):
             # pero podemos hacer rollback manual si algo falla
 
             # 4.1 - Actualizar estado consulta
-            consulta_updated = self.consultas_table.update_status(
-                consultation_id,
-                "completada",
-                "Consulta finalizada - Pago pendiente creado"
-            )
+            update_data = {
+                "estado": "completada",
+                "observaciones": "Consulta finalizada - Pago pendiente creado"
+            }
+            update_response = self.client.table("consultas").update(update_data).eq("id", consultation_id).execute()
+            consulta_updated = update_response.data[0] if update_response.data else None
 
             if not consulta_updated:
                 raise ValueError("Error actualizando estado de consulta")
@@ -702,16 +735,18 @@ class ConsultasService(BaseService):
                 "observaciones": "Pago pendiente generado automáticamente al completar consulta"
             }
 
-            pago_creado = pagos_table.create(pago_data)
+            # INSERT directo a tabla pagos
+            pago_response = self.client.table("pagos").insert(pago_data).execute()
+            pago_creado = pago_response.data[0] if pago_response.data else None
 
             if not pago_creado:
                 # ❌ ROLLBACK: Revertir estado consulta
                 logger.error("Error creando pago - Revirtiendo estado consulta")
-                self.consultas_table.update_status(
-                    consultation_id,
-                    "entre_odontologos",
-                    "Rollback: error creando pago"
-                )
+                rollback_data = {
+                    "estado": "entre_odontologos",
+                    "observaciones": "Rollback: error creando pago"
+                }
+                self.client.table("consultas").update(rollback_data).eq("id", consultation_id).execute()
                 raise ValueError("Error creando registro de pago")
 
             logger.info(f"✅ Consulta completada + Pago {pago_creado.get('numero_recibo')} creado")
@@ -754,9 +789,7 @@ class ConsultasService(BaseService):
             {"total_bs": 1500.00, "total_usd": 50.00}
         """
         try:
-            from dental_system.supabase.client import supabase_client
-            client = supabase_client.get_client()
-            intervenciones = client.table('intervenciones')\
+            intervenciones = self.client.table('intervenciones')\
                 .select('total_bs, total_usd')\
                 .eq('consulta_id', consulta_id)\
                 .execute()

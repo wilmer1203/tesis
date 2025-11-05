@@ -127,7 +127,9 @@
       "Bash(git rm:*)",
       "WebFetch(domain:postgrest.org)",
       "Read(//c/Users/wilme/Documents/**)",
-      "Bash(Select-Object -First 100)"
+      "Bash(Select-Object -First 100)",
+      "Bash(estructura_bd_detallada.txt)",
+      "Bash(columnas_todas_tablas.txt)"
     ],
     "deny": [],
     "additionalDirectories": [

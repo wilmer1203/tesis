@@ -23,7 +23,6 @@ class PacienteModel(rx.Base):
     numero_documento: str = ""
     tipo_documento: str = "CI"
     fecha_nacimiento: Optional[str] = ""
-    edad: Optional[int] = None
     genero: Optional[str] = ""
 
     # ✅ CELULARES SEPARADOS (según esquema v4.1)
@@ -33,9 +32,6 @@ class PacienteModel(rx.Base):
     email: Optional[str] = ""
     direccion: Optional[str] = ""
     ciudad: Optional[str] = ""
-    departamento: Optional[str] = ""
-    ocupacion: Optional[str] = ""
-    estado_civil: Optional[str] = ""
 
     # Contacto de emergencia (JSONB en BD)
     contacto_emergencia: Dict[str, Any] = {}
@@ -44,13 +40,10 @@ class PacienteModel(rx.Base):
     alergias: List[str] = []
     medicamentos_actuales: List[str] = []
     condiciones_medicas: List[str] = []
-    antecedentes_familiares: List[str] = []
-    observaciones: Optional[str] = ""
 
     # Control del sistema
     fecha_registro: str = ""
     fecha_actualizacion: str = ""
-    registrado_por: Optional[str] = ""
     activo: bool = True
 
     @classmethod
@@ -72,7 +65,6 @@ class PacienteModel(rx.Base):
             numero_documento=str(data.get("numero_documento", "")),
             tipo_documento=str(data.get("tipo_documento", "CI")),
             fecha_nacimiento=str(data.get("fecha_nacimiento", "") if data.get("fecha_nacimiento") else ""),
-            edad=data.get("edad") if isinstance(data.get("edad"), int) else None,
             genero=str(data.get("genero", "") if data.get("genero") else ""),
 
             # ✅ CELULARES SEPARADOS
@@ -82,21 +74,15 @@ class PacienteModel(rx.Base):
             email=str(data.get("email", "") if data.get("email") else ""),
             direccion=str(data.get("direccion", "") if data.get("direccion") else ""),
             ciudad=str(data.get("ciudad", "") if data.get("ciudad") else ""),
-            departamento=str(data.get("departamento", "") if data.get("departamento") else ""),
-            ocupacion=str(data.get("ocupacion", "") if data.get("ocupacion") else ""),
-            estado_civil=str(data.get("estado_civil", "") if data.get("estado_civil") else ""),
 
             # Información médica (arrays)
             alergias=data.get("alergias", []) if isinstance(data.get("alergias"), list) else [],
             medicamentos_actuales=data.get("medicamentos_actuales", []) if isinstance(data.get("medicamentos_actuales"), list) else [],
             condiciones_medicas=data.get("condiciones_medicas", []) if isinstance(data.get("condiciones_medicas"), list) else [],
-            antecedentes_familiares=data.get("antecedentes_familiares", []) if isinstance(data.get("antecedentes_familiares"), list) else [],
-            observaciones=str(data.get("observaciones", "") if data.get("observaciones") else ""),
 
             # Control del sistema
             fecha_registro=str(data.get("fecha_registro", "")),
             fecha_actualizacion=str(data.get("fecha_actualizacion", "")),
-            registrado_por=str(data.get("registrado_por", "") if data.get("registrado_por") else ""),
             activo=bool(data.get("activo", True)),
 
             # Contacto emergencia
@@ -207,20 +193,14 @@ class PacienteFormModel(rx.Base):
 
     # Datos demográficos
     fecha_nacimiento: str = ""  # YYYY-MM-DD format
-    edad: str = ""
     genero: str = ""  # masculino, femenino, otro
     direccion: str = ""
     ciudad: str = ""
-    departamento: str = ""
-    estado_civil: str = ""
-    ocupacion: str = ""
 
     # Información médica
     alergias: str = ""
     medicamentos_actuales: str = ""
     condiciones_medicas: str = ""
-    antecedentes_familiares: str = ""
-    observaciones_medicas: str = ""
 
     # Contacto emergencia
     contacto_emergencia_nombre: str = ""
@@ -278,18 +258,12 @@ class PacienteFormModel(rx.Base):
             "celular_2": self.celular_2,
             "email": self.email,
             "fecha_nacimiento": self.fecha_nacimiento,
-            "edad": self.edad,
             "genero": self.genero,
             "direccion": self.direccion,
             "ciudad": self.ciudad,
-            "departamento": self.departamento,
-            "estado_civil": self.estado_civil,
-            "ocupacion": self.ocupacion,
             "alergias": self.alergias,
             "medicamentos_actuales": self.medicamentos_actuales,
             "condiciones_medicas": self.condiciones_medicas,
-            "antecedentes_familiares": self.antecedentes_familiares,
-            "observaciones_medicas": self.observaciones_medicas,
 
             # Contacto emergencia como JSONB
             "contacto_emergencia": {
@@ -320,18 +294,12 @@ class PacienteFormModel(rx.Base):
             celular_2=str(data.get("celular_2", "")),
             email=str(data.get("email", "")),
             fecha_nacimiento=str(data.get("fecha_nacimiento", "")),
-            edad=str(data.get("edad", "")),
             genero=str(data.get("genero", "")),
             direccion=str(data.get("direccion", "")),
             ciudad=str(data.get("ciudad", "")),
-            departamento=str(data.get("departamento", "")),
-            estado_civil=str(data.get("estado_civil", "")),
-            ocupacion=str(data.get("ocupacion", "")),
             alergias=str(data.get("alergias", "")),
             medicamentos_actuales=str(data.get("medicamentos_actuales", "")),
             condiciones_medicas=str(data.get("condiciones_medicas", "")),
-            antecedentes_familiares=str(data.get("antecedentes_familiares", "")),
-            observaciones_medicas=str(data.get("observaciones_medicas", "")),
 
             # Contacto emergencia desde JSONB
             contacto_emergencia_nombre=str(data.get("contacto_emergencia", {}).get("nombre", "") if isinstance(data.get("contacto_emergencia"), dict) else ""),

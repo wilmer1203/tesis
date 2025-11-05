@@ -23,20 +23,14 @@ class ConsultaModel(rx.Base):
     primer_odontologo_id: str = ""         # Campo principal BD
 
     fecha_llegada: str = ""                # Momento real de llegada
-    orden_llegada_general: Optional[int] = None    # Orden global del día
     orden_cola_odontologo: Optional[int] = None    # Orden en cola específica
 
     estado: str = "en_espera"  # en_espera, en_atencion, entre_odontologos, completada, cancelada
     tipo_consulta: str = "general"  # general, control, urgencia, emergencia
-    prioridad: str = "normal"       # baja, normal, alta, urgente
 
     motivo_consulta: Optional[str] = ""
     observaciones: Optional[str] = ""
 
-    costo_total_bs: float = 0.0
-    costo_total_usd: float = 0.0
-
-    creada_por: Optional[str] = ""
     fecha_creacion: str = ""
     fecha_actualizacion: str = ""
 
@@ -60,27 +54,20 @@ class ConsultaModel(rx.Base):
             
             # ✅ MÚLTIPLES ODONTÓLOGOS
             primer_odontologo_id=str(data.get("primer_odontologo_id", "") or data.get("odontologo_id", "")),  # Compatibility
-            
+
             # ✅ SISTEMA DE COLAS
             fecha_llegada=str(data.get("fecha_llegada", "") or data.get("fecha_programada", "")),  # Compatibility
-            orden_llegada_general=data.get("orden_llegada_general") or data.get("orden_llegada"),  # Compatibility
             orden_cola_odontologo=data.get("orden_cola_odontologo"),
-            
+
             # ✅ ESTADOS ESPECÍFICOS
             estado=str(data.get("estado", "en_espera")),
             tipo_consulta=str(data.get("tipo_consulta", "general")),
-            prioridad=str(data.get("prioridad", "normal")),
-            
+
             # Detalles
             motivo_consulta=str(data.get("motivo_consulta", "") if data.get("motivo_consulta") else ""),
             observaciones=str(data.get("observaciones", "") if data.get("observaciones") else ""),
-            
-            # ✅ COSTOS DUALES
-            costo_total_bs=float(data.get("costo_total_bs", 0) or data.get("costo_total", 0)),  # Compatibility
-            costo_total_usd=float(data.get("costo_total_usd", 0)),
-            
+
             # Control administrativo
-            creada_por=str(data.get("creada_por", "") if data.get("creada_por") else ""),
             fecha_creacion=str(data.get("fecha_creacion", "")),
             fecha_actualizacion=str(data.get("fecha_actualizacion", "")),
             
@@ -154,7 +141,6 @@ class ConsultaFormModel(rx.Base):
     motivo_consulta: str = ""
     observaciones: str = ""         # Campo BD unificado
 
-    prioridad: str = "normal"  # baja, normal, alta, urgente
     estado: str = "en_espera"  # en_espera, en_atencion, entre_odontologos, completada, cancelada
 
     diagnostico_preliminar: str = ""
@@ -183,12 +169,7 @@ class ConsultaFormModel(rx.Base):
         estados_validos = ["en_espera", "en_atencion", "entre_odontologos", "completada", "cancelada"]
         if self.estado not in estados_validos:
             errors.setdefault("estado", []).append(f"Estado debe ser uno de: {', '.join(estados_validos)}")
-        
-        # Validación de prioridad válida
-        prioridades_validas = ["baja", "normal", "alta", "urgente"]
-        if self.prioridad not in prioridades_validas:
-            errors.setdefault("prioridad", []).append(f"Prioridad debe ser una de: {', '.join(prioridades_validas)}")
-        
+
         return errors
     
     def to_dict(self) -> Dict[str, str]:
@@ -203,8 +184,7 @@ class ConsultaFormModel(rx.Base):
             "motivo_consulta": self.motivo_consulta,
             "observaciones": self.observaciones,
 
-            # Estado y prioridad
-            "prioridad": self.prioridad,
+            # Estado
             "estado": self.estado,
 
             # Información médica
@@ -230,7 +210,6 @@ class ConsultaFormModel(rx.Base):
             tipo_consulta=self.tipo_consulta,
             motivo_consulta=self.motivo_consulta,
             observaciones=self.observaciones,
-            prioridad=self.prioridad,
             estado=self.estado
         )
 

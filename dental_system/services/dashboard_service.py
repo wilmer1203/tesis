@@ -17,10 +17,6 @@ from typing import Dict, Any, Optional
 from datetime import date, datetime, timedelta
 from .base_service import BaseService
 from dental_system.models import DashboardStatsModel, AdminStatsModel, PacientesStatsModel
-from dental_system.supabase.tablas import (
-    pacientes_table, consultas_table, pagos_table, 
-    personal_table, servicios_table
-)
 import logging
 
 logger = logging.getLogger(__name__)
@@ -218,8 +214,12 @@ class DashboardService(BaseService):
     async def _load_pacientes_stats(self):
         """Cargar estadísticas de pacientes"""
         try:
-            stats = pacientes_table.get_patient_stats()
-            
+            # Importar pacientes_service para evitar circular imports
+            from .pacientes_service import pacientes_service
+
+            # Usar el servicio de pacientes que ya tiene queries directas
+            stats = await pacientes_service.get_patient_stats()
+
             self.pacientes_stats = PacientesStatsModel(
                 total=stats.get("total", 0),
                 nuevos_mes=stats.get("nuevos_mes", 0),
@@ -232,10 +232,10 @@ class DashboardService(BaseService):
                 pacientes_con_telefono=0,
                 registros_ultima_semana=0
             )
-            
-            print(f"[DEBUG] Estadísticas de pacientes tipadas: {stats}")
+
+            logger.info(f"✅ Estadísticas de pacientes cargadas: {stats}")
         except Exception as e:
-            print(f"[ERROR] Error cargando estadísticas de pacientes: {e}")
+            logger.error(f"❌ Error cargando estadísticas de pacientes: {e}")
             self.pacientes_stats = PacientesStatsModel()
 
 

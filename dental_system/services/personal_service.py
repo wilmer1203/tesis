@@ -7,7 +7,6 @@ from typing import Dict, List, Optional, Any
 from datetime import date, datetime
 from decimal import Decimal
 from .base_service import BaseService
-from dental_system.supabase.tablas import personal_table, users_table
 from dental_system.models import PersonalModel, PersonalFormModel
 from .cache_invalidation_hooks import invalidate_after_staff_operation, track_cache_invalidation
 import logging
@@ -19,11 +18,9 @@ class PersonalService(BaseService):
     Servicio que maneja toda la lógica de personal
     Incluye creación de usuarios, asignación de roles y gestión de personal
     """
-    
+
     def __init__(self):
         super().__init__()
-        self.personal_table = personal_table
-        self.users_table = users_table
     
     async def get_filtered_personal(self, 
                                   search: str = None, 
@@ -43,14 +40,35 @@ class PersonalService(BaseService):
             Lista de personal como modelos tipados
         """
         try:
-            # Obtener datos usando el table ya existente
-            personal_data = self.personal_table.get_filtered_personal(
-                tipo_personal=tipo_personal if tipo_personal and tipo_personal != "todos" else None,
-                estado_laboral=estado_laboral if estado_laboral and estado_laboral != "todos" else None,
-                solo_activos=activos_only,
-                busqueda=search if search and search.strip() else None
+            # Construir query base con JOIN a usuarios
+            query = self.client.table("personal").select(
+                "*, usuarios!personal_usuario_id_fkey(*)"
             )
-            
+
+            # Aplicar filtros dinámicos
+            if activos_only:
+                query = query.eq("estado_laboral", "activo")
+
+            if tipo_personal and tipo_personal != "todos":
+                query = query.eq("tipo_personal", tipo_personal)
+
+            if estado_laboral and estado_laboral != "todos":
+                query = query.eq("estado_laboral", estado_laboral)
+
+            if search and search.strip():
+                search_term = search.strip()
+                query = query.or_(
+                    f"numero_documento.ilike.%{search_term}%,"
+                    f"celular.ilike.%{search_term}%"
+                )
+
+            # Ordenar por primer nombre
+            query = query.order("primer_nombre")
+
+            # Ejecutar query
+            response = query.execute()
+            personal_data = response.data if response.data else []
+
             # Convertir a modelos tipados
             personal_models = []
             for item in personal_data:
@@ -60,8 +78,8 @@ class PersonalService(BaseService):
                 except Exception as e:
                     logger.warning(f"Error convirtiendo personal: {e}")
                     continue
-            
-            print(f"✅ Personal obtenido: {len(personal_models)} registros")
+
+            logger.info(f"✅ Personal obtenido: {len(personal_models)} registros")
             return personal_models
             
         except PermissionError:
@@ -126,32 +144,56 @@ class PersonalService(BaseService):
                     raise ValueError("La contraseña debe tener al menos 6 caracteres")
 
             # Verificar que no exista el documento
-            existing_personal = self.personal_table.get_by_documento(form_data["numero_documento"])
+            response = self.client.table("personal").select("id").eq("numero_documento", form_data["numero_documento"]).execute()
+            existing_personal = response.data[0] if response.data else None
             if existing_personal:
                 raise ValueError("Ya existe personal con este número de documento")
 
             # Verificar que no exista el email
-            existing_user = self.users_table.get_by_email(form_data["email"])
+            response = self.client.table("usuarios").select("id").eq("email", form_data["email"]).execute()
+            existing_user = response.data[0] if response.data else None
             if existing_user:
                 raise ValueError("Ya existe un usuario con este email")
             
             # verificar el monto antes de crear ____________________________________
             
-            # Paso 1: Crear usuario en auth.users y tabla usuarios
+            # Paso 1: Crear usuario en Supabase Auth
             rol = self._map_tipo_personal_to_rol(form_data["tipo_personal"])
-            
-            user_result = self.users_table.crear_usuario(
-                email=form_data["email"],
-                password=form_data["password"],
-                rol=rol,
-                activo=True,
-                method='admin'
-            )
-            
-            if not user_result or not user_result.get("success"):
-                raise ValueError("Error creando usuario: " + user_result.get("message", "Error desconocido"))
-            
-            usuario_id = user_result["user_id"]
+
+            # 1.1. Crear usuario en Supabase Auth
+            auth_response = self.client.auth.admin.create_user({
+                "email": form_data["email"],
+                "password": form_data["password"],
+                "email_confirm": True
+            })
+
+            if not auth_response or not auth_response.user:
+                raise ValueError("Error creando usuario en autenticación")
+
+            usuario_id = auth_response.user.id
+
+            # 1.2. Obtener ID del rol
+            rol_response = self.client.table("roles").select("id").eq("nombre", rol).execute()
+            rol_id = rol_response.data[0]["id"] if rol_response.data else None
+
+            if not rol_id:
+                raise ValueError(f"No se encontró el rol: {rol}")
+
+            # 1.3. Crear registro en tabla usuarios
+            user_data = {
+                "id": usuario_id,
+                "email": form_data["email"],
+                "rol_id": rol_id,
+                "primer_nombre": form_data.get("primer_nombre"),
+                "primer_apellido": form_data.get("primer_apellido"),
+                "activo": True
+            }
+
+            user_response = self.client.table("usuarios").insert(user_data).execute()
+            user_result = user_response.data[0] if user_response.data else None
+
+            if not user_result:
+                raise ValueError("Error creando registro de usuario en la base de datos")
             
             try:
                 # Paso 2: Crear registro en tabla personal
@@ -177,28 +219,32 @@ class PersonalService(BaseService):
                         salario = Decimal(form_data["salario"])
                     except (ValueError, TypeError):
                         salario = None
-                
-                personal_result = self.personal_table.create_staff_complete(
-                    usuario_id=usuario_id,
-                    primer_nombre=form_data["primer_nombre"].strip(),
-                    primer_apellido=form_data["primer_apellido"].strip(),
-                    segundo_nombre=form_data.get("segundo_nombre", "").strip() or None,
-                    segundo_apellido=form_data.get("segundo_apellido", "").strip() or None,
-                    numero_documento=form_data["numero_documento"],
-                    celular=form_data["celular"],
-                    tipo_personal=form_data["tipo_personal"],
-                    tipo_documento=form_data.get("tipo_documento", "CI"),  # CORREGIDO: CI para Venezuela
-                    fecha_nacimiento=fecha_nacimiento,
-                    direccion=form_data.get("direccion") if form_data.get("direccion") else None,
-                    especialidad=form_data.get("especialidad") if form_data.get("especialidad") else None,
-                    numero_licencia=form_data.get("numero_licencia") if form_data.get("numero_licencia") else None,
-                    fecha_contratacion=fecha_contratacion,
-                    salario=salario,
-                    observaciones=form_data.get("observaciones") if form_data.get("observaciones") else None,
-                    # ✅ CAMPOS CRÍTICOS PARA SISTEMA DE COLAS
-                    acepta_pacientes_nuevos=form_data.get("acepta_pacientes_nuevos", True),
-                    orden_preferencia=form_data.get("orden_preferencia", 1)
-                )
+
+                # Preparar datos para insertar en tabla personal
+                personal_data = {
+                    "usuario_id": usuario_id,
+                    "primer_nombre": form_data["primer_nombre"].strip(),
+                    "primer_apellido": form_data["primer_apellido"].strip(),
+                    "segundo_nombre": form_data.get("segundo_nombre", "").strip() or None,
+                    "segundo_apellido": form_data.get("segundo_apellido", "").strip() or None,
+                    "numero_documento": form_data["numero_documento"],
+                    "tipo_documento": form_data.get("tipo_documento", "CI"),
+                    "celular": form_data["celular"],
+                    "tipo_personal": form_data["tipo_personal"],
+                    "fecha_nacimiento": fecha_nacimiento.isoformat() if fecha_nacimiento else None,
+                    "direccion": form_data.get("direccion") if form_data.get("direccion") else None,
+                    "especialidad": form_data.get("especialidad") if form_data.get("especialidad") else None,
+                    "numero_licencia": form_data.get("numero_licencia") if form_data.get("numero_licencia") else None,
+                    "fecha_contratacion": fecha_contratacion.isoformat() if fecha_contratacion else None,
+                    "salario": float(salario) if salario is not None else None,
+                    "observaciones": form_data.get("observaciones") if form_data.get("observaciones") else None,
+                    "acepta_pacientes_nuevos": form_data.get("acepta_pacientes_nuevos", True),
+                    "orden_preferencia": form_data.get("orden_preferencia", 1),
+                    "estado_laboral": "activo"
+                }
+
+                personal_response = self.client.table("personal").insert(personal_data).execute()
+                personal_result = personal_response.data[0] if personal_response.data else None
                 
                 if personal_result:
                     nombre_display = self.construct_full_name(
@@ -283,30 +329,34 @@ class PersonalService(BaseService):
                 raise ValueError("Celular debe tener al menos 10 dígitos")
 
             # Obtener personal actual
-            current_personal = self.personal_table.get_by_id(personal_id)
+            response = self.client.table("personal").select("*").eq("id", personal_id).execute()
+            current_personal = response.data[0] if response.data else None
             if not current_personal:
                 raise ValueError("Personal no encontrado")
 
             # Verificar documento único (excluyendo el actual)
-            existing_personal = self.personal_table.get_by_documento(form_data["numero_documento"])
+            response = self.client.table("personal").select("id").eq("numero_documento", form_data["numero_documento"]).execute()
+            existing_personal = response.data[0] if response.data else None
             if existing_personal and existing_personal.get("id") != personal_id:
                 raise ValueError("Ya existe otro personal con este número de documento")
             
             # Actualizar información del usuario si cambió el email
             usuario_id = current_personal.get("usuario_id")
             if usuario_id and form_data.get("email"):
-                current_user = self.users_table.get_by_id(usuario_id)
+                # Obtener usuario actual
+                user_response = self.client.table("usuarios").select("*").eq("id", usuario_id).execute()
+                current_user = user_response.data[0] if user_response.data else None
+
                 if current_user and current_user.get("email") != form_data["email"]:
                     # Verificar que el nuevo email no esté en uso
-                    existing_user = self.users_table.get_by_email(form_data["email"])
+                    email_check = self.client.table("usuarios").select("id").eq("email", form_data["email"]).execute()
+                    existing_user = email_check.data[0] if email_check.data else None
                     if existing_user and existing_user.get("id") != usuario_id:
                         raise ValueError("Ya existe otro usuario con este email")
-                    
+
                     # Actualizar email del usuario
-                    self.users_table.update(usuario_id, {
-                        "email": form_data["email"],
-                        "telefono": ""  # Campo eliminado, solo usar celular
-                    })
+                    update_user_data = {"email": form_data["email"]}
+                    self.client.table("usuarios").update(update_user_data).eq("id", usuario_id).execute()
             
             # Procesar fecha de nacimiento
             fecha_nacimiento = None
@@ -350,9 +400,10 @@ class PersonalService(BaseService):
             
             if salario is not None:
                 data["salario"] = float(salario)
-            
-            # Actualizar
-            result = self.personal_table.update(personal_id, data)
+
+            # Actualizar con query directa
+            update_response = self.client.table("personal").update(data).eq("id", personal_id).execute()
+            result = update_response.data[0] if update_response.data else None
             
             if result:
                 nombre_display = self.construct_full_name(
@@ -401,15 +452,16 @@ class PersonalService(BaseService):
             # Verificar permisos
             self.require_permission("personal", "eliminar")
             
-            # Desactivar usando el método de la tabla
+            # Desactivar con query directa
             user_name = self.get_current_user_name()
             motivo_completo = motivo or f"Desactivado desde dashboard por {user_name}"
-            
-            result = self.personal_table.update_work_status(
-                personal_id, 
-                "inactivo", 
-                motivo_completo
-            )
+
+            update_data = {
+                "estado_laboral": "inactivo"
+            }
+
+            response = self.client.table("personal").update(update_data).eq("id", personal_id).execute()
+            result = response.data[0] if response.data else None
             
             if result:
                 logger.info(f"✅ Personal desactivado correctamente")
@@ -446,13 +498,15 @@ class PersonalService(BaseService):
             
             # Verificar permisos
             self.require_permission("personal", "crear")
-            
+
             user_name = self.get_current_user_name()
-            result = self.personal_table.update_work_status(
-                personal_id, 
-                "activo", 
-                f"Reactivado desde dashboard por {user_name}"
-            )
+
+            update_data = {
+                "estado_laboral": "activo"
+            }
+
+            response = self.client.table("personal").update(update_data).eq("id", personal_id).execute()
+            result = response.data[0] if response.data else None
             
             if result:
                 logger.info(f"✅ Personal reactivado correctamente")
@@ -479,10 +533,33 @@ class PersonalService(BaseService):
         Obtiene estadísticas de personal
         """
         try:
-            stats = self.personal_table.get_stats()
-            logger.info(f"Estadísticas de personal obtenidas: {stats}")
+            # Obtener todos los registros de personal
+            response = self.client.table("personal").select("*").execute()
+            personal_list = response.data if response.data else []
+
+            # Calcular estadísticas manualmente en Python
+            total = len(personal_list)
+            activos = len([p for p in personal_list if p.get("estado_laboral") == "activo"])
+
+            # Agrupar por tipo
+            por_tipo = {}
+            for p in personal_list:
+                tipo = p.get("tipo_personal", "Sin tipo")
+                por_tipo[tipo] = por_tipo.get(tipo, 0) + 1
+
+            stats = {
+                "total": total,
+                "activos": activos,
+                "odontologos": por_tipo.get("Odontólogo", 0),
+                "administradores": por_tipo.get("Administrador", 0),
+                "asistentes": por_tipo.get("Asistente", 0),
+                "gerentes": por_tipo.get("Gerente", 0),
+                "por_tipo": por_tipo
+            }
+
+            logger.info(f"✅ Estadísticas de personal obtenidas: {stats}")
             return stats
-            
+
         except Exception as e:
             self.handle_error("Error obteniendo estadísticas de personal", e)
             return {
@@ -559,8 +636,9 @@ class PersonalService(BaseService):
         🔍 Obtener el ID de personal correspondiente a un usuario
         """
         try:
-            # Usar el método existente de personal_table
-            personal_data = self.personal_table.get_by_usuario_id(user_id)
+            # Query directa a tabla personal
+            response = self.client.table("personal").select("id").eq("usuario_id", user_id).execute()
+            personal_data = response.data[0] if response.data else None
 
             if personal_data:
                 return personal_data.get('id')
@@ -575,11 +653,9 @@ class PersonalService(BaseService):
         👨‍⚕️ Obtener el primer personal disponible
         """
         try:
-            # Usar el método existente de personal_table
-            personal_data = self.personal_table.get_filtered_personal(
-                estado_laboral="activo",
-                solo_activos=True
-            )
+            # Query directa a tabla personal
+            response = self.client.table("personal").select("id").eq("estado_laboral", "activo").limit(1).execute()
+            personal_data = response.data if response.data else []
 
             if personal_data and len(personal_data) > 0:
                 return personal_data[0].get('id')

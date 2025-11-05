@@ -7,7 +7,6 @@ from typing import Dict, List, Optional, Any
 from datetime import date, datetime
 from .base_service import BaseService
 from .cache_invalidation_hooks import invalidate_after_patient_operation, track_cache_invalidation
-from dental_system.supabase.tablas import pacientes_table
 from dental_system.models import PacienteModel, PacienteFormModel,  HistorialCompletoPaciente,ConsultaHistorial,IntervencionHistorial,ServicioHistorial
 import logging
 
@@ -21,7 +20,6 @@ class PacientesService(BaseService):
     
     def __init__(self):
         super().__init__()
-        self.table = pacientes_table
   
     
     
@@ -41,14 +39,35 @@ class PacientesService(BaseService):
             Lista de pacientes como modelos tipados
         """
         try:
-                        
-            # Obtener datos usando el table ya existente
-            pacientes_data = self.table.get_filtered_patients(
-                activos_only=activos_only,
-                busqueda=search if search and search.strip() else None,
-                genero=genero if genero and genero != "todos" else None
-            )
-            
+            # Construir query base
+            query = self.client.table("pacientes").select("*")
+
+            # Aplicar filtros dinámicos
+            if activos_only is not None:
+                query = query.eq("activo", activos_only)
+
+            if genero and genero != "todos":
+                query = query.eq("genero", genero)
+
+            if search and search.strip():
+                search_term = search.strip()
+                # Buscar en múltiples campos
+                query = query.or_(
+                    f"primer_nombre.ilike.%{search_term}%,"
+                    f"primer_apellido.ilike.%{search_term}%,"
+                    f"segundo_nombre.ilike.%{search_term}%,"
+                    f"segundo_apellido.ilike.%{search_term}%,"
+                    f"numero_documento.ilike.%{search_term}%,"
+                    f"numero_historia.ilike.%{search_term}%"
+                )
+
+            # Ordenar por número de historia descendente (más recientes primero)
+            query = query.order("numero_historia", desc=True)
+
+            # Ejecutar query
+            response = query.execute()
+            pacientes_data = response.data if response.data else []
+
             # Convertir a modelos tipados
             pacientes_models = []
             for item in pacientes_data:
@@ -58,8 +77,8 @@ class PacientesService(BaseService):
                 except Exception as e:
                     logger.warning(f"Error convirtiendo paciente: {e}")
                     continue
-            
-            print(f"✅ Pacientes obtenidos: {len(pacientes_models)} registros")
+
+            logger.info(f"✅ Pacientes obtenidos: {len(pacientes_models)} registros")
             return pacientes_models
             
         except PermissionError:
@@ -93,7 +112,8 @@ class PacientesService(BaseService):
                 raise ValueError(error_msg)
             
             # Verificar que no exista el documento
-            existing = self.table.get_by_documento(patient_form.numero_documento)
+            response = self.client.table("pacientes").select("id").eq("numero_documento", patient_form.numero_documento).execute()
+            existing = response.data[0] if response.data else None
             if existing:
                 raise ValueError("Ya existe un paciente con este número de documento")
             
@@ -115,48 +135,55 @@ class PacientesService(BaseService):
             condiciones_medicas = self.process_array_field(patient_form.condiciones_medicas) if hasattr(patient_form, 'condiciones_medicas') and patient_form.condiciones_medicas else None
             antecedentes_familiares = self.process_array_field(patient_form.antecedentes_familiares) if hasattr(patient_form, 'antecedentes_familiares') and patient_form.antecedentes_familiares else None
             
-            # Crear paciente usando el método de la tabla
-            result = self.table.create_patient_complete(
+            # Preparar datos para insertar
+            patient_data = {
                 # Nombres separados
-                primer_nombre=patient_form.primer_nombre.strip(),
-                primer_apellido=patient_form.primer_apellido.strip(),
-                segundo_nombre=patient_form.segundo_nombre.strip() or None,
-                segundo_apellido=patient_form.segundo_apellido.strip() or None,
-                
+                "primer_nombre": patient_form.primer_nombre.strip(),
+                "primer_apellido": patient_form.primer_apellido.strip(),
+                "segundo_nombre": patient_form.segundo_nombre.strip() or None,
+                "segundo_apellido": patient_form.segundo_apellido.strip() or None,
+
                 # Documentación
-                numero_documento=patient_form.numero_documento,
-                registrado_por=user_id,
-                tipo_documento=patient_form.tipo_documento or "CI",
-                fecha_nacimiento=fecha_nacimiento,
-                genero=patient_form.genero if patient_form.genero else None,
-                
+                "numero_documento": patient_form.numero_documento,
+                "tipo_documento": patient_form.tipo_documento or "CI",
+                "genero": patient_form.genero if patient_form.genero else None,
+                "fecha_nacimiento": fecha_nacimiento.isoformat() if fecha_nacimiento else None,
+
                 # Teléfonos separados
-                celular_1=patient_form.celular_1 if patient_form.celular_1 else None,
-                celular_2=patient_form.celular_2 if patient_form.celular_2 else None,
-                
+                "celular_1": patient_form.celular_1 if patient_form.celular_1 else None,
+                "celular_2": patient_form.celular_2 if patient_form.celular_2 else None,
+
                 # Contacto y ubicación
-                email=patient_form.email.strip() if patient_form.email and patient_form.email.strip() else None,
-                direccion=patient_form.direccion if patient_form.direccion else None,
-                ciudad=patient_form.ciudad if patient_form.ciudad else None,
-                departamento=patient_form.departamento if patient_form.departamento else None,
-                ocupacion=patient_form.ocupacion if patient_form.ocupacion else None,
-                estado_civil=patient_form.estado_civil if patient_form.estado_civil else None,
-                
+                "email": patient_form.email.strip() if patient_form.email and patient_form.email.strip() else None,
+                "direccion": patient_form.direccion if patient_form.direccion else None,
+                "ciudad": patient_form.ciudad if patient_form.ciudad else None,
+                "departamento": patient_form.departamento if patient_form.departamento else None,
+                "ocupacion": patient_form.ocupacion if patient_form.ocupacion else None,
+                "estado_civil": patient_form.estado_civil if patient_form.estado_civil else None,
+
                 # Información médica
-                alergias=alergias if alergias else None,
-                medicamentos_actuales=medicamentos if medicamentos else None,
-                condiciones_medicas=condiciones_medicas,
-                antecedentes_familiares=antecedentes_familiares,
-                observaciones=patient_form.observaciones_medicas if patient_form.observaciones_medicas else None,
-                
-                # Contacto de emergencia como JSONB (esquema v4.1)
-                contacto_emergencia={
+                "alergias": alergias if alergias else None,
+                "medicamentos_actuales": medicamentos if medicamentos else None,
+                "condiciones_medicas": condiciones_medicas,
+                "antecedentes_familiares": antecedentes_familiares,
+                "observaciones": patient_form.observaciones_medicas if patient_form.observaciones_medicas else None,
+
+                # Contacto de emergencia como JSONB
+                "contacto_emergencia": {
                     "nombre": patient_form.contacto_emergencia_nombre if patient_form.contacto_emergencia_nombre else "",
                     "telefono": patient_form.contacto_emergencia_telefono if patient_form.contacto_emergencia_telefono else "",
                     "relacion": patient_form.contacto_emergencia_relacion if patient_form.contacto_emergencia_relacion else "",
                     "direccion": patient_form.contacto_emergencia_direccion if patient_form.contacto_emergencia_direccion else ""
-                } if any([patient_form.contacto_emergencia_nombre, patient_form.contacto_emergencia_telefono]) else {}
-            )
+                } if any([patient_form.contacto_emergencia_nombre, patient_form.contacto_emergencia_telefono]) else {},
+
+                # Metadata
+                "registrado_por": user_id,
+                "activo": True
+            }
+
+            # Insertar paciente
+            insert_response = self.client.table("pacientes").insert(patient_data).execute()
+            result = insert_response.data[0] if insert_response.data else None
             
             if result:
                 # Crear modelo tipado del resultado
@@ -199,7 +226,8 @@ class PacientesService(BaseService):
                 raise ValueError(error_msg)
             
             # Verificar documento único (excluyendo el actual)
-            existing = self.table.get_by_documento(patient_form.numero_documento)
+            response = self.client.table("pacientes").select("id").eq("numero_documento", patient_form.numero_documento).execute()
+            existing = response.data[0] if response.data else None
             if existing and existing.get("id") != patient_id:
                 raise ValueError("Ya existe otro paciente con este número de documento")
             
@@ -255,9 +283,10 @@ class PacientesService(BaseService):
             
             if fecha_nacimiento:
                 data["fecha_nacimiento"] = fecha_nacimiento.isoformat()
-            
-            # Actualizar
-            result = self.table.update(patient_id, data)
+
+            # Actualizar con query directa
+            update_response = self.client.table("pacientes").update(data).eq("id", patient_id).execute()
+            result = update_response.data[0] if update_response.data else None
             
             if result:
                 nombre_display = self.construct_full_name(
@@ -304,11 +333,16 @@ class PacientesService(BaseService):
             
             # TODO: Verificar que no tenga consultas activas
             
-            # Desactivar usando el método de la tabla
+            # Desactivar con query directa
             user_name = self.get_current_user_name()
             motivo_completo = motivo or f"Desactivado desde dashboard por {user_name}"
-            
-            result = self.table.deactivate_patient(patient_id, motivo_completo)
+
+            update_data = {
+                "activo": False
+            }
+
+            response = self.client.table("pacientes").update(update_data).eq("id", patient_id).execute()
+            result = response.data[0] if response.data else None
             
             if result:
                 logger.info(f"✅ Paciente desactivado correctamente")
@@ -338,8 +372,13 @@ class PacientesService(BaseService):
             
             # Verificar permisos
             self.require_permission("pacientes", "crear")  # Reactivar = crear de nuevo
-            
-            result = self.table.reactivate_patient(patient_id)
+
+            update_data = {
+                "activo": True
+            }
+
+            response = self.client.table("pacientes").update(update_data).eq("id", patient_id).execute()
+            result = response.data[0] if response.data else None
             
             if result:
                 logger.info(f"✅ Paciente reactivado correctamente")
@@ -367,12 +406,14 @@ class PacientesService(BaseService):
         try:
             # Verificar permisos
             self.require_permission("pacientes", "leer")
-            
-            data = self.table.get_by_id(patient_id)
+
+            response = self.client.table("pacientes").select("*").eq("id", patient_id).execute()
+            data = response.data[0] if response.data else None
+
             if data:
                 return PacienteModel.from_dict(data)
             return None
-            
+
         except Exception as e:
             self.handle_error("Error obteniendo paciente por ID", e)
             return None
@@ -389,18 +430,19 @@ class PacientesService(BaseService):
             Modelo del paciente o None
         """
         try:
-            # Verificar permisos 
+            # Verificar permisos
             if not self.check_permission("pacientes", "leer"):
                 logger.warning(f"Usuario sin permisos para leer pacientes")
                 return None
-            
-            # Obtener datos directamente de la tabla
-            data = self.table.get_by_id(patient_id)
-            
+
+            # Query directa
+            response = self.client.table("pacientes").select("*").eq("id", patient_id).execute()
+            data = response.data[0] if response.data else None
+
             if data:
                 return PacienteModel.from_dict(data)
             return None
-            
+
         except Exception as e:
             self.handle_error("Error obteniendo paciente por ID (sync)", e)
             return None
@@ -412,10 +454,45 @@ class PacientesService(BaseService):
         Usado por dashboard_service pero disponible independientemente
         """
         try:
-            stats = self.table.get_patient_stats()
-            logger.info(f"Estadísticas de pacientes obtenidas: {stats}")
+            # Obtener todos los pacientes
+            response = self.client.table("pacientes").select("*").execute()
+            pacientes_list = response.data if response.data else []
+
+            # Calcular estadísticas en Python
+            total = len(pacientes_list)
+            activos = len([p for p in pacientes_list if p.get("activo") == True])
+
+            # Contar por género
+            hombres = len([p for p in pacientes_list if p.get("genero") == "masculino"])
+            mujeres = len([p for p in pacientes_list if p.get("genero") == "femenino"])
+
+            # Calcular nuevos del mes (fecha_registro del mes actual)
+            from datetime import datetime
+            mes_actual = datetime.now().month
+            anio_actual = datetime.now().year
+            nuevos_mes = 0
+
+            for p in pacientes_list:
+                fecha_registro = p.get("created_at")
+                if fecha_registro:
+                    try:
+                        fecha = datetime.fromisoformat(fecha_registro.replace('Z', '+00:00'))
+                        if fecha.month == mes_actual and fecha.year == anio_actual:
+                            nuevos_mes += 1
+                    except:
+                        continue
+
+            stats = {
+                "total": total,
+                "activos": activos,
+                "nuevos_mes": nuevos_mes,
+                "hombres": hombres,
+                "mujeres": mujeres
+            }
+
+            logger.info(f"✅ Estadísticas de pacientes obtenidas: {stats}")
             return stats
-            
+
         except Exception as e:
             self.handle_error("Error obteniendo estadísticas de pacientes", e)
             return {

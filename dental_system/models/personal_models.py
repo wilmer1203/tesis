@@ -18,11 +18,7 @@ class UsuarioModel(rx.Base):
     rol_id: str = ""
     rol_nombre: str = ""
     auth_user_id: Optional[str] = ""
-    avatar_url: Optional[str] = ""
-    ultimo_acceso: Optional[str] = ""
     fecha_creacion: str = ""
-    configuraciones: Dict[str, Any] = {}
-    metadata: Dict[str, Any] = {}
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "UsuarioModel":
@@ -39,11 +35,7 @@ class UsuarioModel(rx.Base):
             rol_id=str(data.get("rol_id", "")),
             rol_nombre=str(data.get("rol_nombre", "")),
             auth_user_id=str(data.get("auth_user_id", "") if data.get("auth_user_id") else ""),
-            avatar_url=str(data.get("avatar_url", "") if data.get("avatar_url") else ""),
-            ultimo_acceso=str(data.get("ultimo_acceso", "") if data.get("ultimo_acceso") else ""),
-            fecha_creacion=str(data.get("fecha_creacion", "")),
-            configuraciones=data.get("configuraciones", {}),
-            metadata=data.get("metadata", {})
+            fecha_creacion=str(data.get("fecha_creacion", ""))
         )
 
 
@@ -52,7 +44,6 @@ class RolModel(rx.Base):
     id: Optional[str] = ""
     nombre: str = ""
     descripcion: Optional[str] = ""
-    permisos: Dict[str, Any] = {}
     activo: bool = True
     fecha_creacion: str = ""
     
@@ -66,7 +57,6 @@ class RolModel(rx.Base):
             id=str(data.get("id", "")),
             nombre=str(data.get("nombre", "")),
             descripcion=str(data.get("descripcion", "") if data.get("descripcion") else ""),
-            permisos=data.get("permisos", {}),
             activo=bool(data.get("activo", True)),
             fecha_creacion=str(data.get("fecha_creacion", ""))
         )
@@ -83,15 +73,9 @@ class PersonalModel(rx.Base):
     numero_licencia: Optional[str] = ""
     celular: str = ""  # REQUERIDO según esquema
     direccion: Optional[str] = ""
-    salario: Optional[float] = None
     fecha_contratacion: Optional[str] = ""
     fecha_nacimiento: Optional[str] = ""
     tipo_documento: str = "CI"  # CORREGIDO: CI para Venezuela
-    observaciones: Optional[str] = ""
-    
-    # ✅ CAMPOS CRÍTICOS PARA SISTEMA DE COLAS (FALTABAN)
-    acepta_pacientes_nuevos: bool = True
-    orden_preferencia: int = 1
     
     # ✅ CAMPOS DE TIMESTAMP (FALTABAN)
     fecha_creacion: Optional[str] = ""
@@ -139,16 +123,10 @@ class PersonalModel(rx.Base):
             numero_licencia=str(data.get("numero_licencia", "") if data.get("numero_licencia") else ""),
             celular=str(data.get("celular", "")),
             direccion=str(data.get("direccion", "") if data.get("direccion") else ""),
-            salario=data.get("salario") if isinstance(data.get("salario"), (int, float)) else None,
             fecha_contratacion=str(data.get("fecha_contratacion", "")),
             fecha_nacimiento=str(data.get("fecha_nacimiento", "") if data.get("fecha_nacimiento") else ""),
             tipo_documento=str(data.get("tipo_documento", "CI")),
-            observaciones=str(data.get("observaciones", "") if data.get("observaciones") else ""),
-            
-            # ✅ CAMPOS CRÍTICOS SISTEMA DE COLAS
-            acepta_pacientes_nuevos=bool(data.get("acepta_pacientes_nuevos", True)),
-            orden_preferencia=int(data.get("orden_preferencia", 1)),
-            
+
             # ✅ TIMESTAMPS
             fecha_creacion=str(data.get("fecha_creacion", "")),
             fecha_actualizacion=str(data.get("fecha_actualizacion", "")),
@@ -213,13 +191,6 @@ class PersonalModel(rx.Base):
         return tipos_map.get(self.tipo_personal, self.tipo_personal)
     
     @property
-    def salario_display(self) -> str:
-        """Salario formateado para mostrar"""
-        if self.salario:
-            return f"${self.salario:,.0f}"
-        return "No asignado"
-    
-    @property
     def fecha_contratacion_display(self) -> str:
         """Fecha de contratación formateada"""
         try:
@@ -234,18 +205,12 @@ class PersonalModel(rx.Base):
     def es_odontologo(self) -> bool:
         """Indica si es odontólogo"""
         return self.tipo_personal == "Odontólogo"
-    
+
     @property
     def puede_atender_pacientes(self) -> bool:
         """Indica si puede atender pacientes directamente"""
-        return (self.tipo_personal in ["Odontólogo"] and 
-                self.estado_laboral == "activo" and 
-                self.acepta_pacientes_nuevos)
-    
-    @property
-    def disponible_para_cola(self) -> bool:
-        """Indica si está disponible para recibir pacientes en cola"""
-        return self.puede_atender_pacientes
+        return (self.tipo_personal in ["Odontólogo"] and
+                self.estado_laboral == "activo")
     
     @property
     def tipo_documento_display(self) -> str:
@@ -265,15 +230,11 @@ class PersonalStatsModel(rx.Base):
     administradores: int = 0
     asistentes: int = 0
     gerentes: int = 0
-    
+
     # Por estado
     en_vacaciones: int = 0
     en_licencia: int = 0
     inactivos: int = 0
-    
-    # Estadísticas salariales
-    salario_promedio: float = 0.0
-    salario_total_mensual: float = 0.0
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "PersonalStatsModel":
@@ -290,9 +251,7 @@ class PersonalStatsModel(rx.Base):
             gerentes=int(data.get("gerentes", 0)),
             en_vacaciones=int(data.get("en_vacaciones", 0)),
             en_licencia=int(data.get("en_licencia", 0)),
-            inactivos=int(data.get("inactivos", 0)),
-            salario_promedio=float(data.get("salario_promedio", 0.0)),
-            salario_total_mensual=float(data.get("salario_total_mensual", 0.0))
+            inactivos=int(data.get("inactivos", 0))
         )
 
 
@@ -403,13 +362,8 @@ class PersonalFormModel(rx.Base):
     fecha_ingreso: str = ""  # YYYY-MM-DD
     
     # Información laboral
-    salario: str = "0"
     estado_laboral: str = "activo"  # activo, inactivo, vacaciones, licencia
-    
-    # ✅ CAMPOS CRÍTICOS PARA SISTEMA DE COLAS
-    acepta_pacientes_nuevos: bool = True
-    orden_preferencia: int = 1
-    
+
     # Usuario del sistema
     crear_usuario: bool = True
     usuario_email: str = ""
@@ -464,13 +418,8 @@ class PersonalFormModel(rx.Base):
             "especialidad": self.especialidad,
             "numero_colegiatura": self.numero_colegiatura,
             "fecha_ingreso": self.fecha_ingreso,
-            "salario": self.salario,
             "estado_laboral": self.estado_laboral,
-            
-            # ✅ CAMPOS CRÍTICOS SISTEMA DE COLAS
-            "acepta_pacientes_nuevos": self.acepta_pacientes_nuevos,
-            "orden_preferencia": self.orden_preferencia,
-            
+
             "crear_usuario": str(self.crear_usuario),
             "email": self.usuario_email,  # ✅ MAPEO: usuario_email → email para servicio
             "password": self.usuario_password,  # ✅ MAPEO: usuario_password → password para servicio
@@ -496,12 +445,8 @@ class PersonalFormModel(rx.Base):
             especialidad=str(data.get("especialidad", "")),
             numero_colegiatura=str(data.get("numero_colegiatura", "")),
             fecha_ingreso=str(data.get("fecha_ingreso", "")),
-            salario=str(data.get("salario", "0")),
             estado_laboral=str(data.get("estado_laboral", "activo")),
-            
-            # ✅ CAMPOS CRÍTICOS SISTEMA DE COLAS
-            acepta_pacientes_nuevos=bool(data.get("acepta_pacientes_nuevos", True)),
-            orden_preferencia=int(data.get("orden_preferencia", 1)),
+
             crear_usuario=data.get("crear_usuario", True) if isinstance(data.get("crear_usuario"), bool) else str(data.get("crear_usuario", "True")).lower() == "true",
             usuario_email=str(data.get("usuario_email", "")),
             usuario_password=str(data.get("usuario_password", "")),

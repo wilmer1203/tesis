@@ -1,0 +1,227 @@
+condiciones_diente|id|uuid|NOT NULL
+condiciones_diente|paciente_id|uuid|NOT NULL
+condiciones_diente|diente_numero|integer|NOT NULL
+condiciones_diente|superficie|character varying|NOT NULL
+condiciones_diente|tipo_condicion|character varying|NOT NULL
+condiciones_diente|severidad|character varying|
+condiciones_diente|descripcion|text|
+condiciones_diente|intervencion_id|uuid|
+condiciones_diente|registrado_por|uuid|
+condiciones_diente|fecha_registro|timestamp with time zone|NOT NULL
+condiciones_diente|activo|boolean|NOT NULL
+condiciones_diente|color_hex|character varying|
+condiciones_diente|created_at|timestamp with time zone|
+condiciones_diente|updated_at|timestamp with time zone|
+consultas|id|uuid|NOT NULL
+consultas|numero_consulta|character varying|NOT NULL
+consultas|paciente_id|uuid|NOT NULL
+consultas|primer_odontologo_id|uuid|NOT NULL
+consultas|fecha_llegada|timestamp with time zone|NOT NULL
+consultas|orden_llegada_general|integer|
+consultas|orden_cola_odontologo|integer|
+consultas|estado|character varying|
+consultas|tipo_consulta|character varying|
+consultas|prioridad|character varying|
+consultas|motivo_consulta|text|
+consultas|observaciones|text|
+consultas|costo_total_bs|numeric|
+consultas|costo_total_usd|numeric|
+consultas|creada_por|uuid|
+consultas|fecha_creacion|timestamp with time zone|
+consultas|fecha_actualizacion|timestamp with time zone|
+dientes|id|uuid|NOT NULL
+dientes|numero_diente|integer|NOT NULL
+dientes|nombre|character varying|NOT NULL
+dientes|tipo_diente|character varying|NOT NULL
+dientes|ubicacion|character varying|NOT NULL
+dientes|cuadrante|integer|NOT NULL
+dientes|es_temporal|boolean|
+dientes|posicion_en_cuadrante|integer|
+dientes|caras|ARRAY|
+dientes|activo|boolean|
+historial_medico|id|uuid|NOT NULL
+historial_medico|paciente_id|uuid|NOT NULL
+historial_medico|consulta_id|uuid|
+historial_medico|intervencion_id|uuid|
+historial_medico|odontologo_id|uuid|NOT NULL
+historial_medico|fecha_registro|timestamp with time zone|
+historial_medico|tipo_registro|character varying|
+historial_medico|sintomas_principales|text|
+historial_medico|examen_clinico|text|
+historial_medico|diagnostico_principal|text|
+historial_medico|diagnosticos_secundarios|ARRAY|
+historial_medico|plan_tratamiento|text|
+historial_medico|pronostico|text|
+historial_medico|medicamentos_recetados|jsonb|
+historial_medico|recomendaciones|text|
+historial_medico|contraindicaciones|text|
+historial_medico|presion_arterial|character varying|
+historial_medico|frecuencia_cardiaca|integer|
+historial_medico|temperatura|numeric|
+historial_medico|imagenes_url|ARRAY|
+historial_medico|documentos_url|ARRAY|
+historial_medico|proxima_consulta|date|
+historial_medico|observaciones|text|
+historial_medico|confidencial|boolean|
+imagenes_clinicas|id|uuid|NOT NULL
+imagenes_clinicas|paciente_id|uuid|NOT NULL
+imagenes_clinicas|consulta_id|uuid|
+imagenes_clinicas|intervencion_id|uuid|
+imagenes_clinicas|odontograma_id|uuid|
+imagenes_clinicas|titulo|character varying|NOT NULL
+imagenes_clinicas|descripcion|text|
+imagenes_clinicas|tipo_imagen|character varying|NOT NULL
+imagenes_clinicas|url_imagen|text|NOT NULL
+imagenes_clinicas|url_thumbnail|text|
+imagenes_clinicas|tamaño_archivo|bigint|
+imagenes_clinicas|formato_archivo|character varying|
+imagenes_clinicas|fecha_captura|timestamp with time zone|
+imagenes_clinicas|capturada_por|uuid|
+imagenes_clinicas|equipo_utilizado|character varying|
+imagenes_clinicas|configuracion_equipo|jsonb|
+imagenes_clinicas|anotaciones_imagen|jsonb|
+imagenes_clinicas|dientes_visibles|ARRAY|
+imagenes_clinicas|es_confidencial|boolean|
+imagenes_clinicas|tags|ARRAY|
+imagenes_clinicas|activo|boolean|
+intervenciones|id|uuid|NOT NULL
+intervenciones|consulta_id|uuid|NOT NULL
+intervenciones|odontologo_id|uuid|NOT NULL
+intervenciones|asistente_id|uuid|
+intervenciones|hora_inicio|timestamp with time zone|NOT NULL
+intervenciones|hora_fin|timestamp with time zone|
+intervenciones|duracion_real|interval|
+intervenciones|dientes_afectados|ARRAY|
+intervenciones|diagnostico_inicial|text|
+intervenciones|procedimiento_realizado|text|NOT NULL
+intervenciones|materiales_utilizados|ARRAY|
+intervenciones|anestesia_utilizada|text|
+intervenciones|complicaciones|text|
+intervenciones|total_bs|numeric|
+intervenciones|total_usd|numeric|
+intervenciones|descuento_bs|numeric|
+intervenciones|descuento_usd|numeric|
+intervenciones|estado|character varying|
+intervenciones|requiere_control|boolean|
+intervenciones|fecha_control_sugerida|date|
+intervenciones|instrucciones_paciente|text|
+intervenciones|cambios_odontograma|jsonb|
+intervenciones|fecha_registro|timestamp with time zone|
+intervenciones_servicios|id|uuid|NOT NULL
+intervenciones_servicios|intervencion_id|uuid|NOT NULL
+intervenciones_servicios|servicio_id|uuid|NOT NULL
+intervenciones_servicios|cantidad|integer|
+intervenciones_servicios|precio_unitario_bs|numeric|NOT NULL
+intervenciones_servicios|precio_unitario_usd|numeric|NOT NULL
+intervenciones_servicios|precio_total_bs|numeric|NOT NULL
+intervenciones_servicios|precio_total_usd|numeric|NOT NULL
+intervenciones_servicios|dientes_especificos|ARRAY|
+intervenciones_servicios|observaciones_servicio|text|
+intervenciones_servicios|fecha_registro|timestamp with time zone|
+intervenciones_servicios|diente_numero|integer|
+intervenciones_servicios|superficie|character varying|
+pacientes|id|uuid|NOT NULL
+pacientes|numero_historia|character varying|NOT NULL
+pacientes|primer_nombre|character varying|NOT NULL
+pacientes|segundo_nombre|character varying|
+pacientes|primer_apellido|character varying|NOT NULL
+pacientes|segundo_apellido|character varying|
+pacientes|tipo_documento|character varying|
+pacientes|numero_documento|character varying|NOT NULL
+pacientes|fecha_nacimiento|date|
+pacientes|edad|integer|
+pacientes|genero|character varying|
+pacientes|celular_1|character varying|
+pacientes|celular_2|character varying|
+pacientes|email|character varying|
+pacientes|direccion|text|
+pacientes|ciudad|character varying|
+pacientes|departamento|character varying|
+pacientes|ocupacion|character varying|
+pacientes|estado_civil|character varying|
+pacientes|contacto_emergencia|jsonb|
+pacientes|alergias|ARRAY|
+pacientes|medicamentos_actuales|ARRAY|
+pacientes|condiciones_medicas|ARRAY|
+pacientes|antecedentes_familiares|ARRAY|
+pacientes|fecha_registro|timestamp with time zone|
+pacientes|fecha_actualizacion|timestamp with time zone|
+pacientes|registrado_por|uuid|
+pacientes|activo|boolean|
+pacientes|observaciones|text|
+pagos|id|uuid|NOT NULL
+pagos|numero_recibo|character varying|NOT NULL
+pagos|consulta_id|uuid|
+pagos|paciente_id|uuid|NOT NULL
+pagos|fecha_pago|timestamp with time zone|
+pagos|monto_total_bs|numeric|
+pagos|monto_total_usd|numeric|
+pagos|monto_pagado_bs|numeric|
+pagos|monto_pagado_usd|numeric|
+pagos|saldo_pendiente_bs|numeric|
+pagos|saldo_pendiente_usd|numeric|
+pagos|tasa_cambio_bs_usd|numeric|
+pagos|metodos_pago|jsonb|
+pagos|concepto|text|NOT NULL
+pagos|descuento_usd|numeric|
+pagos|motivo_descuento|text|
+pagos|estado_pago|character varying|
+pagos|procesado_por|uuid|NOT NULL
+pagos|autorizado_por|uuid|
+pagos|numero_factura|character varying|
+pagos|fecha_facturacion|date|
+pagos|observaciones|text|
+pagos_secuencias|año_mes|character varying|NOT NULL
+pagos_secuencias|ultimo_numero|integer|NOT NULL
+personal|id|uuid|NOT NULL
+personal|usuario_id|uuid|
+personal|primer_nombre|character varying|NOT NULL
+personal|segundo_nombre|character varying|
+personal|primer_apellido|character varying|NOT NULL
+personal|segundo_apellido|character varying|
+personal|tipo_documento|character varying|
+personal|numero_documento|character varying|NOT NULL
+personal|fecha_nacimiento|date|
+personal|direccion|character varying|
+personal|celular|character varying|NOT NULL
+personal|tipo_personal|character varying|NOT NULL
+personal|especialidad|character varying|
+personal|numero_licencia|character varying|
+personal|fecha_contratacion|date|NOT NULL
+personal|salario|numeric|
+personal|estado_laboral|character varying|
+personal|observaciones|text|
+personal|acepta_pacientes_nuevos|boolean|
+personal|orden_preferencia|integer|
+personal|fecha_creacion|timestamp with time zone|
+personal|fecha_actualizacion|timestamp with time zone|
+roles|id|uuid|NOT NULL
+roles|nombre|character varying|NOT NULL
+roles|descripcion|text|
+roles|permisos|jsonb|
+roles|activo|boolean|
+roles|fecha_creacion|timestamp with time zone|
+roles|fecha_actualizacion|timestamp with time zone|
+servicios|id|uuid|NOT NULL
+servicios|codigo|character varying|NOT NULL
+servicios|nombre|character varying|NOT NULL
+servicios|descripcion|text|
+servicios|categoria|character varying|NOT NULL
+servicios|precio_base_usd|numeric|NOT NULL
+servicios|material_incluido|ARRAY|
+servicios|activo|boolean|
+servicios|fecha_creacion|timestamp with time zone|
+servicios|creado_por|uuid|
+servicios|alcance_servicio|character varying|NOT NULL
+servicios|condicion_resultante|character varying|
+usuarios|id|uuid|NOT NULL
+usuarios|email|character varying|NOT NULL
+usuarios|rol_id|uuid|NOT NULL
+usuarios|activo|boolean|
+usuarios|fecha_creacion|timestamp with time zone|
+usuarios|fecha_actualizacion|timestamp with time zone|
+usuarios|ultimo_acceso|timestamp with time zone|
+usuarios|configuraciones|jsonb|
+usuarios|auth_user_id|uuid|
+usuarios|avatar_url|text|
+usuarios|metadata|jsonb|
