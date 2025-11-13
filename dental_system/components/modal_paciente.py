@@ -83,7 +83,7 @@ def multi_step_patient_form() -> rx.Component:
                 on_previous=AppState.retroceder_paso_paciente,
                 on_next=AppState.avanzar_paso_paciente,
                 on_submit=AppState.guardar_paciente_formulario,
-                is_loading=AppState.cargando_operacion,
+                is_loading=AppState.cargando_operacion_paciente,
                 can_continue=AppState.puede_continuar_form_paciente,
                 submit_text=rx.cond(
                     AppState.modal_editar_paciente_abierto,

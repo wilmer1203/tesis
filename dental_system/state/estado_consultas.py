@@ -597,11 +597,7 @@ class EstadoConsultas(rx.State,mixin=True):
         self.total_turnos_dia = len(self.consultas_hoy)
         self.turnos_completados_dia = self.total_completadas_hoy
 
-        # Calcular ingresos estimados (simplificado) - ESQUEMA v4.1
-        self.ingresos_estimados_hoy = sum(
-            float(c.costo_total_bs or 0) + float(c.costo_total_usd or 0) * 36.5  # Conversión aproximada
-            for c in self.consultas_completadas_hoy
-        )
+
     
 
     # ==========================================

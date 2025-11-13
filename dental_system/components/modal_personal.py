@@ -339,7 +339,7 @@ def _staff_form_step_3() -> rx.Component:
                 enhanced_form_field(
                     label="Email del Sistema",
                     field_name="usuario_email",
-                    value=rx.cond(AppState.formulario_empleado, getattr(AppState.formulario_empleado, "usuario_email", ""), ""),
+                    value=rx.cond(AppState.formulario_empleado,AppState.formulario_empleado.usuario_email, ""),
                     on_change=AppState.actualizar_campo_formulario_empleado,
                     field_type="email",
                     placeholder="usuario@clinica.com",
@@ -351,7 +351,7 @@ def _staff_form_step_3() -> rx.Component:
                 enhanced_form_field(
                     label="Contraseña de Acceso",
                     field_name="usuario_password",  # ✅ CORREGIDO: usar nombre real del modelo
-                    value=rx.cond(AppState.formulario_empleado, getattr(AppState.formulario_empleado, "usuario_password", ""), ""),
+                    value=rx.cond(AppState.formulario_empleado, AppState.formulario_empleado.usuario_password, ""),
                     on_change=AppState.actualizar_campo_formulario_empleado,
                     field_type="password",
                     placeholder="Mínimo 8 caracteres",

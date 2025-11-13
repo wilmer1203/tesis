@@ -543,56 +543,6 @@ class PersonalService(BaseService):
         }
         return mapping.get(tipo_personal, 'administrador')
     
-
-    async def get_personal_stats(self) -> Dict[str, Any]:
-        """
-        Obtiene estadísticas del personal
-        
-        Returns:
-            Dict con estadísticas del personal
-        """
-        try:
-            # Verificar permisos
-            if not self.check_permission("personal", "leer"):
-                raise PermissionError("Sin permisos para ver estadísticas de personal")
-            
-            # Obtener todos los empleados
-            personal_data = await self.get_filtered_personal()
-            
-            if not personal_data:
-                return {
-                    "total": 0,
-                    "activos": 0,
-                    "odontologos": 0,
-                    "administradores": 0,
-                    "asistentes": 0,
-                    "gerentes": 0
-                }
-            
-            # Calcular estadísticas
-            stats = {
-                "total": len(personal_data),
-                "activos": len([p for p in personal_data if p.estado_laboral == "activo"]),
-                "odontologos": len([p for p in personal_data if p.rol_nombre_computed == "odontologo"]),
-                "administradores": len([p for p in personal_data if p.rol_nombre_computed == "administrador"]),
-                "asistentes": len([p for p in personal_data if p.rol_nombre_computed == "asistente"]),
-                "gerentes": len([p for p in personal_data if p.rol_nombre_computed == "gerente"])
-            }
-            
-            logger.info(f"✅ Estadísticas personal calculadas: {stats}")
-            return stats
-            
-        except PermissionError:
-            logger.warning("Usuario sin permisos para ver estadísticas de personal")
-            raise
-        except Exception as e:
-            self.handle_error("Error obteniendo estadísticas de personal", e)
-            raise ValueError(f"Error inesperado: {str(e)}")
-
-    # ==========================================
-    # 🔗 MÉTODOS AUXILIARES PARA OTROS SERVICIOS
-    # ==========================================
-
     async def obtener_personal_id_por_usuario(self, user_id: str) -> Optional[str]:
         """
         🔍 Obtener el ID de personal correspondiente a un usuario
@@ -608,24 +558,6 @@ class PersonalService(BaseService):
         except Exception as e:
             logger.warning(f"⚠️ No se encontró personal para usuario {user_id}: {e}")
             return None
-
-    async def obtener_primer_personal_disponible(self) -> Optional[str]:
-        """
-        👨‍⚕️ Obtener el primer personal disponible
-        """
-        try:
-            # Query directa a tabla personal
-            response = self.client.table("personal").select("id").eq("estado_laboral", "activo").limit(1).execute()
-            personal_data = response.data if response.data else []
-
-            if personal_data and len(personal_data) > 0:
-                return personal_data[0].get('id')
-            return None
-
-        except Exception as e:
-            logger.warning(f"⚠️ No se encontró personal disponible: {e}")
-            return None
-
 
 
 # Instancia única para importar

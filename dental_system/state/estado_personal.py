@@ -14,35 +14,16 @@ PATRÓN: Substate con get_estado_personal() en AppState
 """
 
 import reflex as rx
-from datetime import date, datetime
-from typing import Dict, Any, List, Optional, Union
+from typing import Dict, List, Optional
 import logging
 
 # Servicios y modelos
 from dental_system.services.personal_service import personal_service
-from dental_system.models import (
-    PersonalModel, 
-    PersonalFormModel,
-    UsuarioModel,
-    RolModel,
-    PersonalStatsModel
-)
+from dental_system.models import PersonalModel, PersonalFormModel
 
 logger = logging.getLogger(__name__)
 
 class EstadoPersonal(rx.State, mixin=True):
-    """
-    👨‍⚕️ ESTADO ESPECIALIZADO EN GESTIÓN DE PERSONAL
-    
-    RESPONSABILIDADES:
-    - CRUD completo de empleados (solo Gerente)
-    - Gestión de roles y especialidades médicas
-    - Vinculación automática personal ↔ usuario
-    - Cache inteligente para operaciones pesadas  
-    - Estadísticas y métricas de empleados
-    - Validaciones de integridad de datos
-    """
-    
     # ==========================================
     # 👨‍⚕️ VARIABLES PRINCIPALES DE PERSONAL
     # ==========================================
@@ -52,8 +33,6 @@ class EstadoPersonal(rx.State, mixin=True):
 
     # Personal seleccionado para operaciones
     empleado_seleccionado: Optional[PersonalModel] = None
-    id_empleado_seleccionado: str = ""
-    personal_to_modify: Optional[PersonalModel] = None  # Personal marcado para activar/desactivar
     accion_personal: bool = False  # True = activar, False = desactivar
 
     # Formulario de empleado (datos temporales) - MODELO TIPADO
@@ -71,10 +50,9 @@ class EstadoPersonal(rx.State, mixin=True):
     # ==========================================
     # 👨‍⚕️ ESTADOS DE CARGA
     # ==========================================
-
-    cargando_lista_personal: bool = False
     cargando_operacion_personal: bool = False
-    
+    modal_crear_personal_abierto: bool = False
+    modal_editar_personal_abierto: bool = False
     # ==========================================
     # 💡 COMPUTED VARS OPTIMIZADAS CON CACHE
     # ==========================================
@@ -106,8 +84,7 @@ class EstadoPersonal(rx.State, mixin=True):
 
             return resultado
 
-        except Exception as e:
-            logger.error(f"Error en personal_filtrado: {e}")
+        except Exception as e:  
             return []
 
     @rx.var(cache=True)
@@ -130,7 +107,7 @@ class EstadoPersonal(rx.State, mixin=True):
         Carga la lista de personal desde el servicio
         Validando permisos de usuario (solo Gerente)
         """
-        self.cargando_lista_personal = True
+        self.cargando_operacion_personal = True
         
         try:
             # Establecer contexto de usuario en el servicio (disponible directamente por mixin)
@@ -157,7 +134,7 @@ class EstadoPersonal(rx.State, mixin=True):
             logger.error(f"❌ Error cargando lista personal: {e}")
 
         finally:
-            self.cargando_lista_personal = False
+            self.cargando_operacion_personal = False
 
     # ==========================================
     # 🔍 MÉTODOS DE BÚSQUEDA Y FILTROS
@@ -192,7 +169,6 @@ class EstadoPersonal(rx.State, mixin=True):
     async def crear_empleado(self):
         """
         Crear nuevo empleado con validaciones
-        Solo accesible por Gerente
         """
 
         # Validar formulario
@@ -206,13 +182,8 @@ class EstadoPersonal(rx.State, mixin=True):
             personal_service.set_user_context(user_id=self.id_usuario,user_profile=self.perfil_usuario)            
             # Crear empleado
             nuevo_empleado = await personal_service.create_staff_member(self.formulario_empleado)
-            
-            # Agregar a la lista
-            self.lista_personal.append(nuevo_empleado)
-            
             # Limpiar formulario
             self.limpiar_formulario_empleado()
-            
             logger.info(f"✅ Empleado creado: {nuevo_empleado.nombre_completo}")
             
         except Exception as e:
@@ -225,9 +196,7 @@ class EstadoPersonal(rx.State, mixin=True):
     
     async def actualizar_empleado(self):
         """Actualizar empleado existente"""
-        if not self.empleado_seleccionado or not getattr(self.empleado_seleccionado, 'id', None):
-            return
-        
+
         if not self.validar_formulario_empleado():
             return
         
@@ -236,18 +205,10 @@ class EstadoPersonal(rx.State, mixin=True):
         
         try:
             # Establecer contexto de usuario en el servicio
-            personal_service.set_user_context(
-                user_id=self.id_usuario,
-                user_profile=self.perfil_usuario
-            )
+            personal_service.set_user_context(user_id=self.id_usuario,user_profile=self.perfil_usuario)
             
             # Actualizar empleado
-            empleado_actualizado = await personal_service.update_staff_member(
-                personal_id=getattr(self.empleado_seleccionado, 'id', self.id_empleado_seleccionado),
-                personal_form=self.formulario_empleado,
-            )
-            
-
+            empleado_actualizado = await personal_service.update_staff_member(personal_id=self.empleado_seleccionado.id,personal_form=self.formulario_empleado,)
             # Actualizar seleccionado
             self.empleado_seleccionado = empleado_actualizado
 
@@ -278,6 +239,7 @@ class EstadoPersonal(rx.State, mixin=True):
                 print("➕ Modo CREAR - Creando nuevo empleado")
                 await self.crear_empleado()
 
+            await self.cargar_lista_personal()  # Recargar lista para reflejar cambios
         except Exception as e:
             logger.error(f"❌ Error guardando personal: {e}")
             if hasattr(self, 'mostrar_toast_error'):
@@ -301,7 +263,7 @@ class EstadoPersonal(rx.State, mixin=True):
 
             if empleado_encontrado:
                 # Establecer el empleado a modificar y la acción
-                self.personal_to_modify = empleado_encontrado
+                self.empleado_seleccionado = empleado_encontrado
                 self.accion_personal = activar
 
                 nombre_completo = f"{empleado_encontrado.primer_nombre} {empleado_encontrado.primer_apellido}"
@@ -338,7 +300,6 @@ class EstadoPersonal(rx.State, mixin=True):
     def cargar_empleado_en_formulario(self, empleado: PersonalModel):
         """Cargar datos de empleado en el formulario para edición"""
         self.empleado_seleccionado = empleado
-        self.id_empleado_seleccionado = empleado.id
         
         # ✅ MAPEAR MODELO A FORMULARIO TIPADO
         empleado_dict = {
@@ -384,18 +345,11 @@ class EstadoPersonal(rx.State, mixin=True):
         self.formulario_empleado = PersonalFormModel()  # ✅ RESET CON MODELO TIPADO
         self.errores_validacion_empleado = {}
         self.empleado_seleccionado = None
-        self.id_empleado_seleccionado = ""
         
     def actualizar_campo_formulario_empleado(self, campo: str, valor: str):
         """Actualizar campo específico del formulario tipado"""
         # ✅ ACTUALIZAR CAMPO EN MODELO TIPADO usando setattr
         if hasattr(self.formulario_empleado, campo):
-            # Convertir valor según el tipo del campo
-            if campo in ["acepta_pacientes_nuevos"]:
-                valor = bool(valor)
-            elif campo in ["orden_preferencia"]:
-                valor = int(valor) if valor.isdigit() else 1
-            
             setattr(self.formulario_empleado, campo, valor)
         else:
             print(f"⚠️ Campo {campo} no existe en PersonalFormModel")
@@ -466,17 +420,14 @@ class EstadoPersonal(rx.State, mixin=True):
             
             if empleado_encontrado:
                 self.empleado_seleccionado = empleado_encontrado
-                self.id_empleado_seleccionado = personal_id
                 logger.info(f"🎯 Empleado seleccionado: {empleado_encontrado.nombre_completo}")
             else:
                 logger.warning(f"⚠️ Empleado {personal_id} no encontrado en lista local")
                 self.empleado_seleccionado = None
-                self.id_empleado_seleccionado = ""
                 
         except Exception as e:
             logger.error(f"❌ Error seleccionando empleado: {e}")
             self.empleado_seleccionado = None
-            self.id_empleado_seleccionado = ""
     
     @rx.event
     async def seleccionar_y_abrir_modal_personal(self, personal_id: str = ""):
@@ -494,16 +445,14 @@ class EstadoPersonal(rx.State, mixin=True):
                 if self.empleado_seleccionado:
                     self.cargar_empleado_en_formulario(self.empleado_seleccionado)
                 # Abrir modal editar
-                self.abrir_modal_personal("editar")
-                logger.info(f"📝 Modal editar personal abierto: {personal_id}")
+                self.modal_editar_personal_abierto = True
+
             else:
                 # Modo crear: limpiar selección y abrir modal
                 self.empleado_seleccionado = None
-                self.id_empleado_seleccionado = ""
                 self.limpiar_formulario_empleado()  
                 # Abrir modal crear
-                self.abrir_modal_personal("crear")  
-                logger.info("✅ Modal crear personal abierto")
+                self.modal_crear_personal_abierto = True 
 
         except Exception as e:
             logger.error(f"❌ Error abriendo modal personal: {e}")
@@ -513,20 +462,15 @@ class EstadoPersonal(rx.State, mixin=True):
         """
         ✅ EJECUTAR ACCIÓN DE ACTIVAR/DESACTIVAR PERSONAL
 
-        Ejecuta la acción almacenada en self.accion_personal
-        sobre el empleado en self.personal_to_modify
         """
-        if self.personal_to_modify and self.personal_to_modify.id:
-            nombre_completo = f"{self.personal_to_modify.primer_nombre} {self.personal_to_modify.primer_apellido}"
-            personal_id = self.personal_to_modify.id
+        if self.empleado_seleccionado and self.empleado_seleccionado.id:
+            nombre_completo = f"{self.empleado_seleccionado.primer_nombre} {self.empleado_seleccionado.primer_apellido}"
+            personal_id = self.empleado_seleccionado.id
             activar = self.accion_personal
 
             try:
                 # Establecer contexto de usuario en el servicio
-                personal_service.set_user_context(
-                    user_id=self.id_usuario,
-                    user_profile=self.perfil_usuario
-                )
+                personal_service.set_user_context(user_id=self.id_usuario,user_profile=self.perfil_usuario)
 
                 # Ejecutar la acción apropiada
                 if activar:
@@ -553,7 +497,7 @@ class EstadoPersonal(rx.State, mixin=True):
                     logger.info(f"✅ Personal {nombre_completo} {accion_texto} exitosamente")
 
                 # Limpiar variables temporales
-                self.personal_to_modify = None
+                self.empleado_seleccionado = PersonalModel()
                 self.accion_personal = False
 
             except Exception as e:

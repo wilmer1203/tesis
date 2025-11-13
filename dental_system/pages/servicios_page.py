@@ -102,7 +102,7 @@ def servicios_page() -> rx.Component:
                        refresh_button(
                            text="Actualizar datos",
                            on_click=AppState.cargar_lista_servicios,
-                           loading=AppState.cargando_lista_servicios
+                           loading=AppState.cargando_operacion_servicio
                        )
                    ]
                 ),

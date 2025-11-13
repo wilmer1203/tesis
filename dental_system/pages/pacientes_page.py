@@ -126,7 +126,7 @@ def pacientes_page() -> rx.Component:
                         refresh_button(
                             text="Actualizar datos",
                             on_click=AppState.cargar_lista_pacientes,
-                            loading=AppState.cargando_lista_pacientes
+                            loading=AppState.cargando_operacion_paciente
                         )
                     ]
                 ),

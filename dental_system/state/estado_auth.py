@@ -13,14 +13,12 @@ PATRÓN: Substate con get_estado_auth() en AppState
 """
 
 import reflex as rx
-from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional, Union
+from typing import Dict, Any, List, Union
 import logging
 from dental_system.services.personal_service import personal_service
 # Servicios relacionados con autenticación
 from dental_system.supabase.auth import auth
 
-logger = logging.getLogger(__name__)
 
 class EstadoAuth(rx.State, mixin=True):
     """
@@ -290,43 +288,3 @@ class EstadoAuth(rx.State, mixin=True):
 
         return operacion in permisos_modulo
 
-    # ==========================================
-    # 🔐 VALIDACIONES DE SEGURIDAD
-    # ==========================================
-    
-    def requiere_autenticacion(self) -> bool:
-        """🔒 Verificar que el usuario esté autenticado"""
-        if not self.sesion_valida:
-            print("⚠️ Operación requiere autenticación")
-            return False
-        return True
-    
-    def requiere_rol(self, roles_permitidos: Union[str, List[str]]) -> bool:
-        """🔒 Verificar que el usuario tenga uno de los roles permitidos"""
-        if not self.requiere_autenticacion():
-            return False
-        
-        if isinstance(roles_permitidos, str):
-            roles_permitidos = [roles_permitidos]
-        
-        if self.rol_usuario not in roles_permitidos:
-            print(f"⚠️ Operación requiere roles: {roles_permitidos}, usuario tiene: {self.rol_usuario}")
-            return False
-        
-        return True
-    
-    def verificar_acceso_a_modulo(self, modulo: str) -> bool:
-        """🔒 Verificar acceso general a un módulo"""
-        accesos_modulo = {
-            "dashboard": ["gerente", "administrador", "odontologo", "asistente"],
-            "pacientes": ["gerente", "administrador"],
-            "consultas": ["gerente", "administrador", "odontologo"],
-            "personal": ["gerente"],
-            "servicios": ["gerente"],
-            "pagos": ["gerente", "administrador"],
-            "odontologia": ["gerente", "odontologo"]
-        }
-        
-        roles_permitidos = accesos_modulo.get(modulo, [])
-        return self.requiere_rol(roles_permitidos)
-    

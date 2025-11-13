@@ -214,7 +214,7 @@ def patients_table() -> rx.Component:
         
         # Tabla
         rx.cond(
-            AppState.cargando_lista_pacientes,
+            AppState.cargando_operacion_paciente,
             loading_state("Cargando pacientes..."),
             
             rx.cond(
@@ -483,7 +483,7 @@ def personal_table() -> rx.Component:
         
         # Tabla
         rx.cond(
-            AppState.cargando_lista_personal,
+            AppState.cargando_operacion_personal,
             loading_state("Cargando personal..."),
             
             rx.cond(
@@ -799,7 +799,7 @@ def servicios_table() -> rx.Component:
 
         # Tabla
         rx.cond(
-            AppState.cargando_lista_servicios,
+            AppState.cargando_operacion_servicio,
             loading_state("Cargando servicios..."),
 
             rx.cond(

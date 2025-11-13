@@ -1,37 +1,15 @@
 """
 📱 ESTADO DE INTERFAZ DE USUARIO - SUBSTATE SEPARADO
 ===================================================
-
-PROPÓSITO: Manejo centralizado y especializado de UI y navegación
-- Control de páginas activas y navegación
-- Estados de modales y notificaciones
-- Barras laterales y estados de pantalla
-- Formularios multi-paso y validaciones UI
-- Loading states y feedback de usuario
-
-USADO POR: AppState como coordinador principal
-PATRÓN: Substate con get_estado_ui() en AppState
 """
 
 import reflex as rx
-from datetime import datetime,timedelta
-from typing import Dict, Any, List, Optional, Union
-import logging
-from dental_system.models.ui_models import ToastModel, NotificationModel
-logger = logging.getLogger(__name__)
+from datetime import datetime
+from typing import Dict, Any, List, Union
+from dental_system.models.ui_models import ToastModel
 
 class EstadoUI(rx.State, mixin=True):
-    """
-    📱 ESTADO ESPECIALIZADO EN INTERFAZ DE USUARIO Y NAVEGACIÓN
-    
-    RESPONSABILIDADES:
-    - Control de navegación y páginas activas
-    - Gestión de modales y overlays
-    - Estados de formularios multi-paso
-    - Notificaciones y alertas de usuario
-    - Loading states y feedback visual
-    - Sidebar y componentes de layout
-    """
+
     
     # ==========================================
     # 📱 VARIABLES DE NAVEGACIÓN Y PÁGINAS
@@ -46,55 +24,31 @@ class EstadoUI(rx.State, mixin=True):
     # Breadcrumbs y navegación
     ruta_navegacion: List[Dict[str, str]] = []
     puede_retroceder: bool = False
-    
-    # Estados de sidebar y layout
-    sidebar_abierto: bool = True
-    sidebar_colapsado: bool = False
-    modo_mobile: bool = False
-    ancho_pantalla: str = "desktop"  # desktop, tablet, mobile
-    
+   
     # ==========================================
     # 📱 ESTADOS DE MODALES Y OVERLAYS
     # ==========================================
     
     # Modales principales del sistema
-   
-    
-    modal_ver_paciente_abierto: bool = False
-    
+
     modal_crear_consulta_abierto: bool = False
     modal_editar_consulta_abierto: bool = False
     modal_ver_consulta_abierto: bool = False
-    
-    modal_crear_personal_abierto: bool = False
-    modal_editar_personal_abierto: bool = False
-    modal_ver_personal_abierto: bool = False
-    
-    modal_crear_servicio_abierto: bool = False
-    modal_editar_servicio_abierto: bool = False
-    
+
     modal_crear_pago_abierto: bool = False
     modal_ver_pago_abierto: bool = False
     
     # Modales de confirmación y alertas
     modal_confirmacion_abierto: bool = False
-    modal_alerta_abierto: bool = False
-    modal_info_abierto: bool = False
-    modal_cambio_odontologo_abierto: bool = False
     
     # Contenido de modales dinámicos
     titulo_modal_confirmacion: str = ""
     mensaje_modal_confirmacion: str = ""
     accion_modal_confirmacion: str = ""
-    
-    titulo_modal_alerta: str = ""
-    mensaje_modal_alerta: str = ""
-    tipo_alerta: str = "info"  # info, warning, error, success
-    
+  
     # 🍞 SISTEMA DE TOASTS FLOTANTES
     active_toasts: List[ToastModel] = []
-    active_notifications: List[NotificationModel] = []
-    
+  
     # ==========================================
     # 📱 ESTADOS DE FORMULARIOS MULTI-PASO
     # ==========================================
@@ -113,40 +67,17 @@ class EstadoUI(rx.State, mixin=True):
     puede_continuar_form_personal: bool = True
     datos_temporales_personal: Dict[str, Any] = {}
     
-    # Formulario de consultas (2 pasos)
-    paso_formulario_consulta: int = 0
-    total_pasos_consulta: int = 2
-    errores_formulario_consulta: Dict[str, str] = {}
-    puede_continuar_form_consulta: bool = True
     datos_temporales_consulta: Dict[str, Any] = {}
-    datos_temporales_servicio: Dict[str, Any] = {}
-
     # ==========================================
     # 📱 NOTIFICACIONES Y FEEDBACK
     # ==========================================
-    
-    # Sistema de notificaciones
-    notificaciones_activas: List[Dict[str, Any]] = []
-    mostrar_notificaciones: bool = False
-    total_notificaciones_no_leidas: int = 0
     
     # Toast messages
     toast_visible: bool = False
     toast_mensaje: str = ""
     toast_tipo: str = "info"  # info, success, warning, error
     toast_duracion: int = 3000  # milisegundos
-    
-    # Loading states globales
-    cargando_global: bool = False
-    mensaje_cargando: str = "Cargando..."
-    progreso_carga: int = 0  # 0-100
-    
-    # Estados de operaciones específicas
-    cargando_pacientes: bool = False
-    cargando_consultas: bool = False
-    cargando_personal: bool = False
-    cargando_servicios: bool = False
-    cargando_pagos: bool = False
+
     cargando_dashboard: bool = False
     
     # ==========================================
@@ -174,8 +105,6 @@ class EstadoUI(rx.State, mixin=True):
 
         print(f"🧭 Navegación: {self.previous_page} → {self.current_page}")
 
-    
-    
     def _actualizar_breadcrumbs(self, pagina: str, titulo: str):
         """🔗 Actualizar breadcrumbs de navegación"""
         # Lógica para mantener breadcrumbs relevantes
@@ -194,20 +123,7 @@ class EstadoUI(rx.State, mixin=True):
     # ==========================================
     # 📱 GESTIÓN DE MODALES
     # ==========================================
-    
-    # @rx.event
-    # def abrir_modal_paciente(self, tipo: str, datos: Dict[str, Any] = None):
-    #     """👥 Abrir modal de pacientes"""
-    #     self.cerrar_todos_los_modales()
-        
-    #     if tipo == "crear":
-    #         self.modal_crear_paciente_abierto = True
-    #         self.datos_temporales_paciente = {}
-    #     elif tipo == "editar":
-    #         self.modal_editar_paciente_abierto = True
-    #         self.datos_temporales_paciente = datos or {}
-    #     print(f"👥 Modal paciente abierto: {tipo}")
-    
+
     @rx.event
     def abrir_modal_consulta(self, tipo: str, datos: Dict[str, Any] = None):
         """📅 Abrir modal de consultas"""
@@ -225,35 +141,6 @@ class EstadoUI(rx.State, mixin=True):
         
         print(f"📅 Modal consulta abierto: {tipo}")
     
-    @rx.event
-    def abrir_modal_personal(self, tipo: str, datos: Dict[str, Any] = None):
-        """👨‍⚕️ Abrir modal de personal"""
-        self.cerrar_todos_los_modales()
-        if tipo == "crear":
-            self.modal_crear_personal_abierto = True
-            self.datos_temporales_personal = {}
-        elif tipo == "editar":
-            self.modal_editar_personal_abierto = True
-            self.datos_temporales_personal = datos or {}
-        elif tipo == "ver":
-            self.modal_ver_personal_abierto = True
-            self.datos_temporales_personal = datos or {}
-
-        print(f"👨‍⚕️ Modal personal abierto: {tipo}")
-
-    @rx.event
-    def abrir_modal_servicio(self, tipo: str, datos: Dict[str, Any] = None):
-        """🏥 Abrir modal de servicio"""
-        self.cerrar_todos_los_modales()
-        if tipo == "crear":
-            self.modal_crear_servicio_abierto = True
-            self.datos_temporales_servicio = {}
-        elif tipo == "editar":
-            self.modal_editar_servicio_abierto = True
-            self.datos_temporales_servicio = datos or {}
-
-        print(f"🏥 Modal servicio abierto: {tipo}")
-
     @rx.event
     def abrir_modal_confirmacion(self, titulo: str, mensaje: str, accion: str):
         """⚠️ Abrir modal de confirmación"""
@@ -284,9 +171,6 @@ class EstadoUI(rx.State, mixin=True):
                 await self.ejecutar_accion_servicio()
             elif accion == "desactivar_servicio":
                 await self.ejecutar_accion_servicio()
-            elif accion == "reactivar_paciente":
-                # Aquí iría la lógica para reactivar paciente
-                pass
             else:
                 print(f"⚠️ Acción no reconocida: {accion}")
 
@@ -301,27 +185,11 @@ class EstadoUI(rx.State, mixin=True):
             self.cerrar_todos_los_modales()
 
     @rx.event
-    def abrir_modal_alerta(self, titulo: str, mensaje: str, tipo: str = "info"):
-        """🔔 Abrir modal de alerta"""
-        self.modal_alerta_abierto = True
-        self.titulo_modal_alerta = titulo
-        self.mensaje_modal_alerta = mensaje
-        self.tipo_alerta = tipo
-    
-    @rx.event
-    def abrir_modal_cambio_odontologo(self):
-        """🔄 Abrir modal de cambio de odontólogo"""
-        self.modal_cambio_odontologo_abierto = True
-        print("🔄 Modal cambio odontólogo abierto")
-    
-
-    @rx.event
     def cerrar_todos_los_modales(self):
         """❌ Cerrar todos los modales abiertos"""
         # Modales de pacientes
         self.modal_crear_paciente_abierto = False
         self.modal_editar_paciente_abierto = False
-        self.modal_ver_paciente_abierto = False
         
         # Modales de consultas
         self.modal_crear_consulta_abierto = False
@@ -331,27 +199,15 @@ class EstadoUI(rx.State, mixin=True):
         # Modales de personal
         self.modal_crear_personal_abierto = False
         self.modal_editar_personal_abierto = False
-        self.modal_ver_personal_abierto = False
-        
-        # Modales de servicios
-        self.modal_crear_servicio_abierto = False
-        self.modal_editar_servicio_abierto = False
-        
+
         # Modales de pagos
         self.modal_crear_pago_abierto = False
         self.modal_ver_pago_abierto = False
         
         # Modales de confirmación/alerta
         self.modal_confirmacion_abierto = False
-        self.modal_alerta_abierto = False
-        self.modal_info_abierto = False
-        self.modal_cambio_odontologo_abierto = False
-        
-        # Limpiar datos temporales
-        self.datos_temporales_paciente = {}
         self.datos_temporales_consulta = {}
-        self.datos_temporales_personal = {}
-        
+     
         print("❌ Todos los modales cerrados")
     
     # ==========================================
@@ -387,15 +243,6 @@ class EstadoUI(rx.State, mixin=True):
             print(f"📝 Formulario paciente: paso {self.paso_formulario_paciente + 1}/{self.total_pasos_paciente}")
     
     @rx.event
-    def resetear_formulario_paciente(self):
-        """🔄 Resetear formulario de paciente"""
-        self.paso_formulario_paciente = 0
-        self.errores_formulario_paciente = {}
-        self.puede_continuar_form_paciente = True
-        self.datos_temporales_paciente = {}
-        print("🔄 Formulario paciente reseteado")
-    
-    @rx.event
     def avanzar_paso_personal(self):
         """➡️ Avanzar paso en formulario de personal"""
         if self.puede_continuar_form_personal and self.paso_formulario_personal < self.total_pasos_personal - 1:
@@ -421,19 +268,14 @@ class EstadoUI(rx.State, mixin=True):
         self.toast_tipo = tipo
         self.toast_duracion = duracion
         self.toast_visible = True
-        print(f"🍞 Toast ({tipo}): {mensaje}")
+        print(f"Toast ({tipo}): {mensaje}")
     
     @rx.event
     def ocultar_toast(self):
         """🙈 Ocultar toast message"""
         self.toast_visible = False
         self.toast_mensaje = ""
-        print("🙈 Toast ocultado")
-    
-    # ==========================================
-    # 🍞 SISTEMA DE TOASTS FLOTANTES MODERNO
-    # ==========================================
-    
+        print("Toast ocultado")
     
     @rx.event
     def remove_toast(self, toast_id: str):

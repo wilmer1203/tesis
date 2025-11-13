@@ -3,7 +3,7 @@
 
 import reflex as rx
 from dental_system.state.app_state import AppState
-from dental_system.components.common import  secondary_button
+from dental_system.components.common import  secondary_button,page_header,stat_card
 from dental_system.components.odontologia.consulta_card import (
     lista_consultas_disponibles,
     lista_consultas_compactas,
@@ -100,196 +100,60 @@ def stat_card_odontologo(titulo: str, valor: str, color: str = "blue") -> rx.Com
         }
     )
 
-def estadisticas_odontologo_superiores() -> rx.Component:
+def estadisticas_odontologo() -> rx.Component:
     """📊 Tarjetas de estadísticas superiores para odontólogo"""
     return rx.grid(
         # 1. Consultas del día
-        stat_card_odontologo(
-            "Hoy",
-            AppState.estadisticas_odontologo_tiempo_real["pacientes_asignados"].to_string(),
-            "blue"
+        stat_card(
+            title="Hoy",
+            value=AppState.estadisticas_odontologo_tiempo_real["pacientes_asignados"].to_string(),
+            icon="calendar-day",
+            color=COLORS["primary"]["600"]
         ),
 
         # 2. En espera
-        stat_card_odontologo(
-            "En Espera",
-            AppState.estadisticas_odontologo_tiempo_real["consultas_en_espera"].to_string(),
-            "yellow"
+        stat_card(
+            title="En Espera",
+            value=AppState.estadisticas_odontologo_tiempo_real["consultas_en_espera"].to_string(),
+            icon="hourglass-split",
+            color=COLORS["warning"]["500"]
         ),
 
         # 3. Completadas hoy
-        stat_card_odontologo(
-            "Completadas",
-            AppState.estadisticas_odontologo_tiempo_real["consultas_completadas"].to_string(),
-            "green"
+        stat_card(
+            title="Completadas",
+            value=AppState.estadisticas_odontologo_tiempo_real["consultas_completadas"].to_string(),
+            icon="check-circle",
+            color=COLORS["success"]["500"]
         ),
 
         # 4. Entre odontólogos (derivados)
-        stat_card_odontologo(
-            "Derivados",
-            AppState.estadisticas_odontologo_tiempo_real["pacientes_disponibles"].to_string(),
-            "primary"
+        stat_card(
+            title="Derivados",
+            value=AppState.estadisticas_odontologo_tiempo_real["pacientes_disponibles"].to_string(),
+            icon="users-switch",
+            color=COLORS["primary"]["500"]
         ),
 
         # 5. En progreso
-        stat_card_odontologo(
-            "En Progreso",
-            AppState.estadisticas_odontologo_tiempo_real["consultas_en_atencion"].to_string(),
-            "red"
+        stat_card(
+            title="En Atención",
+            value=AppState.estadisticas_odontologo_tiempo_real["consultas_en_atencion"].to_string(),
+            icon="stethoscope",
+            color=COLORS["blue"]["500"]
         ),
-
-        columns="6",
-        spacing="3",
-        width="100%"
+        stat_card(
+            title="Canceladas",
+            value=AppState.estadisticas_odontologo_tiempo_real["consultas_canceladas"].to_string(),
+            icon="times-circle",
+            color=COLORS["error"]["500"]
+        ),
+        columns=rx.breakpoints(initial="1", sm="3", md="4", lg="6"),
+        spacing="6",
+        width="100%",
+        margin_bottom="8"
     )
 
-# ==========================================
-# 🔍 COMPONENTES DE BÚSQUEDA Y FILTROS
-# ==========================================
-
-def barra_busqueda_y_filtros() -> rx.Component:
-    """🔍 Barra de búsqueda médica optimizada para odontólogos"""
-    return rx.vstack(
-        # Primera fila: Búsqueda principal
-        rx.hstack(
-            # Campo de búsqueda expandido
-            rx.input(
-                placeholder="🔍 Buscar por nombre, documento, HC o diagnóstico...",
-                value=AppState.termino_busqueda_pacientes,
-                on_change=AppState.buscar_pacientes_asignados,
-                style={
-                    "background": DARK_THEME["colors"]["surface"],
-                    "border": f"1px solid {DARK_THEME['colors']['border']}",
-                    "color": DARK_THEME["colors"]["text_primary"],
-                    "border_radius": RADIUS["lg"],
-                    "padding": "12px 16px",
-                    "font_size": "14px",
-                    "_focus": {
-                        "border_color": COLORS["primary"]["500"],
-                        "box_shadow": f"0 0 0 3px {COLORS['primary']['500']}30"
-                    }
-                },
-                width=["100%", "100%", "50%"]
-            ),
-            
-            rx.spacer(),
-            
-            # Botón de actualización mejorado
-            rx.button(
-                rx.hstack(
-                    rx.cond(
-                        AppState.cargando_pacientes_asignados,
-                        rx.spinner(size="2", color="white"),
-                        rx.icon("rotate-cw", size=16)
-                    ),
-                    rx.text("Actualizar", font_weight="600"),
-                    spacing="2"
-                ),
-                style={
-                    "background": f"linear-gradient(135deg, {COLORS['primary']['500']} 0%, {COLORS['primary']['400']} 100%)",
-                    "color": "white",
-                    "border": "none",
-                    "border_radius": RADIUS["lg"],
-                    "padding": "12px 20px",
-                    "_hover": {
-                        "transform": "translateY(-1px)",
-                        "box_shadow": f"0 4px 12px {COLORS['primary']['500']}40"
-                    },
-                    "transition": ANIMATIONS["easing"]["smooth"] 
-                },
-                loading=AppState.cargando_pacientes_asignados,
-                on_click=[
-                    AppState.cargar_pacientes_asignados,
-                    AppState.cargar_consultas_disponibles_otros,
-                ]
-            ),
-            
-            spacing="4",
-            align_items="center",
-            width="100%"
-        ),
-        
-        # Segunda fila: Filtros médicos específicos
-        rx.hstack(
-            # Filtro por estado (Estados reales de BD)
-            rx.select(
-                ["Todos", "En Espera", "En Atención", "Entre Odontólogos", "Completada", "Cancelada"],
-                value=AppState.filtro_estado_consulta,
-                on_change=AppState.filtrar_por_estado_consulta,
-                placeholder="📋 Estado",
-                style={
-                    "background": DARK_THEME["colors"]["surface"],
-                    "border": f"1px solid {DARK_THEME['colors']['border']}",
-                    "color": DARK_THEME["colors"]["text_primary"],
-                    "border_radius": RADIUS["md"]
-                },
-                width="160px"
-            ),
-            
-            # Filtro urgencias mejorado
-            rx.button(
-                rx.hstack(
-                    rx.icon("triangle-alert", size=16),
-                    rx.text("Urgentes", font_weight="600"),
-                    spacing="2"
-                ),
-                style=rx.cond(
-                    AppState.mostrar_solo_urgencias,
-                    {
-                        "background": f"linear-gradient(135deg, {COLORS['error']['500']} 0%, {COLORS['error']['400']} 100%)",
-                        "color": "white",
-                        "border": "none",
-                        "border_radius": RADIUS["md"],
-                        "padding": "8px 12px",
-                        "box_shadow": f"0 2px 8px {COLORS['error']['500']}40"
-                    },
-                    {
-                        "background": "transparent",
-                        "color": DARK_THEME["colors"]["text_secondary"],
-                        "border": f"1px solid {DARK_THEME['colors']['border']}",
-                        "border_radius": RADIUS["md"],
-                        "padding": "8px 12px",
-                        "_hover": {
-                            "background": DARK_THEME["colors"]["surface"],
-                            "color": COLORS["error"]["400"]
-                        }
-                    }
-                ),
-                on_click=AppState.alternar_mostrar_urgencias
-            ),
-            
-            # Filtro por tipo de consulta
-            rx.select(
-                ["Todas", "Primera Vez", "Control", "Emergencia", "Seguimiento"],
-                placeholder="🦷 Tipo",
-                style={
-                    "background": DARK_THEME["colors"]["surface"],
-                    "border": f"1px solid {DARK_THEME['colors']['border']}",
-                    "color": DARK_THEME["colors"]["text_primary"],
-                    "border_radius": RADIUS["md"]
-                },
-                width="140px"
-            ),
-            
-            rx.spacer(),
-            
-            # Indicador de resultados
-            rx.text(
-                f"📊 {AppState.estadisticas_odontologo_tiempo_real['pacientes_asignados'] } pacientes hoy",
-                font_size="14px",
-                color=DARK_THEME["colors"]["text_secondary"],
-                font_weight="500"
-            ),
-            
-            spacing="3",
-            align_items="center",
-            width="100%",
-            wrap="wrap"
-        ),
-        
-        spacing="3",
-        width="100%"
-    )
 
 # ==========================================
 # 📄 PÁGINA PRINCIPAL REFACTORIZADA
@@ -308,57 +172,13 @@ def odontologia_page() -> rx.Component:
     return medical_page_layout(
     rx.vstack(
         # Header profesional con tema oscuro
-        rx.box(
-            rx.vstack(
-                rx.heading(
-                    "🦷 Atención Odontológica",
-                    style={
-                        "font_size": "2.75rem",
-                        "font_weight": "800",
-                        "background": "linear-gradient(135deg, #00BCD4 0%, #4DD4FF 100%)",
-                        "background_clip": "text",
-                        "color": "transparent",
-                        "line_height": "1.2"
-                    }
-                ),
-                rx.text(
-                    "Dashboard profesional - Sistema por orden de llegada",
-                    style={
-                        "font_size": "1.125rem",
-                        "color": DARK_THEME["colors"]["text_secondary"],
-                        "line_height": "1.5"
-                    }
-                ),
-                spacing="1",
-                align="start",
-                width="100%"
-            ),
-            style=dark_header_style(),
-            width="100%"
-        ),
-
-        # Estadísticas superiores del odontólogo
-        rx.box(
-            estadisticas_odontologo_superiores(),
-            style=dark_crystal_card(
-                color=COLORS["primary"]["500"],
-                hover_lift="2px",
-                padding=SPACING["4"]
-            ),
-            width="100%"
-        ),
-
-        # Barra de búsqueda y filtros con tema oscuro
-        rx.box(
-            barra_busqueda_y_filtros(),
-            style=dark_crystal_card(
-                color=COLORS["primary"]["500"],
-                hover_lift="2px",
-                padding=SPACING["4"]
-            ),
-            width="100%"
-        ),
         
+        page_header(
+            "Atención Odontológica",
+            "Dashboard profesional - Sistema por orden de llegada",
+        ),
+        estadisticas_odontologo(),
+
         # ==========================================
         # 🎨 LAYOUT PRINCIPAL V2.0 - GRID RESPONSIVE
         # ==========================================
@@ -436,86 +256,6 @@ def odontologia_page() -> rx.Component:
             }
         ),
         
-        # Footer con tema oscuro profesional
-        rx.box(
-            rx.hstack(
-                rx.text(
-                    AppState.resumen_actividad_dia,
-                    font_size="14px",
-                    color=DARK_THEME["colors"]["text_secondary"]
-                ),
-                
-                rx.spacer(),
-                
-                # Accesos rápidos con tema oscuro
-                rx.hstack(
-                    rx.cond(
-                        AppState.en_formulario_intervencion,
-                        rx.button(
-                            "← Volver a Intervención",
-                            size="2",
-                            style={
-                                "background": COLORS["blue"]["500"],
-                                "color": "white",
-                                "border": "none",
-                                "_hover": {
-                                    "background": COLORS["blue"]["600"]
-                                }
-                            },
-                            on_click=lambda: AppState.navigate_to("intervencion")
-                        )
-                    ),
-                    
-                    secondary_button(
-                        text="Ver Reportes",
-                        icon="bar-chart"
-                    ),
-                    
-                    spacing="2"
-                ),
-                
-                spacing="4",
-                align_items="center",
-                width="100%"
-            ),
-            style={
-                "background": DARK_THEME["colors"]["surface"],
-                "border_top": f"1px solid {DARK_THEME['colors']['border']}",
-                "backdrop_filter": "blur(10px)",
-                "padding": SPACING["4"]
-            },
-            width="100%"
-        ),
-        
-        # CSS personalizado para animaciones
-        rx.html(
-            """
-            <style>
-                @keyframes pulse {
-                    0%, 100% { transform: scale(1); opacity: 1; }
-                    50% { transform: scale(1.05); opacity: 0.9; }
-                }
-
-                @keyframes slideInUp {
-                    from { transform: translateY(20px); opacity: 0; }
-                    to { transform: translateY(0); opacity: 1; }
-                }
-
-                @keyframes glow {
-                    0%, 100% { box-shadow: 0 0 5px rgba(0, 188, 212, 0.3); }
-                    50% { box-shadow: 0 0 20px rgba(0, 188, 212, 0.6); }
-                }
-
-                .slide-in {
-                    animation: slideInUp 0.3s ease-out;
-                }
-
-                .glow-effect:hover {
-                    animation: glow 2s infinite;
-                }
-            </style>
-            """
-        ),
 
         # Loading overlay global
         rx.cond(

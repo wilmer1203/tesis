@@ -23,7 +23,6 @@ from .consultas_models import (
 
 from .personal_models import (
     UsuarioModel,
-    RolModel,
     PersonalModel,
     PersonalStatsModel,
     PersonalFormModel
@@ -47,8 +46,7 @@ from .pagos_models import (
 )
 
 from .ui_models import (
-    ToastModel,
-    NotificationModel
+    ToastModel
 )
 
 from .odontologia_models import (
@@ -93,7 +91,6 @@ __all__ = [
     
     # ✅ PERSONAL Y USUARIOS
     "UsuarioModel",
-    "RolModel",
     "PersonalModel",
     "PersonalStatsModel",
     

@@ -118,8 +118,10 @@ class EstadoServicios(rx.State,mixin=True):
     servicios_por_pagina: int = 18
 
     # Estados de carga
-    cargando_lista_servicios: bool = False
     cargando_operacion_servicio: bool = False
+    
+    modal_editar_servicio_abierto: bool = False
+    modal_crear_servicio_abierto: bool = False
     
     # ==========================================
     # 🏥 COMPUTED VARS PARA UI (SIN ASYNC)
@@ -298,7 +300,7 @@ class EstadoServicios(rx.State,mixin=True):
         """
         # Verificar autenticación usando propiedades del mixin
 
-        self.cargando_lista_servicios = True
+        self.cargando_operacion_servicio = True
         
         try:
             # Establecer contexto de usuario en el servicio usando propiedades correctas del mixin
@@ -321,7 +323,7 @@ class EstadoServicios(rx.State,mixin=True):
             self.handle_error("Error al cargar lista de servicios", e)
             
         finally:
-            self.cargando_lista_servicios = False
+            self.cargando_operacion_servicio = False
 
     # ==========================================
     # 🔍 MÉTODOS DE BÚSQUEDA Y FILTROS
@@ -646,16 +648,15 @@ class EstadoServicios(rx.State,mixin=True):
                 self.errores_validacion_servicio = {}
 
                 # Abrir modal editar (IGUAL QUE PERSONAL)
-                self.abrir_modal_servicio("editar")
-                logger.info(f"📝 Modal editar servicio abierto: {servicio_id}")
+                self.modal_editar_servicio_abierto = True
+
             else:
                 # Modo crear: limpiar selección y abrir modal
                 self.servicio_seleccionado = ServicioModel()
                 self.id_servicio_seleccionado = ""
                 self.limpiar_formulario_servicio()
                 # Abrir modal crear
-                self.abrir_modal_servicio("crear")
-                logger.info("✅ Modal crear servicio abierto")
+                self.modal_crear_servicio_abierto = True
 
         except Exception as e:
             logger.error(f"Error abriendo modal servicio: {e}")
@@ -753,7 +754,6 @@ class EstadoServicios(rx.State,mixin=True):
         self.termino_busqueda_servicios = ""
 
         # Estados de carga
-        self.cargando_lista_servicios = False
         self.cargando_operacion_servicio = False
 
         logger.info("🧹 Datos de servicios limpiados")

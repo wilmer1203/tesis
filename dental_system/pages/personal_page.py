@@ -101,7 +101,7 @@ def personal_page() -> rx.Component:
                        refresh_button(
                            text="Actualizar datos",
                            on_click=AppState.cargar_lista_personal,
-                           loading=AppState.cargando_lista_personal
+                           loading=AppState.cargando_operacion_personal
                        )
                    ]
                 ),

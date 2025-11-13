@@ -6,7 +6,7 @@
 
 import reflex as rx
 from dental_system.state.app_state import AppState
-from dental_system.components.common import  medical_page_layout
+from dental_system.components.common import  medical_page_layout, page_header
 from dental_system.components.odontologia.panel_paciente import panel_informacion_paciente
 
 # 🚀 V4.0 - COMPONENTES PROFESIONALES
@@ -65,29 +65,6 @@ def clean_page_header_intervencion() -> rx.Component:
             
             # Acciones header consistentes con personal_page
             rx.hstack(
-
-                # Botón Derivar a otro odontólogo
-                rx.button(
-                    rx.hstack(
-                        rx.icon("arrow-right-left", size=16),
-                        rx.text("Derivar Paciente", size="3"),
-                        spacing="2"
-                    ),
-                    on_click=AppState.derivar_paciente_a_otro_odontologo,
-                    variant="outline",
-                    size="3",
-                    style={
-                        "background": f"linear-gradient(135deg, {COLORS['warning']['500']} 0%, {COLORS['warning']['400']} 100%)",
-                        "border": f"1px solid {COLORS['warning']['400']}",
-                        "color": "white",
-                        "backdrop_filter": "blur(10px)",
-                        "font_weight": "600",
-                        "_hover": {
-                            "transform": "translateY(-2px)",
-                            "box_shadow": f"0 4px 12px {COLORS['warning']['500']}40"
-                        }
-                    }
-                ),
 
                 # Botón Volver
                 rx.button(
@@ -301,28 +278,28 @@ def panel_paciente_enterprise() -> rx.Component:
 def intervencion_page_v2() -> rx.Component:
     """
     🦷 PÁGINA INTERVENCIÓN ODONTOLÓGICA V3 - ENTERPRISE DESIGN
-    
-    ✨ CARACTERÍSTICAS ENTERPRISE APLICADAS:
-    - 🎨 Clean page header con gradiente de texto (patrón personal_page)
-    - 💎 Stats cards con glassmorphism (patrón minimal_stat_card)
-    - 🌙 Tema oscuro consistente con consultas_page_v41
-    - 📱 Layout responsive mobile-first
-    - 🔄 Animaciones de hover y microinteracciones
-    - 🎯 Crystal cards con efectos premium
-    - 🚀 Integración completa themes.py
-    
-    🏗️ ARQUITECTURA:
-    - Layout: medical_page_layout wrapper (PATRÓN CONSULTAS)
-    - Grid responsive: Adapta de 1 col (móvil) a 2 cols (desktop) 
-    - Colores: REFINED_COLORS basado en DARK_THEME y componentes exitosos
-    - Componentes: Reutiliza funciones dark_crystal_card, clean_header
+
     """
     return rx.box(
         medical_page_layout(
             rx.vstack(
-                # Header enterprise con gradiente
-                clean_page_header_intervencion(),
-                
+                page_header(
+                    "Intervención Odontológica",
+                    "Registro completo de tratamiento dental con odontograma interactivo",
+                    actions=[
+                        rx.button(
+                            rx.hstack(
+                                rx.icon("arrow-left", size=16),
+                                rx.text("Volver", size="3"),
+                                spacing="2"
+                            ),
+                            on_click=lambda: AppState.navigate_to("odontologia"),
+                            variant="outline",
+                            size="3",
+                            style=glassmorphism_card()
+                        ),
+                    ]
+                ),
                 # Stats cards aplicando patrón minimal_stat_card
                 stats_intervencion(),
 

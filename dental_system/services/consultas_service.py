@@ -674,8 +674,7 @@ class ConsultasService(BaseService):
                 "metodos_pago": "pendiente",  # Sin pago aún
                 "estado_pago": "pendiente",
                 "concepto": f"Consulta #{consulta.get('numero_consulta')} - Servicios odontológicos",
-                "procesado_por": user_id,
-                "observaciones": "Pago pendiente generado automáticamente al completar consulta"
+                "procesado_por": user_id
             }
 
             # INSERT directo a tabla pagos

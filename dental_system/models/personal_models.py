@@ -33,29 +33,6 @@ class UsuarioModel(rx.Base):
         )
 
 
-class RolModel(rx.Base):
-    """Modelo para datos de roles del sistema"""
-    id: Optional[str] = ""
-    nombre: str = ""
-    descripcion: Optional[str] = ""
-    activo: bool = True
-    fecha_creacion: str = ""
-    
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "RolModel":
-        """Crear instancia desde diccionario de Supabase"""
-        if not data or not isinstance(data, dict):
-            return cls()
-        
-        return cls(
-            id=str(data.get("id", "")),
-            nombre=str(data.get("nombre", "")),
-            descripcion=str(data.get("descripcion", "") if data.get("descripcion") else ""),
-            activo=bool(data.get("activo", True)),
-            fecha_creacion=str(data.get("fecha_creacion", ""))
-        )
-
-
 class PersonalModel(rx.Base):
     """Modelo para datos de personal - ALINEADO CON ESQUEMA BD v4.1"""
     id: Optional[str] = ""
@@ -139,7 +116,7 @@ class PersonalModel(rx.Base):
         )
 
     @property
-    def nombre_completo_display(self) -> str:
+    def nombre_completo(self) -> str:
         """Propiedad para mostrar el nombre completo"""
         nombres = []
         if self.primer_nombre:
@@ -153,10 +130,6 @@ class PersonalModel(rx.Base):
         
         return " ".join(nombres) if nombres else self.usuario.nombre_completo
     
-    @property
-    def nombre_completo(self) -> str:
-        """Alias para compatibilidad - mismo que nombre_completo_display"""
-        return self.nombre_completo_display
     
     @property  
     def rol_nombre_computed(self) -> str:

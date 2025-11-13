@@ -14,18 +14,11 @@ PATRÓN: Substate con get_estado_pacientes() en AppState
 """
 
 import reflex as rx
-from datetime import date, datetime
-from typing import Dict, Any, List, Optional, Union
+from typing import Dict, Any, List
 import logging
-
-# Servicios y modelos
 from dental_system.services.pacientes_service import pacientes_service
-from dental_system.models import (
-    PacienteModel, 
-    PacientesStatsModel, 
-    PacienteFormModel,
-    HistorialCompletoPaciente
-)
+from dental_system.models import PacienteModel, PacienteFormModel,HistorialCompletoPaciente
+
 
 logger = logging.getLogger(__name__)
 
@@ -48,12 +41,7 @@ class EstadoPacientes(rx.State,mixin=True):
 
     # Lista principal de pacientes (modelos tipados)
     lista_pacientes: List[PacienteModel] = []
-    total_pacientes: int = 0
-
-    # Paciente seleccionado para operaciones
     paciente_seleccionado: PacienteModel = PacienteModel()
-    id_paciente_seleccionado: str = ""
-
     historial_completo = HistorialCompletoPaciente = HistorialCompletoPaciente()
 
     # Formulario de paciente (tipado v4.1)
@@ -66,16 +54,12 @@ class EstadoPacientes(rx.State,mixin=True):
 
     termino_busqueda_pacientes: str = ""
     filtro_genero: str = "todos"  # todos, masculino, femenino
-    filtro_estado: str = "activos"  # todos, activos, inactivos
+    filtro_estado: str = "todos"  # todos, activos, inactivos
 
     # ==========================================
     # 👥 ESTADOS DE CARGA
     # ==========================================
-
-    cargando_lista_pacientes: bool = False
-    cargando_operacion: bool = False
-    
-   
+    cargando_operacion_paciente: bool = False
     modal_crear_paciente_abierto: bool = False
     modal_editar_paciente_abierto: bool = False
     # ==========================================
@@ -90,7 +74,7 @@ class EstadoPacientes(rx.State,mixin=True):
         Args:
             forzar_refresco: Forzar recarga desde BD ignorando cache
         """
-        self.cargando_lista_pacientes = True
+        self.cargando_operacion_paciente = True
         
         try:
             # Configurar contexto del usuario antes de usar servicio
@@ -105,9 +89,8 @@ class EstadoPacientes(rx.State,mixin=True):
             
             # Convertir a modelos tipados y actualizar estado
             self.lista_pacientes = pacientes_data
-            self.total_pacientes = len(pacientes_data)
 
-            print(f"✅ {self.total_pacientes} pacientes cargados correctamente")
+            print(f"✅ {len(pacientes_data)} pacientes cargados correctamente")
             
         except Exception as e:
             error_msg = f"Error cargando pacientes: {str(e)}"
@@ -115,19 +98,16 @@ class EstadoPacientes(rx.State,mixin=True):
             print(f"❌ {error_msg}")
 
         finally:
-            self.cargando_lista_pacientes = False
+            self.cargando_operacion_paciente = False
     
     @rx.event
-    async def crear_paciente(self, datos_formulario: Dict[str, Any]):
+    async def crear_paciente(self):
         """
         ➕ CREAR NUEVO PACIENTE CON VALIDACIONES COMPLETAS
-        
-        Args:
-            datos_formulario: Diccionario con datos del formulario
         """
         print("➕ Creando nuevo paciente...")
         
-        self.cargando_operacion = True
+        self.cargando_operacion_paciente = True
         self.errores_validacion_paciente = {}
         
         try:
@@ -137,14 +117,9 @@ class EstadoPacientes(rx.State,mixin=True):
             
             # Configurar contexto del usuario antes de usar servicio
             pacientes_service.set_user_context(self.id_usuario, self.perfil_usuario)
+
+            paciente_nuevo = await pacientes_service.create_patient(self.formulario_paciente,self.id_usuario)
             
-            # Crear paciente usando el servicio
-            paciente_nuevo = await pacientes_service.create_patient(
-                datos_formulario, 
-                self.id_usuario  # Disponible directamente por mixin
-            )
-            
-            # Actualizar lista local
             await self.cargar_lista_pacientes()
             
             print(f"✅ Paciente creado: {paciente_nuevo.numero_historia}")
@@ -163,15 +138,13 @@ class EstadoPacientes(rx.State,mixin=True):
             print(f"❌ {error_msg}")
             
         finally:
-            self.cargando_operacion = False
+            self.cargando_operacion_paciente = False
     
     @rx.event
     async def guardar_paciente_formulario(self):
         """
         💾 GUARDAR PACIENTE - CREAR O ACTUALIZAR AUTOMÁTICAMENTE
-
-        Decide automáticamente si crear nuevo paciente o actualizar existente
-        basándose en si hay un paciente seleccionado
+        Decide automáticamente si crear nuevo paciente o actualizar existentebasándose en si hay un paciente seleccionado
         """
         try:
             if not self.formulario_paciente:
@@ -179,27 +152,28 @@ class EstadoPacientes(rx.State,mixin=True):
                 return
 
             # ✅ DECISIÓN AUTOMÁTICA: Crear o Actualizar
-            if self.id_paciente_seleccionado and self.modal_editar_paciente_abierto:
+            if self.paciente_seleccionado.id and self.modal_editar_paciente_abierto:
                 # MODO EDITAR: Actualizar paciente existente
-                print(f"✏️ Modo EDITAR - Actualizando paciente {self.id_paciente_seleccionado}")
-                await self.actualizar_paciente(self.id_paciente_seleccionado,self.formulario_paciente)
+                print(f"✏️ Modo EDITAR - Actualizando paciente {self.paciente_seleccionado.id}")
+                await self.actualizar_paciente()
             else:
                 # MODO CREAR: Crear nuevo paciente
                 print("➕ Modo CREAR - Creando nuevo paciente")
-                resultado = await self.crear_paciente(self.formulario_paciente)
+                resultado = await self.crear_paciente()
 
                 if not resultado:
                     return  # Si hay errores, no continuar
 
             # Solo proceder si la operación fue exitosa
             if not self.errores_validacion_paciente:
+                
+                await self.cargar_lista_pacientes()
                 # Cerrar el modal
                 self.cerrar_todos_los_modales()
-
                 # Limpiar el formulario
                 self.formulario_paciente = PacienteFormModel()
-                self.id_paciente_seleccionado = ""
                 self.paciente_seleccionado = PacienteModel()
+                self.paso_formulario_paciente = 0
                 print("✅ Paciente guardado exitosamente, modal cerrado y lista actualizada")
 
         except Exception as e:
@@ -210,10 +184,6 @@ class EstadoPacientes(rx.State,mixin=True):
     def actualizar_campo_paciente(self, campo: str, valor: str):
         """
         📝 ACTUALIZAR CAMPO ESPECÍFICO DEL FORMULARIO DE PACIENTE
-        
-        Args:
-            campo: Nombre del campo a actualizar
-            valor: Nuevo valor del campo
         """
         try:
             # Inicializar modelo tipado si no existe
@@ -224,29 +194,22 @@ class EstadoPacientes(rx.State,mixin=True):
             if hasattr(self.formulario_paciente, campo):
                 setattr(self.formulario_paciente, campo, valor)
             else:
-                logger.warning(f"⚠️ Campo {campo} no existe en PacienteFormModel")
+                print(f"⚠️ Campo {campo} no existe en PacienteFormModel")
             
             # Limpiar error específico del campo si existe
             if campo in self.errores_validacion_paciente:
                 del self.errores_validacion_paciente[campo]
-                
-            print(f"📝 Campo actualizado: {campo} = {valor}")
-            
         except Exception as e:
             logger.error(f"❌ Error actualizando campo {campo}: {e}")
     
     @rx.event
-    async def actualizar_paciente(self, id_paciente: str, datos_formulario: PacienteFormModel):
+    async def actualizar_paciente(self):
         """
         ✏️ ACTUALIZAR PACIENTE EXISTENTE
-        
-        Args:
-            id_paciente: ID del paciente a actualizar
-            datos_formulario: Nuevos datos del formulario
         """
-        print(f"✏️ Actualizando paciente {id_paciente}...")
+        print(f"✏️ Actualizando paciente {self.paciente_seleccionado.id}...")
         
-        self.cargando_operacion = True
+        self.cargando_operacion_paciente = True
         self.errores_validacion_paciente = {}
         
         try:
@@ -254,9 +217,9 @@ class EstadoPacientes(rx.State,mixin=True):
             pacientes_service.set_user_context(self.id_usuario, self.perfil_usuario)
             
             # Actualizar usando el servicio
-            paciente_actualizado = await pacientes_service.update_patient(id_paciente, datos_formulario)
-            
-            await self.cargar_lista_pacientes()
+            paciente_actualizado = await pacientes_service.update_patient(self.paciente_seleccionado.id, self.formulario_paciente)
+            print(f"✅ Paciente actualizado: {paciente_actualizado.primer_nombre} {paciente_actualizado.primer_apellido}")
+
         except Exception as e:
             error_msg = f"Error actualizando paciente: {str(e)}"
             self.errores_validacion_paciente["general"] = error_msg
@@ -264,7 +227,7 @@ class EstadoPacientes(rx.State,mixin=True):
             print(f"❌ {error_msg}")
             
         finally:
-            self.cargando_operacion = False
+            self.cargando_operacion_paciente = False
     
     @rx.event
     async def seleccionar_paciente(self, id_paciente: str):
@@ -284,14 +247,12 @@ class EstadoPacientes(rx.State,mixin=True):
             
             if paciente_encontrado:
                 self.paciente_seleccionado = paciente_encontrado
-                self.id_paciente_seleccionado = id_paciente
                 print(f"🎯 Paciente seleccionado: {paciente_encontrado.primer_nombre} {paciente_encontrado.primer_apellido}")
             else:
                 pacientes_service.set_user_context(self.id_usuario, self.perfil_usuario)
                 paciente_data = await pacientes_service.get_patient_by_id(id_paciente)
                 if paciente_data:
                     self.paciente_seleccionado = paciente_data
-                    self.id_paciente_seleccionado = id_paciente
                     print(f"🎯 Paciente cargado y seleccionado: {paciente_data.primer_nombre}")
                 else:
                     print(f"⚠️ Paciente {id_paciente} no encontrado")
@@ -309,17 +270,8 @@ class EstadoPacientes(rx.State,mixin=True):
 
     @rx.event
     async def buscar_pacientes(self, termino: str):
-        """
-        🔍 BÚSQUEDA PRINCIPAL DE PACIENTES
-
-        Args:
-            termino: Término de búsqueda
-        """
         self.termino_busqueda_pacientes = termino.strip()
-
         print(f"🔍 Búsqueda de pacientes: '{self.termino_busqueda_pacientes}'")
-
-        # Recargar lista con filtros aplicados
         await self.cargar_lista_pacientes()
 
     # ==========================================
@@ -370,7 +322,6 @@ class EstadoPacientes(rx.State,mixin=True):
             else:
                 # Modo crear: limpiar selección
                 self.paciente_seleccionado = PacienteModel()
-                self.id_paciente_seleccionado = ""
                 self.formulario_paciente = PacienteFormModel()
                 self.errores_validacion_paciente = {}
                 # Abrir modal crear
@@ -383,8 +334,7 @@ class EstadoPacientes(rx.State,mixin=True):
     def cargar_paciente_en_formulario(self, paciente: PacienteModel):
         """Cargar datos de paciente en el formulario para edición"""
         self.paciente_seleccionado = paciente
-        self.id_paciente_seleccionado = paciente.id
-        
+
         # Mapear modelo a formulario tipado directamente (v4.1)
         self.formulario_paciente = PacienteFormModel(
             # Nombres completos
@@ -469,11 +419,11 @@ class EstadoPacientes(rx.State,mixin=True):
     @rx.var(cache=True)
     def consultas_del_paciente_seleccionado(self) -> List:
         """📅 Consultas del paciente seleccionado (para historial)"""
-        if not self.id_paciente_seleccionado:
+        if not self.paciente_seleccionado.id:
             return []
         return [
             c for c in self.lista_consultas
-            if c.paciente_id == self.id_paciente_seleccionado
+            if c.paciente_id == self.paciente_seleccionado.id
         ]
 
     # ==========================================

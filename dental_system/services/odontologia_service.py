@@ -899,7 +899,7 @@ class OdontologiaServiceV2(BaseService):
             servicios_historial = []
 
             for servicio_data in response.data:
-                odontologo_id = servicio_data["intervenciones"]["odontologo_id"]
+                odontologo_id = servicio_data["intervencion"]["odontologo_id"]
                 odontologo_info = await self._get_personal_info(odontologo_id)
 
                 superficies = []
@@ -908,19 +908,19 @@ class OdontologiaServiceV2(BaseService):
 
                 item = {
                     "id": servicio_data["id"],
-                    "fecha": servicio_data["intervenciones"]["fecha_registro"],
+                    "fecha": servicio_data["intervencion"]["fecha_registro"],
                     "odontologo_nombre": odontologo_info.get("nombre_completo", "Sin nombre"),
                     "especialidad": odontologo_info.get("especialidad", "General"),
                     "diente_numero": servicio_data.get("diente_numero"),
                     "diente_nombre": self._get_diente_nombre(servicio_data.get("diente_numero")),
                     "superficies": superficies,
                     "superficies_texto": ", ".join([s.capitalize() for s in superficies]) if superficies else "",
-                    "alcance": servicio_data["servicios"]["alcance_servicio"],
-                    "servicio_nombre": servicio_data["servicios"]["nombre"],
-                    "servicio_categoria": servicio_data["servicios"]["categoria"],
+                    "alcance": servicio_data["servicio"]["alcance_servicio"],
+                    "servicio_nombre": servicio_data["servicio"]["nombre"],
+                    "servicio_categoria": servicio_data["servicio"]["categoria"],
                     "condicion_aplicada": None,
                     "material_utilizado": None,
-                    "observaciones": servicio_data["intervenciones"].get("procedimiento_realizado", "")
+                    "observaciones": servicio_data["intervencion"].get("procedimiento_realizado", "")
                 }
 
                 # Obtener condición aplicada si es un diente específico
@@ -928,7 +928,7 @@ class OdontologiaServiceV2(BaseService):
                     condicion = await self._get_condicion_por_intervencion(
                         paciente_id,
                         servicio_data.get("diente_numero"),
-                        servicio_data["intervenciones"]["id"]
+                        servicio_data["intervencion"]["id"]
                     )
                     if condicion:
                         item["condicion_aplicada"] = condicion.get("tipo_condicion")
