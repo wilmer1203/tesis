@@ -84,14 +84,14 @@ def patients_stats() -> rx.Component:
             color=COLORS["primary"]["600"]
         ),
         stat_card(
-            title="Pacientes Activos",
-            value=AppState.total_pacientes_activos.to_string(),
+            title="Pacientes Masculinos",
+            value=AppState.total_pacientes_masculinos.to_string(),
             icon="user-check",
             color=COLORS["success"]["600"]
         ),
         stat_card(
-            title="Nuevos Este Mes",
-            value="47",  # Podrías conectar con AppState
+            title="Pacientes Femeninos",
+            value=AppState.total_pacientes_femeninos.to_string(),
             icon="user-plus",
             color=COLORS["secondary"]["600"]
         ),
@@ -101,111 +101,6 @@ def patients_stats() -> rx.Component:
         margin_bottom="8"
     )
 
-
-def delete_paciente_confirmation_modal() -> rx.Component:
-    """❌ Modal de confirmación moderno con mejor UX para pacientes"""
-    return rx.dialog.root(
-        rx.dialog.content(
-            # Header con icono de advertencia
-            rx.vstack(
-                rx.box(
-                    rx.icon("triangle_alert", size=48, color=COLORS["error"]["500"]),
-                    padding=SPACING["4"],
-                    border_radius=RADIUS["full"],
-                    background=COLORS["error"]["50"]
-                ),
-                rx.heading(
-                    "Confirmar Eliminación",
-                    size="5",
-                    color=COLORS["gray"]["800"],
-                    text_align="center"
-                ),
-                rx.text(
-                    "¿Estás seguro de que deseas eliminar este paciente?",
-                    size="3",
-                    color=COLORS["gray"]["600"],
-                    text_align="center",
-                    line_height="1.5"
-                ),
-                rx.text(
-                    "Esta acción desactivará al paciente pero conservará su historial médico completo.",
-                    size="2",
-                    color=COLORS["gray"]["500"],
-                    text_align="center",
-                    line_height="1.4"
-                ),
-                spacing="4",
-                align="center",
-                margin_bottom="6"
-            ),
-            
-            # Botones de acción con mejor espaciado
-            rx.hstack(
-                rx.button(
-                    "Cancelar",
-                    on_click=AppState.cerrar_todos_los_modales,
-                    style={
-                        **GLASS_EFFECTS["light"],
-                        "border": f"1px solid {COLORS['gray']['300']}60",
-                        "color": COLORS["gray"]["700"],
-                        "border_radius": RADIUS["2xl"],
-                        "padding": f"{SPACING['3']} {SPACING['6']}",
-                        "font_weight": "600",
-                        "transition": ANIMATIONS["presets"]["crystal_hover"],
-                        "_hover": {
-                            **GLASS_EFFECTS["medium"],
-                            "transform": "translateY(-2px)",
-                            "box_shadow": SHADOWS["crystal_sm"]
-                        }
-                    },
-                    width="100%"
-                ),
-                rx.button(
-                    "Eliminar Paciente",
-                    on_click=AppState.ejecutar_eliminar_paciente,
-                    loading=AppState.cargando_pacientes,
-                    style={
-                        "background": GRADIENTS["neon_primary"].replace(COLORS["primary"]["500"], COLORS["error"]["500"]).replace(COLORS["blue"]["600"], COLORS["error"]["600"]),
-                        "color": "white",
-                        "border": "none",
-                        "border_radius": RADIUS["2xl"],
-                        "padding": f"{SPACING['3']} {SPACING['6']}",
-                        "font_weight": "700",
-                        "box_shadow": SHADOWS["glow_primary"].replace(COLORS["primary"]["500"], COLORS["error"]["500"]),
-                        "transition": ANIMATIONS["presets"]["crystal_hover"],
-                        "_hover": {
-                            "transform": "translateY(-2px) scale(1.02)",
-                            "box_shadow": f"0 0 30px {COLORS['error']['500']}50, 0 8px 16px {COLORS['error']['500']}30"
-                        }
-                    },
-                    width="100%"
-                ),
-                spacing="3",
-                width="100%"
-            ),
-            
-            style={
-                "max_width": "480px",
-                "padding": SPACING["8"],
-                "border_radius": RADIUS["3xl"],
-                **GLASS_EFFECTS["strong"],
-                "box_shadow": SHADOWS["crystal_xl"],
-                "border": f"1px solid {COLORS['error']['200']}40",
-                "position": "relative",
-                "_before": {
-                    "content": "''",
-                    "position": "absolute",
-                    "inset": "-1px",
-                    "background": f"linear-gradient(135deg, {COLORS['error']['100']}60 0%, {COLORS['error']['200']}60 50%, {COLORS['error']['100']}60 100%)",
-                    "border_radius": RADIUS["3xl"],
-                    "z_index": "-1",
-                    "opacity": "0.7"
-                }
-            }
-        ),
-        open=AppState.modal_confirmacion_abierto,
-        on_open_change=AppState.cerrar_todos_los_modales
-    )
       
 
 def pacientes_page() -> rx.Component:

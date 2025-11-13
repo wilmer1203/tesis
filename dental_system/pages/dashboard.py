@@ -6,7 +6,7 @@ from dental_system.components.charts import graficas_resume
 from dental_system.styles.themes import COLORS, SHADOWS,GRADIENTS,dark_header_style,DARK_THEME, dark_crystal_card
 
 # ==========================================
-# COMPONENTES DEL DASHBOARD
+# COMPONENTES DEL DASHBOARD - GERENTE
 # ==========================================
 
 def quick_stats_grid() -> rx.Component:
@@ -162,13 +162,253 @@ def recent_activity_card() -> rx.Component:
             width="100%"
         ),
         **dark_crystal_card(color=COLORS["warning"]["500"], hover_lift="4px"),
-        padding="24px",
         width="100%"
     )
 
 # ==========================================
-# COMPONENTE PRINCIPAL DEL DASHBOARD
+# COMPONENTES DEL DASHBOARD - ADMINISTRADOR
 # ==========================================
+
+def quick_stats_grid_admin() -> rx.Component:
+    """Grid de estadísticas rápidas - 6 métricas principales para ADMINISTRADOR (HOY)"""
+    return rx.grid(
+        # Card 1: Consultas Hoy
+        stat_card(
+            title="Consultas Hoy",
+            value=rx.cond(
+                AppState.dashboard_stats_admin,
+                f"{AppState.dashboard_stats_admin.get('consultas_hoy_completadas', 0)}/{AppState.dashboard_stats_admin.get('consultas_hoy_total', 0)}",
+                "0/0"
+            ),
+            icon="calendar",
+            color=COLORS["primary"]["500"],
+        ),
+        # Card 2: Ingresos Hoy
+        stat_card(
+            title="Ingresos Hoy (USD)",
+            value=rx.cond(
+                AppState.dashboard_stats_admin,
+                f"${AppState.dashboard_stats_admin.get('ingresos_hoy', 0):,.2f}",
+                "$0.00"
+            ),
+            icon="dollar-sign",
+            color=COLORS["success"]["500"]
+        ),
+        # Card 3: Pagos Realizados
+        stat_card(
+            title="Pagos Realizados",
+            value=rx.cond(
+                AppState.dashboard_stats_admin,
+                f"{AppState.dashboard_stats_admin.get('pagos_realizados_hoy', 0)}",
+                "0"
+            ),
+            icon="credit-card",
+            color=COLORS["secondary"]["500"]
+        ),
+        # Card 4: Servicios Aplicados
+        stat_card(
+            title="Servicios Aplicados",
+            value=rx.cond(
+                AppState.dashboard_stats_admin,
+                f"{AppState.dashboard_stats_admin.get('servicios_aplicados_hoy', 0)}",
+                "0"
+            ),
+            icon="activity",
+            color=COLORS["blue"]["500"]
+        ),
+        # Card 5: Intervenciones Hoy
+        stat_card(
+            title="Intervenciones",
+            value=rx.cond(
+                AppState.dashboard_stats_admin,
+                f"{AppState.dashboard_stats_admin.get('intervenciones_hoy', 0)}",
+                "0"
+            ),
+            icon="zap",
+            color=COLORS["warning"]["500"]  # Naranja/amarillo
+        ),
+        # Card 6: Pacientes Nuevos Hoy
+        stat_card(
+            title="Pacientes Nuevos",
+            value=rx.cond(
+                AppState.dashboard_stats_admin,
+                f"{AppState.dashboard_stats_admin.get('pacientes_nuevos_hoy', 0)}",
+                "0"
+            ),
+            icon="user-plus",
+            color=COLORS["info"]["500"]  # Azul
+        ),
+        grid_template_columns=[
+            "1fr",                  # Móvil: 1 columna
+            "repeat(1, 1fr)",       # Móvil grande: 1 columna
+            "repeat(2, 1fr)",       # Tablet: 2 columnas
+            "repeat(3, 1fr)",       # Desktop pequeño: 3 columnas
+            "repeat(6, 1fr)",       # Desktop: 6 columnas
+        ],
+        spacing="6",
+        width="100%"
+    )
+
+def consultas_por_estado_chart_admin() -> rx.Component:
+    """Gráfico de barras horizontales: Consultas por Estado (HOY)"""
+    return rx.box(
+        rx.vstack(
+            rx.heading(
+                "Consultas por Estado (Hoy)",
+                size="5",
+                weight="bold",
+                style={
+                    "color": DARK_THEME["colors"]["text_primary"],
+                    "margin_bottom": "16px"
+                }
+            ),
+            rx.cond(
+                AppState.consultas_hoy_por_estado_admin,
+                rx.recharts.bar_chart(
+                    rx.recharts.bar(
+                        data_key="cantidad",
+                        fill=rx.color("blue", 7),
+                        radius=[0, 4, 4, 0]
+                    ),
+                    rx.recharts.x_axis(data_key="estado", axis_line=False, tick_line=False),
+                    rx.recharts.y_axis(axis_line=False, tick_line=False),
+                    rx.recharts.graphing_tooltip(
+                        content_style={
+                            "backgroundColor": rx.color("gray", 1),
+                            "borderRadius": "var(--radius-2)",
+                            "borderWidth": "1px",
+                            "borderColor": rx.color("blue", 7),
+                            "padding": "0.5rem",
+                        }
+                    ),
+                    data=AppState.consultas_hoy_por_estado_admin,
+                    layout="vertical",
+                    height=300,
+                    width="100%"
+                ),
+                rx.center(
+                    rx.text("No hay datos de consultas para hoy", color=DARK_THEME["colors"]["text_secondary"]),
+                    height="300px"
+                )
+            ),
+            spacing="4",
+            width="100%"
+        ),
+        **dark_crystal_card(color=COLORS["primary"]["500"], hover_lift="4px"),
+        width="100%"
+    )
+
+def consultas_por_odontologo_chart_admin() -> rx.Component:
+    """Gráfico de barras: Consultas por Odontólogo (HOY)"""
+    return rx.box(
+        rx.vstack(
+            rx.heading(
+                "Consultas por Odontólogo (Hoy)",
+                size="5",
+                weight="bold",
+                style={
+                    "color": DARK_THEME["colors"]["text_primary"],
+                    "margin_bottom": "16px"
+                }
+            ),
+            rx.cond(
+                AppState.consultas_hoy_por_odontologo_admin,
+                rx.recharts.bar_chart(
+                    rx.recharts.bar(
+                        data_key="cantidad",
+                        fill=rx.color("green", 7),
+                        radius=[4, 4, 0, 0]
+                    ),
+                    rx.recharts.x_axis(data_key="nombre", axis_line=False, tick_line=False),
+                    rx.recharts.y_axis(axis_line=False, tick_line=False),
+                    rx.recharts.graphing_tooltip(
+                        content_style={
+                            "backgroundColor": rx.color("gray", 1),
+                            "borderRadius": "var(--radius-2)",
+                            "borderWidth": "1px",
+                            "borderColor": rx.color("green", 7),
+                            "padding": "0.5rem",
+                        }
+                    ),
+                    data=AppState.consultas_hoy_por_odontologo_admin,
+                    height=300,
+                    width="100%"
+                ),
+                rx.center(
+                    rx.text("No hay odontólogos atendiendo hoy", color=DARK_THEME["colors"]["text_secondary"]),
+                    height="300px"
+                )
+            ),
+            spacing="4",
+            width="100%"
+        ),
+        **dark_crystal_card(color=COLORS["success"]["500"], hover_lift="4px"),
+        width="100%"
+    )
+
+# ==========================================
+# PÁGINAS COMPLETAS POR ROL
+# ==========================================
+
+def dashboard_page_admin() -> rx.Component:
+    """Página del dashboard del ADMINISTRADOR - Tiempo real (HOY)"""
+    return medical_page_layout(
+        rx.vstack(
+            # Header de la página
+            page_header(
+                "Dashboard Administrativo",
+                "Monitoreo en tiempo real de las operaciones del día",
+                actions=[
+                    refresh_button(
+                        text="Actualizar datos",
+                        on_click=AppState.cargar_dashboard_admin,
+                        loading=AppState.cargando_dashboard_admin
+                    )
+                ]
+            ),
+            # Contenido principal
+            rx.cond(
+                AppState.cargando_dashboard_admin,
+                rx.center(
+                    rx.vstack(
+                        rx.spinner(size="3", color=COLORS["primary"]["500"]),
+                        rx.text("Cargando datos de hoy...", color=COLORS["gray"]["600"], size="3"),
+                        spacing="3",
+                        align="center"
+                    ),
+                    padding="40px",
+                    width="100%"
+                ),
+                rx.box(
+                    # Grid de 6 estadísticas principales
+                    quick_stats_grid_admin(),
+
+                    # Grid de gráficos (2 columnas)
+                    rx.grid(
+                        consultas_por_estado_chart_admin(),
+                        consultas_por_odontologo_chart_admin(),
+                        grid_template_columns=[
+                            "1fr",                  # Móvil: 1 columna
+                            "repeat(1, 1fr)",       # Móvil grande: 1 columna
+                            "repeat(2, 1fr)",       # Tablet: 2 columnas
+                            "repeat(2, 1fr)",       # Desktop: 2 columnas
+                        ],
+                        margin_top="24px",
+                        spacing="6",
+                        width="100%",
+                    ),
+                    spacing="6",
+                    padding="24px",
+                    width="100%",
+                )
+            ),
+            spacing="3",
+            width="100%",
+            min_height="100vh",
+            # 🚀 CARGAR DATOS REALES AL MONTAR
+            on_mount=AppState.cargar_dashboard_admin()
+        )
+    )
 
 def dashboard_page() -> rx.Component:
     """Página principal del dashboard del gerente - V2.0 CON DATOS REALES"""
@@ -227,11 +467,8 @@ def dashboard_page() -> rx.Component:
         spacing="3",
         width="100%",
         min_height="100vh",
-        # 🚀 CARGAR DATOS REALES AL MONTAR + mantener random para toggle
-        on_mount=[
-            AppState.cargar_dashboard_gerente_completo(),
-            AppState.randomize_data()
-        ]
+        # 🚀 CARGAR DATOS REALES AL MONTAR
+        on_mount=AppState.cargar_dashboard_gerente_completo()
     )
     )
 

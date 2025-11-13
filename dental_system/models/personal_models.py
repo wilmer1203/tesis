@@ -12,11 +12,8 @@ class UsuarioModel(rx.Base):
     """Modelo para datos de usuario del sistema"""
     id: Optional[str] = ""
     email: str = ""
-    nombre_completo: str = ""
-    celular: Optional[str] = ""
     activo: bool = True
     rol_id: str = ""
-    rol_nombre: str = ""
     auth_user_id: Optional[str] = ""
     fecha_creacion: str = ""
     
@@ -29,11 +26,8 @@ class UsuarioModel(rx.Base):
         return cls(
             id=str(data.get("id", "")),
             email=str(data.get("email", "")),
-            nombre_completo=str(data.get("nombre_completo", "")),
-            celular=str(data.get("celular", "")),
             activo=bool(data.get("activo", True)),
             rol_id=str(data.get("rol_id", "")),
-            rol_nombre=str(data.get("rol_nombre", "")),
             auth_user_id=str(data.get("auth_user_id", "") if data.get("auth_user_id") else ""),
             fecha_creacion=str(data.get("fecha_creacion", ""))
         )
@@ -255,82 +249,6 @@ class PersonalStatsModel(rx.Base):
         )
 
 
-class HorarioTrabajoModel(rx.Base):
-    """Modelo para horarios de trabajo del personal"""
-    personal_id: str = ""
-    dia_semana: str = ""  # lunes, martes, etc.
-    hora_entrada: str = "08:00"
-    hora_salida: str = "17:00"
-    hora_almuerzo_inicio: Optional[str] = "12:00"
-    hora_almuerzo_fin: Optional[str] = "13:00"
-    activo: bool = True
-    
-    @property
-    def horas_trabajadas_dia(self) -> float:
-        """Calcula las horas trabajadas en el día"""
-        try:
-            from datetime import datetime, timedelta
-            
-            entrada = datetime.strptime(self.hora_entrada, "%H:%M")
-            salida = datetime.strptime(self.hora_salida, "%H:%M")
-            
-            total_horas = (salida - entrada).total_seconds() / 3600
-            
-            # Restar hora de almuerzo si está definida
-            if self.hora_almuerzo_inicio and self.hora_almuerzo_fin:
-                almuerzo_inicio = datetime.strptime(self.hora_almuerzo_inicio, "%H:%M")
-                almuerzo_fin = datetime.strptime(self.hora_almuerzo_fin, "%H:%M")
-                horas_almuerzo = (almuerzo_fin - almuerzo_inicio).total_seconds() / 3600
-                total_horas -= horas_almuerzo
-            
-            return max(0, total_horas)
-        except:
-            return 8.0  # Default
-
-
-class EspecialidadModel(rx.Base):
-    """Modelo para especialidades odontológicas"""
-    id: str = ""
-    nombre: str = ""
-    descripcion: str = ""
-    requiere_licencia_especial: bool = False
-    codigo_especialidad: str = ""
-    activa: bool = True
-    
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "EspecialidadModel":
-        """Crear instancia desde diccionario"""
-        if not data or not isinstance(data, dict):
-            return cls()
-        
-        return cls(
-            id=str(data.get("id", "")),
-            nombre=str(data.get("nombre", "")),
-            descripcion=str(data.get("descripcion", "")),
-            requiere_licencia_especial=bool(data.get("requiere_licencia_especial", False)),
-            codigo_especialidad=str(data.get("codigo_especialidad", "")),
-            activa=bool(data.get("activa", True))
-        )
-
-
-class PermisoModel(rx.Base):
-    """Modelo para permisos granulares del sistema"""
-    modulo: str = ""          # pacientes, consultas, personal, etc.
-    acciones: List[str] = []  # crear, leer, actualizar, eliminar
-    descripcion: str = ""
-    
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "PermisoModel":
-        """Crear instancia desde diccionario de permisos"""
-        if not data or not isinstance(data, dict):
-            return cls()
-        
-        return cls(
-            modulo=str(data.get("modulo", "")),
-            acciones=data.get("acciones", []),
-            descripcion=str(data.get("descripcion", ""))
-        )
-
 
 # ==========================================
 # 📝 FORMULARIOS DE PERSONAL
@@ -351,8 +269,9 @@ class PersonalFormModel(rx.Base):
     
     # Identificación
     numero_documento: str = ""
+    tipo_documento: str = "CI"  
     celular: str = ""
-    email: str = ""
+    codigo_pais_celular: str = "+58 (VE)"  # Código de país para celular
     direccion: str = ""
     
     # Datos profesionales
@@ -411,8 +330,8 @@ class PersonalFormModel(rx.Base):
             "primer_apellido": self.primer_apellido,
             "segundo_apellido": self.segundo_apellido,
             "numero_documento": self.numero_documento,
+            "tipo_documento": self.tipo_documento,
             "celular": self.celular,  # ✅ CAMBIO: telefono → celular
-            "email_personal": self.email,  # ✅ SEPARAR: email personal del sistema
             "direccion": self.direccion,
             "tipo_personal": self.tipo_personal,
             "especialidad": self.especialidad,
@@ -438,8 +357,9 @@ class PersonalFormModel(rx.Base):
             primer_apellido=str(data.get("primer_apellido", "")),
             segundo_apellido=str(data.get("segundo_apellido", "")),
             numero_documento=str(data.get("numero_documento", "")),
+            tipo_documento=str(data.get("tipo_documento", "CI")),
             celular=str(data.get("celular", "")),
-            email=str(data.get("email", "")),
+            codigo_pais_celular=str(data.get("codigo_pais_celular", "+58 (VE)")),
             direccion=str(data.get("direccion", "")),
             tipo_personal=str(data.get("tipo_personal", "asistente")),
             especialidad=str(data.get("especialidad", "")),

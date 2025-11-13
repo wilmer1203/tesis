@@ -264,7 +264,7 @@ personal_data = response.data[0] if response.data else None
 results = self.pacientes_table.search(search_term)
 
 # ✅ DESPUÉS
-query = self.client.table("pacientes").select("*")
+query = self.client.table("paciente").select("*")
 
 if search_term:
     # Usar .or_() para buscar en múltiples campos
@@ -284,7 +284,7 @@ results = response.data if response.data else []
 pagos = self.pagos_table.get_by_date_range(fecha_inicio, fecha_fin)
 
 # ✅ DESPUÉS
-query = self.client.table("pagos").select("*")
+query = self.client.table("pago").select("*")
 query = query.gte("fecha_pago", fecha_inicio)  # greater than or equal
 query = query.lte("fecha_pago", fecha_fin)     # less than or equal
 
@@ -364,7 +364,7 @@ user_data = {
     "activo": True
 }
 
-response = self.client.table("usuarios").insert(user_data).execute()
+response = self.client.table("usuario").insert(user_data).execute()
 user_result = response.data[0] if response.data else None
 ```
 
@@ -437,7 +437,7 @@ existing_personal = response.data[0] if response.data else None
 existing_user = self.users_table.get_by_email(form_data["email"])
 
 # ✅ REEMPLAZAR
-response = self.client.table("usuarios").select("id").eq("email", form_data["email"]).execute()
+response = self.client.table("usuario").select("id").eq("email", form_data["email"]).execute()
 existing_user = response.data[0] if response.data else None
 ```
 
@@ -475,7 +475,7 @@ user_data = {
     "activo": True
 }
 
-user_response = self.client.table("usuarios").insert(user_data).execute()
+user_response = self.client.table("usuario").insert(user_data).execute()
 user_result = user_response.data[0] if user_response.data else None
 ```
 

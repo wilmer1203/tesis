@@ -1,6 +1,6 @@
 from ..state.app_state import AppState
 import reflex as rx
-from dental_system.styles.themes import (COLORS, SHADOWS, dark_crystal_card)
+from dental_system.styles.themes import (COLORS, SHADOWS, dark_crystal_card,DARK_THEME)
 # =============================================
 # Componentes Reutilizables
 # =============================================
@@ -106,43 +106,19 @@ def render_chart(key: str, color: str, gradient_id: str) -> rx.Component:
     
 def graficas_resume() -> rx.Component:
     """
-    📊 COMPONENTE PRINCIPAL DE GRÁFICOS - CON TOGGLE REAL/RANDOM
+    📊 COMPONENTE PRINCIPAL DE GRÁFICOS - DATOS REALES
 
-    MEJORAS V2.0:
-    - Datos reales desde dashboard_service
-    - Toggle temporal para testing (icono pequeño)
+    CARACTERÍSTICAS:
+    - Datos reales desde dashboard_service (últimos 30 días)
+    - Toggle entre área y barras
+    - Selector de métricas (Pacientes/Ingresos/Consultas)
     - Adaptación por rol de usuario
-    - Mejor manejo de errores
     """
     return rx.box(
         rx.hstack(
             chart_toggle(),
             rx.spacer(),
             custom_segmented_control(),
-            rx.spacer(),
-            # 🧪 TOGGLE TEMPORAL PARA TESTING (eliminar después)
-            rx.tooltip(
-                rx.icon_button(
-                    rx.cond(
-                        AppState.usar_datos_reales_dashboard,
-                        rx.icon("database", size=16),  # Icono base de datos (datos reales)
-                        rx.icon("test-tube", size=16)  # Icono laboratorio (datos de prueba)
-                    ),
-                    on_click=AppState.toggle_datos_dashboard,
-                    variant="ghost",
-                    size="2",
-                    color_scheme=rx.cond(
-                        AppState.usar_datos_reales_dashboard,
-                        "green",  # Verde para datos reales
-                        "orange"  # Naranja para datos random
-                    )
-                ),
-                content=rx.cond(
-                    AppState.usar_datos_reales_dashboard,
-                    "Datos Reales (click para random)",
-                    "Datos Random (click para reales)"
-                ),
-            ),
             align="center",
             width="100%",
             margin_bottom="1em"
@@ -175,6 +151,365 @@ def graficas_resume() -> rx.Component:
             ),
         ),
         **dark_crystal_card(color=COLORS["primary"]["500"], hover_lift="4px"),
-        padding="24px",
+        width="100%"
+    )
+
+
+# ==========================================
+# 📈 GRÁFICOS DE REPORTES - REUTILIZA COMPONENTES
+# ==========================================
+
+def graficas_reportes() -> rx.Component:
+    """
+    📊 GRÁFICOS DE EVOLUCIÓN TEMPORAL PARA REPORTES
+
+    REUTILIZA:
+    - Componentes de render_chart (área/barras)
+    - Tooltips y gradientes personalizados
+    - Toggle de área/barras
+
+    USA DATOS DE:
+    - AppState.datos_evolucion_activa (computed var de reportes)
+    - AppState.tab_grafico_activo (estado de reportes)
+    - AppState.cambiar_tab_grafico (método de reportes)
+    """
+    return rx.box(
+        rx.hstack(
+            chart_toggle(),  # Reutilizar toggle
+            rx.spacer(),
+            # Segmented control específico para reportes
+            rx.segmented_control.root(
+                rx.segmented_control.item("Pacientes Nuevos", value="pacientes_nuevos"),
+                rx.segmented_control.item("Consultas", value="consultas"),
+                rx.segmented_control.item("Ingresos", value="ingresos"),
+                default_value="pacientes_nuevos",
+                on_change=AppState.cambiar_tab_grafico,  # Método de reportes
+                margin_bottom="1.5em",
+                radius="full"
+            ),
+            align="center",
+            width="100%",
+            margin_bottom="1em"
+        ),
+        rx.match(
+            AppState.tab_grafico_activo,
+            (
+                "pacientes_nuevos",
+                _render_chart_reportes(
+                    data=AppState.evolucion_temporal_pacientes,
+                    key="valor",
+                    color="blue",
+                    gradient_id="gradient-reportes-blue"
+                )
+            ),
+            (
+                "consultas",
+                _render_chart_reportes(
+                    data=AppState.evolucion_temporal_consultas,
+                    key="valor",
+                    color="orange",
+                    gradient_id="gradient-reportes-orange"
+                )
+            ),
+            (
+                "ingresos",
+                _render_chart_reportes(
+                    data=AppState.evolucion_temporal_ingresos,
+                    key="valor",
+                    color="green",
+                    gradient_id="gradient-reportes-green"
+                )
+            ),
+        ),
+        **dark_crystal_card(color=COLORS["primary"]["500"], hover_lift="4px"),
+        width="100%"
+    )
+
+
+def _render_chart_reportes(data: list, key: str, color: str, gradient_id: str) -> rx.Component:
+    """
+    Renderiza gráfico para reportes (reutiliza lógica de render_chart)
+    Formato de datos: [{"fecha": "2025-01-01", "valor": 5}, ...]
+    """
+    return rx.box(
+        rx.cond(
+            AppState.area_toggle,
+            rx.recharts.area_chart(
+                rx.recharts.area(
+                    data_key=key,
+                    fill=f"url(#{gradient_id})",
+                    stroke=color,
+                    type_="natural"
+                ),
+                rx.recharts.x_axis(data_key="fecha", axis_line=False, tick_line=False),
+                create_gradient(color, gradient_id),
+                custom_tooltip(color),
+                data=data,  # Datos de reportes
+                height=300,
+                width="100%"
+            ),
+            rx.recharts.bar_chart(
+                rx.recharts.bar(
+                    data_key=key,
+                    fill=color,
+                    radius=[4, 4, 0, 0]
+                ),
+                rx.recharts.x_axis(data_key="fecha", axis_line=False, tick_line=False),
+                custom_tooltip(color),
+                data=data,  # Datos de reportes
+                height=300,
+                width="100%"
+            )
+        ),
+        width="100%"
+    )
+
+
+# ==========================================
+# 📈 GRÁFICOS DE REPORTES ODONTÓLOGO - REUTILIZA COMPONENTES
+# ==========================================
+
+def graficas_reportes_odontologo() -> rx.Component:
+    """
+    📊 GRÁFICOS DE EVOLUCIÓN TEMPORAL PARA REPORTES ODONTÓLOGO
+
+    REUTILIZA:
+    - Componentes de render_chart (área/barras)
+    - Tooltips y gradientes personalizados
+    - Toggle de área/barras
+
+    USA DATOS DE:
+    - AppState.evolucion_temporal_ingresos_odontologo
+    - AppState.evolucion_temporal_intervenciones_odontologo
+    - AppState.tab_grafico_odontologo (estado de reportes)
+    - AppState.cambiar_tab_grafico_odontologo (método de reportes)
+    """
+    return rx.box(
+        rx.hstack(
+            chart_toggle(),  # Reutilizar toggle
+            rx.spacer(),
+            # Segmented control específico para reportes odontólogo
+            rx.segmented_control.root(
+                rx.segmented_control.item("Ingresos", value="ingresos"),
+                rx.segmented_control.item("Intervenciones", value="intervenciones"),
+                default_value="ingresos",
+                on_change=AppState.cambiar_tab_grafico_odontologo,  # Método de reportes
+                margin_bottom="1.5em",
+                radius="full"
+            ),
+            align="center",
+            width="100%",
+            margin_bottom="1em"
+        ),
+        rx.match(
+            AppState.tab_grafico_odontologo,
+            (
+                "ingresos",
+                _render_chart_reportes(
+                    data=AppState.evolucion_temporal_ingresos_odontologo,
+                    key="valor",
+                    color="green",
+                    gradient_id="gradient-reportes-odontologo-green"
+                )
+            ),
+            (
+                "intervenciones",
+                _render_chart_reportes(
+                    data=AppState.evolucion_temporal_intervenciones_odontologo,
+                    key="valor",
+                    color="blue",
+                    gradient_id="gradient-reportes-odontologo-blue"
+                )
+            ),
+        ),
+        **dark_crystal_card(color=COLORS["primary"]["500"], hover_lift="4px"),
+        width="100%"
+    )
+
+
+# ==========================================
+# 📈 GRÁFICOS DE REPORTES ADMINISTRADOR - REUTILIZA COMPONENTES
+# ==========================================
+
+def graficas_reportes_admin() -> rx.Component:
+    """
+    📊 GRÁFICOS DE EVOLUCIÓN TEMPORAL PARA REPORTES ADMINISTRADOR
+
+    REUTILIZA:
+    - Componentes de render_chart (área/barras)
+    - Tooltips y gradientes personalizados
+    - Toggle de área/barras
+
+    USA DATOS DE:
+    - AppState.evolucion_temporal_consultas_admin
+    - AppState.evolucion_temporal_ingresos_admin
+    - AppState.evolucion_temporal_pacientes_admin
+    - AppState.tab_grafico_admin (estado de reportes)
+    - AppState.cambiar_tab_grafico_admin (método de reportes)
+    """
+    return rx.box(
+        rx.hstack(
+            chart_toggle(),  # Reutilizar toggle
+            rx.spacer(),
+            # Segmented control específico para reportes administrador
+            rx.segmented_control.root(
+                rx.segmented_control.item("Consultas", value="consultas"),
+                rx.segmented_control.item("Ingresos", value="ingresos"),
+                rx.segmented_control.item("Pacientes Nuevos", value="pacientes_nuevos"),
+                default_value="consultas",
+                on_change=AppState.cambiar_tab_grafico_admin,  # Método de reportes
+                margin_bottom="1.5em",
+                radius="full"
+            ),
+            align="center",
+            width="100%",
+            margin_bottom="1em"
+        ),
+        rx.match(
+            AppState.tab_grafico_admin,
+            (
+                "consultas",
+                _render_chart_reportes(
+                    data=AppState.evolucion_temporal_consultas_admin,
+                    key="valor",
+                    color="blue",
+                    gradient_id="gradient-reportes-admin-blue"
+                )
+            ),
+            (
+                "ingresos",
+                _render_chart_reportes(
+                    data=AppState.evolucion_temporal_ingresos_admin,
+                    key="valor",
+                    color="green",
+                    gradient_id="gradient-reportes-admin-green"
+                )
+            ),
+            (
+                "pacientes_nuevos",
+                _render_chart_reportes(
+                    data=AppState.evolucion_temporal_pacientes_admin,
+                    key="valor",
+                    color="orange",
+                    gradient_id="gradient-reportes-admin-orange"
+                )
+            ),
+        ),
+        **dark_crystal_card(color=COLORS["primary"]["500"], hover_lift="4px"),
+        width="100%"
+    )
+
+
+# ==========================================
+# 🥧 PIE CHART CARD - NUEVO COMPONENTE
+# ==========================================
+
+def pie_chart_card(
+    title: str,
+    data: list,  # [{"name": "USD", "value": 4357.75}, ...]
+    subtitle: str = "",
+    height: int = 320
+) -> rx.Component:
+    """
+    📊 Card con gráfico de torta redondo (pie chart)
+
+    USADO EN:
+    - Distribución de pagos USD vs BS (Gerente)
+    - Distribución de ingresos odontólogo (Odontólogo)
+    - Tipos de consulta (Administrador)
+
+    Args:
+        title: Título del card
+        data: Lista de dicts con name, value y fill (color)
+        subtitle: Subtítulo opcional
+        height: Altura del gráfico en px
+
+    Returns:
+        Card con pie chart estilizado
+    """
+    return rx.box(
+        rx.vstack(
+            # Header
+            rx.vstack(
+                rx.heading(
+                    title,
+                    size="5",
+                    weight="bold",
+                    style={
+                        "color": DARK_THEME["colors"]["text_primary"],
+                        "margin_bottom": "4px"
+                    }
+                ),
+                rx.cond(
+                    subtitle != "",
+                    rx.text(
+                        subtitle,
+                        size="2",
+                        style={
+                            "color": DARK_THEME["colors"]["text_secondary"]
+                        }
+                    )
+                ),
+                spacing="1",
+                align="start",
+                width="100%",
+                margin_bottom="4"
+            ),
+
+            # Pie Chart
+            rx.recharts.pie_chart(
+                rx.recharts.pie(
+                    data=data,
+                    data_key="value",
+                    name_key="name",
+                    cx="50%",
+                    cy="50%",
+                    inner_radius=0,
+                    outer_radius=80,
+                    label=True,
+                    label_line=True
+                ),
+                rx.recharts.legend(
+                    icon_type="circle",
+                    layout="horizontal",
+                    vertical_align="bottom"
+                ),
+                width="100%",
+                height=height
+            ),
+
+            # Stats summary (abajo del gráfico)
+            rx.hstack(
+                rx.foreach(
+                    data,
+                    lambda item: rx.hstack(
+                        rx.box(
+                            width="12px",
+                            height="12px",
+                            background=item["fill"],
+                            border_radius="2px"
+                        ),
+                        rx.text(
+                            f"{item['name']}: ${item['value']:,.2f}",
+                            size="2",
+                            weight="medium",
+                            style={
+                                "color": DARK_THEME["colors"]["text_primary"]
+                            }
+                        ),
+                        spacing="2",
+                        align="center"
+                    )
+                ),
+                spacing="4",
+                wrap="wrap",
+                width="100%",
+                justify="center"
+            ),
+
+            spacing="4",
+            width="100%"
+        ),
+        **dark_crystal_card(color=COLORS["primary"]["500"], hover_lift="4px"),
         width="100%"
     )

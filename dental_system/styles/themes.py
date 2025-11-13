@@ -420,111 +420,6 @@ BREAKPOINTS = {
     "2xl": "1536px"
 }
 
-# ==========================================
-# 🧩 COMPONENTES REUTILIZABLES
-# ==========================================
-
-# Estilos base para componentes comunes
-COMPONENT_STYLES = {
-    "button": {
-        "base": {
-            "font_family": TYPOGRAPHY["font_family"]["sans"],
-            "font_weight": TYPOGRAPHY["font_weight"]["medium"],
-            "border_radius": RADIUS["lg"],
-            "transition": ANIMATIONS["presets"]["button_hover"],
-            "cursor": "pointer",
-            "display": "inline-flex",
-            "align_items": "center",
-            "justify_content": "center",
-            "gap": SPACING["2"]
-        },
-        "sizes": {
-            "sm": {
-                "padding": f"{SPACING['2']} {SPACING['3']}",
-                "font_size": TYPOGRAPHY["font_size"]["sm"],
-                "height": "32px"
-            },
-            "md": {
-                "padding": f"{SPACING['2.5']} {SPACING['4']}",
-                "font_size": TYPOGRAPHY["font_size"]["base"],
-                "height": "40px"
-            },
-            "lg": {
-                "padding": f"{SPACING['3']} {SPACING['5']}",
-                "font_size": TYPOGRAPHY["font_size"]["lg"],
-                "height": "48px"
-            }
-        },
-        "variants": {
-            "primary": {
-                "background": COLORS["primary"]["500"],
-                "color": "white",
-                "_hover": {
-                    "background": COLORS["primary"]["600"],
-                    "transform": "translateY(-1px)",
-                    "box_shadow": SHADOWS["md"]
-                }
-            },
-            "secondary": {
-                "background": COLORS["gray"]["100"],
-                "color": COLORS["gray"]["700"],
-                "border": f"1px solid {COLORS['gray']['300']}",
-                "_hover": {
-                    "background": COLORS["gray"]["200"],
-                    "border_color": COLORS["gray"]["400"]
-                }
-            },
-            "success": {
-                "background": COLORS["success"]["500"],
-                "color": "white",
-                "_hover": {
-                    "background": COLORS["success"]["600"]
-                }
-            },
-            "danger": {
-                "background": COLORS["error"]["500"],
-                "color": "white",
-                "_hover": {
-                    "background": COLORS["error"]["600"]
-                }
-            }
-        }
-    },
-    
-    "input": {
-        "base": {
-            "border_radius": RADIUS["xl"],
-            "border": f"1px solid {COLORS['gray']['300']}",
-            # "padding": f"{SPACING['1']} {SPACING['2']}",
-            "font_size": TYPOGRAPHY["font_size"]["base"],
-            "transition": ANIMATIONS["presets"]["fade_in"],
-            "_focus": {
-                "outline": "none",
-                "border_color": COLORS["primary"]["500"],
-                "box_shadow": SHADOWS["xl"]
-            }
-        }
-    },
-    
-    "card": {
-        "base": {
-            "background": "white",
-            "border_radius": RADIUS["xl"],
-            "box_shadow": SHADOWS["sm"],
-            "border": f"1px solid {COLORS['gray']['200']}",
-            "overflow": "hidden"
-        },
-        "variants": {
-            "elevated": {
-                "box_shadow": SHADOWS["lg"]
-            },
-            "flat": {
-                "box_shadow": "none",
-                "border": f"1px solid {COLORS['gray']['200']}"
-            }
-        }
-    }
-}
 
 # ==========================================
 # 🌈 GRADIENTES OPTIMIZADOS (SOLO UTILIZADOS)
@@ -570,6 +465,7 @@ DARK_THEME_STYLES = {
     # Fondos profesionales
     "page_background": {
         "background": f"linear-gradient(180deg, {COLORS['blue']['950']} 0%,{COLORS['gray']['900']} 20%, {COLORS['gray']['950']} 100%);",
+         "background-attachment": "fixed",
         "position": "relative",
         "_before": {
             "content": "''",
@@ -761,34 +657,44 @@ def create_dark_style(
     
     return final_style
 
-def dark_crystal_card(color: str = None, hover_lift: str = "6px", **overrides) -> Dict[str, Any]:
-    """💎 Card cristal con color personalizable"""
+def dark_crystal_card(color: str = "", hover_lift: str = "6px", padding: str = SPACING["6"], **overrides) -> Dict[str, Any]:
+    """💎 Card cristal con color personalizable y padding por defecto
+
+    Args:
+        color: Color de acento opcional para efectos visuales (puede ser un Var de Reflex)
+        hover_lift: Altura del efecto hover (default: "6px")
+        padding: Padding interno del card (default: SPACING["6"] = 24px)
+        **overrides: Estilos adicionales para sobreescribir
+    """
     base_style = DARK_THEME_STYLES["crystal_card"].copy()
-    
-    if color:
-        # Agregar efectos de color específico
-        base_style.update({
-            "box_shadow": f"0 8px 32px rgba(0, 0, 0, 0.5), 0 4px 16px {color}20, inset 0 1px 0 rgba(255, 255, 255, 0.1)",
-            "_hover": {
-                "transform": f"translateY(-{hover_lift})",
-                "box_shadow": f"0 12px 40px rgba(0, 0, 0, 0.4), 0 8px 24px {color}30, inset 0 1px 0 rgba(255, 255, 255, 0.2)",
-                "border": f"1px solid {color}",
-                "background": "rgba(255, 255, 255, 0.03)"
-            },
-            # Borde superior con glow
-            "_before": {
-                "content": "''",
-                "position": "absolute",
-                "top": "0",
-                "left": "0",
-                "right": "0",
-                "height": "2px",
-                "background": f"linear-gradient(90deg, transparent 0%, {color} 50%, transparent 100%)",
-                "opacity": "0.9",
-                "box_shadow": f"0 0 8px {color}60"
-            }
-        })
-    
+
+    # Agregar padding por defecto
+    base_style["padding"] = padding
+
+    # Siempre agregar efectos de color (funciona con Vars de Reflex también)
+    # Si color está vacío, los efectos simplemente no se notarán
+    base_style.update({
+        "box_shadow": f"0 8px 32px rgba(0, 0, 0, 0.5), 0 4px 16px {color}20, inset 0 1px 0 rgba(255, 255, 255, 0.1)",
+        "_hover": {
+            "transform": f"translateY(-{hover_lift})",
+            "box_shadow": f"0 12px 40px rgba(0, 0, 0, 0.4), 0 8px 24px {color}30, inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+            "border": f"1px solid {color}",
+            "background": "rgba(255, 255, 255, 0.03)"
+        },
+        # Borde superior con glow
+        "_before": {
+            "content": "''",
+            "position": "absolute",
+            "top": "0",
+            "left": "0",
+            "right": "0",
+            "height": "2px",
+            "background": f"linear-gradient(90deg, transparent 0%, {color} 50%, transparent 100%)",
+            "opacity": "0.9",
+            "box_shadow": f"0 0 8px {color}60"
+        }
+    })
+
     base_style.update(overrides)
     return base_style
 
@@ -831,7 +737,6 @@ __all__ = [
     "ANIMATIONS",
     "BREAKPOINTS",
     # Componentes
-    "COMPONENT_STYLES",
     "DENTAL_SPECIFIC",
     "DARK_THEME_STYLES",
     # 🌟 Elementos cristalinos utilizados

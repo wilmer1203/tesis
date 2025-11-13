@@ -89,34 +89,34 @@ invalidation_tracker = CacheInvalidationHooks()
 # DECORADORES DE INVALIDACIÓN POR MÓDULO
 # ========================================
 
-def invalidate_after_patient_operation(operation_type: str = "unknown"):
-    """
-    🩺 DECORADOR: Invalidar cache después de operaciones de pacientes
+# def invalidate_after_patient_operation(operation_type: str = "unknown"):
+#     """
+#     🩺 DECORADOR: Invalidar cache después de operaciones de pacientes
     
-    Afecta: dashboard, pacientes
-    """
-    def decorator(func: Callable) -> Callable:
-        @wraps(func)
-        async def wrapper(*args, **kwargs):
-            result = await func(*args, **kwargs)
+#     Afecta: dashboard, pacientes
+#     """
+#     def decorator(func: Callable) -> Callable:
+#         @wraps(func)
+#         async def wrapper(*args, **kwargs):
+#             result = await func(*args, **kwargs)
             
-            # Invalidar cache relevante
-            affected_modules = ['dashboard', 'pacientes']
-            affected_data = {
-                'operation': operation_type,
-                'function': func.__name__,
-                'timestamp': datetime.now().isoformat()
-            }
+#             # Invalidar cache relevante
+#             affected_modules = ['dashboard', 'pacientes']
+#             affected_data = {
+#                 'operation': operation_type,
+#                 'function': func.__name__,
+#                 'timestamp': datetime.now().isoformat()
+#             }
             
-            invalidation_tracker.invalidate_cache_for_modules(
-                modules=affected_modules,
-                operation_type=operation_type,
-                affected_data=affected_data
-            )
+#             invalidation_tracker.invalidate_cache_for_modules(
+#                 modules=affected_modules,
+#                 operation_type=operation_type,
+#                 affected_data=affected_data
+#             )
             
-            return result
-        return wrapper
-    return decorator
+#             return result
+#         return wrapper
+#     return decorator
 
 def invalidate_after_consultation_operation(operation_type: str = "unknown"):
     """

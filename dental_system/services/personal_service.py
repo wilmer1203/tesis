@@ -8,7 +8,6 @@ from datetime import date, datetime
 from decimal import Decimal
 from .base_service import BaseService
 from dental_system.models import PersonalModel, PersonalFormModel
-from .cache_invalidation_hooks import invalidate_after_staff_operation, track_cache_invalidation
 import logging
 
 logger = logging.getLogger(__name__)
@@ -42,7 +41,7 @@ class PersonalService(BaseService):
         try:
             # Construir query base con JOIN a usuarios
             query = self.client.table("personal").select(
-                "*, usuarios!personal_usuario_id_fkey(*)"
+                "*, usuario!personal_usuario_id_fkey(*)"
             )
 
             # Aplicar filtros dinámicos
@@ -89,22 +88,22 @@ class PersonalService(BaseService):
             self.handle_error("Error obteniendo personal filtrado", e)
             return []
     
-    async def create_staff_member(self, personal_form: PersonalFormModel, creator_user_id: str) -> Optional[PersonalModel]:
+    async def create_staff_member(self, personal_form: PersonalFormModel) -> Optional[PersonalModel]:
         """
         Crea un nuevo miembro del personal - PROCESO COMPLETO
-        
+
         Args:
-            personal_form: Formulario tipado de personal
-            creator_user_id: ID del usuario que crea
-            
+            personal_form: Formulario tipado de personal (PersonalFormModel)
+
         Returns:
-            Personal creado o None si hay error
+            PersonalModel: Personal creado o None si hay error
+
+        Nota:
+            El contexto del usuario (user_id, user_profile) debe establecerse
+            antes con set_user_context()
         """
         try:
-            logger.info("Creando nuevo miembro del personal")
-            
-            # Verificar permisos
-            self.require_permission("personal", "crear")
+            print("Creando nuevo miembro del personal")
             
             # Convertir formulario tipado a dict
             form_data = personal_form.to_dict()
@@ -150,18 +149,18 @@ class PersonalService(BaseService):
                 raise ValueError("Ya existe personal con este número de documento")
 
             # Verificar que no exista el email
-            response = self.client.table("usuarios").select("id").eq("email", form_data["email"]).execute()
+            response = self.client.table("usuario").select("id").eq("email", form_data["email"]).execute()
             existing_user = response.data[0] if response.data else None
             if existing_user:
                 raise ValueError("Ya existe un usuario con este email")
             
             # verificar el monto antes de crear ____________________________________
-            
             # Paso 1: Crear usuario en Supabase Auth
             rol = self._map_tipo_personal_to_rol(form_data["tipo_personal"])
-
-            # 1.1. Crear usuario en Supabase Auth
-            auth_response = self.client.auth.admin.create_user({
+            
+            # 1.1. Crear usuario en Supabase Auth usando cliente administrativo
+            print(f"📝 Creando usuario en Auth con email: {form_data['email']}")
+            auth_response = self.admin_client.auth.admin.create_user({
                 "email": form_data["email"],
                 "password": form_data["password"],
                 "email_confirm": True
@@ -171,9 +170,10 @@ class PersonalService(BaseService):
                 raise ValueError("Error creando usuario en autenticación")
 
             usuario_id = auth_response.user.id
+            print(f"✅ Usuario creado en Supabase Auth: {usuario_id}")
 
             # 1.2. Obtener ID del rol
-            rol_response = self.client.table("roles").select("id").eq("nombre", rol).execute()
+            rol_response = self.client.table("rol").select("id").eq("nombre", rol).execute()
             rol_id = rol_response.data[0]["id"] if rol_response.data else None
 
             if not rol_id:
@@ -184,14 +184,11 @@ class PersonalService(BaseService):
                 "id": usuario_id,
                 "email": form_data["email"],
                 "rol_id": rol_id,
-                "primer_nombre": form_data.get("primer_nombre"),
-                "primer_apellido": form_data.get("primer_apellido"),
                 "activo": True
             }
 
-            user_response = self.client.table("usuarios").insert(user_data).execute()
+            user_response = self.client.table("usuario").insert(user_data).execute()
             user_result = user_response.data[0] if user_response.data else None
-
             if not user_result:
                 raise ValueError("Error creando registro de usuario en la base de datos")
             
@@ -213,12 +210,6 @@ class PersonalService(BaseService):
                 else:
                     fecha_contratacion = date.today()
                 
-                salario = None
-                if form_data.get("salario"):
-                    try:
-                        salario = Decimal(form_data["salario"])
-                    except (ValueError, TypeError):
-                        salario = None
 
                 # Preparar datos para insertar en tabla personal
                 personal_data = {
@@ -227,8 +218,8 @@ class PersonalService(BaseService):
                     "primer_apellido": form_data["primer_apellido"].strip(),
                     "segundo_nombre": form_data.get("segundo_nombre", "").strip() or None,
                     "segundo_apellido": form_data.get("segundo_apellido", "").strip() or None,
-                    "numero_documento": form_data["numero_documento"],
                     "tipo_documento": form_data.get("tipo_documento", "CI"),
+                    "numero_documento": form_data["numero_documento"],
                     "celular": form_data["celular"],
                     "tipo_personal": form_data["tipo_personal"],
                     "fecha_nacimiento": fecha_nacimiento.isoformat() if fecha_nacimiento else None,
@@ -236,16 +227,11 @@ class PersonalService(BaseService):
                     "especialidad": form_data.get("especialidad") if form_data.get("especialidad") else None,
                     "numero_licencia": form_data.get("numero_licencia") if form_data.get("numero_licencia") else None,
                     "fecha_contratacion": fecha_contratacion.isoformat() if fecha_contratacion else None,
-                    "salario": float(salario) if salario is not None else None,
-                    "observaciones": form_data.get("observaciones") if form_data.get("observaciones") else None,
-                    "acepta_pacientes_nuevos": form_data.get("acepta_pacientes_nuevos", True),
-                    "orden_preferencia": form_data.get("orden_preferencia", 1),
                     "estado_laboral": "activo"
                 }
 
                 personal_response = self.client.table("personal").insert(personal_data).execute()
                 personal_result = personal_response.data[0] if personal_response.data else None
-                
                 if personal_result:
                     nombre_display = self.construct_full_name(
                         form_data["primer_nombre"],
@@ -255,12 +241,7 @@ class PersonalService(BaseService):
                     )
                     logger.info(f"✅ Personal creado: {nombre_display}")
                     
-                    # 🗑️ INVALIDAR CACHE - personal creado afecta estadísticas
-                    try:
-                        invalidate_after_staff_operation()
-                    except Exception as cache_error:
-                        logger.warning(f"Error invalidando cache tras crear personal: {cache_error}")
-                    
+
                     # Convertir el diccionario a PersonalModel para consistency
                     return PersonalModel.from_dict(personal_result)
                 else:
@@ -302,11 +283,11 @@ class PersonalService(BaseService):
             
             # Convertir formulario tipado a dict
             form_data = personal_form.to_dict()
-            
-            # Validar campos requeridos (sin password para actualización)
-            required_fields = ["primer_nombre", "primer_apellido", "numero_documento", "email", "celular", "tipo_personal"]
+
+            # Validar campos requeridos (email NO es requerido para actualización)
+            required_fields = ["primer_nombre", "primer_apellido", "numero_documento", "celular", "tipo_personal"]
             missing_fields = self.validate_required_fields(form_data, required_fields)
-            
+
             if missing_fields:
                 error_msg = self.format_error_message("Datos incompletos", missing_fields)
                 raise ValueError(error_msg)
@@ -318,7 +299,7 @@ class PersonalService(BaseService):
             if numero_documento and len(numero_documento) < 7:
                 raise ValueError("El número de documento debe tener al menos 7 dígitos")
 
-            # Email válido
+            # Email válido (solo si se proporciona)
             email = form_data.get("email", "").strip()
             if email and "@" not in email:
                 raise ValueError("Email inválido")
@@ -344,19 +325,19 @@ class PersonalService(BaseService):
             usuario_id = current_personal.get("usuario_id")
             if usuario_id and form_data.get("email"):
                 # Obtener usuario actual
-                user_response = self.client.table("usuarios").select("*").eq("id", usuario_id).execute()
+                user_response = self.client.table("usuario").select("*").eq("id", usuario_id).execute()
                 current_user = user_response.data[0] if user_response.data else None
 
                 if current_user and current_user.get("email") != form_data["email"]:
                     # Verificar que el nuevo email no esté en uso
-                    email_check = self.client.table("usuarios").select("id").eq("email", form_data["email"]).execute()
+                    email_check = self.client.table("usuario").select("id").eq("email", form_data["email"]).execute()
                     existing_user = email_check.data[0] if email_check.data else None
                     if existing_user and existing_user.get("id") != usuario_id:
                         raise ValueError("Ya existe otro usuario con este email")
 
                     # Actualizar email del usuario
                     update_user_data = {"email": form_data["email"]}
-                    self.client.table("usuarios").update(update_user_data).eq("id", usuario_id).execute()
+                    self.client.table("usuario").update(update_user_data).eq("id", usuario_id).execute()
             
             # Procesar fecha de nacimiento
             fecha_nacimiento = None
@@ -392,7 +373,6 @@ class PersonalService(BaseService):
                 "direccion": form_data.get("direccion") if form_data.get("direccion") else None,
                 "especialidad": form_data.get("especialidad") if form_data.get("especialidad") else None,
                 "numero_licencia": form_data.get("numero_licencia") if form_data.get("numero_licencia") else None,
-                "observaciones": form_data.get("observaciones") if form_data.get("observaciones") else None
             }
             
             if fecha_nacimiento:
@@ -413,12 +393,6 @@ class PersonalService(BaseService):
                     form_data.get("segundo_apellido")
                 )
                 logger.info(f"✅ Personal actualizado: {nombre_display}")
-                
-                # 🗑️ INVALIDAR CACHE - personal actualizado puede afectar estadísticas
-                try:
-                    invalidate_after_staff_operation()
-                except Exception as cache_error:
-                    logger.warning(f"Error invalidando cache tras actualizar personal: {cache_error}")
                 
                 # Convertir el diccionario a PersonalModel para consistency
                 return PersonalModel.from_dict(result)
@@ -466,12 +440,6 @@ class PersonalService(BaseService):
             if result:
                 logger.info(f"✅ Personal desactivado correctamente")
                 
-                # 🗑️ INVALIDAR CACHE - personal desactivado afecta estadísticas activas
-                try:
-                    invalidate_after_staff_operation()
-                except Exception as cache_error:
-                    logger.warning(f"Error invalidando cache tras desactivar personal: {cache_error}")
-                
                 return True
             else:
                 raise ValueError("Error desactivando personal")
@@ -510,12 +478,6 @@ class PersonalService(BaseService):
             
             if result:
                 logger.info(f"✅ Personal reactivado correctamente")
-                
-                # 🗑️ INVALIDAR CACHE - personal reactivado afecta estadísticas activas
-                try:
-                    invalidate_after_staff_operation()
-                except Exception as cache_error:
-                    logger.warning(f"Error invalidando cache tras reactivar personal: {cache_error}")
                 
                 return True
             else:
@@ -639,7 +601,6 @@ class PersonalService(BaseService):
             # Query directa a tabla personal
             response = self.client.table("personal").select("id").eq("usuario_id", user_id).execute()
             personal_data = response.data[0] if response.data else None
-
             if personal_data:
                 return personal_data.get('id')
             return None

@@ -1,6 +1,9 @@
 import reflex as rx
 from dental_system.state.app_state import AppState
-from dental_system.components.forms import form_step_indicator ,form_navigation_buttons,form_section_header,enhanced_form_field,_role_selection_card
+from dental_system.components.forms import (
+    form_step_indicator, form_navigation_buttons, form_section_header,
+    enhanced_form_field, _role_selection_card, validated_input, select_input_combo
+)
 from dental_system.styles.themes import COLORS, SHADOWS, RADIUS, SPACING, GLASS_EFFECTS, DARK_THEME
 
 
@@ -82,7 +85,17 @@ def multi_step_staff_form() -> rx.Component:
                 on_next=AppState.avanzar_paso_personal,
                 on_submit=AppState.guardar_personal_formulario,
                 is_loading=AppState.cargando_operacion_personal,
-                can_continue=AppState.puede_continuar_form_personal
+                can_continue=AppState.puede_continuar_form_personal,
+                submit_text=rx.cond(
+                    AppState.empleado_seleccionado,
+                    "Actualizar Personal",
+                    "Crear Personal"
+                ),
+                submit_icon=rx.cond(
+                    AppState.empleado_seleccionado,
+                    "edit",
+                    "user-plus"
+                )
             ),
             
             style={
@@ -112,24 +125,28 @@ def _staff_form_step_1() -> rx.Component:
             COLORS["secondary"]["500"]
         ),
         
-        # Nombres en grid responsive
+        # Nombres en grid responsive (SOLO LETRAS - Componente genérico)
         rx.grid(
-            enhanced_form_field(
+            validated_input(
                 label="Primer Nombre",
                 field_name="primer_nombre",
                 value=rx.cond(AppState.formulario_empleado, AppState.formulario_empleado.primer_nombre, ""),
                 on_change=AppState.actualizar_campo_formulario_empleado,
+                input_type="text",
+                validation_mode="letters_only",
                 placeholder="María",
                 required=True,
                 icon="user",
                 max_length=50,
                 validation_error=rx.cond(AppState.errores_validacion_empleado, AppState.errores_validacion_empleado.get("primer_nombre", ""), "")
             ),
-            enhanced_form_field(
+            validated_input(
                 label="Segundo Nombre",
-                field_name="segundo_nombre", 
+                field_name="segundo_nombre",
                 value=rx.cond(AppState.formulario_empleado, AppState.formulario_empleado.segundo_nombre, ""),
                 on_change=AppState.actualizar_campo_formulario_empleado,
+                input_type="text",
+                validation_mode="letters_only",
                 placeholder="Esperanza",
                 icon="user",
                 max_length=50
@@ -138,24 +155,28 @@ def _staff_form_step_1() -> rx.Component:
             spacing="4",
             width="100%"
         ),
-        
+
         rx.grid(
-            enhanced_form_field(
+            validated_input(
                 label="Primer Apellido",
                 field_name="primer_apellido",
                 value=rx.cond(AppState.formulario_empleado, AppState.formulario_empleado.primer_apellido, ""),
                 on_change=AppState.actualizar_campo_formulario_empleado,
+                input_type="text",
+                validation_mode="letters_only",
                 placeholder="García",
                 required=True,
                 icon="user",
                 max_length=50,
                 validation_error=rx.cond(AppState.errores_validacion_empleado, AppState.errores_validacion_empleado.get("primer_apellido", ""), "")
             ),
-            enhanced_form_field(
+            validated_input(
                 label="Segundo Apellido",
                 field_name="segundo_apellido",
                 value=rx.cond(AppState.formulario_empleado, AppState.formulario_empleado.segundo_apellido, ""),
                 on_change=AppState.actualizar_campo_formulario_empleado,
+                input_type="text",
+                validation_mode="letters_only",
                 placeholder="Rodríguez",
                 icon="user",
                 max_length=50
@@ -164,47 +185,41 @@ def _staff_form_step_1() -> rx.Component:
             spacing="4",
             width="100%"
         ),
+        # Documento (TIPO + SOLO NÚMEROS - Componente genérico)
+        select_input_combo(
+            label="Documento de Identidad",
+            field_name_select="tipo_documento",
+            field_name_input="numero_documento",
+            value_select=rx.cond(AppState.formulario_empleado, AppState.formulario_paciente.tipo_documento, "CI"),
+            value_input=rx.cond(AppState.formulario_empleado, AppState.formulario_empleado.numero_documento, ""),
+            on_change=AppState.actualizar_campo_formulario_empleado,
+            select_options=["CI", "Pasaporte"],
+            select_default="CI",
+            input_type="number",
+            input_placeholder="12345678",
+            select_width="90px",
+            required=True,
+            icon="id-card",
+            help_text="Tipo + solo números",
+            validation_error=rx.cond(AppState.errores_validacion_empleado, AppState.errores_validacion_empleado.get("numero_documento", ""), "")
+        ),
         
-        # Documento y contacto
-        rx.grid(
-            enhanced_form_field(
-                label="Número de Documento",
-                field_name="numero_documento",
-                value=rx.cond(AppState.formulario_empleado, AppState.formulario_empleado.numero_documento, ""),
-                on_change=AppState.actualizar_campo_formulario_empleado,
-                placeholder="12345678",
-                required=True,
-                icon="id-card",
-                pattern="[0-9]+",
-                max_length=20,
-                validation_error=rx.cond(AppState.errores_validacion_empleado, AppState.errores_validacion_empleado.get("numero_documento", ""), "")
-            ),
-            enhanced_form_field(
-                label="Número de Celular",
-                field_name="celular",
-                value=rx.cond(AppState.formulario_empleado, AppState.formulario_empleado.celular, ""),
-                on_change=AppState.actualizar_campo_formulario_empleado,
-                placeholder="0424-7654321",
-                required=True,
-                icon="smartphone",
-                help_text="Número de celular requerido",
-                validation_error=rx.cond(AppState.errores_validacion_empleado, AppState.errores_validacion_empleado.get("celular", ""), "")
-            ),
-            enhanced_form_field(
-                label="Email Personal (Opcional)",
-                field_name="email",
-                value=rx.cond(AppState.formulario_empleado, AppState.formulario_empleado.email, ""),
-                on_change=AppState.actualizar_campo_formulario_empleado,
-                field_type="email",
-                placeholder="maria.garcia@gmail.com",
-                required=False,  # Email personal es opcional
-                icon="mail",
-                help_text="Email personal de contacto (opcional)",
-                validation_error=rx.cond(AppState.errores_validacion_empleado, AppState.errores_validacion_empleado.get("email", ""), "")
-            ),
-            columns=rx.breakpoints(initial="1", sm="2"),
-            spacing="4",
-            width="100%"
+
+        # Celular (CÓDIGO PAÍS + NÚMERO - Componente genérico)
+        select_input_combo(
+            label="Número de Celular",
+            field_name_select="codigo_pais_celular",
+            field_name_input="celular",
+            value_select=rx.cond(AppState.formulario_empleado, AppState.formulario_empleado.codigo_pais_celular, "+58 (VE)"),
+            value_input=rx.cond(AppState.formulario_empleado, AppState.formulario_empleado.celular, ""),
+            on_change=AppState.actualizar_campo_formulario_empleado,
+            select_options=["+58", "+1", "+52", "+57", "+51", "+54", "+56", "+55", "+34"],
+            select_default="+58",
+            input_type="number",
+            input_placeholder="4241234567",
+            required=True,
+            icon="smartphone",
+            validation_error=rx.cond(AppState.errores_validacion_empleado, AppState.errores_validacion_empleado.get("celular", ""), "")
         ),
         
         # Dirección
@@ -267,12 +282,12 @@ def _staff_form_step_2() -> rx.Component:
             enhanced_form_field(
                 label="Especialidad Odontológica",
                 field_name="especialidad",
-                value=rx.cond(AppState.formulario_empleado, AppState.formulario_empleado.especialidad, ""),
+                value=rx.cond(AppState.formulario_empleado, AppState.formulario_empleado.especialidad, "Odontología General"),
                 on_change=AppState.actualizar_campo_formulario_empleado,
                 field_type="select",
                 options=[
                     "Odontología General",
-                    "Endodoncia", 
+                    "Endodoncia",
                     "Ortodoncia",
                     "Periodoncia",
                     "Cirugía Oral",
@@ -281,7 +296,7 @@ def _staff_form_step_2() -> rx.Component:
                     "Estética Dental"
                 ],
                 icon="award",
-                help_text="Especialización principal"
+                help_text="Predeterminado: Odontología General"
             ),
             rx.box()  # Espacio vacío si no es odontólogo
         ),
@@ -312,7 +327,7 @@ def _staff_form_step_3() -> rx.Component:
     return rx.vstack(
         form_section_header(
             "Configuración de Usuario",
-            "Acceso al sistema y información salarial",
+            "Acceso al sistema",
             "key",
             COLORS["info"]["500"]
         ),
@@ -373,30 +388,6 @@ def _staff_form_step_3() -> rx.Component:
                 width="100%"
             ),
             rx.box()  # Espacio vacío para usuarios existentes
-        ),
-        
-        # Información salarial
-        form_section_header(
-            "Información Salarial",
-            "Salario base y comisiones del empleado",
-            "dollar-sign",
-            COLORS["success"]["500"]
-        ),
-        
-        rx.grid(
-            enhanced_form_field(
-                label="Salario Base Mensual (Bs.)",
-                field_name="salario",
-                value=rx.cond(AppState.formulario_empleado, AppState.formulario_empleado.salario, ""),
-                on_change=AppState.actualizar_campo_formulario_empleado,
-                field_type="number",
-                placeholder="500.00",
-                icon="dollar-sign",
-                help_text="Salario fijo mensual en bolívares"
-            ),
-            columns=rx.breakpoints(initial="1", sm="2"),
-            spacing="4",
-            width="100%"
         ),
         
         # Fecha de ingreso

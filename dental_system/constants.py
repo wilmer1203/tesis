@@ -36,29 +36,6 @@ CONDICIONES_VALIDAS = {
     'impactado', 'en_erupcion', 'retenido', 'supernumerario', 'otro'
 }
 
-# Mapeo de condiciones a etiquetas legibles
-CONDICIONES_DISPLAY = {
-    "sano": "✅ Sano",
-    "caries": "🦠 Caries",
-    "obturacion": "🔧 Obturación",
-    "endodoncia": "🦷 Endodoncia",
-    "corona": "👑 Corona",
-    "puente": "🌉 Puente",
-    "implante": "🔩 Implante",
-    "protesis": "🦾 Prótesis",
-    "ausente": "❌ Ausente",
-    "fractura": "💥 Fractura",
-    "extraccion_indicada": "⚠️ Extracción Indicada",
-    "mancha": "🟤 Mancha",
-    "desgaste": "📉 Desgaste",
-    "sensibilidad": "⚡ Sensibilidad",
-    "movilidad": "↔️ Movilidad",
-    "impactado": "🔒 Impactado",
-    "en_erupcion": "🌱 En Erupción",
-    "retenido": "🔗 Retenido",
-    "supernumerario": "➕ Supernumerario",
-    "otro": "📋 Otro"
-}
 
 # Alcances de servicios
 ALCANCES_SERVICIO = {

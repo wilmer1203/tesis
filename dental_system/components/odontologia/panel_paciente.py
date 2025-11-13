@@ -278,9 +278,9 @@ def seccion_principal_premium() -> rx.Component:
                     # Información adicional
                     rx.hstack(
                         rx.cond(
-                            AppState.paciente_actual.edad > 0,
+                            AppState.paciente_actual.fecha_nacimiento,
                             rx.text(
-                                AppState.paciente_actual.edad.to(str) + " años", 
+                                AppState.paciente_actual.fecha_nacimiento.to(str), 
                                 size="3", 
                                 color=DARK_THEME["colors"]["text_secondary"],
                                 weight="medium"

@@ -13,7 +13,7 @@ MÉTRICAS POR TIPO:
 - CACHED: totales mensuales, gráficos 30 días, stats de personal
 """
 
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from datetime import date, datetime, timedelta
 from .base_service import BaseService
 from dental_system.models import DashboardStatsModel, AdminStatsModel, PacientesStatsModel
@@ -69,7 +69,7 @@ class DashboardService(BaseService):
         try:
             # 💰 INGRESOS DEL MES (cache 30 min - se actualiza diariamente)
             current_month = datetime.now().strftime('%Y-%m')
-            pagos_response = self.client.table('pagos').select('monto_pagado_usd, monto_pagado_bs').gte(
+            pagos_response = self.client.table('pago').select('monto_pagado_usd, monto_pagado_bs').gte(
                 'fecha_pago', f"{current_month}-01"
             ).eq('estado_pago', 'completado').execute()
 
@@ -128,16 +128,16 @@ class DashboardService(BaseService):
             current_month = datetime.now().strftime('%Y-%m')
             
             # 👥 PACIENTES NUEVOS ESTE MES (cache 30 min - se actualiza diariamente)
-            nuevos_response = self.client.table('pacientes').select('id', count='exact').eq(
+            nuevos_response = self.client.table('paciente').select('id', count='exact').eq(
                 'activo', True
             ).gte('fecha_registro', f"{current_month}-01").execute()
             
             # 🚻 DISTRIBUCIÓN POR GÉNERO (cache 30 min - cambia poco)
-            hombres_response = self.client.table('pacientes').select('id', count='exact').eq(
+            hombres_response = self.client.table('paciente').select('id', count='exact').eq(
                 'activo', True
             ).eq('genero', 'masculino').execute()
             
-            mujeres_response = self.client.table('pacientes').select('id', count='exact').eq(
+            mujeres_response = self.client.table('paciente').select('id', count='exact').eq(
                 'activo', True
             ).eq('genero', 'femenino').execute()
             
@@ -174,21 +174,21 @@ class DashboardService(BaseService):
             logger.info("Obteniendo estadísticas de pacientes")
             
             # Total y activos
-            total_response = self.client.table('pacientes').select('id', count='exact').eq('activo', True).execute()
+            total_response = self.client.table('paciente').select('id', count='exact').eq('activo', True).execute()
             total = total_response.count or 0
             
             # Nuevos este mes
             current_month = datetime.now().strftime('%Y-%m')
-            nuevos_response = self.client.table('pacientes').select('id', count='exact').eq(
+            nuevos_response = self.client.table('paciente').select('id', count='exact').eq(
                 'activo', True
             ).gte('fecha_registro', f"{current_month}-01").execute()
             
             # Por género
-            hombres_response = self.client.table('pacientes').select('id', count='exact').eq(
+            hombres_response = self.client.table('paciente').select('id', count='exact').eq(
                 'activo', True
             ).eq('genero', 'masculino').execute()
             
-            mujeres_response = self.client.table('pacientes').select('id', count='exact').eq(
+            mujeres_response = self.client.table('paciente').select('id', count='exact').eq(
                 'activo', True
             ).eq('genero', 'femenino').execute()
             
@@ -248,14 +248,14 @@ class DashboardService(BaseService):
             
             # Ingresos del mes
             current_month = datetime.now().strftime('%Y-%m')
-            pagos_mes = self.client.table('pagos').select('monto_pagado_usd, monto_pagado_bs').gte(
+            pagos_mes = self.client.table('pago').select('monto_pagado_usd, monto_pagado_bs').gte(
                 'fecha_pago', f"{current_month}-01"
             ).eq('estado_pago', 'completado').execute()
 
             total_mes = sum([(pago.get('monto_pagado_usd', 0) or 0) + (pago.get('monto_pagado_bs', 0) or 0) for pago in pagos_mes.data]) if pagos_mes.data else 0
             
             # Pendientes (saldos pendientes en USD + BS)
-            pendientes = self.client.table('pagos').select(
+            pendientes = self.client.table('pago').select(
                 'saldo_pendiente_usd, saldo_pendiente_bs'
             ).eq('estado_pago', 'pendiente').execute()
 
@@ -374,7 +374,7 @@ class DashboardService(BaseService):
             # Obtener datos para cada día
             for date_info in dates:
                 # 📅 CONSULTAS DEL DÍA
-                consultas_response = self.client.table('consultas').select(
+                consultas_response = self.client.table('consulta').select(
                     'id', count='exact'
                 ).gte(
                     'fecha_llegada', f"{date_info['date_sql']}T00:00:00"
@@ -385,7 +385,7 @@ class DashboardService(BaseService):
                 consultas_count = consultas_response.count or 0
                 
                 # 👥 PACIENTES NUEVOS DEL DÍA
-                pacientes_response = self.client.table('pacientes').select(
+                pacientes_response = self.client.table('paciente').select(
                     'id', count='exact'
                 ).gte(
                     'fecha_registro', f"{date_info['date_sql']}T00:00:00"
@@ -396,7 +396,7 @@ class DashboardService(BaseService):
                 pacientes_count = pacientes_response.count or 0
                 
                 # 💰 INGRESOS DEL DÍA (USD + BS)
-                pagos_response = self.client.table('pagos').select(
+                pagos_response = self.client.table('pago').select(
                     'monto_pagado_usd, monto_pagado_bs'
                 ).gte(
                     'fecha_pago', f"{date_info['date_sql']}T00:00:00"
@@ -467,7 +467,7 @@ class DashboardService(BaseService):
             
             # 📅 CONSULTAS PROPIAS POR DÍA
             for date_info in dates:
-                consultas_response = self.client.table('consultas').select(
+                consultas_response = self.client.table('consulta').select(
                     'id', count='exact'
                 ).eq('odontologo_id', odontologo_id).gte(
                     'fecha_llegada', f"{date_info['date_sql']}T00:00:00"
@@ -486,7 +486,7 @@ class DashboardService(BaseService):
             fecha_30_dias = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
             
             # Obtener pagos del odontólogo (a través de sus consultas)
-            pagos_response = self.client.table('pagos').select(
+            pagos_response = self.client.table('pago').select(
                 'monto_pagado_usd, monto_pagado_bs, metodos_pago, fecha_pago'
             ).gte('fecha_pago', fecha_30_dias).eq(
                 'estado_pago', 'completado'
@@ -597,17 +597,17 @@ class DashboardService(BaseService):
             fecha_30_dias = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
             
             # Total consultas últimos 30 días
-            consultas_response = self.client.table('consultas').select(
+            consultas_response = self.client.table('consulta').select(
                 'id', count='exact'
             ).gte('fecha_llegada', fecha_30_dias).execute()
             
             # Total pacientes nuevos últimos 30 días
-            pacientes_response = self.client.table('pacientes').select(
+            pacientes_response = self.client.table('paciente').select(
                 'id', count='exact'
             ).gte('fecha_registro', fecha_30_dias).eq('activo', True).execute()
             
             # Total ingresos últimos 30 días
-            pagos_response = self.client.table('pagos').select(
+            pagos_response = self.client.table('pago').select(
                 'monto_total_usd'
             ).gte('fecha_pago', fecha_30_dias).eq('estado_pago', 'completado').execute()
             
@@ -645,7 +645,7 @@ class DashboardService(BaseService):
                     current_month = datetime.now().strftime('%Y-%m')
 
                     # 1️⃣ INGRESOS DEL MES
-                    pagos_mes = self.client.table('pagos').select(
+                    pagos_mes = self.client.table('pago').select(
                         'monto_pagado_usd, monto_pagado_bs'
                     ).gte(
                         'fecha_pago', f"{current_month}-01"
@@ -657,7 +657,7 @@ class DashboardService(BaseService):
                     ])
 
                     # 2️⃣ INGRESOS HOY (USD + BS desglosado)
-                    pagos_hoy = self.client.table('pagos').select(
+                    pagos_hoy = self.client.table('pago').select(
                         'monto_pagado_usd, monto_pagado_bs, tasa_cambio_bs_usd'
                     ).gte(
                         'fecha_pago', f"{today}T00:00:00"
@@ -674,7 +674,7 @@ class DashboardService(BaseService):
                     ingresos_hoy_total = ingresos_hoy_usd + ingresos_hoy_bs
 
                     # 3️⃣ CONSULTAS HOY (totales y por estado)
-                    consultas_hoy_total_resp = self.client.table('consultas').select(
+                    consultas_hoy_total_resp = self.client.table('consulta').select(
                         'id', count='exact'
                     ).gte(
                         'fecha_llegada', f"{today}T00:00:00"
@@ -684,7 +684,7 @@ class DashboardService(BaseService):
 
                     consultas_hoy_total = consultas_hoy_total_resp.count or 0
 
-                    completadas_resp = self.client.table('consultas').select(
+                    completadas_resp = self.client.table('consulta').select(
                         'id', count='exact'
                     ).gte(
                         'fecha_llegada', f"{today}T00:00:00"
@@ -692,7 +692,7 @@ class DashboardService(BaseService):
                         'fecha_llegada', f"{today}T23:59:59"
                     ).eq('estado', 'completada').execute()
 
-                    en_espera_resp = self.client.table('consultas').select(
+                    en_espera_resp = self.client.table('consulta').select(
                         'id', count='exact'
                     ).gte(
                         'fecha_llegada', f"{today}T00:00:00"
@@ -704,7 +704,7 @@ class DashboardService(BaseService):
                     consultas_en_espera = en_espera_resp.count or 0
 
                     # 4️⃣ SERVICIOS APLICADOS HOY
-                    servicios_hoy_response = self.client.table('intervenciones_servicios').select(
+                    servicios_hoy_response = self.client.table('historia_medica').select(
                         'id', count='exact'
                     ).gte(
                         'fecha_registro', f"{today}T00:00:00"
@@ -716,7 +716,7 @@ class DashboardService(BaseService):
                     promedio_servicios = (servicios_aplicados / consultas_hoy_total) if consultas_hoy_total > 0 else 0
 
                     # 5️⃣ TIEMPO PROMEDIO ATENCIÓN (fecha_creacion → fecha_actualizacion cuando completada)
-                    consultas_completadas_hoy = self.client.table('consultas').select(
+                    consultas_completadas_hoy = self.client.table('consulta').select(
                         'fecha_creacion, fecha_actualizacion'
                     ).eq('estado', 'completada').gte(
                         'fecha_actualizacion', f"{today}T00:00:00"
@@ -806,7 +806,7 @@ class DashboardService(BaseService):
 
             # 1️⃣ INGRESOS DEL MES (solo del odontólogo)
             # Necesitamos obtener intervenciones del odontólogo y sumar sus ingresos
-            intervenciones_mes = self.client.table('intervenciones').select(
+            intervenciones_mes = self.client.table('intervencion').select(
                 'id'
             ).eq('odontologo_id', odontologo_id).gte(
                 'fecha_registro', f"{current_month}-01"
@@ -817,7 +817,7 @@ class DashboardService(BaseService):
             ingresos_mes_total = 0
             if intervenciones_ids:
                 # Obtener servicios de esas intervenciones
-                servicios_mes = self.client.table('intervenciones_servicios').select(
+                servicios_mes = self.client.table('historia_medica').select(
                     'precio_total_usd, precio_total_bs'
                 ).in_('intervencion_id', intervenciones_ids).execute()
 
@@ -831,7 +831,7 @@ class DashboardService(BaseService):
                 ])
 
             # 2️⃣ INGRESOS HOY (solo del odontólogo)
-            intervenciones_hoy = self.client.table('intervenciones').select(
+            intervenciones_hoy = self.client.table('intervencion').select(
                 'id'
             ).eq('odontologo_id', odontologo_id).gte(
                 'fecha_registro', f"{today}T00:00:00"
@@ -843,7 +843,7 @@ class DashboardService(BaseService):
 
             ingresos_hoy_total = 0
             if intervenciones_hoy_ids:
-                servicios_hoy = self.client.table('intervenciones_servicios').select(
+                servicios_hoy = self.client.table('historia_medica').select(
                     'precio_total_usd, precio_total_bs'
                 ).in_('intervencion_id', intervenciones_hoy_ids).execute()
 
@@ -862,7 +862,7 @@ class DashboardService(BaseService):
             # 4️⃣ SERVICIOS APLICADOS HOY (count de servicios)
             servicios_aplicados = 0
             if intervenciones_hoy_ids:
-                servicios_aplicados_resp = self.client.table('intervenciones_servicios').select(
+                servicios_aplicados_resp = self.client.table('historia_medica').select(
                     'id', count='exact'
                 ).in_('intervencion_id', intervenciones_hoy_ids).execute()
 
@@ -870,31 +870,31 @@ class DashboardService(BaseService):
 
             # 5️⃣ TIEMPO PROMEDIO ATENCIÓN
             # Calcular desde hora_inicio hasta hora_fin de intervenciones completadas hoy
-            intervenciones_completadas_hoy = self.client.table('intervenciones').select(
-                'hora_inicio, hora_fin, duracion_real'
-            ).eq('odontologo_id', odontologo_id).eq('estado', 'completada').gte(
-                'fecha_registro', f"{today}T00:00:00"
-            ).lt(
-                'fecha_registro', f"{today}T23:59:59"
-            ).execute()
+            # intervenciones_completadas_hoy = self.client.table('intervencion').select(
+            #     'hora_inicio'
+            # ).eq('odontologo_id', odontologo_id).eq('estado', 'completada').gte(
+            #     'fecha_registro', f"{today}T00:00:00"
+            # ).lt(
+            #     'fecha_registro', f"{today}T23:59:59"
+            # ).execute()
 
-            tiempos = []
-            for interv in (intervenciones_completadas_hoy.data or []):
-                # Priorizar duracion_real si existe
-                if interv.get('duracion_real'):
-                    tiempos.append(interv['duracion_real'])
-                elif interv.get('hora_inicio') and interv.get('hora_fin'):
-                    try:
-                        # Parsear tiempos
-                        inicio = datetime.fromisoformat(interv['hora_inicio'].replace('Z', '+00:00'))
-                        fin = datetime.fromisoformat(interv['hora_fin'].replace('Z', '+00:00'))
-                        diferencia_minutos = (fin - inicio).total_seconds() / 60
-                        if diferencia_minutos > 0:
-                            tiempos.append(diferencia_minutos)
-                    except Exception:
-                        continue
+            # tiempos = []
+            # for interv in (intervenciones_completadas_hoy.data or []):
+            #     # Priorizar duracion_real si existe
+            #     if interv.get('duracion_real'):
+            #         tiempos.append(interv['duracion_real'])
+            #     elif interv.get('hora_inicio') and interv.get('hora_fin'):
+            #         try:
+            #             # Parsear tiempos
+            #             inicio = datetime.fromisoformat(interv['hora_inicio'].replace('Z', '+00:00'))
+            #             fin = datetime.fromisoformat(interv['hora_fin'].replace('Z', '+00:00'))
+            #             diferencia_minutos = (fin - inicio).total_seconds() / 60
+            #             if diferencia_minutos > 0:
+            #                 tiempos.append(diferencia_minutos)
+            #         except Exception:
+            #             continue
 
-            tiempo_promedio = sum(tiempos) / len(tiempos) if tiempos else 0
+            # tiempo_promedio = sum(tiempos) / len(tiempos) if tiempos else 0
 
             logger.info(f"✅ Stats odontólogo: Ingresos mes=${ingresos_mes_total:.2f}, Hoy=${ingresos_hoy_total:.2f}, Consultas={consultas_hoy_count}")
 
@@ -912,7 +912,7 @@ class DashboardService(BaseService):
                 "servicios_aplicados": servicios_aplicados,
 
                 # Card 5: Tiempo Promedio
-                "tiempo_promedio_minutos": round(tiempo_promedio, 0),
+                # "tiempo_promedio_minutos": round(tiempo_promedio, 0),
             }
 
         except Exception as e:
@@ -958,7 +958,7 @@ class DashboardService(BaseService):
             # Obtener datos para cada día
             for date_info in dates:
                 # 📅 INTERVENCIONES DEL DÍA
-                intervenciones_dia = self.client.table('intervenciones').select(
+                intervenciones_dia = self.client.table('intervencion').select(
                     'id'
                 ).eq('odontologo_id', odontologo_id).gte(
                     'fecha_registro', f"{date_info['date_sql']}T00:00:00"
@@ -972,7 +972,7 @@ class DashboardService(BaseService):
                 # 💰 INGRESOS DEL DÍA
                 ingresos_dia = 0
                 if intervenciones_ids:
-                    servicios_dia = self.client.table('intervenciones_servicios').select(
+                    servicios_dia = self.client.table('historia_medica').select(
                         'precio_total_usd, precio_total_bs'
                     ).in_('intervencion_id', intervenciones_ids).execute()
 
@@ -1023,7 +1023,7 @@ class DashboardService(BaseService):
             today = date.today().isoformat()
 
             # 1. Obtener intervenciones del día
-            intervenciones_hoy = self.client.table('intervenciones').select(
+            intervenciones_hoy = self.client.table('intervencion').select(
                 'id'
             ).eq('odontologo_id', odontologo_id).gte(
                 'fecha_registro', f"{today}T00:00:00"
@@ -1037,7 +1037,7 @@ class DashboardService(BaseService):
                 return []
 
             # 2. Obtener servicios aplicados en esas intervenciones
-            servicios_aplicados = self.client.table('intervenciones_servicios').select(
+            servicios_aplicados = self.client.table('historia_medica').select(
                 'servicio_id, precio_total_usd, precio_total_bs, cantidad'
             ).in_('intervencion_id', intervenciones_ids).execute()
 
@@ -1116,6 +1116,208 @@ class DashboardService(BaseService):
             "consultas_data": empty_data_consultas,
             "ingresos_data": empty_data_ingresos
         }
+
+    # ====================================================================
+    # 👨‍💼 MÉTODOS PARA DASHBOARD ADMINISTRADOR (VISTA "HOY")
+    # ====================================================================
+
+    async def get_dashboard_stats_admin(self) -> Dict[str, Any]:
+        """
+        📊 Estadísticas del dashboard del ADMINISTRADOR (solo del día actual)
+
+        Returns:
+            {
+                "consultas_hoy_completadas": 5,
+                "consultas_hoy_total": 12,
+                "ingresos_hoy": 850.50,
+                "pagos_realizados_hoy": 8,
+                "servicios_aplicados_hoy": 15,
+                "intervenciones_hoy": 18,
+                "pacientes_nuevos_hoy": 2
+            }
+        """
+        try:
+            from datetime import date
+            hoy = date.today().isoformat()
+
+            logger.info(f"📊 Obteniendo estadísticas dashboard admin para {hoy}")
+
+            # 1. Consultas de hoy
+            consultas_response = self.client.table('consulta').select(
+                'id, estado'
+            ).gte('fecha_llegada', f"{hoy}T00:00:00").lte(
+                'fecha_llegada', f"{hoy}T23:59:59"
+            ).execute()
+
+            consultas_hoy_total = len(consultas_response.data) if consultas_response.data else 0
+            consultas_hoy_completadas = sum(
+                1 for c in (consultas_response.data or []) if c.get('estado') == 'completada'
+            )
+
+            # 2. Ingresos de hoy (solo USD)
+            ingresos_response = self.client.table('pago').select(
+                'monto_pagado_usd'
+            ).eq('estado_pago', 'completado').gte(
+                'fecha_pago', f"{hoy}T00:00:00"
+            ).lte(
+                'fecha_pago', f"{hoy}T23:59:59"
+            ).execute()
+
+            ingresos_hoy = sum(
+                float(p.get('monto_pagado_usd', 0) or 0)
+                for p in (ingresos_response.data or [])
+            )
+
+            # 3. Pagos realizados hoy (cantidad)
+            pagos_realizados_hoy = len(ingresos_response.data) if ingresos_response.data else 0
+
+            # 4. Servicios aplicados hoy
+            servicios_response = self.client.table('historia_medica').select(
+                'id'
+            ).gte('fecha_registro', f"{hoy}T00:00:00").lte(
+                'fecha_registro', f"{hoy}T23:59:59"
+            ).execute()
+
+            servicios_aplicados_hoy = len(servicios_response.data) if servicios_response.data else 0
+
+            # 5. Intervenciones de hoy
+            intervenciones_response = self.client.table('intervencion').select(
+                'id'
+            ).gte('fecha_registro', f"{hoy}T00:00:00").lte(
+                'fecha_registro', f"{hoy}T23:59:59"
+            ).execute()
+
+            intervenciones_hoy = len(intervenciones_response.data) if intervenciones_response.data else 0
+
+            # 6. Pacientes nuevos hoy
+            pacientes_response = self.client.table('paciente').select(
+                'id'
+            ).eq('fecha_registro', hoy).execute()
+
+            pacientes_nuevos_hoy = len(pacientes_response.data) if pacientes_response.data else 0
+
+            resultado = {
+                'consultas_hoy_completadas': consultas_hoy_completadas,
+                'consultas_hoy_total': consultas_hoy_total,
+                'ingresos_hoy': round(ingresos_hoy, 2),
+                'pagos_realizados_hoy': pagos_realizados_hoy,
+                'servicios_aplicados_hoy': servicios_aplicados_hoy,
+                'intervenciones_hoy': intervenciones_hoy,
+                'pacientes_nuevos_hoy': pacientes_nuevos_hoy
+            }
+
+            logger.info(f"✅ Dashboard admin: {consultas_hoy_total} consultas, ${ingresos_hoy:.2f} ingresos")
+
+            return resultado
+
+        except Exception as e:
+            logger.error(f"❌ Error obteniendo stats admin: {e}")
+            return {
+                'consultas_hoy_completadas': 0,
+                'consultas_hoy_total': 0,
+                'ingresos_hoy': 0,
+                'pagos_realizados_hoy': 0,
+                'servicios_aplicados_hoy': 0,
+                'intervenciones_hoy': 0,
+                'pacientes_nuevos_hoy': 0
+            }
+
+    async def get_consultas_hoy_por_estado_admin(self) -> List[Dict[str, Any]]:
+        """
+        📊 Consultas de hoy agrupadas por estado (ADMINISTRADOR)
+
+        Returns:
+            [
+                {"estado": "En Espera", "cantidad": 5, "color": "yellow"},
+                {"estado": "En Atención", "cantidad": 3, "color": "blue"},
+                ...
+            ]
+        """
+        try:
+            from datetime import date
+            hoy = date.today().isoformat()
+
+            response = self.client.table('consulta').select(
+                'estado'
+            ).gte('fecha_llegada', f"{hoy}T00:00:00").lte(
+                'fecha_llegada', f"{hoy}T23:59:59"
+            ).execute()
+
+            # Agrupar por estado
+            estados_count = {}
+            for consulta in (response.data or []):
+                estado = consulta.get('estado', 'desconocido')
+                estados_count[estado] = estados_count.get(estado, 0) + 1
+
+            # Mapear estados a nombres legibles y colores
+            mapeo_estados = {
+                'programada': {'nombre': 'En Espera', 'color': 'yellow'},
+                'en_progreso': {'nombre': 'En Atención', 'color': 'blue'},
+                'completada': {'nombre': 'Completada', 'color': 'green'},
+                'cancelada': {'nombre': 'Cancelada', 'color': 'red'}
+            }
+
+            resultado = [
+                {
+                    'estado': mapeo_estados.get(estado, {'nombre': estado.title(), 'color': 'gray'})['nombre'],
+                    'cantidad': cantidad,
+                    'color': mapeo_estados.get(estado, {'nombre': estado.title(), 'color': 'gray'})['color']
+                }
+                for estado, cantidad in estados_count.items()
+            ]
+
+            # Ordenar: en_espera, en_progreso, completada, cancelada
+            orden = {'En Espera': 0, 'En Atención': 1, 'Completada': 2, 'Cancelada': 3}
+            resultado.sort(key=lambda x: orden.get(x['estado'], 99))
+
+            return resultado
+
+        except Exception as e:
+            logger.error(f"❌ Error obteniendo consultas por estado admin: {e}")
+            return []
+
+    async def get_consultas_hoy_por_odontologo_admin(self) -> List[Dict[str, Any]]:
+        """
+        📊 Consultas de hoy agrupadas por odontólogo (ADMINISTRADOR)
+
+        Returns:
+            [
+                {"nombre": "Dr. García", "cantidad": 8},
+                {"nombre": "Dra. Martínez", "cantidad": 5},
+                ...
+            ]
+        """
+        try:
+            from datetime import date
+            hoy = date.today().isoformat()
+
+            # Obtener intervenciones de hoy con información del odontólogo
+            response = self.client.table('intervencion').select(
+                'odontologo_id, personal:odontologo_id(primer_nombre, primer_apellido)'
+            ).gte('fecha_registro', f"{hoy}T00:00:00").lte(
+                'fecha_registro', f"{hoy}T23:59:59"
+            ).execute()
+
+            # Agrupar por odontólogo
+            odontologos_count = {}
+            for intervencion in (response.data or []):
+                personal_data = intervencion.get('personal', {})
+                if personal_data:
+                    nombre = f"{personal_data.get('primer_nombre', '')} {personal_data.get('primer_apellido', '')}".strip()
+                    odontologos_count[nombre] = odontologos_count.get(nombre, 0) + 1
+
+            # Convertir a lista y ordenar por cantidad
+            resultado = [
+                {'nombre': nombre, 'cantidad': cantidad}
+                for nombre, cantidad in odontologos_count.items()
+            ]
+            resultado.sort(key=lambda x: x['cantidad'], reverse=True)
+
+            return resultado
+
+        except Exception as e:
+            logger.error(f"❌ Error obteniendo consultas por odontólogo admin: {e}")
+            return []
 
 # Instancia única para importar
 dashboard_service = DashboardService()

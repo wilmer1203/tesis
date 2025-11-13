@@ -78,7 +78,7 @@ class OdontologiaServiceV2(BaseService):
             logger.info(f"📋 Cargando odontograma actual para paciente {paciente_id}")
 
             # Query simple: solo condiciones activas
-            response = self.client.table("condiciones_diente").select(
+            response = self.client.table("diente").select(
                 "diente_numero, superficie, tipo_condicion, color_hex, fecha_registro"
             ).eq("paciente_id", paciente_id).eq("activo", True).execute()
 
@@ -212,7 +212,7 @@ class OdontologiaServiceV2(BaseService):
         try:
             logger.info(f"📜 Obteniendo historial del diente {diente_numero}")
 
-            response = self.client.table("condiciones_diente").select("""
+            response = self.client.table("diente").select("""
                 id,
                 superficie,
                 tipo_condicion,
@@ -262,7 +262,7 @@ class OdontologiaServiceV2(BaseService):
             logger.info(f"📊 Obteniendo intervenciones del paciente {paciente_id}")
 
             # Obtener todas las condiciones del paciente agrupadas por intervención
-            response = self.client.table("condiciones_diente").select("""
+            response = self.client.table("diente").select("""
                 intervencion_id,
                 diente_numero,
                 superficie,
@@ -324,7 +324,7 @@ class OdontologiaServiceV2(BaseService):
             Conteo de dientes por condición
         """
         try:
-            response = self.client.table("condiciones_diente").select(
+            response = self.client.table("diente").select(
                 "tipo_condicion"
             ).eq("paciente_id", paciente_id).eq("activo", True).execute()
 
@@ -348,28 +348,7 @@ class OdontologiaServiceV2(BaseService):
     # ==========================================
     # ✨ V3.0: CATÁLOGO DE CONDICIONES Y BATCH UPDATE
     # ==========================================
-
-    async def get_catalogo_condiciones(self) -> List[Dict[str, Any]]:
-        """
-        📚 V3.0: Obtener catálogo de condiciones dentales disponibles
-
-        Returns:
-            Lista de condiciones del catálogo ordenadas por prioridad
-        """
-        try:
-            logger.info("📚 Cargando catálogo de condiciones")
-
-            response = self.client.table("catalogo_condiciones").select(
-                "*"
-            ).eq("activo", True).order("prioridad", desc=True).execute()
-
-            logger.info(f"✅ Catálogo cargado: {len(response.data)} condiciones")
-            return response.data or []
-
-        except Exception as e:
-            logger.error(f"❌ Error cargando catálogo: {str(e)}")
-            return []
-
+    
     async def actualizar_condiciones_batch(
         self,
         actualizaciones: List[Dict[str, Any]]
@@ -441,7 +420,7 @@ class OdontologiaServiceV2(BaseService):
                     logger.info(f"   Nueva condición: {upd.get('tipo_condicion')}")
 
                     # PASO 1: Desactivar condición anterior (si existe)
-                    update_result = self.client.table('condiciones_diente').update({
+                    update_result = self.client.table('diente').update({
                         'activo': False
                     }).eq('paciente_id', upd['paciente_id'])\
                       .eq('diente_numero', upd['diente_numero'])\
@@ -456,13 +435,11 @@ class OdontologiaServiceV2(BaseService):
                         'diente_numero': upd['diente_numero'],
                         'superficie': upd['superficie'],
                         'tipo_condicion': upd['tipo_condicion'],
-                        'descripcion': upd.get('descripcion'),
                         'intervencion_id': upd.get('intervencion_id'),
-                        'registrado_por': upd.get('registrado_por'),
                         'activo': True
                     }
 
-                    insert_result = self.client.table('condiciones_diente').insert(
+                    insert_result = self.client.table('diente').insert(
                         nueva_condicion
                     ).execute()
 
@@ -628,12 +605,10 @@ class OdontologiaServiceV2(BaseService):
                 ),
                 "total_bs": float(total_bs),
                 "total_usd": float(total_usd),
-                "dientes_afectados": dientes_unicos if dientes_unicos else None,
-                "estado": "completada",
-                "requiere_control": datos_intervencion.get("requiere_control", False)
+                "estado": "completada"
             }
 
-            nueva_intervencion = self.client.table("intervenciones").insert(
+            nueva_intervencion = self.client.table("intervencion").insert(
                 intervencion_data
             ).execute()
 
@@ -670,17 +645,15 @@ class OdontologiaServiceV2(BaseService):
                         registro = {
                             "intervencion_id": intervencion_id,
                             "servicio_id": servicio_id,
-                            "cantidad": 1,
                             "precio_unitario_bs": precio_unitario_bs,
                             "precio_unitario_usd": precio_unitario_usd,
                             "precio_total_bs": precio_unitario_bs,
                             "precio_total_usd": precio_unitario_usd,
                             "diente_numero": None,  # NULL = boca completa
-                            "superficie": None,      # NULL = todas las superficies
-                            "observaciones_servicio": observaciones_completa.strip()
+                            "superficie": None      # NULL = todas las superficies
                         }
 
-                        response = self.client.table("intervenciones_servicios").insert(registro).execute()
+                        response = self.client.table("historia_medica").insert(registro).execute()
                         if response.data:
                             registros_creados += 1
                             logger.info(f"✅ Servicio boca completa creado: {servicio_id}")
@@ -707,17 +680,15 @@ class OdontologiaServiceV2(BaseService):
                             registro = {
                                 "intervencion_id": intervencion_id,
                                 "servicio_id": servicio_id,
-                                "cantidad": 1,
                                 "precio_unitario_bs": precio_unitario_bs,
                                 "precio_unitario_usd": precio_unitario_usd,
                                 "precio_total_bs": precio_unitario_bs,
                                 "precio_total_usd": precio_unitario_usd,
                                 "diente_numero": diente_num,
-                                "superficie": None,  # NULL = diente completo
-                                "observaciones_servicio": observaciones_completa.strip()
+                                "superficie": None  # NULL = diente completo
                             }
 
-                            response = self.client.table("intervenciones_servicios").insert(registro).execute()
+                            response = self.client.table("historia_medica").insert(registro).execute()
                             if response.data:
                                 registros_creados += 1
                                 logger.debug(f"✅ Servicio diente completo creado: {diente_num}")
@@ -754,17 +725,15 @@ class OdontologiaServiceV2(BaseService):
                                 registro = {
                                     "intervencion_id": intervencion_id,
                                     "servicio_id": servicio_id,
-                                    "cantidad": 1,
                                     "precio_unitario_bs": precio_unitario_bs,
                                     "precio_unitario_usd": precio_unitario_usd,
                                     "precio_total_bs": precio_unitario_bs,
                                     "precio_total_usd": precio_unitario_usd,
                                     "diente_numero": diente_num,
-                                    "superficie": superficie,
-                                    "observaciones_servicio": observaciones_completa.strip()
+                                    "superficie": superficie
                                 }
 
-                                response = self.client.table("intervenciones_servicios").insert(registro).execute()
+                                response = self.client.table("historia_medica").insert(registro).execute()
                                 if response.data:
                                     registros_creados += 1
                                     logger.debug(f"✅ Servicio superficie creado: {diente_num}-{superficie}")
@@ -783,7 +752,6 @@ class OdontologiaServiceV2(BaseService):
                 "total_usd": total_usd,
                 "servicios_count": len(servicios),
                 "registros_creados": registros_creados,
-                "dientes_afectados": dientes_unicos,
                 "message": f"Intervención creada con {registros_creados} registros de servicios"
             }
 
@@ -906,25 +874,25 @@ class OdontologiaServiceV2(BaseService):
             logger.info(f"📋 Cargando historial de servicios para paciente {paciente_id}")
 
             # Query con joins necesarios (ordenamiento en Python porque PostgREST no lo soporta en relaciones)
-            response = self.client.table("intervenciones_servicios").select("""
+            response = self.client.table("historia_medica").select("""
                 id,
                 diente_numero,
                 superficie,
-                observaciones_servicio,
-                intervenciones!inner(
+                intervencion!inner(
                     id,
                     fecha_registro,
                     odontologo_id,
-                    consultas!inner(
+                    procedimiento_realizado,
+                    consulta!inner(
                         paciente_id
                     )
                 ),
-                servicios!inner(
+                servicio!inner(
                     nombre,
                     categoria,
                     alcance_servicio
                 )
-            """).eq("intervenciones.consultas.paciente_id", paciente_id).execute()
+            """).eq("intervencion.consulta.paciente_id", paciente_id).execute()
 
             logger.info(f"📊 Historial: {len(response.data)} registros encontrados")
 
@@ -952,7 +920,7 @@ class OdontologiaServiceV2(BaseService):
                     "servicio_categoria": servicio_data["servicios"]["categoria"],
                     "condicion_aplicada": None,
                     "material_utilizado": None,
-                    "observaciones": servicio_data.get("observaciones_servicio", "")
+                    "observaciones": servicio_data["intervenciones"].get("procedimiento_realizado", "")
                 }
 
                 # Obtener condición aplicada si es un diente específico
@@ -1000,7 +968,7 @@ class OdontologiaServiceV2(BaseService):
     ) -> Optional[Dict[str, Any]]:
         """🆕 Helper: Obtener condición aplicada en una intervención específica"""
         try:
-            response = self.client.table("condiciones_diente").select(
+            response = self.client.table("diente").select(
                 "tipo_condicion"
             ).eq("paciente_id", paciente_id
             ).eq("diente_numero", diente_numero
@@ -1082,7 +1050,7 @@ class OdontologiaServiceV2(BaseService):
             logger.info(f"🔄 Cargando pacientes disponibles para personal {personal_id}")
 
             # Query con joins para obtener información completa
-            response = self.client.table("consultas").select("""
+            response = self.client.table("consulta").select("""
                 id,
                 numero_consulta,
                 paciente_id,
@@ -1090,10 +1058,9 @@ class OdontologiaServiceV2(BaseService):
                 fecha_llegada,
                 estado,
                 tipo_consulta,
-                prioridad,
                 motivo_consulta,
                 observaciones,
-                pacientes!inner(
+                paciente!inner(
                     id,
                     numero_historia,
                     primer_nombre,
@@ -1106,7 +1073,6 @@ class OdontologiaServiceV2(BaseService):
                     email,
                     genero,
                     fecha_nacimiento,
-                    edad,
                     alergias
                 )
             """).eq(
@@ -1147,7 +1113,6 @@ class OdontologiaServiceV2(BaseService):
                     "consulta_id": consulta_data.get("id"),
                     "consulta_numero": consulta_data.get("numero_consulta", ""),
                     "consulta_estado": consulta_data.get("estado", ""),
-                    "consulta_prioridad": consulta_data.get("prioridad", "normal"),
                     "motivo_derivacion": consulta_data.get("observaciones", ""),
 
                     # Nombre completo calculado

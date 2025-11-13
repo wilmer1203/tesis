@@ -309,12 +309,13 @@ def formulario_pago_dual() -> rx.Component:
                 enhanced_form_field(
                     label="Método",
                     field_name="metodo_pago_usd",
-                    value=AppState.formulario_pago_dual.metodo_pago_usd,
+                    value=rx.cond(AppState.formulario_pago_dual.metodo_pago_usd != "", AppState.formulario_pago_dual.metodo_pago_usd, METODOS_PAGO[0] if len(METODOS_PAGO) > 0 else ""),
                     on_change=AppState.actualizar_campo_pago_dual,
                     field_type="select",
                     options=METODOS_PAGO,
                     placeholder="Seleccionar método",
-                    icon="credit-card"
+                    icon="credit-card",
+                    help_text="Predeterminado: primer método disponible"
                 ),
                 enhanced_form_field(
                     label="Referencia",
@@ -342,12 +343,13 @@ def formulario_pago_dual() -> rx.Component:
                 enhanced_form_field(
                     label="Método",
                     field_name="metodo_pago_bs",
-                    value=AppState.formulario_pago_dual.metodo_pago_bs,
+                    value=rx.cond(AppState.formulario_pago_dual.metodo_pago_bs != "", AppState.formulario_pago_dual.metodo_pago_bs, METODOS_PAGO[0] if len(METODOS_PAGO) > 0 else ""),
                     on_change=AppState.actualizar_campo_pago_dual,
                     field_type="select",
                     options=METODOS_PAGO,
                     placeholder="Seleccionar método",
-                    icon="credit-card"
+                    icon="credit-card",
+                    help_text="Predeterminado: primer método disponible"
                 ),
                 enhanced_form_field(
                     label="Referencia",

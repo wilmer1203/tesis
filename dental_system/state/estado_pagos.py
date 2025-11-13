@@ -55,7 +55,6 @@ class EstadoPagos(rx.State,mixin=True):
     
     # Lista principal de pagos (modelos tipados)
     lista_pagos: List[PagoModel] = []
-    total_pagos: int = 0
     errores_validacion_pago: Dict[str, str] = {}
 
     # Pago seleccionado para ver detalle
@@ -103,21 +102,18 @@ class EstadoPagos(rx.State,mixin=True):
     mostrar_conversion_automatica: bool = True
 
     # ==========================================
-    # 🏥 CONSULTAS PENDIENTES DE FACTURACIÓN
+    # 🏥 CONSULTAS PENDIENTES DE PAGO
     # ==========================================
 
-    # Lista de consultas completadas pendientes de pago
-    consultas_pendientes_facturacion: List[Dict[str, Any]] = []
-    consulta_seleccionada_pago: Optional[Dict[str, Any]] = None
+    # Sistema de consultas pendientes (tipado)
+    consulta_pagar : Optional[ConsultaPendientePago] = None
+    consultas_pendientes_pagar: List[ConsultaPendientePago] = None
     cargando_consultas_pendientes: bool = False
 
     # 📝 DATOS ADICIONALES DE LA CONSULTA SELECCIONADA (para el modal)
     consulta_actual_numero_historia: str = ""
     consulta_actual_documento: str = ""
     consulta_actual_telefono: str = ""
-    
-    consulta_pagar : Optional[ConsultaPendientePago] = None
-    consultas_pendientes_pagar: List[ConsultaPendientePago] = None
     # ==========================================
     # 💳 MÉTODOS DE PAGO Y CONFIGURACIÓN
     # ==========================================
@@ -153,29 +149,8 @@ class EstadoPagos(rx.State,mixin=True):
     pagina_actual_pagos: int = 1
     pagos_por_pagina: int = 15
     total_paginas_pagos: int = 1
-    
-    # ==========================================
-    # 💳 ESTADÍSTICAS Y MÉTRICAS FINANCIERAS
-    # ==========================================
-    
-    # Estadísticas principales
-    estadisticas_pagos: PagosStatsModel = PagosStatsModel()
-    ultima_actualizacion_stats: str = ""
-    
-    # Métricas financieras rápidas
-    recaudacion_hoy: float = 0.0
-    recaudacion_mes: float = 0.0
-    saldo_pendiente_total: float = 0.0
-    total_facturas_pendientes: int = 0
-    
-    # Cache de operaciones pesadas
-    cache_pagos_recientes: List[PagoModel] = []
-    cache_cuentas_por_cobrar: List[CuentaPorCobrarModel] = []
-    cache_timestamp_pagos: str = ""
-    cache_validez_minutos: int = 10  # Cache más corto para datos financieros
-    
+
     # Estados de carga
-    cargando_estadisticas_pagos: bool = False
     cargando_operacion_pago: bool = False
     procesando_pago: bool = False
     
@@ -184,10 +159,10 @@ class EstadoPagos(rx.State,mixin=True):
     # ==========================================
     
     
-    @rx.var(cache=True)
-    def pagos_pendientes(self) -> List[PagoModel]:
-        """⏳ Pagos pendientes"""
-        return [p for p in self.lista_pagos if p.estado_pago == "pendiente"]
+    # @rx.var(cache=True)
+    # def pagos_pendientes(self) -> List[PagoModel]:
+    #     """⏳ Pagos pendientes"""
+    #     return [p for p in self.lista_pagos if p.estado_pago == "pendiente"]
    
     @rx.var(cache=True)
     def total_pagos_pendientes(self) -> int:
@@ -198,39 +173,21 @@ class EstadoPagos(rx.State,mixin=True):
     def total_saldo_pendiente(self) -> float:
         """💰 Total saldo pendiente"""
         return sum(p.saldo_pendiente for p in self.lista_pagos)
-    
-    # @rx.var(cache=True)
-    # def recaudacion_del_dia(self) -> float:
-    #     """💵 Recaudación del día"""
-    #     hoy = date.today()
-    #     return sum(
-    #         p.monto_pagado for p in self.lista_pagos 
-    #         if p.fecha_pago.date() == hoy and p.estado_pago == "completado"
-    #     )
-    
 
     # ==========================================
     # 💳 MÉTODOS PRINCIPALES DE CRUD
     # ==========================================
     
     @rx.event
-    async def cargar_lista_pagos(self, force_refresh: bool = False):
+    async def cargar_lista_pagos(self):
         """💳 CARGAR LISTA COMPLETA DE PAGOS"""
         try:
             self.cargando_lista_pagos = True
-
-            print(f"🔍 DEBUG: Cargando lista de pagos...")
-            # Cargar desde el servicio
-            pagos_data = await pagos_service.get_all_payments()
-            print(f"🔍 Pagos recibidos: {len(pagos_data) if pagos_data else 0}")
+            pagos_data = await pagos_service.get_filtered_payments()
             # Convertir a modelos tipados
             self.lista_pagos = pagos_data
-            self.total_pagos = len(self.lista_pagos)
-
-            # Actualizar métricas rápidas
-            # await self._actualizar_metricas_rapidas()
-
-            logger.info(f"✅ {len(self.lista_pagos)} pagos cargados")
+            
+            print(f"🔍 Pagos recibidos: {len( self.lista_pagos) if pagos_data else 0}")
             
         except Exception as e:
             logger.error(f"❌ Error cargando pagos: {str(e)}")
@@ -752,36 +709,6 @@ class EstadoPagos(rx.State,mixin=True):
         self.modal_detalle_pago_abierto = False
         self.pago_seleccionado = None
 
-
-    # ==========================================
-    # 🏥 COMPUTED VARS PARA CONSULTAS PENDIENTES
-    # ==========================================
-
-    @rx.var(cache=True)
-    def total_consultas_pendientes_pago(self) -> int:
-        """📊 Total de consultas pendientes de pago"""
-        return len(getattr(self, 'consultas_pendientes_facturacion', []))
-
-
-    @rx.var(cache=True)
-    def consultas_por_odontologo(self) -> Dict[str, List[Dict[str, Any]]]:
-        """👨‍⚕️ Consultas pendientes agrupadas por odontólogo"""
-        consultas = getattr(self, 'consultas_pendientes_facturacion', [])
-        agrupadas = {}
-
-        for consulta in consultas:
-            odontologo = consulta.get("odontologo_nombre", "Sin asignar")
-            if odontologo not in agrupadas:
-                agrupadas[odontologo] = []
-            agrupadas[odontologo].append(consulta)
-
-        return agrupadas
-
-
-    # Variable de estado para almacenar ID de consulta seleccionada para accordion
-    consulta_id_seleccionada_accordion: str = ""
-
-
     @rx.var(cache=True)
     def servicios_factura_seleccionada(self) -> List[ServicioFormateado]:
         """🧾 Lista de servicios de la consulta seleccionada para la factura"""
@@ -816,7 +743,6 @@ class EstadoPagos(rx.State,mixin=True):
     def limpiar_datos(self):
         """🧹 LIMPIAR TODOS LOS DATOS - USADO EN LOGOUT"""
         self.lista_pagos = []
-        self.total_pagos = 0
         self.errores_validacion_pago = {}
         self.cargando_lista_pagos = False
 
@@ -830,12 +756,6 @@ class EstadoPagos(rx.State,mixin=True):
         self.filtro_rango_monto = {"min": 0.0, "max": 999999.0}
         self.rango_fecha_inicio = ""
         self.rango_fecha_fin = ""
-
-        # Limpiar métricas
-        self.recaudacion_hoy = 0.0
-        self.recaudacion_mes = 0.0
-        self.saldo_pendiente_total = 0.0
-        self.total_facturas_pendientes = 0
 
         # 💰 LIMPIAR VARIABLES SISTEMA DUAL
         self.formulario_pago_dual = PagoFormModel()
@@ -859,18 +779,8 @@ class EstadoPagos(rx.State,mixin=True):
         self.moneda_principal_vista = "USD"
         self.mostrar_conversion_automatica = True
 
-        # 🏥 LIMPIAR CONSULTAS PENDIENTES
-        self.consultas_pendientes_facturacion = []
-        self.consulta_seleccionada_pago = None
+        # Limpiar estados de carga
         self.cargando_consultas_pendientes = False
-
-        # Limpiar cache
-        self.cache_pagos_recientes = []
-        self.cache_cuentas_por_cobrar = []
-        self.cache_timestamp_pagos = ""
-
-        # Estados de carga
-        self.cargando_estadisticas_pagos = False
         self.cargando_operacion_pago = False
         self.procesando_pago = False
 
@@ -878,15 +788,13 @@ class EstadoPagos(rx.State,mixin=True):
     def cancelar_formulario_pago(self):
         """🚫 Cancelar formulario de pago y limpiar datos"""
         self.formulario_pago_dual = PagoFormModel()
-        self.consulta_seleccionada_pago = None
-
         logger.info("🧹 Datos de pagos limpiados (incluye sistema dual)")
         
         
     async def cargar_datos_pagos_page(self):
         """Carga todos los datos necesarios al entrar a la página de pagos"""
         await self.cargar_consultas_pendientes_pago()
-        await self.cargar_lista_pagos(force_refresh=True)
+        await self.cargar_lista_pagos()
         await self.cargar_estadisticas_duales()
         
     @rx.event
@@ -897,7 +805,7 @@ class EstadoPagos(rx.State,mixin=True):
 
            # Cargar todo en paralelo
            await self.cargar_consultas_pendientes_pago()
-           await self.cargar_lista_pagos(force_refresh=True)
+           await self.cargar_lista_pagos()
            await self.cargar_estadisticas_duales()
 
            logger.info("✅ Página de pagos recargada completamente")

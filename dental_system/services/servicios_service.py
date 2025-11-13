@@ -7,7 +7,6 @@ from typing import Dict, List, Optional, Any
 from decimal import Decimal
 from .base_service import BaseService
 from dental_system.models import ServicioModel, ServicioFormModel
-from .cache_invalidation_hooks import invalidate_after_service_operation, track_cache_invalidation
 import logging
 
 logger = logging.getLogger(__name__)
@@ -37,12 +36,9 @@ class ServiciosService(BaseService):
             Lista de servicios como modelos tipados
         """
         try:
-            # Verificar permisos
-            if not self.check_permission("servicios", "leer"):
-                raise PermissionError("Sin permisos para acceder a servicios")
-
+            
             # Construir query base
-            query = self.client.table("servicios").select("*")
+            query = self.client.table("servicio").select("*")
 
             # Aplicar filtros
             if activos_only:
@@ -112,7 +108,7 @@ class ServiciosService(BaseService):
             form_data = servicio_form.to_dict()
 
             # Verificar que no exista el código
-            existing_response = self.client.table("servicios").select("id").eq("codigo", form_data["codigo"]).execute()
+            existing_response = self.client.table("servicio").select("id").eq("codigo", form_data["codigo"]).execute()
             if existing_response.data:
                 raise ValueError("Ya existe un servicio con este código")
 
@@ -128,18 +124,11 @@ class ServiciosService(BaseService):
                 "activo": True
             }
 
-            response = self.client.table("servicios").insert(insert_data).execute()
+            response = self.client.table("servicio").insert(insert_data).execute()
             result = response.data[0] if response.data else None
             
             if result:
                 logger.info(f"✅ Servicio creado: {form_data['nombre']}")
-
-                # 🗑️ INVALIDAR CACHE - servicio creado afecta servicios activos
-                try:
-                    invalidate_after_service_operation()
-                except Exception as cache_error:
-                    logger.warning(f"Error invalidando cache tras crear servicio: {cache_error}")
-
                 # Convertir resultado a modelo tipado
                 return ServicioModel.from_dict(result)
             else:
@@ -176,7 +165,7 @@ class ServiciosService(BaseService):
                 raise PermissionError("No tiene permisos para actualizar servicios")
 
             # Validar que exista el servicio
-            servicio_response = self.client.table("servicios").select("*").eq("id", service_id).execute()
+            servicio_response = self.client.table("servicio").select("*").eq("id", service_id).execute()
             if not servicio_response.data:
                 raise ValueError("Servicio no encontrado")
             servicio_actual = servicio_response.data[0]
@@ -188,7 +177,7 @@ class ServiciosService(BaseService):
 
             # Si se cambió el código, verificar que no exista
             if servicio_form.codigo != servicio_actual["codigo"]:
-                existing_response = self.client.table("servicios").select("id").eq("codigo", servicio_form.codigo).execute()
+                existing_response = self.client.table("servicio").select("id").eq("codigo", servicio_form.codigo).execute()
                 if existing_response.data:
                     raise ValueError("Ya existe un servicio con este código")
 
@@ -200,16 +189,10 @@ class ServiciosService(BaseService):
             data["fecha_creacion"] = servicio_actual["fecha_creacion"]
 
             # Actualizar
-            update_response = self.client.table("servicios").update(data).eq("id", service_id).execute()
+            update_response = self.client.table("servicio").update(data).eq("id", service_id).execute()
             result = update_response.data[0] if update_response.data else None
 
             if result:
-                # Invalidar caché
-                try:
-                    invalidate_after_service_operation()
-                except Exception as cache_error:
-                    logger.warning(f"Error invalidando cache tras actualizar servicio: {cache_error}")
-
                 return ServicioModel.from_dict(result)
 
         except Exception as e:
@@ -239,18 +222,11 @@ class ServiciosService(BaseService):
             # TODO: Verificar que no tenga intervenciones activas
 
             # Desactivar
-            update_response = self.client.table("servicios").update({"activo": False}).eq("id", service_id).execute()
+            update_response = self.client.table("servicio").update({"activo": False}).eq("id", service_id).execute()
             result = update_response.data[0] if update_response.data else None
             
             if result:
                 logger.info(f"✅ Servicio desactivado correctamente")
-                
-                # 🗑️ INVALIDAR CACHE - servicio desactivado afecta servicios activos
-                try:
-                    invalidate_after_service_operation()
-                except Exception as cache_error:
-                    logger.warning(f"Error invalidando cache tras desactivar servicio: {cache_error}")
-                
                 return True
             else:
                 raise ValueError("Error desactivando servicio")
@@ -278,18 +254,11 @@ class ServiciosService(BaseService):
             # Verificar permisos
             self.require_permission("servicios", "crear")  # Reactivar = crear de nuevo
 
-            update_response = self.client.table("servicios").update({"activo": True}).eq("id", service_id).execute()
+            update_response = self.client.table("servicio").update({"activo": True}).eq("id", service_id).execute()
             result = update_response.data[0] if update_response.data else None
             
             if result:
                 logger.info(f"✅ Servicio reactivado correctamente")
-                
-                # 🗑️ INVALIDAR CACHE - servicio reactivado afecta servicios activos
-                try:
-                    invalidate_after_service_operation()
-                except Exception as cache_error:
-                    logger.warning(f"Error invalidando cache tras reactivar servicio: {cache_error}")
-                
                 return True
             else:
                 raise ValueError("Error reactivando servicio")
@@ -315,7 +284,7 @@ class ServiciosService(BaseService):
             # Verificar permisos
             self.require_permission("servicios", "leer")
 
-            response = self.client.table("servicios").select("*").eq("id", service_id).execute()
+            response = self.client.table("servicio").select("*").eq("id", service_id).execute()
             if response.data:
                 return ServicioModel.from_dict(response.data[0])
             return None
@@ -336,7 +305,7 @@ class ServiciosService(BaseService):
             self.require_permission("servicios", "leer")
 
             # Obtener categorías únicas
-            response = self.client.table("servicios").select("categoria").eq("activo", True).execute()
+            response = self.client.table("servicio").select("categoria").eq("activo", True).execute()
             categorias = list(set([s["categoria"] for s in response.data if s.get("categoria")])) if response.data else []
             categorias.sort()
             logger.info(f"Categorías obtenidas: {categorias}")
@@ -346,33 +315,6 @@ class ServiciosService(BaseService):
             self.handle_error("Error obteniendo categorías", e)
             return []
     
-    async def get_all_services(self, activos_only: bool = True) -> List[ServicioModel]:
-        """
-        Obtiene todos los servicios (método requerido por estado_servicios)
-
-        Args:
-            activos_only: Solo servicios activos
-
-        Returns:
-            Lista de servicios como modelos tipados
-        """
-        try:
-            # Verificar permisos
-            if not self.check_permission("servicios", "leer"):
-                raise PermissionError("Sin permisos para acceder a servicios")
-
-            return await self.get_filtered_services(activos_only=activos_only)
-
-        except Exception as e:
-            self.handle_error("Error obteniendo todos los servicios", e)
-            return []
-
-    async def get_servicios_stats(self) -> Dict[str, Any]:
-        """
-        Alias para get_service_stats (requerido por estado_servicios)
-        """
-        return await self.get_service_stats()
-
     async def get_service_stats(self) -> Dict[str, Any]:
         """
         Obtiene estadísticas de servicios
@@ -380,7 +322,7 @@ class ServiciosService(BaseService):
         """
         try:
             # Obtener todos los servicios
-            response = self.client.table("servicios").select("*").execute()
+            response = self.client.table("servicio").select("*").execute()
             servicios = response.data if response.data else []
 
             # Calcular estadísticas básicas

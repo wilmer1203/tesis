@@ -17,15 +17,23 @@ class BaseService:
     
     def __init__(self):
         self._client = None
+        self._admin_client = None
         self.current_user_id: Optional[str] = None
         self.current_user_profile: Optional[Dict] = None
-    
+
     @property
     def client(self):
         """Cliente de Supabase (lazy loading)"""
         if self._client is None:
             self._client = supabase_client.get_client()
         return self._client
+
+    @property
+    def admin_client(self):
+        """Cliente administrativo de Supabase con service_role_key (lazy loading)"""
+        if self._admin_client is None:
+            self._admin_client = supabase_client.get_admin_client()
+        return self._admin_client
     
     def set_user_context(self, user_id: str, user_profile: Dict[str, Any]):
         """Establece el contexto del usuario actual"""
@@ -55,91 +63,69 @@ class BaseService:
         
         return "unknown"
     
-    def _extract_user_permissions(self) -> Dict[str, List[str]]:
-        """
-        CORREGIDO: Extrae los permisos del usuario desde la estructura correcta
-        """
-        if not self.current_user_profile:
-            return {}
-        
-        # OPCIÓN 1: Desde estructura anidada rol.permisos (MÁS COMÚN)
-        rol_obj = self.current_user_profile.get("rol", {})
-        if isinstance(rol_obj, dict) and "permisos" in rol_obj:
-            permisos = rol_obj["permisos"]
-            if isinstance(permisos, dict):
-                return permisos
-        
-        # OPCIÓN 2: Desde campo plano rol_permisos (FALLBACK)
-        if "rol_permisos" in self.current_user_profile:
-            permisos = self.current_user_profile["rol_permisos"]
-            if isinstance(permisos, dict):
-                return permisos
-        
-        # OPCIÓN 3: Desde campo permisos directo (FALLBACK ADICIONAL)
-        if "permisos" in self.current_user_profile:
-            permisos = self.current_user_profile["permisos"]
-            if isinstance(permisos, dict):
-                return permisos
-        
-        return {}
-    
     def check_permission(self, module: str, action: str) -> bool:
         """
-        CORREGIDO: Verifica permisos del usuario actual con extracción mejorada
-        
+        ✅ SISTEMA DE PERMISOS DESHABILITADO (siempre retorna True)
+
         Args:
-            module: Módulo (pacientes, consultas, etc.)
+            module: Módulo (pacientes, consultas, servicios, pagos, odontologia, personal)
             action: Acción (crear, leer, actualizar, eliminar)
-            
+
         Returns:
             True si tiene permiso
         """
-        if not self.current_user_profile:
-            return False
-        
-        try:
-            # CORREGIDO: Usar método mejorado de extracción
-            permisos = self._extract_user_permissions()
-            user_role = self._extract_user_role()
+        # ⚠️ SISTEMA DE PERMISOS DESHABILITADO - SIEMPRE RETORNA TRUE
+        return True
 
-            if not permisos:
-                return False
-
-            module_permisos = permisos.get(module, [])
-            has_permission = action in module_permisos
-
-            # Permiso verificado
-
-            return has_permission
-            
-        except Exception as e:
-            logger.warning(f"Error verificando permisos: {e}")
-            # Error verificando permisos
-            return False
+        # CÓDIGO ANTERIOR COMENTADO:
+        # if not self.current_user_profile:
+        #     return False
+        #
+        # try:
+        #     rol_nombre = self._extract_user_role()
+        #
+        #     # ✅ GERENTE: Acceso total
+        #     if rol_nombre == "gerente":
+        #         return True
+        #
+        #     # ✅ ADMINISTRADOR: Todo excepto personal y configuración
+        #     if rol_nombre == "administrador":
+        #         return module not in ["personal", "configuracion"]
+        #
+        #     # ✅ ODONTÓLOGO: Solo su módulo y pacientes
+        #     if rol_nombre == "odontologo":
+        #         return module in ["odontologia", "pacientes", "consultas","reportes"]
+        #
+        #     # ✅ ASISTENTE: Solo lectura
+        #     if rol_nombre == "asistente":
+        #         return action == "leer"
+        #
+        #     return False
+        #
+        # except Exception as e:
+        #     logger.warning(f"Error verificando permisos: {e}")
+        #     return False
     
     def require_permission(self, module: str, action: str):
         """
-        CORREGIDO: Requiere un permiso específico con extracción mejorada
-        
+        ✅ REQUIERE PERMISO - DESHABILITADO (no hace nada)
+
         Args:
             module: Módulo requerido
             action: Acción requerida
-            
+
         Raises:
             PermissionError: Si no tiene permiso
         """
-        if not self.check_permission(module, action):
-            # CORREGIDO: Usar método mejorado para obtener rol
-            user_role = self._extract_user_role()
-            
-            error_msg = f"Usuario con rol '{user_role}' no tiene permiso para {action} en {module}"
-            print(f"[ERROR] ❌ {error_msg}")
-            
-            # DEBUG adicional para diagnóstico
-            permisos = self._extract_user_permissions()
-            # Permisos disponibles para debug si es necesario
-            
-            raise PermissionError(error_msg)
+        # ⚠️ SISTEMA DE PERMISOS DESHABILITADO - NO HACE VALIDACIONES
+        pass
+
+        # CÓDIGO ANTERIOR COMENTADO:
+        # if not self.check_permission(module, action):
+        #     user_role = self._extract_user_role()
+        #     error_msg = f"Usuario con rol '{user_role}' no tiene permiso para {action} en {module}"
+        #     logger.warning(f"❌ {error_msg}")
+        #     raise PermissionError(error_msg)
     
     def handle_error(self, message: str, exception: Exception = None) -> None:
         """

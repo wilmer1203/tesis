@@ -4,7 +4,7 @@
 import reflex as rx
 from dental_system.state.app_state import AppState
 from dental_system.styles.themes import COLORS, SHADOWS
-from dental_system.pages.dashboard import dashboard_page
+from dental_system.pages.dashboard import dashboard_page, dashboard_page_admin  # 👔 Dashboard Gerente y 👤 Admin
 from dental_system.pages.dashboard_odontologo import dashboard_odontologo_page  # 🦷 Dashboard Odontólogo
 from dental_system.pages.pacientes_page import pacientes_page
 from dental_system.pages.personal_page import personal_page
@@ -15,6 +15,8 @@ from dental_system.pages.odontologia_page import odontologia_page
 from dental_system.pages.intervencion_page import intervencion_page_v2
 from dental_system.pages.login import login_page
 from dental_system.pages.historial_paciente_page import historial_paciente_page
+from dental_system.pages.perfil_page import perfil_page
+from dental_system.pages.reportes_page import reportes_page
 from dental_system.components.common import sidebar
 from dental_system.utils.route_guard import (
     boss_only_component,
@@ -81,11 +83,18 @@ def main_layout(page_content: rx.Component) -> rx.Component:
 def main_content() -> rx.Component:
     """
     🔥 CONTENIDO PRINCIPAL QUE CAMBIA SEGÚN current_page
-    ✅ ESTO ES LO QUE ESTABA FALTANDO EN TU CÓDIGO
+    ✅ Dashboard diferenciado por rol (Gerente vs Administrador)
     """
     return rx.match(
         AppState.current_page,
-        ("dashboard", dashboard_page()),
+        # 📊 Dashboard con condicional por rol (Gerente vs Administrador)
+        ("dashboard",
+            rx.cond(
+                AppState.rol_usuario == "administrador",
+                dashboard_page_admin(),  # 👤 Dashboard Administrador
+                dashboard_page()         # 👔 Dashboard Gerente (default)
+            )
+        ),
         ("dashboard-odontologo", dashboard_odontologo_page()),  # 🦷 Dashboard Odontólogo
         ("pacientes", pacientes_page()),
         ("historial-paciente", historial_paciente_page()),  # 🆕 Historial del paciente
@@ -95,7 +104,8 @@ def main_content() -> rx.Component:
         ("pagos", pagos_page()),  # ✅ Habilitado
         ("odontologia", odontologia_page()),
         ("intervencion", intervencion_page_v2()),
-        ("reportes", reportes_placeholder()),
+        ("perfil", perfil_page()),  # 👤 Perfil de usuario
+        ("reportes", reportes_page()),  # 📊 Reportes diferenciados por rol
         dashboard_page(),
     ) # type: ignore
 

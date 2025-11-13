@@ -33,7 +33,6 @@ def odontologia_column_card(color: str = None, hover_lift: str = "4px") -> dict:
         **dark_crystal_card(
             color=color or COLORS["primary"]["500"],
             hover_lift=hover_lift,
-            padding=SPACING["5"],  # ✅ Padding estandarizado
         ),
         # ✅ MEJORA: Usar flex en vez de altura fija
         "display": "flex",

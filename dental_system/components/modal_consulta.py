@@ -352,17 +352,7 @@ def campos_adicionales() -> rx.Component:
                 field_type="select",
                 options=["general", "control", "urgencia", "emergencia"],
                 icon="activity",
-            ),
-            
-            # Prioridad como campo select mejorado
-            enhanced_form_field(
-                label="Prioridad",
-                field_name="prioridad",
-                value=rx.cond(AppState.formulario_consulta_data, AppState.formulario_consulta_data.prioridad, "normal"),
-                on_change=lambda field, value: AppState.set_formulario_consulta_field(field, value),
-                field_type="select",
-                options=["baja", "normal", "alta", "urgente"],
-                icon="triangle-alert",
+                help_text="Predeterminado: general"
             ),
             
             columns=rx.breakpoints(initial="1", sm="2"),

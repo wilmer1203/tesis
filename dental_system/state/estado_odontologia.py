@@ -187,11 +187,6 @@ class EstadoOdontologia(rx.State, mixin=True):
     quick_surface_selected: str = ""
     quick_condition_value: str = ""
 
-    # ⚠️ OBSOLETO 2025-10-16: Reemplazado por servicios_en_intervencion (estado_intervencion_servicios)
-    # Mantenido temporalmente por compatibilidad, pero ya no se usa
-    # TODO: Eliminar completamente después de verificar que no hay referencias en otros archivos
-    servicios_consulta_actual: List[Dict[str, Any]] = []
-
     # ==========================================
     # 🆕 HISTORIAL DE SERVICIOS DEL PACIENTE (2025-10-16)
     # ==========================================
@@ -303,27 +298,6 @@ class EstadoOdontologia(rx.State, mixin=True):
 
     # Control de carga lazy de historial
     historial_cargado_por_diente: Dict[int, bool] = {}
-
-    # Historial completo de versiones del odontograma
-    historial_versiones_odontograma: List[Dict[str, Any]] = []  # Necesario para rx.foreach
-    total_versiones_historial: int = 0
-    historial_versiones_cargando: bool = False
-
-    # Control de modal de historial completo
-    modal_historial_completo_abierto: bool = False
-
-    # Filtros de historial
-    filtro_odontologo_historial: str = ""
-    filtro_tipo_version: str = "Todas"  # Todas, Solo críticas, Con cambios
-
-    # ==========================================
-    # 🛡️ VARIABLES V3.0 - FASE 5: VALIDACIONES
-    # ==========================================
-
-    # Resultados de validación
-    validacion_errores: List[Dict[str, Any]] = []  # Necesario para rx.foreach
-    validacion_warnings: List[Dict[str, Any]] = []  # Necesario para rx.foreach
-    modal_validacion_abierto: bool = False
 
     # Variables para la selección de condiciones
     selected_condition_to_apply: Optional[str] = None  # Condición seleccionada para aplicar
@@ -1026,7 +1000,7 @@ class EstadoOdontologia(rx.State, mixin=True):
         return teeth_data
 
 
-    @rx.var(cache=True)
+    @rx.var()
     def selected_service_id(self) -> str:
         """🆔 ID del servicio seleccionado del catálogo"""
         if not self.selected_service_name:

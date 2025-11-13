@@ -17,12 +17,19 @@ Desarrollado para Reflex.dev con patrones UX/UI modernos
 
 import reflex as rx
 from typing import Dict, List, Optional, Callable, Any
+import re
 from dental_system.state.app_state import AppState
 from dental_system.styles.themes import (
-    COLORS, SHADOWS, RADIUS, SPACING, ANIMATIONS, 
+    COLORS, SHADOWS, RADIUS, SPACING, ANIMATIONS,
     GRADIENTS, GLASS_EFFECTS, DARK_THEME
 )
 
+
+# ==========================================
+# 🎯 ESTRATEGIA DE VALIDACIÓN SIMPLE
+# ==========================================
+# Para números: type="number" → Navegador bloquea letras automáticamente
+# Para texto: type="text" con pattern → Validación visual (no bloquea escribir)
 
 
 def form_section_header(title: str, subtitle: str, icon: str, color: str = None) -> rx.Component:
@@ -203,6 +210,752 @@ def enhanced_form_field(
         width="100%"
     )
 
+# ==========================================
+# 🔤 COMPONENTE GENÉRICO DE INPUT VALIDADO
+# ==========================================
+
+def validated_input(
+    label: str,
+    field_name: str,
+    value: Any,
+    on_change: Callable,
+    input_type: str = "text",  # "text", "number", "email", "date", "password", etc.
+    validation_mode: str = "none",  # "none", "letters_only", "numbers_only", "email"
+    placeholder: str = "",
+    required: bool = False,
+    validation_error: str = "",
+    help_text: str = "",
+    icon: Optional[str] = None,
+    max_length: Optional[int] = None,
+    min_value: Optional[int] = None
+) -> rx.Component:
+    """
+    🎯 COMPONENTE GENÉRICO DE INPUT CON VALIDACIÓN Y SANITIZACIÓN AUTOMÁTICA
+
+    Parámetros:
+    - input_type: "text", "number", "email", "date", "password", etc.
+    - validation_mode: "none", "letters_only", "numbers_only", "email"
+
+    ✨ NUEVA FUNCIONALIDAD: Sanitiza automáticamente el input en tiempo real
+    - "letters_only" → Elimina números y caracteres especiales mientras escribes
+    - "numbers_only" → Elimina letras y caracteres especiales mientras escribes
+    """
+
+    # Mensajes de ayuda según el modo de validación
+    help_messages = {
+        "letters_only": "Solo se permiten letras y espacios",
+        "numbers_only": "Solo números",
+        "email": "Formato: usuario@dominio.com",
+        "none": help_text
+    }
+
+    # Patrones HTML5 para validación visual (no bloqueante, solo ayuda visual)
+    input_patterns = {
+        "letters_only": "[A-Za-zÀ-ÿ\\s]*",
+        "numbers_only": "[0-9]*",
+        "none": None
+    }
+
+    return rx.vstack(
+        # Label con indicador de requerido
+        rx.hstack(
+            rx.hstack(
+                *([rx.icon(icon, size=18, color=COLORS["primary"]["500"])] if icon else []),
+                rx.text(
+                    label,
+                    style={
+                        "font_size": "1rem",
+                        "font_weight": "600",
+                        "color": DARK_THEME["colors"]["text_primary"]
+                    }
+                ),
+                spacing="2",
+                align="center"
+            ),
+
+            *([rx.text(
+                "*",
+                style={
+                    "color": COLORS["error"]["500"],
+                    "font_weight": "700",
+                    "margin_left": "2px"
+                }
+            )] if required else []),
+
+            rx.spacer(),
+
+            *([rx.text(
+                help_text if help_text else "",
+                style={
+                    "font_size": "0.75rem",
+                    "color": COLORS["gray"]["500"],
+                    "font_style": "italic"
+                }
+            )] if help_text else []),
+
+            width="100%",
+            align="center"
+        ),
+
+        # Input según tipo (sanitización en backend via State)
+        rx.input(
+            type=input_type,
+            value=value,
+            on_change=lambda v: on_change(field_name, v) if on_change else None,
+            placeholder=placeholder,
+            max_length=max_length,
+            min=min_value,
+            pattern=input_patterns.get(validation_mode),
+            style=_get_field_style()
+        ),
+
+        # Mensaje de ayuda según validación
+        rx.cond(
+            validation_mode != "none",
+            rx.hstack(
+                rx.icon("info", size=14, color=COLORS["blue"]["500"]),
+                rx.text(
+                    help_messages.get(validation_mode, ""),
+                    style={
+                        "font_size": "0.7rem",
+                        "color": COLORS["gray"]["400"],
+                        "font_style": "italic"
+                    }
+                ),
+                spacing="2",
+                align="center"
+            ),
+            rx.box()
+        ),
+
+        # Mensaje de error de validación
+        rx.cond(
+            validation_error != "",
+            rx.hstack(
+                rx.icon("triangle-alert", size=14, color=COLORS["error"]["500"]),
+                rx.text(
+                    validation_error,
+                    style={
+                        "font_size": "0.75rem",
+                        "color": COLORS["error"]["500"],
+                        "font_weight": "500"
+                    }
+                ),
+                spacing="2",
+                align="center"
+            ),
+            rx.box()
+        ),
+
+        spacing="2",
+        align="start",
+        width="100%"
+    )
+
+
+def select_input_combo(
+    label: str,
+    field_name_select: str,
+    field_name_input: str,
+    value_select: Any,
+    value_input: Any,
+    on_change: Callable,
+    select_options: List[str],
+    select_default: str = "",
+    input_type: str = "number",  # "number" o "text"
+    input_placeholder: str = "",
+    select_width: str = "140px",
+    required: bool = False,
+    validation_error: str = "",
+    help_text: str = "",
+    icon: Optional[str] = None
+) -> rx.Component:
+    """
+    🎯 COMPONENTE COMBO: SELECT + INPUT
+
+    Uso: Teléfonos (código país + número), Documentos (tipo + número)
+
+    Parámetros:
+    - select_options: Lista de opciones para el select
+    - select_default: Valor predeterminado del select
+    - input_type: "number" o "text"
+    """
+
+    return rx.vstack(
+        # Label
+        rx.hstack(
+            rx.hstack(
+                *([rx.icon(icon, size=18, color=COLORS["primary"]["500"])] if icon else []),
+                rx.text(
+                    label,
+                    style={
+                        "font_size": "1rem",
+                        "font_weight": "600",
+                        "color": DARK_THEME["colors"]["text_primary"]
+                    }
+                ),
+                spacing="2",
+                align="center"
+            ),
+
+            *([rx.text(
+                "*",
+                style={
+                    "color": COLORS["error"]["500"],
+                    "font_weight": "700",
+                    "margin_left": "2px"
+                }
+            )] if required else []),
+
+            rx.spacer(),
+
+            *([rx.text(
+                help_text,
+                style={
+                    "font_size": "0.75rem",
+                    "color": COLORS["gray"]["500"],
+                    "font_style": "italic"
+                }
+            )] if help_text else []),
+
+            width="100%",
+            align="center"
+        ),
+
+        # Grid: Select + Input
+        rx.hstack(
+            # Select
+            rx.select(
+                select_options,
+                value=value_select,
+                on_change=lambda v: on_change(field_name_select, v) if on_change else None,
+                default_value=select_default,
+                style={
+                    **_get_field_style(),
+                    "width": select_width,
+                    "flex_shrink": "0"
+                }
+            ),
+
+            # Input
+            rx.input(
+                type=input_type,
+                value=value_input,
+                on_change=lambda v: on_change(field_name_input, v) if on_change else None,
+                placeholder=input_placeholder,
+                min=0,
+                style={
+                    **_get_field_style(),
+                    "flex": "1"
+                }
+            ),
+
+            spacing="2",
+            width="100%",
+            align="center"
+        ),
+
+        # Mensaje de error de validación
+        rx.cond(
+            validation_error != "",
+            rx.hstack(
+                rx.icon("triangle-alert", size=14, color=COLORS["error"]["500"]),
+                rx.text(
+                    validation_error,
+                    style={
+                        "font_size": "0.75rem",
+                        "color": COLORS["error"]["500"],
+                        "font_weight": "500"
+                    }
+                ),
+                spacing="2",
+                align="center"
+            ),
+            rx.hstack(
+                rx.icon("info", size=14, color=COLORS["blue"]["500"]),
+                rx.text(
+                    f"Solo números (ej: {input_placeholder})" if input_type == "number" else "",
+                    style={
+                        "font_size": "0.7rem",
+                        "color": COLORS["gray"]["400"],
+                        "font_style": "italic"
+                    }
+                ),
+                spacing="2",
+                align="center"
+            )
+        ),
+
+        spacing="2",
+        align="start",
+        width="100%"
+    )
+
+
+# ==========================================
+# 🔤 COMPONENTES LEGACY (MANTENER POR COMPATIBILIDAD)
+# ==========================================
+
+def text_only_input(
+    label: str,
+    field_name: str,
+    value: Any,
+    on_change: Callable,
+    placeholder: str = "",
+    required: bool = False,
+    validation_error: str = "",
+    help_text: str = "",
+    icon: Optional[str] = None,
+    max_length: Optional[int] = 50
+) -> rx.Component:
+    """🔤 Input que solo acepta letras (para nombres y apellidos)"""
+
+    return rx.vstack(
+        # Label con indicador de requerido
+        rx.hstack(
+            rx.hstack(
+                *([rx.icon(icon, size=18, color=COLORS["primary"]["500"])] if icon else []),
+                rx.text(
+                    label,
+                    style={
+                        "font_size": "1rem",
+                        "font_weight": "600",
+                        "color": DARK_THEME["colors"]["text_primary"]
+                    }
+                ),
+                spacing="2",
+                align="center"
+            ),
+
+            *([rx.text(
+                "*",
+                style={
+                    "color": COLORS["error"]["500"],
+                    "font_weight": "700",
+                    "margin_left": "2px"
+                }
+            )] if required else []),
+
+            rx.spacer(),
+
+            *([rx.text(
+                help_text,
+                style={
+                    "font_size": "0.75rem",
+                    "color": COLORS["gray"]["500"],
+                    "font_style": "italic"
+                }
+            )] if help_text else []),
+
+            width="100%",
+            align="center"
+        ),
+
+        # Input de texto normal - la validación se hará en el backend
+        rx.input(
+            type="text",
+            value=value,
+            on_change=lambda v: on_change(field_name, v) if on_change else None,
+            placeholder=placeholder,
+            max_length=max_length,
+            style=_get_field_style()
+        ),
+
+        # Mensaje de ayuda siempre visible
+        rx.hstack(
+            rx.icon("info", size=14, color=COLORS["blue"]["500"]),
+            rx.text(
+                "Solo se permiten letras y espacios",
+                style={
+                    "font_size": "0.7rem",
+                    "color": COLORS["gray"]["400"],
+                    "font_style": "italic"
+                }
+            ),
+            spacing="2",
+            align="center"
+        ),
+
+        # Mensaje de error de validación
+        rx.cond(
+            validation_error != "",
+            rx.hstack(
+                rx.icon("triangle-alert", size=14, color=COLORS["error"]["500"]),
+                rx.text(
+                    validation_error,
+                    style={
+                        "font_size": "0.75rem",
+                        "color": COLORS["error"]["500"],
+                        "font_weight": "500"
+                    }
+                ),
+                spacing="2",
+                align="center"
+            ),
+            rx.box()
+        ),
+
+        spacing="2",
+        align="start",
+        width="100%"
+    )
+
+def phone_input_with_country_code(
+    label: str,
+    field_name_code: str,
+    field_name_number: str,
+    value_code: Any,
+    value_number: Any,
+    on_change: Callable,
+    placeholder: str = "4141234567",
+    required: bool = False,
+    validation_error: str = "",
+    help_text: str = "",
+    icon: Optional[str] = None
+) -> rx.Component:
+    """📱 Input de teléfono con selector de código de país + solo números"""
+
+    country_codes = [
+        "+58 (VE)",
+        "+1 (US/CA)",
+        "+52 (MX)",
+        "+57 (CO)",
+        "+51 (PE)",
+        "+54 (AR)",
+        "+56 (CL)",
+        "+55 (BR)",
+        "+34 (ES)",
+    ]
+
+    return rx.vstack(
+        rx.hstack(
+            rx.hstack(
+                *([rx.icon(icon, size=18, color=COLORS["primary"]["500"])] if icon else []),
+                rx.text(
+                    label,
+                    style={
+                        "font_size": "1rem",
+                        "font_weight": "600",
+                        "color": DARK_THEME["colors"]["text_primary"]
+                    }
+                ),
+                spacing="2",
+                align="center"
+            ),
+
+            *([rx.text(
+                "*",
+                style={
+                    "color": COLORS["error"]["500"],
+                    "font_weight": "700",
+                    "margin_left": "2px"
+                }
+            )] if required else []),
+
+            rx.spacer(),
+
+            *([rx.text(
+                help_text,
+                style={
+                    "font_size": "0.75rem",
+                    "color": COLORS["gray"]["500"],
+                    "font_style": "italic"
+                }
+            )] if help_text else []),
+
+            width="100%",
+            align="center"
+        ),
+
+        rx.hstack(
+            rx.select(
+                country_codes,
+                value=value_code,
+                on_change=lambda v: on_change(field_name_code, v) if on_change else None,
+                default_value="+58 (VE)",
+                style={
+                    **_get_field_style(),
+                    "width": "140px",
+                    "flex_shrink": "0"
+                }
+            ),
+
+            rx.input(
+                type="number",
+                value=value_number,
+                on_change=lambda v: on_change(field_name_number, v) if on_change else None,
+                placeholder=placeholder,
+                min=0,
+                style={
+                    **_get_number_field_style(),
+                    "flex": "1"
+                }
+            ),
+
+            spacing="2",
+            width="100%",
+            align="center"
+        ),
+
+        rx.cond(
+            validation_error != "",
+            rx.hstack(
+                rx.icon("triangle-alert", size=14, color=COLORS["error"]["500"]),
+                rx.text(
+                    validation_error,
+                    style={
+                        "font_size": "0.75rem",
+                        "color": COLORS["error"]["500"],
+                        "font_weight": "500"
+                    }
+                ),
+                spacing="2",
+                align="center"
+            ),
+            rx.hstack(
+                rx.icon("info", size=14, color=COLORS["blue"]["500"]),
+                rx.text(
+                    "Solo números (ej: 4141234567)",
+                    style={
+                        "font_size": "0.7rem",
+                        "color": COLORS["gray"]["400"],
+                        "font_style": "italic"
+                    }
+                ),
+                spacing="2",
+                align="center"
+            )
+        ),
+
+        spacing="2",
+        align="start",
+        width="100%"
+    )
+
+def document_input_with_type(
+    label: str,
+    field_name_type: str,
+    field_name_number: str,
+    value_type: Any,
+    value_number: Any,
+    on_change: Callable,
+    placeholder: str = "12345678",
+    required: bool = False,
+    validation_error: str = "",
+    help_text: str = "",
+    icon: Optional[str] = None
+) -> rx.Component:
+    """🆔 Input de documento con selector de tipo + solo números"""
+
+    document_types = ["V-", "E-", "J-", "G-", "P-"]
+
+    return rx.vstack(
+        rx.hstack(
+            rx.hstack(
+                *([rx.icon(icon, size=18, color=COLORS["primary"]["500"])] if icon else []),
+                rx.text(
+                    label,
+                    style={
+                        "font_size": "1rem",
+                        "font_weight": "600",
+                        "color": DARK_THEME["colors"]["text_primary"]
+                    }
+                ),
+                spacing="2",
+                align="center"
+            ),
+
+            *([rx.text(
+                "*",
+                style={
+                    "color": COLORS["error"]["500"],
+                    "font_weight": "700",
+                    "margin_left": "2px"
+                }
+            )] if required else []),
+
+            rx.spacer(),
+
+            *([rx.text(
+                help_text,
+                style={
+                    "font_size": "0.75rem",
+                    "color": COLORS["gray"]["500"],
+                    "font_style": "italic"
+                }
+            )] if help_text else []),
+
+            width="100%",
+            align="center"
+        ),
+
+        rx.hstack(
+            rx.select(
+                document_types,
+                value=value_type,
+                on_change=lambda v: on_change(field_name_type, v) if on_change else None,
+                default_value="V-",
+                style={
+                    **_get_field_style(),
+                    "width": "90px",
+                    "flex_shrink": "0"
+                }
+            ),
+
+            rx.input(
+                type="number",
+                value=value_number,
+                on_change=lambda v: on_change(field_name_number, v) if on_change else None,
+                placeholder=placeholder,
+                min=0,
+                style={
+                    **_get_number_field_style(),
+                    "flex": "1"
+                }
+            ),
+
+            spacing="2",
+            width="100%",
+            align="center"
+        ),
+
+        rx.cond(
+            validation_error != "",
+            rx.hstack(
+                rx.icon("triangle-alert", size=14, color=COLORS["error"]["500"]),
+                rx.text(
+                    validation_error,
+                    style={
+                        "font_size": "0.75rem",
+                        "color": COLORS["error"]["500"],
+                        "font_weight": "500"
+                    }
+                ),
+                spacing="2",
+                align="center"
+            ),
+            rx.hstack(
+                rx.icon("info", size=14, color=COLORS["blue"]["500"]),
+                rx.text(
+                    "Solo números (ej: 12345678)",
+                    style={
+                        "font_size": "0.7rem",
+                        "color": COLORS["gray"]["400"],
+                        "font_style": "italic"
+                    }
+                ),
+                spacing="2",
+                align="center"
+            )
+        ),
+
+        spacing="2",
+        align="start",
+        width="100%"
+    )
+
+def numbers_only_input(
+    label: str,
+    field_name: str,
+    value: Any,
+    on_change: Callable,
+    placeholder: str = "",
+    required: bool = False,
+    validation_error: str = "",
+    help_text: str = "",
+    icon: Optional[str] = None,
+    max_length: Optional[int] = None
+) -> rx.Component:
+    """🔢 Input que solo acepta números"""
+
+    return rx.vstack(
+        rx.hstack(
+            rx.hstack(
+                *([rx.icon(icon, size=18, color=COLORS["primary"]["500"])] if icon else []),
+                rx.text(
+                    label,
+                    style={
+                        "font_size": "1rem",
+                        "font_weight": "600",
+                        "color": DARK_THEME["colors"]["text_primary"]
+                    }
+                ),
+                spacing="2",
+                align="center"
+            ),
+
+            *([rx.text(
+                "*",
+                style={
+                    "color": COLORS["error"]["500"],
+                    "font_weight": "700",
+                    "margin_left": "2px"
+                }
+            )] if required else []),
+
+            rx.spacer(),
+
+            *([rx.text(
+                help_text,
+                style={
+                    "font_size": "0.75rem",
+                    "color": COLORS["gray"]["500"],
+                    "font_style": "italic"
+                }
+            )] if help_text else []),
+
+            width="100%",
+            align="center"
+        ),
+
+        rx.input(
+            type="number",
+            value=value,
+            on_change=lambda v: on_change(field_name, v) if on_change else None,
+            placeholder=placeholder,
+            min=0,
+            style=_get_number_field_style()
+        ),
+
+        # Mensaje de ayuda siempre visible
+        rx.hstack(
+            rx.icon("info", size=14, color=COLORS["blue"]["500"]),
+            rx.text(
+                "Solo números",
+                style={
+                    "font_size": "0.7rem",
+                    "color": COLORS["gray"]["400"],
+                    "font_style": "italic"
+                }
+            ),
+            spacing="2",
+            align="center"
+        ),
+
+        # Mensaje de error de validación
+        rx.cond(
+            validation_error != "",
+            rx.hstack(
+                rx.icon("triangle-alert", size=14, color=COLORS["error"]["500"]),
+                rx.text(
+                    validation_error,
+                    style={
+                        "font_size": "0.75rem",
+                        "color": COLORS["error"]["500"],
+                        "font_weight": "500"
+                    }
+                ),
+                spacing="2",
+                align="center"
+            ),
+            rx.box()
+        ),
+
+        spacing="2",
+        align="start",
+        width="100%"
+    )
+
 def _get_field_style() -> Dict[str, str]:
     """🎨 Estilos consistentes para campos de formulario"""
     return {
@@ -228,6 +981,24 @@ def _get_field_style() -> Dict[str, str]:
         }
     }
 
+def _get_number_field_style() -> Dict[str, str]:
+    """🔢 Estilos para inputs numéricos (sin flechas)"""
+    base_style = _get_field_style()
+    base_style.update({
+        # Ocultar flechas en Chrome, Safari, Edge, Opera
+        "&::-webkit-outer-spin-button": {
+            "-webkit-appearance": "none",
+            "margin": "0"
+        },
+        "&::-webkit-inner-spin-button": {
+            "-webkit-appearance": "none",
+            "margin": "0"
+        },
+        # Ocultar flechas en Firefox
+        "-moz-appearance": "textfield"
+    })
+    return base_style
+
 
 def form_navigation_buttons(
     current_step: int,
@@ -236,10 +1007,18 @@ def form_navigation_buttons(
     on_next: Callable,
     on_submit: Callable,
     is_loading: bool = False,
-    can_continue: bool = True
+    can_continue: bool = True,
+    submit_text: str = "Guardar",  # Nuevo parámetro
+    submit_icon: str = "check"  # Nuevo parámetro
 ) -> rx.Component:
-    """🔄 Botones de navegación del formulario multi-step"""
-    
+    """
+    🔄 Botones de navegación del formulario multi-step
+
+    Args:
+        submit_text: Texto del botón final (ej: "Crear Paciente", "Actualizar Paciente", "Crear Personal")
+        submit_icon: Ícono del botón final (ej: "user-plus", "edit", "check")
+    """
+
     return rx.hstack(
         # Botón Anterior
         rx.cond(
@@ -270,9 +1049,9 @@ def form_navigation_buttons(
                 disabled=is_loading
             )
         ),
-        
+
         rx.spacer(),
-        
+
         # Botón Siguiente/Finalizar
         rx.button(
             rx.cond(
@@ -284,10 +1063,10 @@ def form_navigation_buttons(
                     align="center"
                 ),
                 rx.hstack(
-                    rx.text(rx.cond(current_step == total_steps - 1, "Crear Paciente", "Continuar")),
+                    rx.text(rx.cond(current_step == total_steps - 1, submit_text, "Continuar")),
                     rx.cond(
                         current_step == total_steps - 1,
-                        rx.icon("user-plus", size=16),
+                        rx.icon(submit_icon, size=16),
                         rx.icon("chevron-right", size=16)
                     ),
                     spacing="2",
@@ -317,7 +1096,7 @@ def form_navigation_buttons(
             on_click=rx.cond(current_step == total_steps - 1, on_submit, on_next),
             disabled=is_loading | ~can_continue
         ),
-        
+
         width="100%",
         align="center",
         margin_top=SPACING["8"]
@@ -535,7 +1314,7 @@ def service_form_fields() -> rx.Component:
         enhanced_form_field(
             label="Precio Base USD",
             field_name="precio_base_usd",
-            value=AppState.formulario_precio_usd_value,
+            value=AppState.formulario_servicio.precio_base_usd,
             on_change=AppState.actualizar_campo_formulario_servicio,
             field_type="number",
             placeholder="50.00",
@@ -545,15 +1324,6 @@ def service_form_fields() -> rx.Component:
             validation_error=rx.cond(AppState.errores_validacion_servicio, AppState.errores_validacion_servicio.get("precio_base_usd", ""), "")
         ),
 
-        # Material incluido
-        enhanced_form_field(
-            label="Material Incluido",
-            field_name="material_incluido",
-            value=AppState.formulario_servicio.material_incluido,
-            on_change=AppState.actualizar_campo_formulario_servicio,
-            placeholder="Ej: Amalgama, anestesia local",
-            icon="package"
-        ),
 
         # ==========================================
         # 🦷 V3.0: CONDICIÓN DENTAL RESULTANTE

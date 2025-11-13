@@ -2,7 +2,8 @@ import reflex as rx
 from typing import List, Dict, Optional
 from ..state.app_state import AppState
 from dental_system.styles.themes import (
-    COLORS, SHADOWS, RADIUS, GRADIENTS, ANIMATIONS, SPACING, DARK_THEME,dark_crystal_card,dark_header_style,create_dark_style
+    COLORS, SHADOWS, RADIUS, GRADIENTS, ANIMATIONS, SPACING, DARK_THEME, GLASS_EFFECTS,
+    dark_crystal_card, dark_header_style, create_dark_style
 )
 
 # ==========================================
@@ -15,7 +16,8 @@ def primary_button(
     icon: Optional[str] = None,
     on_click = None,
     loading: bool = False,
-    size: str = "md"
+    size: str = "md",
+    disabled: bool = False
 ) -> rx.Component:
     """Botón primario con estilo del sistema"""
     return rx.button(
@@ -60,7 +62,7 @@ def primary_button(
             "_active": {"transform": "translateY(-1px) scale(1.01)"},
         },
         on_click=on_click,
-        disabled=loading
+        disabled=loading | disabled
     )
 
 def secondary_button(
@@ -68,7 +70,8 @@ def secondary_button(
     icon: Optional[str] = None,
     on_click = None,
     variant: str = "outline",
-    loading: bool = False
+    loading: bool = False,
+    disabled: bool = False
 ) -> rx.Component:
     """Botón secundario"""
     return rx.button(
@@ -101,7 +104,7 @@ def secondary_button(
             "border_color": COLORS["gray"]["400"] if variant == "outline" else "none"
         },
         on_click=on_click,
-        disabled=loading
+        disabled=loading | disabled
     )
 
 
@@ -220,7 +223,7 @@ def stat_card(
     trend_value: Optional[str] = None
 ) -> rx.Component:
     """Tarjeta de estadística con trend opcional - Tema oscuro"""
-    final_color = color if color else COLORS["primary"]["500"]
+    # final_color = color if color else COLORS["primary"]["500"]
     trend_var = rx.Var.create(trend_value)
     return rx.box(
         rx.vstack(
@@ -256,10 +259,7 @@ def stat_card(
             align="center",
             width="100%"
         ),
-        style={
-            **dark_crystal_card(color=color, hover_lift="6px"),
-            "padding": "24px"
-        },
+        style=dark_crystal_card(color=color, hover_lift="6px"),
         width="100%"
     )
 
@@ -399,14 +399,23 @@ def sidebar() -> rx.Component:
 
                     rx.cond(
                         AppState.rol_usuario == "administrador",
-                        _modern_nav_item("Pagos", "credit-card", "pagos")
+                        rx.fragment(
+                            _modern_nav_item("Pagos", "credit-card", "pagos"),
+                            _modern_nav_item("Reportes", "bar-chart", "reportes")
+                        )
                     ),
 
                     rx.cond(
                         AppState.rol_usuario == "odontologo",
-                        _modern_nav_item("Odontología", "activity", "odontologia")
+                        rx.fragment(
+                            _modern_nav_item("Odontología", "activity", "odontologia"),
+                            _modern_nav_item("Reportes", "bar-chart", "reportes")
+                        )
                     ),
-                    
+
+                    # Perfil de usuario (disponible para todos)
+                    _modern_nav_item("Mi Perfil", "user-circle", "perfil"),
+
                     spacing="2",
                     align_items="stretch",
                     width="100%"
@@ -524,6 +533,188 @@ def _modern_logout_button() -> rx.Component:
             "box_shadow": f"0 4px 12px {COLORS['error']['500']}30"
         },
         on_click=AppState.cerrar_sesion
+    )
+
+# ==========================================
+# COMPONENTES DE FORMULARIOS
+# ==========================================
+
+def info_field_readonly(
+    label: str,
+    value: str,
+    help_text: str = "",
+    icon: Optional[str] = None,
+    show_empty: bool = True
+) -> rx.Component:
+    """📝 Campo de información readonly estandarizado para todo el sistema
+
+    Reemplaza todos los campos readonly duplicados en perfil_page, historial_paciente_page, etc.
+
+    Args:
+        label: Etiqueta del campo
+        value: Valor a mostrar
+        help_text: Texto de ayuda opcional (abajo del campo)
+        icon: Icono opcional (lucide icon name)
+        show_empty: Mostrar campo aunque el valor esté vacío (default: True)
+
+    Returns:
+        rx.Component con el campo readonly estilizado
+    """
+    # Si el valor está vacío y no se debe mostrar, retornar componente vacío
+    if not value and not show_empty:
+        return rx.box()
+
+    # Valor por defecto para campos vacíos
+    display_value = value if value else "No especificado"
+    is_empty = not value
+
+    return rx.vstack(
+        # Label con icono opcional
+        rx.hstack(
+            rx.cond(
+                icon is not None,
+                rx.icon(icon, size=14, color=COLORS["primary"]["400"]),
+                rx.box()
+            ),
+            rx.text(
+                label,
+                style={
+                    "font_size": "0.875rem",
+                    "font_weight": "600",
+                    "color": DARK_THEME["colors"]["text_primary"],
+                    "margin_bottom": SPACING["1"]
+                }
+            ),
+            spacing="1",
+            align="center"
+        ),
+
+        # Campo readonly
+        rx.box(
+            rx.text(
+                display_value,
+                style={
+                    "font_size": "1rem",
+                    "color": COLORS["gray"]["400"] if is_empty else DARK_THEME["colors"]["text_primary"],
+                    "font_style": "italic" if is_empty else "normal"
+                }
+            ),
+            style={
+                "width": "100%",
+                "padding": f"{SPACING['2']} {SPACING['3']}",
+                "border_radius": RADIUS["lg"],
+                "background": COLORS["gray"]["800"],
+                "border": f"1px solid {COLORS['gray']['700']}",
+                "cursor": "not-allowed",
+                "opacity": "0.9",
+                "transition": "all 200ms ease"
+            }
+        ),
+
+        # Help text opcional
+        rx.cond(
+            help_text != "",
+            rx.text(
+                help_text,
+                style={
+                    "font_size": "0.75rem",
+                    "color": COLORS["gray"]["500"],
+                    "margin_top": SPACING["1"]
+                }
+            ),
+            rx.box()
+        ),
+
+        spacing="1",
+        align="start",
+        width="100%"
+    )
+
+def modal_wrapper(
+    title: str,
+    subtitle: str,
+    icon: str,
+    color: str,
+    children: rx.Component,
+    is_open: bool,
+    on_open_change: callable,
+    max_width: str = "600px",
+    padding: str = SPACING["8"]
+) -> rx.Component:
+    """🪟 Wrapper estandarizado para modales con glassmorphism
+
+    Reemplaza la estructura repetida de modales en todo el sistema.
+    Sigue el patrón de modal_nueva_consulta y modal_transferir_paciente.
+
+    Args:
+        title: Título del modal
+        subtitle: Subtítulo descriptivo
+        icon: Icono lucide (nombre)
+        color: Color de acento para el header
+        children: Contenido del modal (formulario, botones, etc.)
+        is_open: Estado de apertura del modal
+        on_open_change: Callback para manejar cambios de estado
+        max_width: Ancho máximo del modal (default: "600px")
+        padding: Padding interno (default: SPACING["8"] = 32px)
+
+    Returns:
+        rx.Component con el modal completo
+    """
+    from dental_system.components.forms import form_section_header
+
+    return rx.dialog.root(
+        rx.dialog.content(
+            # Header elegante con glassmorphism
+            rx.vstack(
+                rx.hstack(
+                    form_section_header(
+                        title,
+                        subtitle,
+                        icon,
+                        color
+                    ),
+                    rx.spacer(),
+                    rx.dialog.close(
+                        rx.button(
+                            rx.icon("x", size=20),
+                            style={
+                                "background": "transparent",
+                                "border": "none",
+                                "color": COLORS["gray"]["500"],
+                                "cursor": "pointer",
+                                "transition": "all 200ms ease",
+                                "_hover": {
+                                    "color": COLORS["gray"]["700"],
+                                    "transform": "rotate(90deg)"
+                                }
+                            }
+                        )
+                    ),
+                    width="100%",
+                    align="center"
+                ),
+                spacing="4",
+                width="100%",
+                margin_bottom=SPACING["6"]
+            ),
+
+            # Contenido del modal (children)
+            children,
+
+            style={
+                "max_width": max_width,
+                "padding": padding,
+                "border_radius": RADIUS["3xl"],
+                **GLASS_EFFECTS["strong"],
+                "box_shadow": SHADOWS["2xl"],
+                "border": f"1px solid {color}30",
+                "overflow_y": "auto",
+                "max_height": "90vh",
+                "backdrop_filter": "blur(20px)"
+            }
+        ),
+        open=is_open,
+        on_open_change=on_open_change
     )
 
 # ==========================================
@@ -822,4 +1013,389 @@ def medical_breadcrumb(
         spacing="2",
         align="center",
         margin_bottom=SPACING["4"]
+    )
+
+
+# ==========================================
+# 📊 COMPONENTES NUEVOS PARA REPORTES
+# ==========================================
+
+def ranking_table(
+    title: str,
+    data: list,
+    columns: List[str],
+    show_progress_bar: bool = False,
+    max_items: int = 10
+) -> rx.Component:
+    """
+    🏆 Tabla de ranking con barras de progreso opcionales
+
+    USADO EN:
+    - Ranking de servicios (Gerente)
+    - Ranking de odontólogos (Gerente)
+    - Ranking de servicios del odontólogo
+
+    Args:
+        title: Título de la tabla
+        data: Lista de dicts con los datos
+        columns: Nombres de las columnas a mostrar (siempre debe tener 3 elementos)
+        show_progress_bar: Si True, muestra barra de progreso en columna numérica
+        max_items: Máximo de items a mostrar
+
+    Returns:
+        Card con tabla de ranking estilizada
+    """
+    return rx.box(
+        rx.vstack(
+            # Header
+            rx.heading(
+                title,
+                size="5",
+                weight="bold",
+                style={
+                    "color": DARK_THEME["colors"]["text_primary"],
+                    "margin_bottom": "1rem"
+                }
+            ),
+
+            # Tabla
+            rx.box(
+                rx.foreach(
+                    data[:max_items],
+                    lambda item, index: rx.box(
+                        rx.vstack(
+                            # Nombre/Título principal
+                            rx.hstack(
+                                rx.text(
+                                    f"{index + 1}.",
+                                    size="3",
+                                    weight="bold",
+                                    style={
+                                        "color": COLORS["primary"]["400"],
+                                        "min_width": "30px"
+                                    }
+                                ),
+                                rx.text(
+                                    item.get(columns[0], "N/A"),
+                                    size="3",
+                                    weight="medium",
+                                    style={
+                                        "color": DARK_THEME["colors"]["text_primary"]
+                                    }
+                                ),
+                                spacing="2",
+                                align="center",
+                                width="100%"
+                            ),
+
+                            # Barra de progreso (si está habilitada)
+                            rx.cond(
+                                show_progress_bar,
+                                rx.hstack(
+                                    # Barra de progreso visual (ancho relativo)
+                                    rx.box(
+                                        style={
+                                            "width": f"{item.get('porcentaje', 0)}%",
+                                            "max_width": "100%",
+                                            "height": "8px",
+                                            "background": COLORS["primary"]["500"],
+                                            "border_radius": RADIUS["md"],
+                                            "transition": "width 0.3s ease"
+                                        }
+                                    ),
+                                    # Texto con cantidad
+                                    rx.text(
+                                        f"{item.get(columns[1], 0)} veces",
+                                        size="2",
+                                        style={
+                                            "color": DARK_THEME["colors"]["text_secondary"],
+                                            "margin_left": "8px",
+                                            "white_space": "nowrap"
+                                        }
+                                    ),
+                                    spacing="2",
+                                    align="center",
+                                    width="100%"
+                                )
+                            ),
+
+                            # Información adicional (ingresos, etc.)
+                            rx.hstack(
+                                rx.text(
+                                    "💰",
+                                    size="2"
+                                ),
+                                rx.text(
+                                    f"${item.get(columns[2], 0):,.2f} generados",
+                                    size="2",
+                                    style={
+                                        "color": COLORS["success"]["400"]
+                                    }
+                                ),
+                                spacing="1",
+                                align="center"
+                            ),
+
+                            spacing="2",
+                            align="start",
+                            width="100%"
+                        ),
+                        style={
+                            "padding": SPACING["4"],
+                            "border_radius": RADIUS["lg"],
+                            "background": COLORS["gray"]["800"] + "40",
+                            "border": f"1px solid {COLORS['gray']['700']}",
+                            "margin_bottom": SPACING["3"],
+                            "transition": "all 0.2s ease",
+                            "_hover": {
+                                "background": COLORS["gray"]["800"] + "60",
+                                "border_color": COLORS["primary"]["400"] + "60"
+                            }
+                        }
+                    )
+                ),
+                width="100%"
+            ),
+
+            spacing="4",
+            width="100%"
+        ),
+        **dark_crystal_card(color=COLORS["primary"]["500"], hover_lift="4px"),
+        width="100%"
+    )
+
+
+def filtro_fecha_rango() -> rx.Component:
+    """
+    📅 Selector de rango de fechas con presets
+
+    USADO EN:
+    - Header de página de reportes (todos los roles)
+
+    Returns:
+        Select component con opciones de fechas
+    """
+    from dental_system.state.app_state import AppState
+
+    return rx.select.root(
+        rx.select.trigger(
+            rx.hstack(
+                rx.icon("calendar", size=16),
+                rx.text(AppState.nombre_filtro_fecha_actual),
+                spacing="2",
+                align="center"
+            ),
+            style={
+                "background": COLORS["gray"]["800"],
+                "border": f"1px solid {COLORS['gray']['700']}",
+                "border_radius": RADIUS["lg"],
+                "padding": f"{SPACING['2']} {SPACING['3']}",
+                "color": DARK_THEME["colors"]["text_primary"],
+                "cursor": "pointer",
+                "transition": "all 0.2s ease",
+                "_hover": {
+                    "border_color": COLORS["primary"]["400"]
+                }
+            }
+        ),
+        rx.select.content(
+            rx.select.item("Hoy", value="hoy"),
+            rx.select.item("Esta Semana", value="semana"),
+            rx.select.item("Este Mes", value="mes"),
+            rx.select.item("Últimos 30 Días", value="30_dias"),
+            rx.select.item("Últimos 3 Meses", value="3_meses"),
+            rx.select.item("Este Año", value="año"),
+            rx.select.separator(),
+            rx.select.item("Rango Personalizado...", value="custom"),
+            style={
+                "background": COLORS["gray"]["800"],
+                "border": f"1px solid {COLORS['gray']['700']}",
+                "border_radius": RADIUS["lg"]
+            }
+        ),
+        value=AppState.filtro_fecha,
+        on_change=AppState.set_filtro_fecha
+    )
+
+
+def mini_stat_card(
+    title: str,
+    items: list,  # [{"label": "Obturación", "value": "67 (34%)"}]
+    icon: str,
+    color: str = ""
+) -> rx.Component:
+    """
+    📊 Card de estadísticas compacto con lista de items
+
+    USADO EN:
+    - Estadísticas del odontograma (Odontólogo)
+
+    Args:
+        title: Título del card
+        items: Lista de dicts con label y value
+        icon: Icono lucide
+        color: Color de acento
+
+    Returns:
+        Card compacto con lista de items
+    """
+    final_color = color if color else COLORS["primary"]["500"]
+
+    return rx.box(
+        rx.vstack(
+            # Header con icono
+            rx.hstack(
+                rx.icon(icon, size=20, color=final_color),
+                rx.heading(
+                    title,
+                    size="4",
+                    weight="bold",
+                    style={
+                        "color": DARK_THEME["colors"]["text_primary"]
+                    }
+                ),
+                spacing="2",
+                align="center",
+                width="100%",
+                margin_bottom="3"
+            ),
+
+            # Lista de items
+            rx.vstack(
+                rx.foreach(
+                    items,
+                    lambda item: rx.hstack(
+                        rx.text(
+                            item.get("label", ""),
+                            size="2",
+                            weight="medium",
+                            style={
+                                "color": DARK_THEME["colors"]["text_secondary"]
+                            }
+                        ),
+                        rx.spacer(),
+                        rx.text(
+                            item.get("value", ""),
+                            size="2",
+                            weight="bold",
+                            style={
+                                "color": final_color
+                            }
+                        ),
+                        width="100%",
+                        align="center",
+                        style={
+                            "padding": f"{SPACING['2']} 0",
+                            "border_bottom": f"1px solid {COLORS['gray']['700']}40"
+                        }
+                    )
+                ),
+                spacing="0",
+                width="100%"
+            ),
+
+            spacing="3",
+            width="100%"
+        ),
+        **dark_crystal_card(color=final_color, hover_lift="2px"),
+        width="100%",
+        min_height="200px"
+    )
+
+
+def horizontal_bar_chart(
+    title: str,
+    data: list,  # [{"label": "Efectivo", "value": 234, "porcentaje": 45}]
+    color: str = ""
+) -> rx.Component:
+    """
+    📊 Gráfico de barras horizontales simple
+
+    USADO EN:
+    - Métodos de pago populares (Gerente)
+    - Distribución de consultas por odontólogo (Administrador)
+
+    Args:
+        title: Título del gráfico
+        data: Lista de dicts con label, value y porcentaje
+        color: Color de las barras
+
+    Returns:
+        Card con barras horizontales
+    """
+    final_color = color if color else COLORS["primary"]["500"]
+
+    return rx.box(
+        rx.vstack(
+            # Header
+            rx.heading(
+                title,
+                size="5",
+                weight="bold",
+                style={
+                    "color": DARK_THEME["colors"]["text_primary"],
+                    "margin_bottom": "1rem"
+                }
+            ),
+
+            # Barras horizontales
+            rx.vstack(
+                rx.foreach(
+                    data,
+                    lambda item: rx.vstack(
+                        # Label
+                        rx.hstack(
+                            rx.text(
+                                item.get("label", ""),
+                                size="2",
+                                weight="medium",
+                                style={
+                                    "color": DARK_THEME["colors"]["text_primary"]
+                                }
+                            ),
+                            rx.spacer(),
+                            rx.text(
+                                f"{item.get('porcentaje', 0)}% ({item.get('value', 0)} pagos)",
+                                size="2",
+                                style={
+                                    "color": DARK_THEME["colors"]["text_secondary"]
+                                }
+                            ),
+                            width="100%",
+                            align="center"
+                        ),
+
+                        # Barra de progreso
+                        rx.box(
+                            rx.box(
+                                style={
+                                    "width": f"{item.get('porcentaje', 0)}%",
+                                    "max_width": "100%",
+                                    "height": "12px",
+                                    "background": f"linear-gradient(90deg, {final_color} 0%, {final_color}80 100%)",
+                                    "border_radius": RADIUS["md"],
+                                    "transition": "width 0.5s ease"
+                                }
+                            ),
+                            width="100%",
+                            height="12px",
+                            background=COLORS["gray"]["800"],
+                            border_radius=RADIUS["md"],
+                            border=f"1px solid {COLORS['gray']['700']}"
+                        ),
+
+                        spacing="2",
+                        width="100%",
+                        margin_bottom="3"
+                    )
+                ),
+                spacing="0",
+                width="100%"
+            ),
+
+            spacing="4",
+            width="100%"
+        ),
+        **dark_crystal_card(color=final_color, hover_lift="4px"),
+        width="100%"
     )

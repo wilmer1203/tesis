@@ -331,3 +331,90 @@ class ActualizacionOdontogramaResult(rx.Base):
             advertencias=data.get("advertencias", []),
             ids_creados=[str(id) for id in data.get("ids_creados", [])]
         )
+
+
+class IntervencionModel(rx.Base):
+    """Modelo para intervenciones/tratamientos realizados - Esquema BD simplificado"""
+    # Campos principales coincidentes con la BD
+    id: Optional[str] = ""
+    consulta_id: str = ""
+    odontologo_id: str = ""
+
+    # Control temporal
+    hora_inicio: str = ""
+
+    # Detalles clínicos
+    procedimiento_realizado: str = ""
+
+    # Información económica en múltiples monedas
+    total_bs: float = 0.0
+    total_usd: float = 0.0
+
+    # Estado del procedimiento
+    estado: str = "completada"  # en_progreso, completada, suspendida
+
+    # Timestamps
+    fecha_registro: str = ""
+
+    # Campos adicionales para compatibilidad con componentes existentes
+    precio_final: float = 0.0  # Calculado como total_bs + total_usd
+    observaciones: Optional[str] = ""  # Para componentes que lo necesiten
+
+    # Información relacionada
+    servicio_nombre: str = ""
+    servicio_categoria: str = ""
+    odontologo_nombre: str = ""
+    odontologo_especialidad: str = ""  # Especialidad del odontólogo
+    paciente_nombre: str = ""
+
+    # Campos adicionales para display
+    servicios_resumen: str = ""  # Resumen de servicios realizados
+    costo_total_bs: float = 0.0  # Alias para total_bs (compatibilidad componentes)
+    costo_total_usd: float = 0.0  # Alias para total_usd (compatibilidad componentes)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "IntervencionModel":
+        """Crear instancia desde diccionario de Supabase"""
+        if not data or not isinstance(data, dict):
+            return cls()
+
+        # Procesar datos relacionados
+        servicio_data = data.get("servicio", {}) or data.get("servicios", {})
+        odontologo_data = data.get("odontologo", {}) or data.get("personal", {})
+
+        return cls(
+            id=str(data.get("id", "")),
+            consulta_id=str(data.get("consulta_id", "")),
+            odontologo_id=str(data.get("odontologo_id", "")),
+            hora_inicio=str(data.get("hora_inicio", "")),
+            procedimiento_realizado=str(data.get("procedimiento_realizado", "")),
+
+            # Campos económicos según BD
+            total_bs=float(data.get("total_bs", 0)),
+            total_usd=float(data.get("total_usd", 0)),
+
+            # Estado
+            estado=str(data.get("estado", "completada")),
+            fecha_registro=str(data.get("fecha_registro", "")),
+
+            # Compatibilidad hacia atrás
+            precio_final=float(data.get("precio_final", 0)) or (float(data.get("total_bs", 0)) + float(data.get("total_usd", 0))),
+            observaciones=str(data.get("observaciones", "") if data.get("observaciones") else ""),
+
+            # Información relacionada
+            servicio_nombre=str(servicio_data.get("nombre", "") if servicio_data else ""),
+            servicio_categoria=str(servicio_data.get("categoria", "") if servicio_data else ""),
+            odontologo_nombre=str(odontologo_data.get("nombre_completo", "") if odontologo_data else ""),
+            odontologo_especialidad=str(odontologo_data.get("especialidad", "") if odontologo_data else ""),
+            paciente_nombre=str(data.get("paciente_nombre", "")),
+
+            # Campos adicionales para display
+            servicios_resumen=str(data.get("servicios_resumen", "") or data.get("procedimiento_realizado", "")),
+            costo_total_bs=float(data.get("total_bs", 0)),  # Alias
+            costo_total_usd=float(data.get("total_usd", 0))  # Alias
+        )
+
+    @property
+    def precio_final_display(self) -> str:
+        """Precio final formateado"""
+        return f"${self.precio_final:,.2f}"

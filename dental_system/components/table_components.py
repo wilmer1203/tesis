@@ -199,13 +199,6 @@ def patients_table() -> rx.Component:
                 value=AppState.termino_busqueda_pacientes,
                 on_change=AppState.buscar_pacientes
             ),
-            filter_select(
-                icon="filter",
-                options=["Todos", "Activos", "Inactivos"],
-                value=AppState.filtro_estado,
-                on_change=lambda v: AppState.aplicar_filtros({"estado": v.lower()}),
-                placeholder="Estado"
-            ),
             rx.spacer(),
             primary_button(
                 text="Nuevo Paciente",
@@ -213,9 +206,6 @@ def patients_table() -> rx.Component:
                 on_click=lambda: AppState.seleccionar_y_abrir_modal_paciente(""),
                 size="lg"
             ),
-            
-            # spacing="4",
-            # margin_bottom="6",
             wrap="wrap",
             align="center",
             
@@ -298,9 +288,9 @@ def patient_row(patient: rx.Var[PacienteModel]) -> rx.Component:
         # Edad
         rx.table.cell(
             rx.cond(
-                patient.edad,
+                patient.fecha_nacimiento,
                 rx.text(
-                    patient.edad.to(str) + " años",
+                    patient.fecha_nacimiento.to(str),
                     size="3",
                     color=COLORS["gray"]["50"]
                 ),
@@ -768,7 +758,7 @@ def servicios_table() -> rx.Component:
                 rx.vstack(
                     rx.text("Categoría", size="2", weight="medium", color=DARK_THEME["colors"]["text_secondary"]),
                     rx.select(
-                        AppState.opciones_categoria_completas,
+                        AppState.categorias_servicios,
                         value=AppState.filtro_categoria,
                         on_change=AppState.filtrar_por_categoria,
                         placeholder="Todas las categorías",
@@ -1221,7 +1211,7 @@ def pagos_table() -> rx.Component:
                 rx.icon("receipt", size=24, color=COLORS["primary"]["500"]),
                 rx.heading("Historial de Pagos", size="5", weight="bold", color=DARK_THEME["colors"]["text_primary"]),
                 rx.badge(
-                    f"{AppState.total_pagos} pagos",
+                    f"{AppState.lista_pagos.length()} pagos",
                     color_scheme="cyan",
                     variant="soft"
                 ),

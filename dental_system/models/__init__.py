@@ -26,9 +26,6 @@ from .personal_models import (
     RolModel,
     PersonalModel,
     PersonalStatsModel,
-    HorarioTrabajoModel,
-    EspecialidadModel,
-    PermisoModel,
     PersonalFormModel
 )
 
@@ -36,7 +33,6 @@ from .servicios_models import (
     ServicioModel,
     ServicioStatsModel,
     EstadisticaCategoriaModel,
-    IntervencionModel,
     ServicioFormModel
 )
 
@@ -57,7 +53,8 @@ from .ui_models import (
 
 from .odontologia_models import (
     OdontogramaModel,
-    ActualizacionOdontogramaResult,  
+    ActualizacionOdontogramaResult,
+    IntervencionModel,
     IntervencionFormModel,
     HistorialMedicoModel,
     HistorialServicioModel
@@ -99,16 +96,12 @@ __all__ = [
     "RolModel",
     "PersonalModel",
     "PersonalStatsModel",
-    "HorarioTrabajoModel",
-    "EspecialidadModel",
-    "PermisoModel",
     
-    # ✅ SERVICIOS E INTERVENCIONES  
+    # ✅ SERVICIOS
     "ServicioModel",
     "ServicioStatsModel",
     "EstadisticaCategoriaModel",
-    "IntervencionModel",
-    
+
     # ✅ PAGOS Y FACTURACIÓN
     "PagoModel",
     "PagosStatsModel", 
@@ -119,6 +112,7 @@ __all__ = [
     # ✅ ODONTOLOGÍA ESPECIALIZADA
     "OdontogramaModel",
     "ActualizacionOdontogramaResult",  # ✨ V3.0
+    "IntervencionModel",
     "HistorialMedicoModel",
     "HistorialServicioModel",
     

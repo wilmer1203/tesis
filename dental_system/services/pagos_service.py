@@ -8,7 +8,6 @@ from decimal import Decimal
 from datetime import date, datetime
 from .base_service import BaseService
 from dental_system.models import PagoModel, ServicioFormateado, ConsultaPendientePago
-from .cache_invalidation_hooks import invalidate_after_payment_operation, track_cache_invalidation
 import logging
 
 logger = logging.getLogger(__name__)
@@ -42,12 +41,7 @@ class PagosService(BaseService):
             Lista de pagos como modelos tipados
         """
         try:
-            # Verificar permisos
-            if not self.check_permission("pagos", "leer"):
-                raise PermissionError("Sin permisos para acceder a pagos")
-
-            # Construir query base
-            query = self.client.table("pagos").select("*")
+            query = self.client.table("pago").select("*")
 
             # Aplicar filtros
             if fecha_inicio and fecha_fin:
@@ -138,7 +132,7 @@ class PagosService(BaseService):
 
             # Generar número de recibo
             today = datetime.now().strftime("%Y%m%d")
-            count_response = self.client.table("pagos").select("id", count="exact").like("numero_recibo", f"REC{today}%").execute()
+            count_response = self.client.table("pago").select("id", count="exact").like("numero_recibo", f"REC{today}%").execute()
             count = count_response.count if count_response.count else 0
             numero_recibo = f"REC{today}{str(count + 1).zfill(4)}"
 
@@ -165,18 +159,11 @@ class PagosService(BaseService):
                 "motivo_descuento": form_data.get("motivo_descuento", "").strip() or None
             }
 
-            response = self.client.table("pagos").insert(insert_data).execute()
+            response = self.client.table("pago").insert(insert_data).execute()
             result = response.data[0] if response.data else None
 
             if result:
                 logger.info(f"✅ Pago creado: {result.get('numero_recibo', '???')} - ${monto_pagado}")
-
-                # 🗑️ INVALIDAR CACHE - pago creado afecta estadísticas financieras
-                try:
-                    invalidate_after_payment_operation()
-                except Exception as cache_error:
-                    logger.warning(f"Error invalidando cache tras crear pago: {cache_error}")
-
                 return result
             else:
                 raise ValueError("Error creando pago en la base de datos")
@@ -285,7 +272,7 @@ class PagosService(BaseService):
 
             # Generar número de recibo
             today = datetime.now().strftime("%Y%m%d")
-            count_response = self.client.table("pagos").select("id", count="exact").like("numero_recibo", f"REC{today}%").execute()
+            count_response = self.client.table("pago").select("id", count="exact").like("numero_recibo", f"REC{today}%").execute()
             count = count_response.count if count_response.count else 0
             numero_recibo = f"REC{today}{str(count + 1).zfill(4)}"
 
@@ -309,18 +296,11 @@ class PagosService(BaseService):
                 "motivo_descuento": form_data.get("motivo_descuento", "").strip() or None
             }
 
-            response = self.client.table("pagos").insert(insert_data).execute()
+            response = self.client.table("pago").insert(insert_data).execute()
             result = response.data[0] if response.data else None
 
             if result:
                 logger.info(f"✅ Pago dual creado: ${pago_usd} USD + {pago_bs} BS (Recibo: {result.get('numero_recibo', '???')})")
-
-                # 🗑️ INVALIDAR CACHE - pago dual afecta estadísticas financieras
-                try:
-                    invalidate_after_payment_operation()
-                except Exception as cache_error:
-                    logger.warning(f"Error invalidando cache tras crear pago dual: {cache_error}")
-
                 return result
             else:
                 raise ValueError("Error creando pago dual en la base de datos")
@@ -346,7 +326,7 @@ class PagosService(BaseService):
             Pago encontrado o None
         """
         try:
-            response = self.client.table("pagos").select("*").eq("consulta_id", consulta_id).execute()
+            response = self.client.table("pago").select("*").eq("consulta_id", consulta_id).execute()
             if response.data and len(response.data) > 0:
                 logger.info(f"✅ Pago encontrado para consulta {consulta_id}")
                 return response.data[0]
@@ -375,7 +355,7 @@ class PagosService(BaseService):
             self.require_permission("pagos", "actualizar")
 
             # Obtener pago original
-            original_response = self.client.table("pagos").select("*").eq("id", payment_id).execute()
+            original_response = self.client.table("pago").select("*").eq("id", payment_id).execute()
             if not original_response.data:
                 raise ValueError("Pago no encontrado")
             original = original_response.data[0]
@@ -401,17 +381,11 @@ class PagosService(BaseService):
             logger.info(f"Actualizando con datos: {allowed_updates}")
 
             # Actualizar directamente
-            update_response = self.client.table("pagos").update(allowed_updates).eq("id", payment_id).execute()
+            update_response = self.client.table("pago").update(allowed_updates).eq("id", payment_id).execute()
             result = update_response.data[0] if update_response.data else None
 
             if result:
                 logger.info(f"✅ Pago actualizado: {original.get('numero_recibo', payment_id)}")
-
-                # 🗑️ INVALIDAR CACHE - pago actualizado puede afectar estadísticas
-                try:
-                    invalidate_after_payment_operation()
-                except Exception as cache_error:
-                    logger.warning(f"Error invalidando cache tras actualizar pago: {cache_error}")
 
                 return result
             else:
@@ -446,7 +420,7 @@ class PagosService(BaseService):
             self.require_permission("pagos", "eliminar")
 
             # Verificar que el pago existe
-            pago_response = self.client.table("pagos").select("*").eq("id", payment_id).execute()
+            pago_response = self.client.table("pago").select("*").eq("id", payment_id).execute()
             if not pago_response.data:
                 raise ValueError("Pago no encontrado")
             pago = pago_response.data[0]
@@ -460,7 +434,7 @@ class PagosService(BaseService):
                 "motivo_descuento": motivo  # Usar este campo para motivo de anulación
             }
 
-            update_response = self.client.table("pagos").update(update_data).eq("id", payment_id).execute()
+            update_response = self.client.table("pago").update(update_data).eq("id", payment_id).execute()
             result = update_response.data[0] if update_response.data else None
 
             if result:
@@ -512,7 +486,7 @@ class PagosService(BaseService):
                 raise ValueError("El monto adicional debe ser mayor a cero")
 
             # Obtener pago original
-            pago_response = self.client.table("pagos").select("*").eq("id", payment_id).execute()
+            pago_response = self.client.table("pago").select("*").eq("id", payment_id).execute()
             if not pago_response.data:
                 raise ValueError("Pago no encontrado")
             pago = pago_response.data[0]
@@ -543,17 +517,11 @@ class PagosService(BaseService):
                 "metodos_pago": metodos_pago
             }
 
-            update_response = self.client.table("pagos").update(update_data).eq("id", payment_id).execute()
+            update_response = self.client.table("pago").update(update_data).eq("id", payment_id).execute()
             result = update_response.data[0] if update_response.data else None
 
             if result:
                 logger.info(f"✅ Pago parcial procesado: ${monto_adicional}")
-
-                # 🗑️ INVALIDAR CACHE - pago parcial afecta ingresos y estadísticas
-                try:
-                    invalidate_after_payment_operation()
-                except Exception as cache_error:
-                    logger.warning(f"Error invalidando cache tras procesar pago parcial: {cache_error}")
 
                 return result
             else:
@@ -583,7 +551,7 @@ class PagosService(BaseService):
             # Verificar permisos
             self.require_permission("pagos", "leer")
 
-            response = self.client.table("pagos").select("*").eq("id", payment_id).execute()
+            response = self.client.table("pago").select("*").eq("id", payment_id).execute()
             if response.data:
                 return PagoModel.from_dict(response.data[0])
             return None
@@ -611,7 +579,7 @@ class PagosService(BaseService):
 
             # Obtener pagos del día
             fecha_str = fecha.isoformat()
-            response = self.client.table("pagos").select("*").gte("fecha_pago", fecha_str).lt("fecha_pago", f"{fecha_str}T23:59:59").execute()
+            response = self.client.table("pago").select("*").gte("fecha_pago", fecha_str).lt("fecha_pago", f"{fecha_str}T23:59:59").execute()
             pagos = response.data if response.data else []
 
             # Calcular estadísticas
@@ -668,7 +636,7 @@ class PagosService(BaseService):
             self.require_permission("pagos", "leer")
 
             # Obtener todos los pagos del paciente
-            response = self.client.table("pagos").select("*").eq("paciente_id", paciente_id).execute()
+            response = self.client.table("pago").select("*").eq("paciente_id", paciente_id).execute()
             pagos = response.data if response.data else []
 
             # Calcular balance
@@ -715,7 +683,7 @@ class PagosService(BaseService):
             today_summary = await self.get_daily_summary()
 
             # Obtener pagos pendientes directamente
-            pending_response = self.client.table("pagos").select("*").eq("estado_pago", "pendiente").execute()
+            pending_response = self.client.table("pago").select("*").eq("estado_pago", "pendiente").execute()
             pending_payments = pending_response.data if pending_response.data else []
 
             # Calcular estadísticas básicas
@@ -757,7 +725,7 @@ class PagosService(BaseService):
             # Obtener pagos del día actual
             today = date.today()
             today_str = today.isoformat()
-            today_response = self.client.table("pagos").select("*").gte("fecha_pago", today_str).lt("fecha_pago", f"{today_str}T23:59:59").execute()
+            today_response = self.client.table("pago").select("*").gte("fecha_pago", today_str).lt("fecha_pago", f"{today_str}T23:59:59").execute()
             today_payments = today_response.data if today_response.data else []
 
             # Calcular totales del día
@@ -771,14 +739,14 @@ class PagosService(BaseService):
             tasa_promedio_hoy = round(sum(tasas_hoy) / len(tasas_hoy), 2) if tasas_hoy else 36.50
 
             # Obtener pagos pendientes
-            pending_response = self.client.table("pagos").select("*").eq("estado_pago", "pendiente").execute()
+            pending_response = self.client.table("pago").select("*").eq("estado_pago", "pendiente").execute()
             pending_payments = pending_response.data if pending_response.data else []
 
             # Tasa promedio de la semana para comparación
             from datetime import timedelta
             week_ago = today - timedelta(days=7)
             week_ago_str = week_ago.isoformat()
-            week_response = self.client.table("pagos").select("*").gte("fecha_pago", week_ago_str).lte("fecha_pago", today_str).execute()
+            week_response = self.client.table("pago").select("*").gte("fecha_pago", week_ago_str).lte("fecha_pago", today_str).execute()
             week_payments = week_response.data if week_response.data else []
 
             tasas_semana = [p.get("tasa_cambio_bs_usd", 0) for p in week_payments if p.get("tasa_cambio_bs_usd", 0) > 0]
@@ -845,29 +813,6 @@ class PagosService(BaseService):
                 "tendencias": {"tasa_promedio_semana": 36.50, "variacion_tasa": 0, "preferencia_moneda": "USD"}
             }
 
-    async def get_all_payments(self, estado: str = "todos") -> List[PagoModel]:
-        """
-        Obtiene todos los pagos (método requerido por estado_pagos)
-
-        Args:
-            estado: Filtro por estado (todos, pendiente, completado, anulado)
-
-        Returns:
-            Lista de pagos como modelos tipados
-        """
-        try:
-            # Verificar permisos
-            if not self.check_permission("pagos", "leer"):
-                raise PermissionError("Sin permisos para acceder a pagos")
-
-            # Usar método filtrado para obtener todos los pagos
-            estado_filtro = None if estado == "todos" else estado
-            return await self.get_filtered_payments(estado=estado_filtro)
-
-        except Exception as e:
-            self.handle_error("Error obteniendo todos los pagos", e)
-            return []
-
     async def get_consultas_pendientes_pago(self) -> List[ConsultaPendientePago]:
         try:
 
@@ -875,8 +820,8 @@ class PagosService(BaseService):
 
             # Query directa a consultas completadas con pago pendiente
             # Obtener consultas completadas
-            consultas_response = self.client.table("consultas").select(
-                "*, pacientes(*), usuarios!consultas_primer_odontologo_id_fkey(*)"
+            consultas_response = self.client.table("consulta").select(
+                "*, paciente(*), personal!primer_odontologo_id(*)"
             ).eq("estado", "completada").execute()
             consultas = consultas_response.data if consultas_response.data else []
 
@@ -884,11 +829,11 @@ class PagosService(BaseService):
             consultas_pendientes = []
             for consulta in consultas:
                 # Verificar si tiene pago pendiente
-                pago_response = self.client.table("pagos").select("*").eq("consulta_id", consulta["id"]).eq("estado_pago", "pendiente").execute()
+                pago_response = self.client.table("pago").select("*").eq("consulta_id", consulta["id"]).eq("estado_pago", "pendiente").execute()
                 if pago_response.data:
                     # Obtener intervenciones/servicios
-                    intervenciones_response = self.client.table("intervenciones").select(
-                        "*, servicios(*), usuarios!intervenciones_odontologo_id_fkey(*)"
+                    intervenciones_response = self.client.table("intervencion").select(
+                        "*, servicio(*), personal!odontologo_id(*)"
                     ).eq("consulta_id", consulta["id"]).execute()
                     intervenciones = intervenciones_response.data if intervenciones_response.data else []
 
@@ -897,21 +842,21 @@ class PagosService(BaseService):
                         "id": consulta["id"],
                         "numero_consulta": consulta.get("numero_consulta", ""),
                         "paciente_id": consulta.get("paciente_id", ""),
-                        "paciente_nombre": f"{consulta.get('pacientes', {}).get('primer_nombre', '')} {consulta.get('pacientes', {}).get('primer_apellido', '')}".strip(),
-                        "paciente_documento": consulta.get("pacientes", {}).get("numero_documento", ""),
-                        "paciente_numero_historia": consulta.get("pacientes", {}).get("numero_historia", ""),
-                        "paciente_telefono": consulta.get("pacientes", {}).get("celular", ""),
-                        "odontologo_nombre": f"{consulta.get('usuarios', {}).get('primer_nombre', '')} {consulta.get('usuarios', {}).get('primer_apellido', '')}".strip(),
+                        "paciente_nombre": f"{consulta.get('paciente', {}).get('primer_nombre', '')} {consulta.get('paciente', {}).get('primer_apellido', '')}".strip(),
+                        "paciente_documento": consulta.get("paciente", {}).get("numero_documento", ""),
+                        "paciente_numero_historia": consulta.get("paciente", {}).get("numero_historia", ""),
+                        "paciente_telefono": consulta.get("paciente", {}).get("celular", ""),
+                        "odontologo_nombre": f"{consulta.get('personal', {}).get('primer_nombre', '')} {consulta.get('personal', {}).get('primer_apellido', '')}".strip(),
                         "fecha_llegada": consulta.get("fecha_llegada", ""),
                         "total_usd": pago_response.data[0].get("monto_total_usd", 0),
                         "total_bs": pago_response.data[0].get("monto_total_bs", 0),
                         "pagos": pago_response.data,
                         "servicios_detalle": [
                             {
-                                "nombre": interv.get("servicios", {}).get("nombre", "Servicio"),
-                                "odontologo": f"{interv.get('usuarios', {}).get('primer_nombre', '')} {interv.get('usuarios', {}).get('primer_apellido', '')}".strip(),
-                                "precio_usd": interv.get("servicios", {}).get("precio_base_usd", 0),
-                                "precio_bs": interv.get("servicios", {}).get("precio_base_usd", 0) * pago_response.data[0].get("tasa_cambio_bs_usd", 36.50)
+                                "nombre": interv.get("servicio", {}).get("nombre", "Servicio"),
+                                "odontologo": f"{interv.get('personal', {}).get('primer_nombre', '')} {interv.get('personal', {}).get('primer_apellido', '')}".strip(),
+                                "precio_usd": interv.get("servicio", {}).get("precio_base_usd", 0),
+                                "precio_bs": interv.get("servicio", {}).get("precio_base_usd", 0) * pago_response.data[0].get("tasa_cambio_bs_usd", 36.50)
                             }
                             for interv in intervenciones
                         ]

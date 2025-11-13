@@ -45,67 +45,39 @@ class EstadoPacientes(rx.State,mixin=True):
     # ==========================================
     # 👥 VARIABLES PRINCIPALES DE PACIENTES
     # ==========================================
-    
+
     # Lista principal de pacientes (modelos tipados)
     lista_pacientes: List[PacienteModel] = []
     total_pacientes: int = 0
-    historial_completo: HistorialCompletoPaciente
+
     # Paciente seleccionado para operaciones
     paciente_seleccionado: PacienteModel = PacienteModel()
     id_paciente_seleccionado: str = ""
-    
+
+    historial_completo = HistorialCompletoPaciente = HistorialCompletoPaciente()
+
     # Formulario de paciente (tipado v4.1)
     formulario_paciente: PacienteFormModel = PacienteFormModel()
     errores_validacion_paciente: Dict[str, str] = {}
-    
-    # Variables auxiliares para operaciones
-    paciente_para_eliminar: Optional[PacienteModel] = None
-    mostrar_solo_activos_pacientes: bool = True
-    
+
     # ==========================================
-    # 👥 FILTROS Y BÚSQUEDAS OPTIMIZADAS
+    # 👥 FILTROS Y BÚSQUEDAS
     # ==========================================
-    
-    # Búsqueda principal
+
     termino_busqueda_pacientes: str = ""
-    busqueda_activa: bool = False
-    
-    # Filtros avanzados
     filtro_genero: str = "todos"  # todos, masculino, femenino
     filtro_estado: str = "activos"  # todos, activos, inactivos
-    # UNUSED - [2025-01-04] - Filtros no implementados en UI
-    # filtro_edad_min: int = 0
-    # filtro_edad_max: int = 120
-    # filtro_ciudad: str = ""
-    
-    # Ordenamiento
-    campo_ordenamiento: str = "nombre"  # nombre, fecha_registro, edad
-    direccion_ordenamiento: str = "asc"  # asc, desc
-    
-    # Paginación
-    pagina_actual_pacientes: int = 1
-    pacientes_por_pagina: int = 20
-    total_paginas_pacientes: int = 1
-    
+
     # ==========================================
-    # 👥 ESTADÍSTICAS Y MÉTRICAS CACHE
+    # 👥 ESTADOS DE CARGA
     # ==========================================
-    
-    # Estadísticas principales
-    estadisticas_pacientes: PacientesStatsModel = PacientesStatsModel()
-    ultima_actualizacion_stats: str = ""
-    
-    # UNUSED - [2025-01-04] - Variables de cache no utilizadas
-    # cache_pacientes_activos: List[PacienteModel] = []
-    # cache_timestamp_activos: str = ""
-    # cache_validez_minutos: int = 15
-    
-    # Estados de carga
+
     cargando_lista_pacientes: bool = False
-    cargando_estadisticas: bool = False
     cargando_operacion: bool = False
     
    
+    modal_crear_paciente_abierto: bool = False
+    modal_editar_paciente_abierto: bool = False
     # ==========================================
     # 👥 MÉTODOS PRINCIPALES DE CRUD
     # ==========================================
@@ -118,8 +90,6 @@ class EstadoPacientes(rx.State,mixin=True):
         Args:
             forzar_refresco: Forzar recarga desde BD ignorando cache
         """
-        print("👥 Cargando lista de pacientes...")
-        
         self.cargando_lista_pacientes = True
         
         try:
@@ -136,9 +106,7 @@ class EstadoPacientes(rx.State,mixin=True):
             # Convertir a modelos tipados y actualizar estado
             self.lista_pacientes = pacientes_data
             self.total_pacientes = len(pacientes_data)
-            # Calcular paginación
-            self._actualizar_paginacion()
-            
+
             print(f"✅ {self.total_pacientes} pacientes cargados correctamente")
             
         except Exception as e:
@@ -200,26 +168,40 @@ class EstadoPacientes(rx.State,mixin=True):
     @rx.event
     async def guardar_paciente_formulario(self):
         """
-        ➕ CREAR PACIENTE USANDO DATOS DEL FORMULARIO INTERNO
-        
-        Método wrapper que usa self.formulario_paciente
+        💾 GUARDAR PACIENTE - CREAR O ACTUALIZAR AUTOMÁTICAMENTE
+
+        Decide automáticamente si crear nuevo paciente o actualizar existente
+        basándose en si hay un paciente seleccionado
         """
         try:
             if not self.formulario_paciente:
                 self.errores_validacion_paciente["general"] = "No hay datos de formulario para guardar"
                 return
-            
-            resultado = await self.crear_paciente(self.formulario_paciente)
-            
-            # Solo proceder si la creación fue exitosa
-            if resultado and not self.errores_validacion_paciente:
+
+            # ✅ DECISIÓN AUTOMÁTICA: Crear o Actualizar
+            if self.id_paciente_seleccionado and self.modal_editar_paciente_abierto:
+                # MODO EDITAR: Actualizar paciente existente
+                print(f"✏️ Modo EDITAR - Actualizando paciente {self.id_paciente_seleccionado}")
+                await self.actualizar_paciente(self.id_paciente_seleccionado,self.formulario_paciente)
+            else:
+                # MODO CREAR: Crear nuevo paciente
+                print("➕ Modo CREAR - Creando nuevo paciente")
+                resultado = await self.crear_paciente(self.formulario_paciente)
+
+                if not resultado:
+                    return  # Si hay errores, no continuar
+
+            # Solo proceder si la operación fue exitosa
+            if not self.errores_validacion_paciente:
                 # Cerrar el modal
                 self.cerrar_todos_los_modales()
-                
+
                 # Limpiar el formulario
-                self.formulario_paciente = PacienteFormModel()    
+                self.formulario_paciente = PacienteFormModel()
+                self.id_paciente_seleccionado = ""
+                self.paciente_seleccionado = PacienteModel()
                 print("✅ Paciente guardado exitosamente, modal cerrado y lista actualizada")
-            
+
         except Exception as e:
             logger.error(f"❌ Error guardando paciente desde formulario: {e}")
             self.errores_validacion_paciente["general"] = f"Error guardando paciente: {str(e)}"
@@ -254,7 +236,7 @@ class EstadoPacientes(rx.State,mixin=True):
             logger.error(f"❌ Error actualizando campo {campo}: {e}")
     
     @rx.event
-    async def actualizar_paciente(self, id_paciente: str, datos_formulario: Dict[str, Any]):
+    async def actualizar_paciente(self, id_paciente: str, datos_formulario: PacienteFormModel):
         """
         ✏️ ACTUALIZAR PACIENTE EXISTENTE
         
@@ -272,25 +254,9 @@ class EstadoPacientes(rx.State,mixin=True):
             pacientes_service.set_user_context(self.id_usuario, self.perfil_usuario)
             
             # Actualizar usando el servicio
-            paciente_actualizado = await pacientes_service.update_patient(
-                id_paciente, 
-                datos_formulario
-            )
+            paciente_actualizado = await pacientes_service.update_patient(id_paciente, datos_formulario)
             
-            # Actualizar en lista local
-            for i, paciente in enumerate(self.lista_pacientes):
-                if paciente.id == id_paciente:
-                    self.lista_pacientes[i] = paciente_actualizado
-                    break
-            
-            # Actualizar paciente seleccionado si corresponde
-            if self.id_paciente_seleccionado == id_paciente:
-                self.paciente_seleccionado = paciente_actualizado
-            
-            
-            print(f"✅ Paciente {id_paciente} actualizado correctamente")
-            return paciente_actualizado
-            
+            await self.cargar_lista_pacientes()
         except Exception as e:
             error_msg = f"Error actualizando paciente: {str(e)}"
             self.errores_validacion_paciente["general"] = error_msg
@@ -299,64 +265,6 @@ class EstadoPacientes(rx.State,mixin=True):
             
         finally:
             self.cargando_operacion = False
-    
-    @rx.event
-    async def eliminar_paciente(self, id_paciente: str):
-        """
-        🗑️ ELIMINAR PACIENTE (SOFT DELETE)
-        
-        Args:
-            id_paciente: ID del paciente a eliminar
-        """
-        print(f"🗑️ Eliminando paciente {id_paciente}...")
-        
-        self.cargando_operacion = True
-        
-        try:
-            # Configurar contexto del usuario antes de usar servicio
-            pacientes_service.set_user_context(self.id_usuario, self.perfil_usuario)
-            
-            # Eliminar usando el servicio (soft delete)
-            resultado = await pacientes_service.delete_patient(id_paciente)
-            
-            if resultado:
-                # Remover de lista local
-                self.lista_pacientes = [p for p in self.lista_pacientes if p.id != id_paciente]
-                self.total_pacientes -= 1
-                
-                # Limpiar selección si era el paciente eliminado
-                if self.id_paciente_seleccionado == id_paciente:
-                    self.paciente_seleccionado = PacienteModel()
-                    self.id_paciente_seleccionado = ""
-                
-                print(f"✅ Paciente {id_paciente} eliminado correctamente")
-                return True
-            else:
-                print(f"⚠️ No se pudo eliminar el paciente {id_paciente}")
-                return False
-                
-        except Exception as e:
-            error_msg = f"Error eliminando paciente: {str(e)}"
-            logger.error(error_msg)
-            print(f"❌ {error_msg}")
-            return False
-            
-        finally:
-            self.cargando_operacion = False
-    
-    @rx.event
-    async def ejecutar_eliminar_paciente(self):
-        """
-        🗑️ EJECUTAR ELIMINACIÓN DEL PACIENTE SELECCIONADO
-        
-        Utiliza self.paciente_para_eliminar para eliminar el paciente
-        """
-        if self.paciente_para_eliminar and self.paciente_para_eliminar.id:
-            await self.eliminar_paciente(self.paciente_para_eliminar.id)
-            # Limpiar variable después de eliminar
-            self.paciente_para_eliminar = None
-        else:
-            print("❌ No hay paciente seleccionado para eliminar")
     
     @rx.event
     async def seleccionar_paciente(self, id_paciente: str):
@@ -396,180 +304,50 @@ class EstadoPacientes(rx.State,mixin=True):
   
 
     # ==========================================
-    # 👥 BÚSQUEDAS Y FILTROS OPTIMIZADOS
+    # 👥 BÚSQUEDA
     # ==========================================
-    
+
     @rx.event
     async def buscar_pacientes(self, termino: str):
         """
-        🔍 BÚSQUEDA PRINCIPAL DE PACIENTES (CON THROTTLING)
-        
+        🔍 BÚSQUEDA PRINCIPAL DE PACIENTES
+
         Args:
             termino: Término de búsqueda
         """
         self.termino_busqueda_pacientes = termino.strip()
-        self.busqueda_activa = bool(self.termino_busqueda_pacientes)
-        
+
         print(f"🔍 Búsqueda de pacientes: '{self.termino_busqueda_pacientes}'")
-        
+
         # Recargar lista con filtros aplicados
-        await self.cargar_lista_pacientes(forzar_refresco=True)
-    
-    @rx.event
-    async def aplicar_filtros(self, filtros: Dict[str, Any]):
-        """
-        🎛️ APLICAR FILTROS AVANZADOS
-        
-        Args:
-            filtros: Diccionario con filtros a aplicar
-        """
-        # Actualizar filtros
-        self.filtro_genero = filtros.get("genero", "todos")
-        self.filtro_estado = filtros.get("estado", "activos")
-        
-        print(f"🎛️ Filtros aplicados: {filtros}")
-        
-        # Recargar con nuevos filtros
-        await self.cargar_lista_pacientes(forzar_refresco=True)
-    
-    @rx.event
-    def limpiar_filtros(self):
-        """🧹 LIMPIAR TODOS LOS FILTROS"""
-        self.termino_busqueda_pacientes = ""
-        self.filtro_genero = "todos"
-        self.filtro_estado = "activos"
-        self.busqueda_activa = False
-        
-        print("🧹 Filtros limpiados")
-    
- 
+        await self.cargar_lista_pacientes()
+
     # ==========================================
     # 👥 COMPUTED VARS CON CACHE
     # ==========================================
-    
+
     @rx.var(cache=True)
     def pacientes_filtrados_display(self) -> List[PacienteModel]:
-        """📋 Lista de pacientes para mostrar (con paginación)"""
-        inicio = (self.pagina_actual_pacientes - 1) * self.pacientes_por_pagina
-        fin = inicio + self.pacientes_por_pagina
-        return self.lista_pacientes[inicio:fin]
-    
+        """📋 Lista de pacientes para mostrar"""
+        return self.lista_pacientes
+
     @rx.var(cache=True)
     def total_pacientes_activos(self) -> int:
         """👥 Total de pacientes activos"""
         return len([p for p in self.lista_pacientes if p.activo])
     
-    @rx.var(cache=True)
-    def total_pacientes_inactivos(self) -> int:
-        """👤 Total de pacientes inactivos"""
-        return len([p for p in self.lista_pacientes if not p.activo])
+    @rx.var
+    def total_pacientes_masculinos(self) -> int:
+        """👨 Total de pacientes masculinos"""
+        return len([p for p in self.lista_pacientes if p.genero == "masculino"])
     
-    @rx.var(cache=True)
-    def distribucion_por_genero(self) -> Dict[str, int]:
-        """👨‍👩‍👧‍👦 Distribución de pacientes por género"""
-        distribucion = {"masculino": 0, "femenino": 0, "otro": 0}
-        
-        for paciente in self.lista_pacientes:
-            genero = paciente.genero.lower() if paciente.genero else "otro"
-            if genero in distribucion:
-                distribucion[genero] += 1
-            else:
-                distribucion["otro"] += 1
-        
-        return distribucion
-    
-    @rx.var(cache=True)
-    def pacientes_registrados_hoy(self) -> int:
-        """📅 Pacientes registrados hoy"""
-        hoy = date.today().isoformat()
-        return len([
-            p for p in self.lista_pacientes 
-            if p.fecha_registro and p.fecha_registro.startswith(hoy)
-        ])
-    
-    
-
+    @rx.var
+    def total_pacientes_femeninos(self) -> int:
+        """👨 Total de pacientes masculinos"""
+        return len([p for p in self.lista_pacientes if p.genero == "femenino"])
     # ==========================================
-    # 👥 MÉTODOS DE UTILIDAD Y CACHE
+    # 👥 MÉTODOS AUXILIARES
     # ==========================================
-    
-    def _cache_pacientes_valido(self) -> bool:
-        """⏰ Verificar si el cache de pacientes es válido"""
-        if not self.cache_timestamp_activos or not self.cache_pacientes_activos:
-            return False
-        
-        try:
-            timestamp_cache = datetime.fromisoformat(self.cache_timestamp_activos)
-            tiempo_transcurrido = datetime.now() - timestamp_cache
-            return tiempo_transcurrido.total_seconds() < (self.cache_validez_minutos * 60)
-        except:
-            return False
-    
-    def _cache_estadisticas_valido(self) -> bool:
-        """📊 Verificar si el cache de estadísticas es válido"""
-        if not self.ultima_actualizacion_stats:
-            return False
-        
-        try:
-            timestamp_stats = datetime.fromisoformat(self.ultima_actualizacion_stats)
-            tiempo_transcurrido = datetime.now() - timestamp_stats
-            return tiempo_transcurrido.total_seconds() < (self.cache_validez_minutos * 60)
-        except:
-            return False
-    
-
-    def _actualizar_paginacion(self):
-        """📄 Actualizar cálculos de paginación"""
-        if self.pacientes_por_pagina > 0:
-            self.total_paginas_pacientes = max(1, (self.total_pacientes + self.pacientes_por_pagina - 1) // self.pacientes_por_pagina)
-            
-            # Ajustar página actual si es necesario
-            if self.pagina_actual_pacientes > self.total_paginas_pacientes:
-                self.pagina_actual_pacientes = self.total_paginas_pacientes
-        else:
-            self.total_paginas_pacientes = 1
-    
-    def _calcular_edad(self, fecha_nacimiento: Optional[str]) -> int:
-        """🎂 Calcular edad a partir de fecha de nacimiento"""
-        if not fecha_nacimiento:
-            return 0
-        
-        try:
-            fecha_nac = datetime.strptime(fecha_nacimiento, "%Y-%m-%d").date()
-            hoy = date.today()
-            edad = hoy.year - fecha_nac.year
-            
-            # Ajustar si no ha cumplido años este año
-            if hoy.month < fecha_nac.month or (hoy.month == fecha_nac.month and hoy.day < fecha_nac.day):
-                edad -= 1
-            
-            return max(0, edad)
-        except:
-            return 0
-    
-    # ==========================================
-    # 👥 MÉTODOS AUXILIARES PARA APPSTATE
-    # ==========================================
-
-    
-    def limpiar_datos(self):
-        """🧹 LIMPIAR TODOS LOS DATOS - USADO EN LOGOUT"""
-        self.lista_pacientes = []
-        self.total_pacientes = 0
-        self.paciente_seleccionado = PacienteModel()
-        self.id_paciente_seleccionado = ""
-        self.formulario_paciente = PacienteFormModel()
-        self.errores_validacion_paciente = {}
-        self.paciente_para_eliminar = None
-        self.termino_busqueda_pacientes = ""
-        self.busqueda_activa = False
-        self.filtro_genero = "todos"
-        self.filtro_estado = "activos"
-        self.mostrar_solo_activos_pacientes = True
-        self.cargando_lista_pacientes = False
-        self.cargando_estadisticas = False
-        self.cargando_operacion = False
-        logger.info("🧹 Datos de pacientes limpiados")
     
     @rx.event
     async def seleccionar_y_abrir_modal_paciente(self, paciente_id: str = ""):
@@ -583,12 +361,12 @@ class EstadoPacientes(rx.State,mixin=True):
             if paciente_id:
                 # Modo editar: seleccionar el paciente primero
                 await self.seleccionar_paciente(paciente_id)
-                # Cargar datos en el formulario
+
                 if self.paciente_seleccionado:
                     self.cargar_paciente_en_formulario(self.paciente_seleccionado)
                 # Abrir modal editar
-                self.abrir_modal_paciente("editar")
-                logger.info(f"📝 Modal editar paciente abierto: {paciente_id}")
+                self.modal_editar_paciente_abierto = True
+
             else:
                 # Modo crear: limpiar selección
                 self.paciente_seleccionado = PacienteModel()
@@ -596,8 +374,8 @@ class EstadoPacientes(rx.State,mixin=True):
                 self.formulario_paciente = PacienteFormModel()
                 self.errores_validacion_paciente = {}
                 # Abrir modal crear
-                self.abrir_modal_paciente("crear")
-                logger.info("➕ Modal crear paciente abierto")
+                self.modal_crear_paciente_abierto = True
+
                 
         except Exception as e:
             logger.error(f"❌ Error abriendo modal paciente: {e}")
@@ -623,9 +401,7 @@ class EstadoPacientes(rx.State,mixin=True):
             # Información demográfica
             genero=paciente.genero or "",
             fecha_nacimiento=paciente.fecha_nacimiento or "",
-            edad=str(paciente.edad) if paciente.edad else "",
-            estado_civil=paciente.estado_civil or "",
-            ocupacion=paciente.ocupacion or "",
+
             
             # Contacto y ubicación (usando celular v4.1)
             celular_1=getattr(paciente, 'celular_1', '') or getattr(paciente, 'telefono_1', '') or "",
@@ -633,15 +409,11 @@ class EstadoPacientes(rx.State,mixin=True):
             email=paciente.email or "",
             direccion=paciente.direccion or "",
             ciudad=paciente.ciudad or "",
-            departamento=paciente.departamento or "",
-            
             # Información médica
             alergias=", ".join(paciente.alergias) if isinstance(paciente.alergias, list) else str(paciente.alergias or ""),
             medicamentos_actuales=", ".join(paciente.medicamentos_actuales) if isinstance(paciente.medicamentos_actuales, list) else str(paciente.medicamentos_actuales or ""),
             condiciones_medicas=", ".join(paciente.condiciones_medicas) if isinstance(paciente.condiciones_medicas, list) else str(paciente.condiciones_medicas or ""),
-            antecedentes_familiares=", ".join(paciente.antecedentes_familiares) if isinstance(paciente.antecedentes_familiares, list) else str(paciente.antecedentes_familiares or ""),
-            observaciones_medicas=paciente.observaciones or "",
-            
+
             # Contacto emergencia desde JSONB v4.1
             contacto_emergencia_nombre=paciente.contacto_emergencia.get("nombre", "") if isinstance(paciente.contacto_emergencia, dict) else "",
             contacto_emergencia_telefono=paciente.contacto_emergencia.get("telefono", "") if isinstance(paciente.contacto_emergencia, dict) else "",
@@ -651,7 +423,9 @@ class EstadoPacientes(rx.State,mixin=True):
         
         # Limpiar errores
         self.errores_validacion_paciente = {}
-            
+        
+        
+               
         
     @rx.event
     async def navegar_a_historial_paciente(self, id_paciente: str):

@@ -6,7 +6,6 @@ Elimina duplicación entre boss_state y admin_state
 from typing import Dict, List, Optional, Any
 from datetime import date, datetime
 from .base_service import BaseService
-from .cache_invalidation_hooks import invalidate_after_patient_operation, track_cache_invalidation
 from dental_system.models import PacienteModel, PacienteFormModel,  HistorialCompletoPaciente,ConsultaHistorial,IntervencionHistorial,ServicioHistorial
 import logging
 
@@ -40,7 +39,7 @@ class PacientesService(BaseService):
         """
         try:
             # Construir query base
-            query = self.client.table("pacientes").select("*")
+            query = self.client.table("paciente").select("*")
 
             # Aplicar filtros dinámicos
             if activos_only is not None:
@@ -112,7 +111,7 @@ class PacientesService(BaseService):
                 raise ValueError(error_msg)
             
             # Verificar que no exista el documento
-            response = self.client.table("pacientes").select("id").eq("numero_documento", patient_form.numero_documento).execute()
+            response = self.client.table("paciente").select("id").eq("numero_documento", patient_form.numero_documento).execute()
             existing = response.data[0] if response.data else None
             if existing:
                 raise ValueError("Ya existe un paciente con este número de documento")
@@ -129,12 +128,10 @@ class PacientesService(BaseService):
             alergias = self.process_array_field(patient_form.alergias)
             medicamentos = self.process_array_field(patient_form.medicamentos_actuales)
             # Procesar información médica adicional
-            condiciones = self.process_array_field(patient_form.observaciones_medicas)
-            
+ 
             # Procesar información médica adicional
             condiciones_medicas = self.process_array_field(patient_form.condiciones_medicas) if hasattr(patient_form, 'condiciones_medicas') and patient_form.condiciones_medicas else None
-            antecedentes_familiares = self.process_array_field(patient_form.antecedentes_familiares) if hasattr(patient_form, 'antecedentes_familiares') and patient_form.antecedentes_familiares else None
-            
+
             # Preparar datos para insertar
             patient_data = {
                 # Nombres separados
@@ -157,16 +154,11 @@ class PacientesService(BaseService):
                 "email": patient_form.email.strip() if patient_form.email and patient_form.email.strip() else None,
                 "direccion": patient_form.direccion if patient_form.direccion else None,
                 "ciudad": patient_form.ciudad if patient_form.ciudad else None,
-                "departamento": patient_form.departamento if patient_form.departamento else None,
-                "ocupacion": patient_form.ocupacion if patient_form.ocupacion else None,
-                "estado_civil": patient_form.estado_civil if patient_form.estado_civil else None,
-
                 # Información médica
                 "alergias": alergias if alergias else None,
                 "medicamentos_actuales": medicamentos if medicamentos else None,
                 "condiciones_medicas": condiciones_medicas,
-                "antecedentes_familiares": antecedentes_familiares,
-                "observaciones": patient_form.observaciones_medicas if patient_form.observaciones_medicas else None,
+
 
                 # Contacto de emergencia como JSONB
                 "contacto_emergencia": {
@@ -176,13 +168,11 @@ class PacientesService(BaseService):
                     "direccion": patient_form.contacto_emergencia_direccion if patient_form.contacto_emergencia_direccion else ""
                 } if any([patient_form.contacto_emergencia_nombre, patient_form.contacto_emergencia_telefono]) else {},
 
-                # Metadata
-                "registrado_por": user_id,
                 "activo": True
             }
 
             # Insertar paciente
-            insert_response = self.client.table("pacientes").insert(patient_data).execute()
+            insert_response = self.client.table("paciente").insert(patient_data).execute()
             result = insert_response.data[0] if insert_response.data else None
             
             if result:
@@ -216,9 +206,6 @@ class PacientesService(BaseService):
         try:
             logger.info(f"Actualizando paciente: {patient_id}")
             
-            # Verificar permisos
-            self.require_permission("pacientes", "actualizar")
-            
             # Validar formulario tipado
             validation_errors = patient_form.validate_form()
             if validation_errors:
@@ -226,7 +213,7 @@ class PacientesService(BaseService):
                 raise ValueError(error_msg)
             
             # Verificar documento único (excluyendo el actual)
-            response = self.client.table("pacientes").select("id").eq("numero_documento", patient_form.numero_documento).execute()
+            response = self.client.table("paciente").select("id").eq("numero_documento", patient_form.numero_documento).execute()
             existing = response.data[0] if response.data else None
             if existing and existing.get("id") != patient_id:
                 raise ValueError("Ya existe otro paciente con este número de documento")
@@ -264,14 +251,11 @@ class PacientesService(BaseService):
                 "email": patient_form.email if patient_form.email else None,
                 "direccion": patient_form.direccion if patient_form.direccion else None,
                 "ciudad": patient_form.ciudad if patient_form.ciudad else None,
-                "estado_civil": patient_form.estado_civil if patient_form.estado_civil else None,
-                
+
                 # Información médica
                 "alergias": alergias if alergias else None,
                 "medicamentos_actuales": medicamentos if medicamentos else None,
-                # "enfermedades_cronicas": patient_form.enfermedades_cronicas if patient_form.enfermedades_cronicas else None,
-                "observaciones": patient_form.observaciones_medicas if patient_form.observaciones_medicas else None,
-                
+
                 # Contacto de emergencia como JSONB (esquema v4.1)
                 "contacto_emergencia": {
                     "nombre": patient_form.contacto_emergencia_nombre if patient_form.contacto_emergencia_nombre else "",
@@ -285,7 +269,7 @@ class PacientesService(BaseService):
                 data["fecha_nacimiento"] = fecha_nacimiento.isoformat()
 
             # Actualizar con query directa
-            update_response = self.client.table("pacientes").update(data).eq("id", patient_id).execute()
+            update_response = self.client.table("paciente").update(data).eq("id", patient_id).execute()
             result = update_response.data[0] if update_response.data else None
             
             if result:
@@ -296,10 +280,6 @@ class PacientesService(BaseService):
                     data.get("segundo_apellido")
                 )
                 
-                # 🗑️ INVALIDAR CACHE después de actualizar paciente
-                invalidate_after_patient_operation()
-                
-                logger.info(f"✅ Paciente actualizado: {nombre_display} (cache invalidado)")
                 return result
             else:
                 raise ValueError("Error actualizando paciente en la base de datos")
@@ -312,85 +292,6 @@ class PacientesService(BaseService):
             raise
         except Exception as e:
             self.handle_error("Error actualizando paciente", e)
-            raise ValueError(f"Error inesperado: {str(e)}")
-    
-    async def deactivate_patient(self, patient_id: str, motivo: str = None) -> bool:
-        """
-        Desactiva un paciente (soft delete)
-        
-        Args:
-            patient_id: ID del paciente
-            motivo: Motivo de desactivación
-            
-        Returns:
-            True si se desactivó correctamente
-        """
-        try:
-            logger.info(f"Desactivando paciente: {patient_id}")
-            
-            # Verificar permisos
-            self.require_permission("pacientes", "eliminar")
-            
-            # TODO: Verificar que no tenga consultas activas
-            
-            # Desactivar con query directa
-            user_name = self.get_current_user_name()
-            motivo_completo = motivo or f"Desactivado desde dashboard por {user_name}"
-
-            update_data = {
-                "activo": False
-            }
-
-            response = self.client.table("pacientes").update(update_data).eq("id", patient_id).execute()
-            result = response.data[0] if response.data else None
-            
-            if result:
-                logger.info(f"✅ Paciente desactivado correctamente")
-                return True
-            else:
-                raise ValueError("Error desactivando paciente")
-                
-        except PermissionError:
-            logger.warning("Usuario sin permisos para desactivar pacientes")
-            raise
-        except Exception as e:
-            self.handle_error("Error desactivando paciente", e)
-            raise ValueError(f"Error inesperado: {str(e)}")
-    
-    async def reactivate_patient(self, patient_id: str) -> bool:
-        """
-        Reactiva un paciente
-        
-        Args:
-            patient_id: ID del paciente
-            
-        Returns:
-            True si se reactivó correctamente
-        """
-        try:
-            logger.info(f"Reactivando paciente: {patient_id}")
-            
-            # Verificar permisos
-            self.require_permission("pacientes", "crear")  # Reactivar = crear de nuevo
-
-            update_data = {
-                "activo": True
-            }
-
-            response = self.client.table("pacientes").update(update_data).eq("id", patient_id).execute()
-            result = response.data[0] if response.data else None
-            
-            if result:
-                logger.info(f"✅ Paciente reactivado correctamente")
-                return True
-            else:
-                raise ValueError("Error reactivando paciente")
-                
-        except PermissionError:
-            logger.warning("Usuario sin permisos para reactivar pacientes")
-            raise
-        except Exception as e:
-            self.handle_error("Error reactivando paciente", e)
             raise ValueError(f"Error inesperado: {str(e)}")
     
     async def get_patient_by_id(self, patient_id: str) -> Optional[PacienteModel]:
@@ -407,7 +308,7 @@ class PacientesService(BaseService):
             # Verificar permisos
             self.require_permission("pacientes", "leer")
 
-            response = self.client.table("pacientes").select("*").eq("id", patient_id).execute()
+            response = self.client.table("paciente").select("*").eq("id", patient_id).execute()
             data = response.data[0] if response.data else None
 
             if data:
@@ -418,34 +319,34 @@ class PacientesService(BaseService):
             self.handle_error("Error obteniendo paciente por ID", e)
             return None
 
-    def get_patient_by_id_sync(self, patient_id: str) -> Optional[PacienteModel]:
-        """
-        Obtiene un paciente por ID de forma síncrona
-        Para casos donde no se puede usar async (como event handlers de Reflex)
+    # def get_patient_by_id_sync(self, patient_id: str) -> Optional[PacienteModel]:
+    #     """
+    #     Obtiene un paciente por ID de forma síncrona
+    #     Para casos donde no se puede usar async (como event handlers de Reflex)
         
-        Args:
-            patient_id: ID del paciente
+    #     Args:
+    #         patient_id: ID del paciente
             
-        Returns:
-            Modelo del paciente o None
-        """
-        try:
-            # Verificar permisos
-            if not self.check_permission("pacientes", "leer"):
-                logger.warning(f"Usuario sin permisos para leer pacientes")
-                return None
+    #     Returns:
+    #         Modelo del paciente o None
+    #     """
+    #     try:
+    #         # Verificar permisos
+    #         if not self.check_permission("pacientes", "leer"):
+    #             logger.warning(f"Usuario sin permisos para leer pacientes")
+    #             return None
 
-            # Query directa
-            response = self.client.table("pacientes").select("*").eq("id", patient_id).execute()
-            data = response.data[0] if response.data else None
+    #         # Query directa
+    #         response = self.client.table("paciente").select("*").eq("id", patient_id).execute()
+    #         data = response.data[0] if response.data else None
 
-            if data:
-                return PacienteModel.from_dict(data)
-            return None
+    #         if data:
+    #             return PacienteModel.from_dict(data)
+    #         return None
 
-        except Exception as e:
-            self.handle_error("Error obteniendo paciente por ID (sync)", e)
-            return None
+    #     except Exception as e:
+    #         self.handle_error("Error obteniendo paciente por ID (sync)", e)
+    #         return None
 
     
     async def get_patient_stats(self) -> Dict[str, Any]:
@@ -455,7 +356,7 @@ class PacientesService(BaseService):
         """
         try:
             # Obtener todos los pacientes
-            response = self.client.table("pacientes").select("*").execute()
+            response = self.client.table("paciente").select("*").execute()
             pacientes_list = response.data if response.data else []
 
             # Calcular estadísticas en Python
@@ -503,174 +404,109 @@ class PacientesService(BaseService):
                 "mujeres": 0
             }
 
-    # ==========================================
-    # 🦷 MÉTODOS DE INICIALIZACIÓN DE ECOSISTEMA
-    # ==========================================
+   
 
-    async def _inicializar_ecosistema_paciente_completo(self, numero_historia: str, paciente_id: str, user_id: str) -> bool:
-        """
-        🆕 Inicializar ecosistema completo del paciente nuevo
+    # async def _crear_historial_medico_inicial(self, paciente_id: str, user_id: str) -> bool:
+    #     """
+    #     📋 Crear entrada inicial en historial médico
 
-        Args:
-            numero_historia: HC del paciente (ej: HC000001)
-            paciente_id: UUID del paciente
-            user_id: Usuario que crea el paciente
+    #     Args:
+    #         paciente_id: UUID del paciente
+    #         user_id: Usuario que crea
 
-        Returns:
-            True si se inicializó correctamente
-        """
-        try:
-            logger.info(f"🦷 Inicializando ecosistema completo para paciente {numero_historia}")
+    #     Returns:
+    #         True si se creó correctamente
+    #     """
+    #     try:
+    #         from dental_system.supabase.client import get_client
+    #         from .personal_service import personal_service
 
-            # # 1. Crear odontograma inicial con 32 dientes como "sanos"
-            # odontograma_creado = await self._crear_odontograma_inicial_completo(numero_historia, paciente_id, user_id)
+    #         supabase = get_client()
 
-            # 2. Crear historial médico inicial
-            historial_creado = await self._crear_historial_medico_inicial(paciente_id, user_id)
+    #         # Obtener personal_id usando la función existente
+    #         personal_id = await personal_service.obtener_personal_id_por_usuario(user_id)
 
-            # 3. Registrar auditoría de inicialización
-            await self._registrar_auditoria_inicializacion(paciente_id, numero_historia, user_id)
+    #         if not personal_id:
+    #             logger.error(f"❌ No se encontró personal asociado al usuario {user_id}")
+    #             return False
 
-            if odontograma_creado and historial_creado:
-                logger.info(f"✅ Ecosistema completo inicializado para {numero_historia}")
-                return True
-            else:
-                logger.warning(f"⚠️ Ecosistema parcialmente inicializado para {numero_historia}")
-                return False
+    #         # Crear entrada inicial en historial médico
+    #         historial_inicial = {
+    #             "paciente_id": paciente_id,
+    #             "consulta_id": None,  # No hay consulta aún
+    #             "intervencion_id": None,  # No hay intervención aún
+    #             "odontologo_id": personal_id,
+    #             "tipo_registro": "nota",
+    #             "sintomas_principales": "Paciente nuevo registrado en el sistema",
+    #             "examen_clinico": "Pendiente de evaluación inicial",
+    #             "diagnostico_principal": "Sin diagnóstico - Paciente nuevo",
+    #             "plan_tratamiento": "Evaluación inicial pendiente",
+    #             "pronostico": "A determinar en primera consulta",
+    #             "medicamentos_recetados": [],
+    #             "recomendaciones": "Agendar consulta de evaluación inicial",
+    #             "observaciones": "Historial médico inicial creado automáticamente",
+    #             "confidencial": False,
+    #             "fecha_registro": datetime.now().isoformat()
+    #         }
 
-        except Exception as e:
-            logger.error(f"❌ Error inicializando ecosistema para {numero_historia}: {e}")
-            return False
+    #         response = supabase.table("historial_medico").insert(historial_inicial).execute()
 
+    #         if response.data:
+    #             logger.info(f"✅ Historial médico inicial creado para paciente {paciente_id}")
+    #             return True
+    #         else:
+    #             logger.error(f"❌ No se pudo crear historial médico inicial para paciente {paciente_id}")
+    #             return False
 
-    async def _crear_odontograma_inicial_completo(self, numero_historia: str, paciente_id: str, user_id: str) -> bool:
-        """
-        🦷 Crear odontograma inicial con 32 dientes como "sanos"
+    #     except Exception as e:
+    #         logger.error(f"❌ Error creando historial médico inicial para paciente {paciente_id}: {e}")
+    #         return False
 
-        Args:
-            numero_historia: HC del paciente
-            paciente_id: UUID del paciente
-            user_id: Usuario que crea
+    # async def _registrar_auditoria_inicializacion(self, paciente_id: str, numero_historia: str, user_id: str) -> bool:
+    #     """
+    #     📝 Registrar auditoría de inicialización del ecosistema
 
-        Returns:
-            True si se creó correctamente
-        """
-        try:
-            # Importar aquí para evitar circular imports
-            from .personal_service import personal_service
+    #     Args:
+    #         paciente_id: UUID del paciente
+    #         numero_historia: HC del paciente
+    #         user_id: Usuario que crea
 
-            # Obtener personal_id usando la función existente
-            personal_id = await personal_service.obtener_personal_id_por_usuario(user_id)
+    #     Returns:
+    #         True si se registró correctamente
+    #     """
+    #     try:
+    #         from dental_system.supabase.client import get_client
 
-            if not personal_id:
-                logger.error(f"❌ No se encontró personal asociado al usuario {user_id}")
-                return False
+    #         supabase = get_client()
 
-        except Exception as e:
-            logger.error(f"❌ Error creando odontograma inicial para {numero_historia}: {e}")
-            return False
+    #         # Registrar en auditoría la inicialización completa
+    #         auditoria_entry = {
+    #             "tabla_afectada": "pacientes",
+    #             "registro_id": paciente_id,
+    #             "accion": "INSERT",
+    #             "usuario_id": user_id,
+    #             "datos_nuevos": {
+    #                 "numero_historia": numero_historia,
+    #                 "accion": "Inicialización completa de ecosistema",
+    #                 "componentes": ["paciente", "odontograma", "historial_medico"]
+    #             },
+    #             "modulo": "pacientes",
+    #             "ip_address": "127.0.0.1",  # Placeholder - en producción obtener IP real
+    #             "motivo": f"Ecosistema completo inicializado para paciente {numero_historia}"
+    #         }
 
-    async def _crear_historial_medico_inicial(self, paciente_id: str, user_id: str) -> bool:
-        """
-        📋 Crear entrada inicial en historial médico
+    #         response = supabase.table("auditoria").insert(auditoria_entry).execute()
 
-        Args:
-            paciente_id: UUID del paciente
-            user_id: Usuario que crea
+    #         if response.data:
+    #             logger.info(f"✅ Auditoría de inicialización registrada para {numero_historia}")
+    #             return True
+    #         else:
+    #             logger.warning(f"⚠️ No se pudo registrar auditoría para {numero_historia}")
+    #             return False
 
-        Returns:
-            True si se creó correctamente
-        """
-        try:
-            from dental_system.supabase.client import get_client
-            from .personal_service import personal_service
-
-            supabase = get_client()
-
-            # Obtener personal_id usando la función existente
-            personal_id = await personal_service.obtener_personal_id_por_usuario(user_id)
-
-            if not personal_id:
-                logger.error(f"❌ No se encontró personal asociado al usuario {user_id}")
-                return False
-
-            # Crear entrada inicial en historial médico
-            historial_inicial = {
-                "paciente_id": paciente_id,
-                "consulta_id": None,  # No hay consulta aún
-                "intervencion_id": None,  # No hay intervención aún
-                "odontologo_id": personal_id,
-                "tipo_registro": "nota",
-                "sintomas_principales": "Paciente nuevo registrado en el sistema",
-                "examen_clinico": "Pendiente de evaluación inicial",
-                "diagnostico_principal": "Sin diagnóstico - Paciente nuevo",
-                "plan_tratamiento": "Evaluación inicial pendiente",
-                "pronostico": "A determinar en primera consulta",
-                "medicamentos_recetados": [],
-                "recomendaciones": "Agendar consulta de evaluación inicial",
-                "observaciones": "Historial médico inicial creado automáticamente",
-                "confidencial": False,
-                "fecha_registro": datetime.now().isoformat()
-            }
-
-            response = supabase.table("historial_medico").insert(historial_inicial).execute()
-
-            if response.data:
-                logger.info(f"✅ Historial médico inicial creado para paciente {paciente_id}")
-                return True
-            else:
-                logger.error(f"❌ No se pudo crear historial médico inicial para paciente {paciente_id}")
-                return False
-
-        except Exception as e:
-            logger.error(f"❌ Error creando historial médico inicial para paciente {paciente_id}: {e}")
-            return False
-
-    async def _registrar_auditoria_inicializacion(self, paciente_id: str, numero_historia: str, user_id: str) -> bool:
-        """
-        📝 Registrar auditoría de inicialización del ecosistema
-
-        Args:
-            paciente_id: UUID del paciente
-            numero_historia: HC del paciente
-            user_id: Usuario que crea
-
-        Returns:
-            True si se registró correctamente
-        """
-        try:
-            from dental_system.supabase.client import get_client
-
-            supabase = get_client()
-
-            # Registrar en auditoría la inicialización completa
-            auditoria_entry = {
-                "tabla_afectada": "pacientes",
-                "registro_id": paciente_id,
-                "accion": "INSERT",
-                "usuario_id": user_id,
-                "datos_nuevos": {
-                    "numero_historia": numero_historia,
-                    "accion": "Inicialización completa de ecosistema",
-                    "componentes": ["paciente", "odontograma", "historial_medico"]
-                },
-                "modulo": "pacientes",
-                "ip_address": "127.0.0.1",  # Placeholder - en producción obtener IP real
-                "motivo": f"Ecosistema completo inicializado para paciente {numero_historia}"
-            }
-
-            response = supabase.table("auditoria").insert(auditoria_entry).execute()
-
-            if response.data:
-                logger.info(f"✅ Auditoría de inicialización registrada para {numero_historia}")
-                return True
-            else:
-                logger.warning(f"⚠️ No se pudo registrar auditoría para {numero_historia}")
-                return False
-
-        except Exception as e:
-            logger.warning(f"⚠️ Error registrando auditoría para {numero_historia}: {e}")
-            return False
+    #     except Exception as e:
+    #         logger.warning(f"⚠️ Error registrando auditoría para {numero_historia}: {e}")
+    #         return False
 
     async def get_historial_completo_paciente(self, paciente_id: str) -> HistorialCompletoPaciente:
         """
@@ -690,7 +526,7 @@ class PacientesService(BaseService):
             logger.info(f"📋 Obteniendo historial completo para paciente {paciente_id}")
 
             # Query completa con JOINs (similar a pagos.py línea 606)
-            query = self.client.table("consultas").select("""
+            query = self.client.table("consulta").select("""
                 id,
                 numero_consulta,
                 fecha_llegada,
@@ -698,21 +534,20 @@ class PacientesService(BaseService):
                 motivo_consulta,
                 primer_odontologo_id,
                 personal!primer_odontologo_id(primer_nombre, primer_apellido),
-                intervenciones(
+                intervencion(
                     id,
                     odontologo_id,
                     procedimiento_realizado,
                     total_usd,
                     total_bs,
                     personal!odontologo_id(primer_nombre, primer_apellido),
-                    intervenciones_servicios(
-                        cantidad,
+                    historia_medica(
                         precio_unitario_usd,
                         precio_unitario_bs,
-                        servicios(nombre)
+                        servicio(nombre)
                     )
                 ),
-                pagos(
+                pago(
                     id,
                     estado_pago,
                     monto_pagado_usd,
@@ -744,14 +579,11 @@ class PacientesService(BaseService):
 
                     # Procesar servicios de la intervención
                     servicios_list = []
-                    for serv_data in interv_data.get("intervenciones_servicios", []):
+                    for serv_data in interv_data.get("historia_medica", []):
                         servicio = ServicioHistorial(
                             nombre=serv_data.get("servicios", {}).get("nombre", "Servicio"),
-                            cantidad=serv_data.get("cantidad", 1),
                             precio_unitario_usd=float(serv_data.get("precio_unitario_usd", 0)),
                             precio_unitario_bs=float(serv_data.get("precio_unitario_bs", 0)),
-                            subtotal_usd=float(serv_data.get("cantidad", 1)) * float(serv_data.get("precio_unitario_usd", 0)),
-                            subtotal_bs=float(serv_data.get("cantidad", 1)) * float(serv_data.get("precio_unitario_bs", 0))
                         )
                         servicios_list.append(servicio)
 

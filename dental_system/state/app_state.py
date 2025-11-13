@@ -29,24 +29,28 @@ from .estado_odontologia import EstadoOdontologia
 from .estado_servicios import EstadoServicios
 from .estado_pagos import EstadoPagos
 from .estado_intervencion_servicios import EstadoIntervencionServicios
+from .estado_perfil import EstadoPerfil
+from .estado_reportes import EstadoReportes
 # REFACTOR FASE 4: estado_odontograma_avanzado eliminado - funcionalidad en EstadoOdontologia
 
 logger = logging.getLogger(__name__)
 
-class AppState(EstadoIntervencionServicios,EstadoServicios,EstadoPagos,EstadoConsultas,EstadoOdontologia,EstadoPersonal,EstadoAuth, EstadoPacientes,EstadoUI, rx.State):
-    """Incluye AdvancedFDIState como mixin - se integra automáticamente"""
+class AppState(EstadoReportes, EstadoPerfil, EstadoIntervencionServicios,EstadoServicios,EstadoPagos,EstadoConsultas,EstadoOdontologia,EstadoPersonal,EstadoAuth, EstadoPacientes,EstadoUI, rx.State):
     """
     🎯 APPSTATE DEFINITIVO CON MIXINS
 
     Hereda de todos los substates como mixins:
-    - AdvancedFDIState: Odontograma FDI interactivo avanzado
-    - EstadoAuth: Autenticación y permisos
-    - EstadoUI: Navegación y estados de UI
-    - EstadoPacientes: Gestión de pacientes
-    - EstadoPersonal: Gestión de empleados
-    - EstadoConsultas: Sistema de turnos
+    - EstadoReportes: Sistema de reportes diferenciados por rol
+    - EstadoPerfil: Gestión de perfil de usuario
+    - EstadoIntervencionServicios: Gestión de servicios en intervenciones
     - EstadoServicios: Catálogo de servicios
-    - EstadoOdontologia: Módulo dental
+    - EstadoPagos: Sistema de facturación
+    - EstadoConsultas: Sistema de turnos
+    - EstadoOdontologia: Módulo dental con odontograma FDI
+    - EstadoPersonal: Gestión de empleados
+    - EstadoAuth: Autenticación y permisos
+    - EstadoPacientes: Gestión de pacientes
+    - EstadoUI: Navegación y estados de UI
     """
     @rx.event
     async def post_login_inicializacion(self):
@@ -66,19 +70,15 @@ class AppState(EstadoIntervencionServicios,EstadoServicios,EstadoPagos,EstadoCon
 
             print(f"📄 Página inicial establecida: {self.current_page}")
 
-            # Datos básicos que TODOS los roles necesitan
-            datos_basicos = []
-
             # Datos específicos por rol
             if self.rol_usuario == "gerente":
                 # Gerente: Acceso completo a todo
                 datos_especificos = [
                     self.cargar_lista_pacientes(),
                     self.cargar_lista_personal(),
-                    self.cargar_estadisticas_personal(),
                     self.cargar_lista_consultas(),
-                    self.cargar_servicios_basico(),
-                    self.cargar_consultas_pendientes_pago(),
+                    self.cargar_lista_servicios(),
+                    self.cargar_lista_pagos(),
                     self.cargar_estadisticas_duales(),
                 ]
             elif self.rol_usuario == "administrador":
@@ -86,14 +86,14 @@ class AppState(EstadoIntervencionServicios,EstadoServicios,EstadoPagos,EstadoCon
                 datos_especificos = [
                     self.cargar_lista_pacientes(),
                     self.cargar_lista_consultas(),
-                    self.cargar_servicios_basico(),
-                    self.cargar_consultas_pendientes_pago(),
+                    self.cargar_lista_servicios(),
+                    self.cargar_lista_pagos(),
                     self.cargar_estadisticas_duales(),
                 ]
             elif self.rol_usuario == "odontologo":
                 # Odontólogo: Solo datos odontológicos, pacientes y servicios
                 datos_especificos = [
-                    self.cargar_servicios_basico(),
+                    self.cargar_lista_servicios(),
                     self.cargar_lista_consultas(),
                     self.cargar_pacientes_asignados(),
                     self.cargar_consultas_disponibles_otros(),

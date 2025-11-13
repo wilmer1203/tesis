@@ -12,45 +12,14 @@ Rediseño completo siguiendo patrones de consultas_page y personal_page:
 
 import reflex as rx
 from dental_system.state.app_state import AppState
-from dental_system.components.common import (
-    medical_page_layout,
-    page_header,
-    stat_card,
-    refresh_button
-)
+from dental_system.components.common import medical_page_layout,page_header,stat_card
 from dental_system.components.odontologia.professional_odontogram_grid import professional_odontogram_grid
-from dental_system.styles.themes import (
-    COLORS,
-    SPACING,
-    RADIUS,
-    DARK_THEME,
-    glassmorphism_card,
-)
+from dental_system.styles.themes import COLORS,SPACING,RADIUS,DARK_THEME,glassmorphism_card
 
 
 # ==========================================
 # COMPONENTES HELPER
 # ==========================================
-
-def info_row(label: str, value) -> rx.Component:
-    """Fila de información label: value (reutilizable)"""
-    return rx.hstack(
-        rx.text(
-            f"{label}:",
-            weight="medium",
-            color=DARK_THEME["colors"]["text_muted"],
-            size="2",
-            min_width="140px",
-        ),
-        rx.text(
-            value,
-            color=DARK_THEME["colors"]["text_primary"],
-            size="2",
-        ),
-        spacing="3",
-        width="100%",
-    )
-
 
 def info_field_vertical(label: str, value) -> rx.Component:
     """Campo de información con label arriba y valor abajo"""
@@ -106,7 +75,7 @@ def patient_header_card() -> rx.Component:
                             ),
                             rx.text("|", size="2", color=DARK_THEME["colors"]["text_muted"]),
                             rx.text(
-                                f"{AppState.paciente_seleccionado.edad} años",
+                                f"{AppState.paciente_seleccionado.fecha_nacimiento} años",
                                 size="2",
                                 color=DARK_THEME["colors"]["text_secondary"]
                             ),
@@ -215,17 +184,43 @@ def patient_stats() -> rx.Component:
 
 def tab_informacion_completa() -> rx.Component:
     """Tab unificado: Datos básicos + Médicos + Odontograma"""
-    return rx.vstack(
-        # Sección 1: Información del paciente
-        patient_info_section(),
+    return rx.box(
+        rx.vstack(
+            # === FILA 1: 2 CARDS AL LADO (Info Personal + Médica) ===
+            rx.grid(
+                # CARD 1: Información Personal
+                rx.box(
+                    patient_info_section(),
+                    width="100%",
+                    min_width="0"  # Permite que se encoja
+                ),
 
-        # Sección 2: Información médica
-        medical_info_section(),
+                # CARD 2: Información Médica
+                rx.box(
+                    medical_info_section(),
+                    width="100%",
+                    min_width="0"
+                ),
 
-        # Sección 3: Odontograma actual
-        odontogram_section(),
+                columns=rx.breakpoints(
+                    initial="1",    # móvil: 1 columna
+                    md="1",         # tablet: 1 columna
+                    lg="2"          # desktop: 2 columnas
+                ),
+                spacing="6",
+                width="100%"
+            ),
 
-        spacing="4",
+            # === FILA 2: ODONTOGRAMA (todo el ancho) ===
+            rx.box(
+                odontogram_section(),
+                width="100%",
+                margin_top=SPACING["6"]
+            ),
+
+            spacing="0",
+            width="100%"
+        ),
         width="100%"
     )
 
@@ -252,9 +247,6 @@ def patient_info_section() -> rx.Component:
                 info_field_vertical("Documento", AppState.paciente_seleccionado.numero_documento),
                 info_field_vertical("Fecha Nacimiento", AppState.paciente_seleccionado.fecha_nacimiento),
                 info_field_vertical("Género", AppState.paciente_seleccionado.genero),
-
-                info_field_vertical("Estado Civil", AppState.paciente_seleccionado.estado_civil),
-                info_field_vertical("Ocupación", AppState.paciente_seleccionado.ocupacion),
                 info_field_vertical("Teléfono", AppState.paciente_seleccionado.celular_1),
                 info_field_vertical("Email", AppState.paciente_seleccionado.email),
 
@@ -424,36 +416,6 @@ def medical_info_section() -> rx.Component:
                 columns="3",
                 spacing="4",
                 width="100%"
-            ),
-
-            # Observaciones adicionales
-            rx.cond(
-                AppState.paciente_seleccionado.observaciones,
-                rx.box(
-                    rx.vstack(
-                        rx.hstack(
-                            rx.icon("file-text", size=18, color=COLORS["primary"]["400"]),
-                            rx.heading("Observaciones Médicas", size="4", color=COLORS["primary"]["500"]),
-                            spacing="2"
-                        ),
-                        rx.text(
-                            AppState.paciente_seleccionado.observaciones,
-                            size="2",
-                            color=DARK_THEME["colors"]["text_secondary"],
-                            style={"line_height": "1.6"}
-                        ),
-                        spacing="3",
-                        width="100%"
-                    ),
-                    style={
-                        "background": f"{COLORS['primary']['500']}08",
-                        "padding": SPACING["4"],
-                        "border_radius": RADIUS["lg"],
-                        "border": f"1px solid {COLORS['primary']['500']}30",
-                        "margin_top": SPACING["4"]
-                    }
-                ),
-                rx.box()
             ),
 
             spacing="4",

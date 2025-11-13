@@ -86,7 +86,7 @@ def boton_nueva_consulta_flotante() -> rx.Component:
             }
         },
         # 🔄 ACTUALIZADO: Usar método directo de abrir modal
-        on_click=AppState.abrir_modal_nueva_consulta
+        on_click=AppState.set_modal_crear_consulta_abierto(True)
     )
 # ==========================================
 # 🏷️ BADGE CONSULTAS UNIFICADO 
@@ -107,22 +107,6 @@ def badge_consultas_unificado(
     
     config = size_config[size]
     
-    # # Obtener contador según tipo
-    # if badge_type == "total":
-    #     # 🔄 ACTUALIZADO: Total por odontólogo específico
-    #     count = AppState.totales_por_odontologo_dict.get(doctor_id, 0)
-    #     description_text = rx.cond(
-    #         count == 0, "Sin cola",
-    #         rx.cond(count == 1, "1 paciente", f"{count} pacientes")
-    #     )
-    # elif badge_type == "urgentes":
-    #     # 🔄 ACTUALIZADO: Urgentes por odontólogo específico
-    #     count = AppState.urgentes_por_odontologo_dict.get(doctor_id, 0)
-    #     description_text = rx.cond(
-    #         count == 0, "Sin urgentes",
-    #         rx.cond(count == 1, "1 urgente", f"{count} urgentes")
-    #     )
-    # else:
     count = 0
 
     count = AppState.totales_por_odontologo_dict.get(doctor_id, 0)
@@ -310,7 +294,7 @@ def consulta_card_mejorada_v41(consulta_data: rx.Var, posicion: int) -> rx.Compo
                 rx.spacer(),
                 
                 # Badge de prioridad (NUEVO) - FUNCIONAL
-                badge_prioridad(consulta_data.prioridad),
+                badge_prioridad(consulta_data.tipo_consulta),
                 
                 width="100%",
                 align="center"

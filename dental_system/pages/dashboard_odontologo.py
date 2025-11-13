@@ -245,7 +245,6 @@ def odontologist_charts() -> rx.Component:
         ),
 
         **dark_crystal_card(color=COLORS["primary"]["500"], hover_lift="4px"),
-        padding="24px",
         width="100%"
     )
 
@@ -315,7 +314,6 @@ def top_services_chart() -> rx.Component:
             width="100%"
         ),
         **dark_crystal_card(color=COLORS["success"]["500"], hover_lift="4px"),
-        padding="24px",
         width="100%"
     )
 
@@ -432,7 +430,6 @@ def consultation_queue_list() -> rx.Component:
             width="100%"
         ),
         **dark_crystal_card(color=COLORS["blue"]["500"], hover_lift="4px"),
-        padding="24px",
         width="100%"
     )
 
@@ -512,8 +509,5 @@ def dashboard_odontologo_page() -> rx.Component:
             spacing="3",
             width="100%",
             min_height="100vh",
-
-            # 🚀 CARGAR DATOS AL MONTAR LA PÁGINA
-            on_mount=AppState.cargar_dashboard_odontologo_completo()
         )
     )

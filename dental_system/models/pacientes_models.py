@@ -186,9 +186,11 @@ class PacienteFormModel(rx.Base):
     # Identificación y contacto
     numero_documento: str = ""
     numero_historia: str = ""
-    tipo_documento: str = "CI"  # CI, Pasaporte (según esquema v4.1)
+    tipo_documento: str = "CI"  
     celular_1: str = ""
     celular_2: str = ""
+    codigo_pais_celular_1: str = "+58"  # Código de país para celular 1
+    codigo_pais_celular_2: str = "+58"  # Código de país para celular 2
     email: str = ""
 
     # Datos demográficos
@@ -205,6 +207,7 @@ class PacienteFormModel(rx.Base):
     # Contacto emergencia
     contacto_emergencia_nombre: str = ""
     contacto_emergencia_telefono: str = ""
+    codigo_pais_emergencia: str = "+58 (VE)"  # Código de país para contacto emergencia
     contacto_emergencia_relacion: str = ""
     contacto_emergencia_direccion: str = ""
 
@@ -292,6 +295,8 @@ class PacienteFormModel(rx.Base):
             tipo_documento=str(data.get("tipo_documento", "CI")),
             celular_1=str(data.get("celular_1", "")),
             celular_2=str(data.get("celular_2", "")),
+            codigo_pais_celular_1=str(data.get("codigo_pais_celular_1", "+58 (VE)")),
+            codigo_pais_celular_2=str(data.get("codigo_pais_celular_2", "+58 (VE)")),
             email=str(data.get("email", "")),
             fecha_nacimiento=str(data.get("fecha_nacimiento", "")),
             genero=str(data.get("genero", "")),
@@ -304,6 +309,7 @@ class PacienteFormModel(rx.Base):
             # Contacto emergencia desde JSONB
             contacto_emergencia_nombre=str(data.get("contacto_emergencia", {}).get("nombre", "") if isinstance(data.get("contacto_emergencia"), dict) else ""),
             contacto_emergencia_telefono=str(data.get("contacto_emergencia", {}).get("telefono", "") if isinstance(data.get("contacto_emergencia"), dict) else ""),
+            codigo_pais_emergencia=str(data.get("codigo_pais_emergencia", "+58 (VE)")),
             contacto_emergencia_relacion=str(data.get("contacto_emergencia", {}).get("relacion", "") if isinstance(data.get("contacto_emergencia"), dict) else ""),
             contacto_emergencia_direccion=str(data.get("contacto_emergencia", {}).get("direccion", "") if isinstance(data.get("contacto_emergencia"), dict) else ""),
 

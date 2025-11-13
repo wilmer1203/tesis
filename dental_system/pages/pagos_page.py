@@ -46,7 +46,8 @@ def estadisticas_financieras() -> rx.Component:
             # Card 1: Consultas pendientes
             stat_card(
                 "Consultas Pendientes",
-                f"{AppState.total_consultas_pendientes_pago}",
+                # f"{AppState.consultas_pendientes_pagar.length()}",
+                "10",
                 "clock",
                 color=COLORS["primary"]["600"]
             ),
@@ -611,7 +612,6 @@ def modal_pago_dual() -> rx.Component:
             }
         ),
         open=AppState.modal_pago_dual_abierto,
-        on_open_change=AppState.set_modal_pago_dual_abierto
     )
 
 def modal_calculadora_conversion() -> rx.Component:

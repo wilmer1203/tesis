@@ -58,8 +58,8 @@ class EstadoUI(rx.State, mixin=True):
     # ==========================================
     
     # Modales principales del sistema
-    modal_crear_paciente_abierto: bool = False
-    modal_editar_paciente_abierto: bool = False
+   
+    
     modal_ver_paciente_abierto: bool = False
     
     modal_crear_consulta_abierto: bool = False
@@ -175,15 +175,6 @@ class EstadoUI(rx.State, mixin=True):
         print(f"🧭 Navegación: {self.previous_page} → {self.current_page}")
 
     
-    @rx.event
-    def retroceder_pagina(self):
-        """⬅️ Retroceder a la página anterior"""
-        if self.puede_retroceder and self.previous_page:
-            pagina_temp = self.current_page
-            self.current_page = self.previous_page
-            self.previous_page = pagina_temp
-            self.titulo_pagina = self.current_page.title()
-            print(f"⬅️ Retroceso: {pagina_temp} → {self.current_page}")
     
     def _actualizar_breadcrumbs(self, pagina: str, titulo: str):
         """🔗 Actualizar breadcrumbs de navegación"""
@@ -204,22 +195,18 @@ class EstadoUI(rx.State, mixin=True):
     # 📱 GESTIÓN DE MODALES
     # ==========================================
     
-    @rx.event
-    def abrir_modal_paciente(self, tipo: str, datos: Dict[str, Any] = None):
-        """👥 Abrir modal de pacientes"""
-        self.cerrar_todos_los_modales()
+    # @rx.event
+    # def abrir_modal_paciente(self, tipo: str, datos: Dict[str, Any] = None):
+    #     """👥 Abrir modal de pacientes"""
+    #     self.cerrar_todos_los_modales()
         
-        if tipo == "crear":
-            self.modal_crear_paciente_abierto = True
-            self.datos_temporales_paciente = {}
-        elif tipo == "editar":
-            self.modal_editar_paciente_abierto = True
-            self.datos_temporales_paciente = datos or {}
-        elif tipo == "ver":
-            self.modal_ver_paciente_abierto = True
-            self.datos_temporales_paciente = datos or {}
-        
-        print(f"👥 Modal paciente abierto: {tipo}")
+    #     if tipo == "crear":
+    #         self.modal_crear_paciente_abierto = True
+    #         self.datos_temporales_paciente = {}
+    #     elif tipo == "editar":
+    #         self.modal_editar_paciente_abierto = True
+    #         self.datos_temporales_paciente = datos or {}
+    #     print(f"👥 Modal paciente abierto: {tipo}")
     
     @rx.event
     def abrir_modal_consulta(self, tipo: str, datos: Dict[str, Any] = None):
@@ -242,10 +229,8 @@ class EstadoUI(rx.State, mixin=True):
     def abrir_modal_personal(self, tipo: str, datos: Dict[str, Any] = None):
         """👨‍⚕️ Abrir modal de personal"""
         self.cerrar_todos_los_modales()
-        print("estamos en abrir modal")
         if tipo == "crear":
             self.modal_crear_personal_abierto = True
-            print("se cambio a TRUE  del modal crear personal")
             self.datos_temporales_personal = {}
         elif tipo == "editar":
             self.modal_editar_personal_abierto = True
@@ -253,7 +238,7 @@ class EstadoUI(rx.State, mixin=True):
         elif tipo == "ver":
             self.modal_ver_personal_abierto = True
             self.datos_temporales_personal = datos or {}
-        
+
         print(f"👨‍⚕️ Modal personal abierto: {tipo}")
 
     @rx.event
@@ -299,9 +284,6 @@ class EstadoUI(rx.State, mixin=True):
                 await self.ejecutar_accion_servicio()
             elif accion == "desactivar_servicio":
                 await self.ejecutar_accion_servicio()
-            elif accion == "eliminar_paciente":
-                # Aquí iría la lógica para eliminar paciente
-                pass
             elif accion == "reactivar_paciente":
                 # Aquí iría la lógica para reactivar paciente
                 pass
@@ -427,37 +409,6 @@ class EstadoUI(rx.State, mixin=True):
             self.paso_formulario_personal -= 1
             print(f"📝 Formulario personal: paso {self.paso_formulario_personal + 1}/{self.total_pasos_personal}")
     
-    @rx.event
-    def resetear_formulario_personal(self):
-        """🔄 Resetear formulario de personal"""
-        self.paso_formulario_personal = 0
-        self.errores_formulario_personal = {}
-        self.puede_continuar_form_personal = True
-        self.datos_temporales_personal = {}
-        print("🔄 Formulario personal reseteado")
-    
-    @rx.event
-    def avanzar_paso_consulta(self):
-        """➡️ Avanzar paso en formulario de consulta"""
-        if self.puede_continuar_form_consulta and self.paso_formulario_consulta < self.total_pasos_consulta - 1:
-            self.paso_formulario_consulta += 1
-            print(f"📝 Formulario consulta: paso {self.paso_formulario_consulta + 1}/{self.total_pasos_consulta}")
-    
-    @rx.event
-    def retroceder_paso_consulta(self):
-        """⬅️ Retroceder paso en formulario de consulta"""
-        if self.paso_formulario_consulta > 0:
-            self.paso_formulario_consulta -= 1
-            print(f"📝 Formulario consulta: paso {self.paso_formulario_consulta + 1}/{self.total_pasos_consulta}")
-    
-    @rx.event
-    def resetear_formulario_consulta(self):
-        """🔄 Resetear formulario de consulta"""
-        self.paso_formulario_consulta = 0
-        self.errores_formulario_consulta = {}
-        self.puede_continuar_form_consulta = True
-        self.datos_temporales_consulta = {}
-        print("🔄 Formulario consulta reseteado")
     
     # ==========================================
     # 📱 SISTEMA DE NOTIFICACIONES
@@ -483,26 +434,6 @@ class EstadoUI(rx.State, mixin=True):
     # 🍞 SISTEMA DE TOASTS FLOTANTES MODERNO
     # ==========================================
     
-    @rx.event
-    def add_toast(self, message: str, toast_type: str = "info", duration: int = 4000):
-        """🍞 Agregar toast flotante"""
-        if toast_type == "success":
-            toast = ToastModel.success(message, duration)
-        elif toast_type == "error":
-            toast = ToastModel.error(message, duration)
-        elif toast_type == "warning":
-            toast = ToastModel.warning(message, duration)
-        else:
-            toast = ToastModel.info(message, duration)
-            
-        # Agregar al inicio de la lista
-        self.active_toasts = [toast] + self.active_toasts
-        
-        # Limitar a máximo 3 toasts simultáneos
-        if len(self.active_toasts) > 3:
-            self.active_toasts = self.active_toasts[:3]
-            
-        print(f"🍞 Toast agregado ({toast_type}): {message}")
     
     @rx.event
     def remove_toast(self, toast_id: str):
@@ -510,364 +441,44 @@ class EstadoUI(rx.State, mixin=True):
         self.active_toasts = [t for t in self.active_toasts if t.id != toast_id]
         print(f"❌ Toast removido: {toast_id}")
     
-    @rx.event
-    def clear_all_toasts(self):
-        """🧹 Limpiar todos los toasts"""
-        self.active_toasts = []
-        print("🧹 Todos los toasts limpiados")
     
-    @rx.event
-    def add_notification(self, title: str, message: str, notification_type: str = "info", action_url: str = "", action_text: str = ""):
-        """📢 Agregar notificación persistente"""
-        notification = NotificationModel(
-            id=f"notif_{datetime.now().timestamp()}",
-            title=title,
-            message=message,
-            notification_type=notification_type,
-            timestamp=datetime.now().isoformat(),
-            is_read=False,
-            action_url=action_url,
-            action_text=action_text
-        )
-        
-        # Agregar al inicio
-        self.active_notifications = [notification] + self.active_notifications
-        
-        # Limitar a máximo 10 notificaciones
-        if len(self.active_notifications) > 10:
-            self.active_notifications = self.active_notifications[:10]
-            
-        print(f"📢 Notificación agregada: {title}")
-    
-    @rx.event
-    def mark_notification_read(self, notification_id: str):
-        """✅ Marcar notificación como leída"""
-        for notif in self.active_notifications:
-            if notif.id == notification_id:
-                notif.is_read = True
-                break
-        print(f"✅ Notificación marcada como leída: {notification_id}")
-    
-    @rx.event
-    def remove_notification(self, notification_id: str):
-        """🗑️ Remover notificación"""
-        self.active_notifications = [n for n in self.active_notifications if n.id != notification_id]
-        print(f"🗑️ Notificación removida: {notification_id}")
-    
-    @rx.event
-    def agregar_notificacion(self, titulo: str, mensaje: str, tipo: str = "info"):
-        """🔔 Agregar nueva notificación"""
-        notificacion = {
-            "id": f"notif_{len(self.notificaciones_activas)}_{int(datetime.now().timestamp())}",
-            "titulo": titulo,
-            "mensaje": mensaje,
-            "tipo": tipo,
-            "timestamp": datetime.now().isoformat(),
-            "leida": False
-        }
-        
-        self.notificaciones_activas.append(notificacion)
-        self.total_notificaciones_no_leidas += 1
-        print(f"🔔 Nueva notificación: {titulo}")
-    
-    @rx.event
-    def marcar_notificacion_leida(self, notificacion_id: str):
-        """📖 Marcar notificación como leída"""
-        for notif in self.notificaciones_activas:
-            if notif["id"] == notificacion_id and not notif["leida"]:
-                notif["leida"] = True
-                self.total_notificaciones_no_leidas = max(0, self.total_notificaciones_no_leidas - 1)
-                break
-    
-    @rx.event
-    def limpiar_notificaciones(self):
-        """🗑️ Limpiar todas las notificaciones"""
-        self.notificaciones_activas = []
-        self.total_notificaciones_no_leidas = 0
-        self.mostrar_notificaciones = False
-        print("🗑️ Notificaciones limpiadas")
-    
+
     # ==========================================
-    # 📱 LOADING STATES
-    # ==========================================
-    
-    @rx.event
-    def iniciar_carga_global(self, mensaje: str = "Cargando..."):
-        """⏳ Iniciar loading global"""
-        self.cargando_global = True
-        self.mensaje_cargando = mensaje
-        self.progreso_carga = 0
-        print(f"⏳ Carga global iniciada: {mensaje}")
-    
-    @rx.event
-    def actualizar_progreso_carga(self, progreso: int):
-        """📊 Actualizar progreso de carga"""
-        self.progreso_carga = max(0, min(100, progreso))
-    
-    @rx.event
-    def finalizar_carga_global(self):
-        """✅ Finalizar loading global"""
-        self.cargando_global = False
-        self.mensaje_cargando = "Cargando..."
-        self.progreso_carga = 100
-        print("✅ Carga global finalizada")
-    
-    @rx.event
-    def set_cargando_modulo(self, modulo: str, cargando: bool):
-        """🔄 Cambiar estado de carga de módulo específico"""
-        if modulo == "pacientes":
-            self.cargando_pacientes = cargando
-        elif modulo == "consultas":
-            self.cargando_consultas = cargando
-        elif modulo == "personal":
-            self.cargando_personal = cargando
-        elif modulo == "servicios":
-            self.cargando_servicios = cargando
-        elif modulo == "pagos":
-            self.cargando_pagos = cargando
-        elif modulo == "dashboard":
-            self.cargando_dashboard = cargando
-        
-        print(f"🔄 Loading {modulo}: {cargando}")
-    
-    # ==========================================
-    # 📱 LAYOUT Y RESPONSIVE
-    # ==========================================
-    
-    @rx.event
-    def toggle_sidebar(self):
-        """📂 Alternar sidebar"""
-        self.sidebar_abierto = not self.sidebar_abierto
-        print(f"📂 Sidebar: {'abierto' if self.sidebar_abierto else 'cerrado'}")
-    
-    @rx.event
-    def colapsar_sidebar(self, colapsado: bool):
-        """📁 Colapsar/expandir sidebar"""
-        self.sidebar_colapsado = colapsado
-        print(f"📁 Sidebar colapsado: {colapsado}")
-    
-    @rx.event
-    def detectar_ancho_pantalla(self, ancho: str):
-        """📱 Detectar cambio de ancho de pantalla"""
-        self.ancho_pantalla = ancho
-        self.modo_mobile = ancho == "mobile"
-        
-        # Auto-colapsar sidebar en móvil
-        if self.modo_mobile:
-            self.sidebar_abierto = False
-        
-        print(f"📱 Ancho de pantalla: {ancho}")
-    
-    # ==========================================
-    # 📱 COMPUTED VARS PARA UI
-    # ==========================================
-    
-    @rx.var(cache=True)
-    def hay_modales_abiertos(self) -> bool:
-        """🪟 Verificar si hay algún modal abierto"""
-        return (
-            self.modal_crear_paciente_abierto or
-            self.modal_editar_paciente_abierto or
-            self.modal_ver_paciente_abierto or
-            self.modal_crear_consulta_abierto or
-            self.modal_editar_consulta_abierto or
-            self.modal_ver_consulta_abierto or
-            self.modal_crear_personal_abierto or
-            self.modal_editar_personal_abierto or
-            self.modal_ver_personal_abierto or
-            self.modal_crear_servicio_abierto or
-            self.modal_editar_servicio_abierto or
-            self.modal_crear_pago_abierto or
-            self.modal_ver_pago_abierto or
-            self.modal_confirmacion_abierto or
-            self.modal_alerta_abierto or
-            self.modal_info_abierto
-        )
-    
-    @rx.var(cache=True)
-    def progreso_formulario_paciente(self) -> float:
-        """📊 Progreso del formulario de paciente (0-100)"""
-        if self.total_pasos_paciente == 0:
-            return 0
-        return (self.paso_formulario_paciente / (self.total_pasos_paciente - 1)) * 100
-    
-    @rx.var(cache=True)
-    def progreso_formulario_personal(self) -> float:
-        """📊 Progreso del formulario de personal (0-100)"""
-        if self.total_pasos_personal == 0:
-            return 0
-        return (self.paso_formulario_personal / (self.total_pasos_personal - 1)) * 100
-    
-    @rx.var(cache=True)
-    def progreso_formulario_consulta(self) -> float:
-        """📊 Progreso del formulario de consulta (0-100)"""
-        if self.total_pasos_consulta == 0:
-            return 0
-        return (self.paso_formulario_consulta / (self.total_pasos_consulta - 1)) * 100
-    
-    @rx.var(cache=True)
-    def hay_notificaciones_pendientes(self) -> bool:
-        """🔔 Verificar si hay notificaciones no leídas"""
-        return self.total_notificaciones_no_leidas > 0
-    
-    @rx.var(cache=True)
-    def hay_carga_activa(self) -> bool:
-        """⏳ Verificar si hay algún proceso de carga activo"""
-        return (
-            self.cargando_global or
-            self.cargando_pacientes or
-            self.cargando_consultas or
-            self.cargando_personal or
-            self.cargando_servicios or
-            self.cargando_pagos or
-            self.cargando_dashboard
-        )
-    
-    @rx.var(cache=True)
-    def titulo_breadcrumb_actual(self) -> str:
-        """📍 Título actual para breadcrumbs"""
-        if self.ruta_navegacion:
-            return self.ruta_navegacion[-1]["titulo"]
-        return self.titulo_pagina
-    
-    @rx.var(cache=True)
-    def clase_css_sidebar(self) -> str:
-        """🎨 Clase CSS para el sidebar según estado"""
-        clases = ["sidebar"]
-        
-        if not self.sidebar_abierto:
-            clases.append("sidebar-closed")
-        
-        if self.sidebar_colapsado:
-            clases.append("sidebar-collapsed")
-        
-        if self.modo_mobile:
-            clases.append("sidebar-mobile")
-        
-        return " ".join(clases)
-    
-    # ==========================================
-    # 📱 UTILIDADES DE UI
-    # ==========================================
-    
-    def obtener_icono_notificacion(self, tipo: str) -> str:
-        """🎨 Obtener icono para tipo de notificación"""
-        iconos = {
-            "info": "📘",
-            "success": "✅",
-            "warning": "⚠️",
-            "error": "❌"
-        }
-        return iconos.get(tipo, "📘")
-    
-    def obtener_color_toast(self, tipo: str) -> str:
-        """🎨 Obtener color para toast según tipo"""
-        colores = {
-            "info": "blue",
-            "success": "green",
-            "warning": "yellow", 
-            "error": "red"
-        }
-        return colores.get(tipo, "blue")
-    
-    def formatear_timestamp_notificacion(self, timestamp: str) -> str:
-        """🕐 Formatear timestamp de notificación"""
-        try:
-            dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-            ahora = datetime.now()
-            diferencia = ahora - dt
-            
-            if diferencia.seconds < 60:
-                return "Hace un momento"
-            elif diferencia.seconds < 3600:
-                minutos = diferencia.seconds // 60
-                return f"Hace {minutos} min"
-            elif diferencia.days == 0:
-                horas = diferencia.seconds // 3600
-                return f"Hace {horas} h"
-            else:
-                return dt.strftime("%d/%m %H:%M")
-        except:
-            return "Recientemente"
-    
-    def limpiar_datos_temporales_completo(self):
-        """🧹 Limpiar todos los datos temporales"""
-        self.datos_temporales_paciente = {}
-        self.datos_temporales_consulta = {}
-        self.datos_temporales_personal = {}
-        self.datos_temporales_servicio = {}
-        
-        # Resetear formularios
-        self.resetear_formulario_paciente()
-        self.resetear_formulario_personal()
-        self.resetear_formulario_consulta()
-        
-        print("🧹 Datos temporales limpiados completamente")
-        
-        
-        
-           
-        
-    # ==========================================
-    # GRÁFICOS Y ANALYTICS
+    # 📊 GRÁFICOS Y ANALYTICS - PRODUCCIÓN
     # ==========================================
     area_toggle: bool = True
     selected_tab: str = "Pacientes"
     timeframe: str = "Mensual"
-    pacientes_data = []
-    ingresos_data = []
-    consultas_data = []
 
-    # 🧪 TOGGLE PARA TESTING (temporal)
-    usar_datos_reales_dashboard: bool = True
+    # 📊 DATOS REALES DEL DASHBOARD (últimos 30 días)
+    pacientes_data_real: List[Dict[str, Any]] = []
+    ingresos_data_real: List[Dict[str, Any]] = []
+    consultas_data_real: List[Dict[str, Any]] = []
 
-    # 📊 DATOS REALES DEL DASHBOARD
-    pacientes_data_real = []
-    ingresos_data_real = []
-    consultas_data_real = []
-
-    # 📈 STATS DEL GERENTE
+    # 📈 ESTADÍSTICAS DEL GERENTE
     dashboard_stats: Dict[str, Any] = {}
 
-
     def toggle_areachart(self):
-        """Alterna entre gráfico de área y barras."""
+        """🔄 Alterna entre gráfico de área y barras"""
         self.area_toggle = not self.area_toggle
 
     def set_selected_tab(self, selected_tab: Union[str, List[str]]):
-        """Cambia la pestaña seleccionada."""
+        """📑 Cambia la pestaña seleccionada del gráfico"""
         if isinstance(selected_tab, list):
             self.selected_tab = selected_tab[0]
         else:
             self.selected_tab = selected_tab
 
-    @rx.event
-    def toggle_datos_dashboard(self):
-        """🧪 TOGGLE TEMPORAL: Alternar entre datos reales y random (solo para testing)"""
-        self.usar_datos_reales_dashboard = not self.usar_datos_reales_dashboard
-        print(f"🧪 Datos dashboard: {'REALES' if self.usar_datos_reales_dashboard else 'RANDOM'}")
-
     @rx.var(cache=False)
-    def get_current_data(self) -> list:
-        """📊 Obtener datos actuales según tab seleccionado y modo (real/random)"""
-        if self.usar_datos_reales_dashboard:
-            # Usar datos reales
-            match self.selected_tab:
-                case "Pacientes":
-                    return self.pacientes_data_real
-                case "Ingresos":
-                    return self.ingresos_data_real
-                case "Consultas":
-                    return self.consultas_data_real
-        else:
-            # Usar datos random (testing)
-            match self.selected_tab:
-                case "Pacientes":
-                    return self.pacientes_data
-                case "Ingresos":
-                    return self.ingresos_data
-                case "Consultas":
-                    return self.consultas_data
+    def get_current_data(self) -> List[Dict[str, Any]]:
+        """📊 Obtener datos reales según tab seleccionado"""
+        match self.selected_tab:
+            case "Pacientes":
+                return self.pacientes_data_real
+            case "Ingresos":
+                return self.ingresos_data_real
+            case "Consultas":
+                return self.consultas_data_real
         return []
 
     async def cargar_stats_gerente_dashboard(self):
@@ -930,7 +541,7 @@ class EstadoUI(rx.State, mixin=True):
         try:
             print("🚀 Iniciando carga completa del dashboard...")
 
-            # Cargar en paralelo (si es posible) o secuencial
+            # Cargar stats y gráficos en secuencia
             await self.cargar_stats_gerente_dashboard()
             await self.cargar_datos_graficos_reales()
 
@@ -938,30 +549,3 @@ class EstadoUI(rx.State, mixin=True):
 
         except Exception as e:
             print(f"❌ Error en carga completa del dashboard: {e}")
-
-    def randomize_data(self):
-        import random
-        """Genera datos de ejemplo para gráficos (SOLO PARA TESTING)"""
-        if self.pacientes_data:
-            return
-
-        for i in range(30, -1, -1):
-            date_str = (datetime.now() - timedelta(days=i)).strftime("%d-%m")
-
-            self.ingresos_data.append({
-                "name": date_str,
-                "Ingresos": random.randint(1000, 5000)
-            })
-
-            self.consultas_data.append({
-                "name": date_str,
-                "Consultas": random.randint(10, 50)
-            })
-
-            self.pacientes_data.append({
-                "name": date_str,
-                "Pacientes": random.randint(5, 20)
-            })
-
-
-    

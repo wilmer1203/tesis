@@ -52,7 +52,6 @@ class EstadoServicios(rx.State,mixin=True):
     modal_crear_servicio_abierto: bool = False
     modal_editar_servicio_abierto: bool = False
 
-
     # ==========================================
     # 📋 DATOS PRINCIPALES
     # ==========================================
@@ -70,9 +69,6 @@ class EstadoServicios(rx.State,mixin=True):
     # ==========================================
     formulario_servicio: ServicioFormModel = ServicioFormModel()
     errores_validacion_servicio: Dict[str, str] = {}
-
-    # Variables auxiliares para operaciones
-    mostrar_solo_activos_servicios: bool = True
 
     # ==========================================
     # 🔄 VARIABLES TEMPORALES PARA ACCIONES (COMO PERSONAL)
@@ -105,21 +101,13 @@ class EstadoServicios(rx.State,mixin=True):
     # Filtros por categoría
     filtro_categoria: str = "todas"
     filtro_estado_servicio: str = "activos"  # todos, activos, inactivos
-    filtro_rango_precio_servicios: Dict[str, float] = {"min": 0.0, "max": 999999.0}
-    
+
     # ==========================================
     # 🏥 BÚSQUEDAS Y FILTROS OPTIMIZADOS
     # ==========================================
-    
-    # Búsqueda principal con throttling
+
+    # Búsqueda principal
     termino_busqueda_servicios: str = ""
-    
-    # ==========================================
-    # 🪟 ESTADOS DE MODAL
-    # ==========================================
-    modal_servicio_abierto: bool = False
-    modo_modal_servicio: str = "crear"  # crear, editar
-    busqueda_activa_servicios: bool = False
     
     # Ordenamiento
     campo_ordenamiento_servicios: str = "nombre"  # nombre, precio, categoria, popularidad
@@ -128,77 +116,20 @@ class EstadoServicios(rx.State,mixin=True):
     # Paginación
     pagina_actual_servicios: int = 1
     servicios_por_pagina: int = 18
-    total_paginas_servicios: int = 1
-    
-    # ==========================================
-    # 🏥 ESTADÍSTICAS Y MÉTRICAS CACHE
-    # ==========================================
-    
-    # Estadísticas principales
-    estadisticas_servicios: ServicioStatsModel = ServicioStatsModel()
-    ultima_actualizacion_stats_servicios: str = ""
-    
-    # Cache de operaciones pesadas
-    cache_servicios_populares: List[ServicioModel] = []
-    cache_servicios_por_categoria: Dict[str, List[ServicioModel]] = {}
-    cache_timestamp_servicios: str = ""
-    cache_validez_minutos_servicios: int = 30
-    
+
     # Estados de carga
     cargando_lista_servicios: bool = False
-    cargando_estadisticas_servicios: bool = False
     cargando_operacion_servicio: bool = False
     
     # ==========================================
     # 🏥 COMPUTED VARS PARA UI (SIN ASYNC)
     # ==========================================
-    
-    @rx.var(cache=True)
-    def opciones_categoria_completas(self) -> List[str]:
-        """🏷️ Lista completa de opciones para select de categorías"""
-        return ["todas"] + self.categorias_servicios
 
-    @rx.var(cache=True)
-    def servicios_filtrados_display(self) -> List[ServicioModel]:
-        """🔍 Servicios filtrados según criterios actuales"""
-        servicios = self.lista_servicios
-        
-        # Filtrar por búsqueda
-        if self.termino_busqueda_servicios:
-            servicios = [
-                s for s in servicios 
-                if (self.termino_busqueda_servicios.lower() in s.nombre.lower() or
-                    self.termino_busqueda_servicios.lower() in s.descripcion.lower())
-            ]
-        
-        # Filtrar por categoría
-        if self.filtro_categoria != "todas":
-            servicios = [s for s in servicios if s.categoria == self.filtro_categoria]
-        
-        # Filtrar por estado activo
-        if self.mostrar_solo_activos_servicios:
-            servicios = [s for s in servicios if s.activo]
-        
-        # Filtrar por rango de precio
-        precio_min = self.filtro_rango_precio_servicios.get("min", 0.0)
-        precio_max = self.filtro_rango_precio_servicios.get("max", 999999.0)
-        servicios = [
-            s for s in servicios
-            if precio_min <= s.precio_base_usd<= precio_max
-        ]
-        
-        return servicios
-    
     @rx.var(cache=True)
     def servicios_activos(self) -> List[ServicioModel]:
         """✅ Servicios activos"""
         return [s for s in self.lista_servicios if s.activo]
-    
-    @rx.var(cache=True)
-    def servicios_mas_populares(self) -> List[ServicioModel]:
-        """⭐ Servicios más populares (cache)"""
-        return self.cache_servicios_populares
-    
+
     @rx.var(cache=True)
     def servicio_seleccionado_valido(self) -> bool:
         """✅ Validar si hay servicio seleccionado"""
@@ -206,20 +137,7 @@ class EstadoServicios(rx.State,mixin=True):
             hasattr(self.servicio_seleccionado, 'id') and 
             bool(self.servicio_seleccionado.id)
         )
-    
-    # ==========================================
-    # 🏥 GESTIÓN DE PRECIOS
-    # ==========================================
-    
-    # Configuración de precios
-    precio_minimo_global: float = 0.0
-    precio_maximo_global: float = 1000000.0
-    incremento_precio_sugerido: float = 0.1  # 10%
-    
-    # Filtros de precio
-    precio_min_filtro: float = 0.0
-    precio_max_filtro: float = 1000000.0
-    
+
     # ==========================================
     # 💡 COMPUTED VARS OPTIMIZADAS CON CACHE
     # ==========================================
@@ -368,18 +286,6 @@ class EstadoServicios(rx.State,mixin=True):
             return sum(s.precio_base for s in servicios_activos) / len(servicios_activos)
         except Exception:
             return 0.0
-    
-    # ==========================================
-    # 📝 COMPUTED VARS PARA FORMULARIO
-    # ==========================================
-
-    @rx.var
-    def formulario_precio_usd_value(self) -> str:
-        """📝 Precio USD del formulario de servicio"""
-        if not self.formulario_servicio:
-            return ""
-        valor = str(self.formulario_servicio.precio_base_usd) if self.formulario_servicio.precio_base_usd else ""
-        return valor
 
     # ==========================================
     # 🔄 MÉTODOS DE CARGA DE DATOS
@@ -391,10 +297,7 @@ class EstadoServicios(rx.State,mixin=True):
         Disponible para todos los roles (lectura), solo Gerente puede editar
         """
         # Verificar autenticación usando propiedades del mixin
-        if not self.esta_autenticado:
-            logger.warning("Usuario no autenticado intentando cargar servicios")
-            return
-        
+
         self.cargando_lista_servicios = True
         
         try:
@@ -410,13 +313,8 @@ class EstadoServicios(rx.State,mixin=True):
             
             # Convertir a modelos tipados
             self.lista_servicios = servicios_data
-            self.total_servicios = len(servicios_data)
-            
-            # Actualizar paginación
-            self._calcular_paginacion_servicios()
-            
             # Log exitoso
-            logger.info(f"✅ Lista servicios cargada: {len(servicios_data)} servicios")
+            print(f"✅ Lista servicios cargada: {len(servicios_data)} servicios")
             
         except Exception as e:
             logger.error(f"❌ Error cargando lista servicios: {e}")
@@ -424,23 +322,7 @@ class EstadoServicios(rx.State,mixin=True):
             
         finally:
             self.cargando_lista_servicios = False
-    
-    async def cargar_estadisticas_servicios(self):
-        """Carga estadísticas de servicios con cache"""
-        self.cargando_estadisticas_servicios = True
 
-        try:
-            stats_data = await servicios_service.get_servicios_stats()
-            self.estadisticas_servicios = stats_data
-            self.ultima_actualizacion_stats_servicios = datetime.now().strftime("%H:%M:%S")
-
-            logger.info("✅ Estadísticas de servicios actualizadas")
-
-        except Exception as e:
-            logger.error(f"❌ Error cargando estadísticas servicios: {e}")
-        finally:
-            self.cargando_estadisticas_servicios = False
-    
     # ==========================================
     # 🔍 MÉTODOS DE BÚSQUEDA Y FILTROS
     # ==========================================
@@ -452,44 +334,25 @@ class EstadoServicios(rx.State,mixin=True):
         Solo busca si hay al menos 2 caracteres
         """
         self.termino_busqueda_servicios = termino.strip()
-        self.busqueda_activa_servicios = True
         self.pagina_actual_servicios = 1  # Reset a primera página
-        
+
         # Solo recargar si hay término válido o si se está limpiando
         if len(termino.strip()) >= 2 or termino.strip() == "":
             await self.cargar_lista_servicios()
         
-        self.busqueda_activa_servicios = False
-    
+
     async def filtrar_por_categoria(self, categoria: str):
         """Filtrar servicios por categoría"""
         self.filtro_categoria = categoria
         self.pagina_actual_servicios = 1
         await self.cargar_lista_servicios()
-    
+
     async def filtrar_por_estado_servicio(self, estado: str):
         """Filtrar servicios por estado (activo/inactivo)"""
         self.filtro_estado_servicio = estado
         self.pagina_actual_servicios = 1
         await self.cargar_lista_servicios()
-    
-    async def filtrar_por_precio(self, rango: Dict[str, float]):
-        """Filtrar servicios por rango de precio"""
-        self.filtro_rango_precio_servicios = rango
-        self.pagina_actual_servicios = 1
-        await self.cargar_lista_servicios()
-    
-    async def ordenar_servicios(self, campo: str):
-        """Cambiar ordenamiento de la lista"""
-        if self.campo_ordenamiento_servicios == campo:
-            # Toggle dirección si es el mismo campo
-            self.direccion_ordenamiento_servicios = "desc" if self.direccion_ordenamiento_servicios == "asc" else "asc"
-        else:
-            # Nuevo campo, empezar en ascendente
-            self.campo_ordenamiento_servicios = campo
-            self.direccion_ordenamiento_servicios = "asc"
-        
-    
+
     # ==========================================
     # ➕ MÉTODOS CRUD DE SERVICIOS
     # ==========================================
@@ -525,7 +388,6 @@ class EstadoServicios(rx.State,mixin=True):
             if nuevo_servicio:
                 # Agregar a la lista
                 self.lista_servicios.append(nuevo_servicio)
-                self.total_servicios += 1
 
                 # Limpiar formulario
                 self.limpiar_formulario_servicio()
@@ -711,40 +573,6 @@ class EstadoServicios(rx.State,mixin=True):
         info = self.info_paginacion_servicios
         if 1 <= numero_pagina <= info["total_paginas"]:
             self.pagina_actual_servicios = numero_pagina
-    
-    def cambiar_servicios_por_pagina(self, cantidad: int):
-        """Cambiar cantidad de servicios por página"""
-        self.servicios_por_pagina = cantidad
-        self.pagina_actual_servicios = 1  # Reset a primera página
-        self._calcular_paginacion_servicios()
-    
-    def _calcular_paginacion_servicios(self):
-        """Recalcular paginación basado en filtros actuales"""
-        total_filtrado = len(self.servicios_filtrados)
-        self.total_paginas_servicios = max(1, (total_filtrado + self.servicios_por_pagina - 1) // self.servicios_por_pagina)
-        
-        # Asegurar que la página actual sea válida
-        if self.pagina_actual_servicios > self.total_paginas_servicios:
-            self.pagina_actual_servicios = max(1, self.total_paginas_servicios)
-    
-    # ==========================================
-    # 🔧 MÉTODOS DE UTILIDAD Y CACHE
-    # ==========================================
-    
-    
-    def limpiar_cache_servicios(self):
-        """Limpiar cache de servicios para forzar recarga"""
-        self.cache_servicios_populares = []
-        self.cache_servicios_por_categoria = {}
-        self.cache_timestamp_servicios = ""
-        logger.info("🧹 Cache de servicios limpiado")
-    
-    async def refrescar_datos_servicios(self):
-        """Refrescar todos los datos de servicios"""
-        self.limpiar_cache_servicios()
-        await self.cargar_lista_servicios()
-        await self.cargar_estadisticas_servicios()
-        logger.info("🔄 Datos de servicios refrescados")
 
     # ==========================================
     # 🪟 MÉTODOS DE MODAL Y UI
@@ -834,56 +662,11 @@ class EstadoServicios(rx.State,mixin=True):
 
 
 
-    @rx.event
-    async def set_mostrar_solo_activos_servicios(self, mostrar_activos: bool):
-        """👁️ Cambiar filtro de mostrar solo activos"""
-        self.mostrar_solo_activos_servicios = mostrar_activos
-        if mostrar_activos:
-            self.filtro_estado_servicio = "activos"
-        else:
-            self.filtro_estado_servicio = "todos"
-        logger.info(f"👁️ Filtro solo activos: {mostrar_activos}")
-
-
-    # ==========================================
-    # 📊 MÉTODOS DE ANÁLISIS Y REPORTES
-    # ==========================================
-    
-    def obtener_servicio_por_id(self, servicio_id: str) -> Optional[ServicioModel]:
-        """Obtener servicio específico por ID"""
-        try:
-            return next(
-                (s for s in self.lista_servicios if s.id == servicio_id),
-                None
-            )
-        except Exception:
-            return None
-    
     # ==========================================
     # 🏥 MÉTODOS AUXILIARES PARA APPSTATE
     # ==========================================
     
-    @rx.event
-    async def cargar_servicios_basico(self):
-        """📋 CARGAR LISTA BÁSICA DE SERVICIOS PARA APPSTATE"""
-        try:
-            self.cargando_lista_servicios = True
-            
-            # Establecer contexto básico si está disponible
-            if hasattr(self, 'id_usuario') and self.id_usuario:
-                servicios_service.set_user_context(self.id_usuario, self.perfil_usuario)
-            
-            # Cargar todos los servicios sin filtros complejos
-            self.lista_servicios = await servicios_service.get_all_services()
-            self.total_servicios = len(self.lista_servicios)
-            
-            logger.info(f"✅ {len(self.lista_servicios)} servicios cargados")
-            
-        except Exception as e:
-            logger.error(f"❌ Error cargando servicios: {str(e)}")
-        finally:
-            self.cargando_lista_servicios = False
-    
+
     @rx.event
     async def aplicar_filtros_servicios(self, filtros: Dict[str, Any]):
         """🔍 APLICAR FILTROS DE SERVICIOS - COORDINACIÓN CON APPSTATE"""
@@ -955,12 +738,10 @@ class EstadoServicios(rx.State,mixin=True):
     def limpiar_datos(self):
         """🧹 LIMPIAR TODOS LOS DATOS - USADO EN LOGOUT"""
         self.lista_servicios = []
-        self.total_servicios = 0
         self.servicio_seleccionado = ServicioModel()
         self.id_servicio_seleccionado = ""
         self.formulario_servicio = ServicioFormModel()
         self.errores_validacion_servicio = {}
-        self.mostrar_solo_activos_servicios = True
 
         # Limpiar variables temporales de acciones
         self.servicio_to_modify = None
@@ -969,18 +750,10 @@ class EstadoServicios(rx.State,mixin=True):
         # Limpiar filtros
         self.filtro_categoria = "todas"
         self.filtro_estado_servicio = "activos"
-        self.filtro_rango_precio_servicios = {"min": 0.0, "max": 999999.0}
         self.termino_busqueda_servicios = ""
-        self.busqueda_activa_servicios = False
-
-        # Limpiar cache
-        self.cache_servicios_populares = []
-        self.cache_servicios_por_categoria = {}
-        self.cache_timestamp_servicios = ""
 
         # Estados de carga
         self.cargando_lista_servicios = False
-        self.cargando_estadisticas_servicios = False
         self.cargando_operacion_servicio = False
 
         logger.info("🧹 Datos de servicios limpiados")

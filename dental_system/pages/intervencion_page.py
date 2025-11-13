@@ -277,7 +277,6 @@ def odontogram_tab_v4() -> rx.Component:
         # Estilos del contenedor principal
         style={
             **dark_crystal_card(color=COLORS["primary"]["500"], hover_lift="0px"),
-            "padding": "24px",
             "min_height": "600px"
         },
         width="100%"

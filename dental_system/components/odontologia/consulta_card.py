@@ -246,7 +246,7 @@ def consulta_compacta_odontologo_card(consulta: rx.Var[ConsultaModel], posicion:
 
             # Badge de prioridad y estado (lado derecho)
             rx.vstack(
-                badge_prioridad_moderno(consulta.prioridad),
+                badge_prioridad_moderno(consulta.tipo_consulta),
 
                 # Botón de acción compacto
                 rx.button(
@@ -342,7 +342,7 @@ def consulta_disponible_card(paciente: rx.Var[PacienteModel], consulta_id: str) 
             rx.vstack(
                 # Edad del paciente
                 rx.text(
-                    f"🎂 {paciente.edad}",
+                    f"Edad #",
                     font_size="12px",
                     color=COLORS["blue"]["500"],
                     font_weight="medium"
@@ -475,36 +475,6 @@ def estadisticas_cola_odontologo() -> rx.Component:
             }
         ),
 
-        # Próximo paciente
-        rx.box(
-            rx.vstack(
-                rx.text(
-                    AppState.proxima_consulta_info["paciente"],
-                    font_weight="800",
-                    font_size="0.8rem",
-                    color=DARK_COLORS["accent_green"],
-                    style={"line_height": "1", "white_space": "nowrap", "overflow": "hidden", "text_overflow": "ellipsis"},
-                    max_width="80px"
-                ),
-                rx.text(
-                    "Próximo",
-                    font_size="0.7rem",
-                    color=DARK_COLORS["text_muted"],
-                    style={"text_transform": "uppercase", "letter_spacing": "0.05em"}
-                ),
-                spacing="1",
-                align="center"
-            ),
-            style={
-                "background": DARK_COLORS["surface_hover"],
-                "border": f"1px solid {DARK_COLORS['border']}",
-                "border_radius": RADIUS["lg"],
-                "padding": SPACING["3"],
-                "text_align": "center",
-                "flex": "1",
-                "backdrop_filter": "blur(5px)"
-            }
-        ),
 
         spacing="3",
         width="100%"

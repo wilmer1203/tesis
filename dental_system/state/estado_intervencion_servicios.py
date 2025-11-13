@@ -554,7 +554,7 @@ class EstadoIntervencionServicios(rx.State, mixin=True):
 
             # 4. CAMBIAR ESTADO CONSULTA
             await self._cambiar_estado_consulta_entre_odontologos()
-            await self.cargar_consultas_hoy(forzar_refresco=True)
+            await self.cargar_lista_consultas()
             self.servicios_en_intervencion = []  # Limpiar lista tras finalizar
             # 5. NAVEGAR DE VUELTA
             logger.info("✅ Intervención finalizada exitosamente")
@@ -1162,14 +1162,18 @@ class EstadoIntervencionServicios(rx.State, mixin=True):
     async def _cambiar_estado_consulta_entre_odontologos(self):
         """🔄 Cambiar consulta a estado 'entre_odontologos'"""
         try:
-            from dental_system.supabase.tablas.consultas import consultas_table
+            from dental_system.services.consultas_service import consultas_service
 
-            result = consultas_table.update_status(
+            # Configurar contexto de usuario
+            consultas_service.set_user_context(self.id_usuario, self.perfil_usuario)
+
+            # Llamar al servicio (async)
+            result = await consultas_service.change_consultation_status(
                 self.consulta_actual.id,
                 "entre_odontologos"
             )
 
-            logger.info(f"🔄 Consulta {self.consulta_actual.numero_consulta} marcada como {result}")
+            logger.info(f"🔄 Consulta {self.consulta_actual.numero_consulta} marcada como estado 'entre_odontologos'")
 
         except Exception as e:
             logger.error(f"Error cambiando estado de consulta: {str(e)}")

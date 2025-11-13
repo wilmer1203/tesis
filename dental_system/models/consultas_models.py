@@ -45,18 +45,44 @@ class ConsultaModel(rx.Base):
         """Crear instancia desde diccionario de Supabase - ESQUEMA v4.1"""
         if not data or not isinstance(data, dict):
             return cls()
-        
+
+        # ✅ EXTRAER DATOS RELACIONADOS DE OBJETOS ANIDADOS
+        paciente_obj = data.get("paciente", {}) or {}
+        personal_obj = data.get("personal", {}) or {}
+
+        # Construir nombre completo del paciente
+        paciente_nombre = ""
+        if paciente_obj:
+            nombre_parts = [
+                paciente_obj.get("primer_nombre", ""),
+                paciente_obj.get("segundo_nombre", ""),
+                paciente_obj.get("primer_apellido", ""),
+                paciente_obj.get("segundo_apellido", "")
+            ]
+            paciente_nombre = " ".join([p for p in nombre_parts if p]).strip()
+
+        # Construir nombre completo del odontólogo
+        odontologo_nombre = ""
+        if personal_obj:
+            nombre_parts = [
+                personal_obj.get("primer_nombre", ""),
+                personal_obj.get("segundo_nombre", ""),
+                personal_obj.get("primer_apellido", ""),
+                personal_obj.get("segundo_apellido", "")
+            ]
+            odontologo_nombre = " ".join([p for p in nombre_parts if p]).strip()
+
         return cls(
             # Campos principales
             id=str(data.get("id", "")),
             numero_consulta=str(data.get("numero_consulta", "")),
             paciente_id=str(data.get("paciente_id", "")),
-            
+
             # ✅ MÚLTIPLES ODONTÓLOGOS
-            primer_odontologo_id=str(data.get("primer_odontologo_id", "") or data.get("odontologo_id", "")),  # Compatibility
+            primer_odontologo_id=str(data.get("primer_odontologo_id", "") or data.get("odontologo_id", "")),
 
             # ✅ SISTEMA DE COLAS
-            fecha_llegada=str(data.get("fecha_llegada", "") or data.get("fecha_programada", "")),  # Compatibility
+            fecha_llegada=str(data.get("fecha_llegada", "") or data.get("fecha_programada", "")),
             orden_cola_odontologo=data.get("orden_cola_odontologo"),
 
             # ✅ ESTADOS ESPECÍFICOS
@@ -70,13 +96,13 @@ class ConsultaModel(rx.Base):
             # Control administrativo
             fecha_creacion=str(data.get("fecha_creacion", "")),
             fecha_actualizacion=str(data.get("fecha_actualizacion", "")),
-            
-            # ✅ INFORMACIÓN RELACIONADA (JOINs)
-            paciente_nombre=str(data.get("paciente_nombre_completo", "") or data.get("paciente_nombre", "")),
-            odontologo_nombre=str(data.get("odontologo_nombre_completo", "") or data.get("odontologo_nombre", "")),
-            paciente_telefono=str(data.get("paciente_telefono", "") if data.get("paciente_telefono") else ""),
-            paciente_documento=str(data.get("paciente_documento", "") if data.get("paciente_documento") else ""),
-            odontologo_especialidad=str(data.get("odontologo_especialidad", "") if data.get("odontologo_especialidad") else "")
+
+            # ✅ INFORMACIÓN RELACIONADA (extraída de objetos anidados)
+            paciente_nombre=paciente_nombre or str(data.get("paciente_nombre_completo", "") or data.get("paciente_nombre", "")),
+            odontologo_nombre=odontologo_nombre or str(data.get("odontologo_nombre_completo", "") or data.get("odontologo_nombre", "")),
+            paciente_telefono=str(paciente_obj.get("celular", "") or paciente_obj.get("telefono", "") or data.get("paciente_telefono", "")),
+            paciente_documento=str(paciente_obj.get("numero_documento", "") or data.get("paciente_documento", "")),
+            odontologo_especialidad=str(personal_obj.get("especialidad", "") or data.get("odontologo_especialidad", ""))
         )
 
 
@@ -143,15 +169,6 @@ class ConsultaFormModel(rx.Base):
 
     estado: str = "en_espera"  # en_espera, en_atencion, entre_odontologos, completada, cancelada
 
-    diagnostico_preliminar: str = ""
-    diagnostico_final: str = ""
-    tratamiento_realizado: str = ""
-    receta_medicamentos: str = ""
-
-    proxima_consulta: str = ""  # Fecha sugerida
-    requiere_seguimiento: bool = False
-    notas_seguimiento: str = ""
-    
     def validate_form(self) -> Dict[str, List[str]]:
         """Validar campos requeridos - ESQUEMA BD v4.1"""
         errors = {}
@@ -186,18 +203,6 @@ class ConsultaFormModel(rx.Base):
 
             # Estado
             "estado": self.estado,
-
-            # Información médica
-            "diagnostico_preliminar": self.diagnostico_preliminar,
-            "diagnostico_final": self.diagnostico_final,
-            "tratamiento_realizado": self.tratamiento_realizado,
-            "receta_medicamentos": self.receta_medicamentos,
-
-            # Seguimiento
-            "proxima_consulta": self.proxima_consulta,
-            "requiere_seguimiento": str(self.requiere_seguimiento),
-            "notas_seguimiento": self.notas_seguimiento,
-
             # Compatibility con nombres anteriores
             "odontologo_id": self.primer_odontologo_id,  # Alias para backward compatibility
         }
