@@ -1031,25 +1031,25 @@ class OdontologiaServiceV2(BaseService):
     # 🔄 PACIENTES DISPONIBLES DE OTROS ODONTÓLOGOS
     # ==========================================
 
-    async def get_pacientes_disponibles(self, personal_id: str) -> List[Dict[str, Any]]:
+    async def get_consultas_disponibles(self, personal_id: str) -> List[Dict[str, Any]]:
         """
-        🔄 Obtener pacientes disponibles de otros odontólogos
+        🔄 Obtener consultas disponibles de otros odontólogos
 
-        Estos son pacientes que:
-        - Tienen consultas en estado "entre_odontologos"
-        - Fueron atendidos por OTRO odontólogo
-        - Están disponibles para ser tomados por el odontólogo actual
+        Estas son consultas que:
+        - Están en estado "entre_odontologos"
+        - Fueron iniciadas por OTRO odontólogo
+        - Están disponibles para ser tomadas por el odontólogo actual
 
         Args:
             personal_id: ID del odontólogo actual (en tabla personal)
 
         Returns:
-            Lista de pacientes con información de consulta
+            Lista de ConsultaModel con información completa del paciente
         """
         try:
-            logger.info(f"🔄 Cargando pacientes disponibles para personal {personal_id}")
+            logger.info(f"🔄 Cargando consultas disponibles para personal {personal_id}")
 
-            # Query con joins para obtener información completa
+            # Query con joins para obtener información completa (igual que en consultas_service)
             response = self.client.table("consulta").select("""
                 id,
                 numero_consulta,
@@ -1067,65 +1067,53 @@ class OdontologiaServiceV2(BaseService):
                     segundo_nombre,
                     primer_apellido,
                     segundo_apellido,
-                    numero_documento,
-                    celular_1,
-                    celular_2,
-                    email,
-                    genero,
-                    fecha_nacimiento,
-                    alergias
+                    numero_documento
                 )
             """).eq(
                 "estado", "entre_odontologos"
             ).neq(
                 "primer_odontologo_id", personal_id  # Excluir consultas propias
-            ).execute()
+            ).order("fecha_llegada", desc=False).execute()  # Orden de llegada
 
             if not response.data:
-                logger.info("✅ No hay pacientes disponibles de otros odontólogos")
+                logger.info("✅ No hay consultas disponibles de otros odontólogos")
                 return []
 
-            # Transformar datos a formato PacienteModel
-            pacientes_disponibles = []
+            # Transformar datos a formato ConsultaModel (consistente con consultas_service)
+            consultas_disponibles = []
 
             for consulta_data in response.data:
-                paciente_info = consulta_data.get("pacientes", {})
+                paciente_info = consulta_data.get("paciente", {})
 
-                # Construir objeto paciente con información de consulta
-                paciente = {
-                    # Información del paciente
-                    "id": paciente_info.get("id"),
-                    "numero_historia": paciente_info.get("numero_historia", ""),
-                    "primer_nombre": paciente_info.get("primer_nombre", ""),
-                    "segundo_nombre": paciente_info.get("segundo_nombre", ""),
-                    "primer_apellido": paciente_info.get("primer_apellido", ""),
-                    "segundo_apellido": paciente_info.get("segundo_apellido", ""),
-                    "numero_documento": paciente_info.get("numero_documento", ""),
-                    "celular_1": paciente_info.get("celular_1", ""),
-                    "celular_2": paciente_info.get("celular_2", ""),
-                    "email": paciente_info.get("email", ""),
-                    "genero": paciente_info.get("genero", ""),
-                    "fecha_nacimiento": paciente_info.get("fecha_nacimiento", ""),
-                    "edad": paciente_info.get("edad", 0),
-                    "alergias": paciente_info.get("alergias", []),
+                # Construir nombre completo del paciente
+                nombre_completo = f"{paciente_info.get('primer_nombre', '')} {paciente_info.get('segundo_nombre', '') or ''} {paciente_info.get('primer_apellido', '')} {paciente_info.get('segundo_apellido', '') or ''}".strip()
 
-                    # Información de la consulta asociada
-                    "consulta_id": consulta_data.get("id"),
-                    "consulta_numero": consulta_data.get("numero_consulta", ""),
-                    "consulta_estado": consulta_data.get("estado", ""),
-                    "motivo_derivacion": consulta_data.get("observaciones", ""),
+                # Construir objeto ConsultaModel (igual que en consultas_service.py)
+                consulta = {
+                    # Datos de la consulta
+                    "id": consulta_data.get("id"),
+                    "numero_consulta": consulta_data.get("numero_consulta", ""),
+                    "paciente_id": consulta_data.get("paciente_id"),
+                    "primer_odontologo_id": consulta_data.get("primer_odontologo_id"),
+                    "fecha_llegada": consulta_data.get("fecha_llegada", ""),
+                    "estado": consulta_data.get("estado", ""),
+                    "tipo_consulta": consulta_data.get("tipo_consulta", "general"),
+                    "motivo_consulta": consulta_data.get("motivo_consulta", ""),
+                    "observaciones": consulta_data.get("observaciones", ""),
 
-                    # Nombre completo calculado
-                    "nombre_completo": f"{paciente_info.get('primer_nombre', '')} {paciente_info.get('segundo_nombre', '') or ''} {paciente_info.get('primer_apellido', '')} {paciente_info.get('segundo_apellido', '') or ''}".strip()
+                    # Información del paciente (campos denormalizados para el componente)
+                    "paciente_nombre": nombre_completo,
+                    "paciente_documento": paciente_info.get("numero_documento", ""),
+                    "paciente_historia": paciente_info.get("numero_historia", ""),
                 }
 
-                pacientes_disponibles.append(paciente)
+                consultas_disponibles.append(consulta)
 
-            logger.info(f"✅ Pacientes disponibles cargados: {len(pacientes_disponibles)}")
-            return pacientes_disponibles
+            logger.info(f"✅ Consultas disponibles cargadas: {len(consultas_disponibles)}")
+            return consultas_disponibles
 
         except Exception as e:
-            logger.error(f"❌ Error obteniendo pacientes disponibles: {str(e)}")
+            logger.error(f"❌ Error obteniendo consultas disponibles: {str(e)}")
             import traceback
             traceback.print_exc()
             return []

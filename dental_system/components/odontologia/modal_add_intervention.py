@@ -1,5 +1,5 @@
 """
-➕ MODAL AGREGAR INTERVENCIÓN COMPLETA
+➕ MODAL AGREGAR INTERVENCIÓN COMPLETA - VERSIÓN ENTERPRISE
 ========================================
 
 Modal para registrar una nueva intervención con:
@@ -9,12 +9,17 @@ Modal para registrar una nueva intervención con:
 - Cambio automático de condición
 - Cálculo de costo
 
-Diseño médico profesional
+✨ Diseño consistente con el sistema enterprise del proyecto
 """
 
 import reflex as rx
 from dental_system.state.app_state import AppState
-from dental_system.styles.medical_design_system import MEDICAL_COLORS
+from dental_system.components.common import modal_wrapper, primary_button, secondary_button
+from dental_system.components.forms import enhanced_form_field, form_section_header
+from dental_system.styles.themes import (
+    COLORS, SHADOWS, RADIUS, SPACING, ANIMATIONS,
+    GRADIENTS, GLASS_EFFECTS, DARK_THEME
+)
 
 # ==========================================
 # ➕ MODAL AGREGAR INTERVENCIÓN
@@ -32,249 +37,240 @@ def modal_add_intervention() -> rx.Component:
     - Costo calculado automáticamente
 
     Returns:
-        Modal completo con formulario
+        Modal completo con formulario enterprise-level
     """
 
-    return rx.dialog.root(
-        rx.dialog.content(
-            # Header
-            rx.dialog.title(
-                rx.hstack(
-                    rx.icon("plus-circle", size=24, color=MEDICAL_COLORS["medical_ui"]["accent_primary"]),
-                    rx.cond(
-                        AppState.selected_tooth,
-                        rx.text(
-                            f"Nueva Intervención - Diente {AppState.selected_tooth}",
-                            font_weight="700",
-                            font_size="18px",
-                        ),
-                        rx.text(
-                            "Nueva Intervención",
-                            font_weight="700",
-                            font_size="18px",
-                        ),
-                    ),
-                    spacing="3",
-                ),
-            ),
-
-            rx.dialog.description(
-                "Registra un servicio odontológico realizado en esta consulta",
-                color=MEDICAL_COLORS["medical_ui"]["text_secondary"],
-                margin_bottom="16px",
-            ),
-
-            # Formulario
+    return modal_wrapper(
+        title=rx.cond(
+            AppState.selected_tooth,
+            f"Nueva Intervención - Diente {AppState.selected_tooth}",
+            "Nueva Intervención"
+        ),
+        subtitle="Registra un servicio odontológico realizado en esta consulta",
+        icon="plus-circle",
+        color=COLORS["primary"]["500"],
+        is_open=AppState.show_add_intervention_modal,
+        on_open_change=AppState.toggle_add_intervention_modal,
+        children=rx.vstack(
             rx.vstack(
-                # 📋 Servicio
-                rx.vstack(
+                # Label
+                rx.hstack(
+                    rx.icon("stethoscope", size=18, color=COLORS["primary"]["500"]),
                     rx.text(
-                        "📋 Servicio / Procedimiento",
-                        font_weight="600",
-                        font_size="14px",
-                        color=MEDICAL_COLORS["medical_ui"]["text_primary"],
+                        "Servicio / Procedimiento",
+                        style={
+                            "font_size": "1.3em",
+                            "font_weight": "600",
+                            "color": DARK_THEME["colors"]["text_primary"]
+                        }
                     ),
-                    rx.select(
-                        AppState.get_available_services_names,
-                        value=AppState.selected_service_name,
-                        on_change=AppState.set_selected_service_name,
-                        placeholder="Seleccionar servicio...",
-                        size="3",
-                        width="100%",
-                    ),
-                    # 🎯 Alcance del servicio (info dinámica)
-                    rx.cond(
-                        AppState.selected_service_name != "",
-                        rx.box(
-                            rx.text(
-                                AppState.selected_service_alcance_display,
-                                font_size="12px",
-                                color=MEDICAL_COLORS["medical_ui"]["text_secondary"],
-                                font_style="italic",
-                            ),
-                            padding="8px",
-                            background=f"{MEDICAL_COLORS['medical_ui']['accent_primary']}10",
-                            border_radius="4px",
-                            margin_top="4px",
-                        ),
+                    rx.text(
+                        "*",
+                        style={
+                            "color": COLORS["error"]["500"],
+                            "font_weight": "700",
+                            "margin_left": "2px"
+                        }
                     ),
                     spacing="2",
-                    width="100%",
+                    align="center"
                 ),
 
-                # 🦷 Superficies tratadas (CONDICIONAL: solo si requiere superficies)
-                rx.cond(
-                    AppState.selected_service_requiere_superficies,
-                    rx.vstack(
-                    rx.text(
-                        "🦷 Superficies tratadas",
-                        font_weight="600",
-                        font_size="14px",
-                        color=MEDICAL_COLORS["medical_ui"]["text_primary"],
-                    ),
-                    rx.hstack(
-                        rx.checkbox(
-                            "Oclusal",
-                            checked=AppState.superficie_oclusal_selected,
-                            on_change=AppState.toggle_superficie_oclusal,
-                        ),
-                        rx.checkbox(
-                            "Mesial",
-                            checked=AppState.superficie_mesial_selected,
-                            on_change=AppState.toggle_superficie_mesial,
-                        ),
-                        rx.checkbox(
-                            "Distal",
-                            checked=AppState.superficie_distal_selected,
-                            on_change=AppState.toggle_superficie_distal,
-                        ),
-                        spacing="4",
-                    ),
-                    rx.hstack(
-                        rx.checkbox(
-                            "Vestibular",
-                            checked=AppState.superficie_vestibular_selected,
-                            on_change=AppState.toggle_superficie_vestibular,
-                        ),
-                        rx.checkbox(
-                            "Lingual",
-                            checked=AppState.superficie_lingual_selected,
-                            on_change=AppState.toggle_superficie_lingual,
-                        ),
-                        spacing="4",
-                    ),
-                        spacing="2",
-                        width="100%",
-                    ),
-                ),  # Cierre del rx.cond para superficies
-
-                # 🎨 Cambiar condición automáticamente (CONDICIONAL: solo si requiere diente)
-                rx.cond(
-                    AppState.selected_service_requiere_diente,
-                    rx.vstack(
-                    rx.checkbox(
-                        "Cambiar condición del diente automáticamente",
-                        checked=AppState.auto_change_condition,
-                        on_change=AppState.toggle_auto_change_condition,
-                        font_weight="600",
-                        font_size="14px",
-                    ),
-                    rx.cond(
-                        AppState.auto_change_condition,
-                        rx.select(
-                            [
-                                "sano",
-                                "caries",
-                                "obturado",
-                                "corona",
-                                "endodoncia",
-                                "ausente",
-                                "por_extraer",
-                                "fracturado",
-                            ],
-                            value=AppState.new_condition_value,
-                            on_change=AppState.set_new_condition_value,
-                            placeholder="Nueva condición...",
-                            size="2",
-                            width="100%",
-                        ),
-                    ),
-                        spacing="2",
-                        width="100%",
-                    ),
-                ),  # Cierre del rx.cond para cambiar condición
-
-                # 💬 Observaciones
-                rx.vstack(
-                    rx.text(
-                        "💬 Observaciones",
-                        font_weight="600",
-                        font_size="14px",
-                        color=MEDICAL_COLORS["medical_ui"]["text_primary"],
-                    ),
-                    rx.text_area(
-                        value=AppState.intervention_observations,
-                        on_change=AppState.set_intervention_observations,
-                        placeholder="Detalles del procedimiento, hallazgos, recomendaciones...",
-                        rows="4",
-                        width="100%",
-                    ),
-                    spacing="2",
+                # Select de servicio
+                rx.select(
+                    AppState.get_available_services_names,
+                    value=AppState.selected_service_name,
+                    on_change=AppState.set_selected_service_name,
+                    placeholder="Seleccionar servicio...",
+                    size="3",
                     width="100%",
+                    style={
+                        "background": DARK_THEME["colors"]["surface_secondary"],
+                        "border": f"2px solid {DARK_THEME['colors']['border']}",
+                        "border_radius": RADIUS["lg"],
+                        "color": DARK_THEME["colors"]["text_primary"],
+                        "transition": "all 250ms cubic-bezier(0.4, 0, 0.2, 1)",
+                        "_focus": {
+                            "outline": "none",
+                            "border_color": COLORS["primary"]["400"],
+                            "box_shadow": f"0 0 0 3px {COLORS['primary']['200']}"
+                        }
+                    }
                 ),
 
-                # 💰 Costo estimado
+                # 🎯 Alcance del servicio (info dinámica)
                 rx.cond(
-                    AppState.selected_service_cost_bs > 0,
+                    AppState.selected_service_name != "",
                     rx.box(
                         rx.hstack(
-                            rx.icon("dollar-sign", size=18, color=MEDICAL_COLORS["medical_ui"]["accent_primary"]),
+                            rx.icon("info", size=14, color=COLORS["primary"]["400"]),
                             rx.text(
-                                "Costo estimado:",
-                                font_weight="600",
-                                font_size="14px",
-                                color=MEDICAL_COLORS["medical_ui"]["text_secondary"],
+                                AppState.selected_service_alcance_display,
+                                style={
+                                    "font_size": "0.875rem",
+                                    "color": DARK_THEME["colors"]["text_secondary"],
+                                    "font_style": "italic"
+                                }
                             ),
-                            rx.spacer(),
-                            rx.vstack(
-                                rx.text(
-                                    f"{AppState.selected_service_cost_bs:,.0f} Bs",
-                                    font_weight="700",
-                                    font_size="16px",
-                                    color=MEDICAL_COLORS["medical_ui"]["accent_primary"],
-                                ),
-                                rx.text(
-                                    f"${AppState.selected_service_cost_usd:.2f}",
-                                    font_size="13px",
-                                    color=MEDICAL_COLORS["medical_ui"]["text_secondary"],
-                                ),
-                                spacing="0",
-                                align="end",
-                            ),
-                            width="100%",
-                            align="center",
+                            spacing="2",
+                            align="center"
                         ),
-                        padding="12px",
-                        background=f"{MEDICAL_COLORS["medical_ui"]['surface_overlay']}15",
-                        border=f"1px solid {MEDICAL_COLORS["medical_ui"]['border_focus']}40",
-                        border_radius="8px",
+                        style={
+                            "padding": SPACING["3"],
+                            "background": f"{COLORS['blue']['900']}35",
+                            "border": f"1px solid {COLORS['primary']['400']}30",
+                            "border_radius": RADIUS["lg"],
+                            "margin_top": SPACING["2"]
+                        }
                     ),
+                    rx.box()
                 ),
 
-                spacing="5",
-                width="100%",
+                spacing="2",
+                width="100%"
             ),
 
-            # Botones de acción
+            # 🦷 SUPERFICIES TRATADAS (solo si alcance es "superficie_especifica")
+            rx.cond(
+                AppState.selected_service_requiere_superficies,
+                rx.vstack(
+                    form_section_header(
+                        "Superficies Tratadas",
+                        "Selecciona las caras del diente afectadas",
+                        "layers",
+                        COLORS["blue"]["500"]
+                    ),
+
+                    rx.vstack(
+                        # Fila 1: Oclusal, Mesial, Distal
+                        rx.hstack(
+                            _checkbox_superficie(
+                                "Oclusal",
+                                AppState.superficie_oclusal_selected,
+                                AppState.toggle_superficie_oclusal,
+                                "circle"
+                            ),
+                            _checkbox_superficie(
+                                "Mesial",
+                                AppState.superficie_mesial_selected,
+                                AppState.toggle_superficie_mesial,
+                                "arrow-left"
+                            ),
+                            _checkbox_superficie(
+                                "Distal",
+                                AppState.superficie_distal_selected,
+                                AppState.toggle_superficie_distal,
+                                "arrow-right"
+                            ),
+                            spacing="3",
+                            width="100%",
+                            wrap="wrap"
+                        ),
+
+                        # Fila 2: Vestibular, Lingual
+                        rx.hstack(
+                            _checkbox_superficie(
+                                "Vestibular",
+                                AppState.superficie_vestibular_selected,
+                                AppState.toggle_superficie_vestibular,
+                                "smile"
+                            ),
+                            _checkbox_superficie(
+                                "Lingual",
+                                AppState.superficie_lingual_selected,
+                                AppState.toggle_superficie_lingual,
+                                "chevrons-down"
+                            ),
+                            spacing="3",
+                            width="100%",
+                            wrap="wrap"
+                        ),
+
+                        spacing="3",
+                        width="100%"
+                    ),
+
+                    spacing="4",
+                    width="100%"
+                ),
+                rx.box()
+            ),
+
+            enhanced_form_field(
+                label="Observaciones",
+                field_name="intervention_observations",
+                value=AppState.intervention_observations,
+                on_change=lambda field, value: AppState.set_intervention_observations(value),
+                field_type="textarea",
+                placeholder="Detalles del procedimiento, hallazgos, recomendaciones...",
+                required=False,
+                icon="edit",
+                help_text="Información adicional sobre el tratamiento realizado"
+            ),
+
+            # BOTONES DE ACCIÓN
             rx.hstack(
                 rx.dialog.close(
-                    rx.button(
+                    secondary_button(
                         "Cancelar",
-                        variant="soft",
-                        color_scheme="gray",
-                        size="3",
-                    ),
+                        icon="x",
+                        on_click=AppState.toggle_add_intervention_modal
+                    )
                 ),
-                rx.button(
-                    rx.hstack(
-                        rx.icon("check", size=16),
-                        rx.text("Guardar Intervención"),
-                        spacing="2",
-                    ),
+                primary_button(
+                    "Guardar Intervención",
+                    icon="check",
                     on_click=AppState.save_intervention_to_consultation,
-                    variant="solid",
-                    color_scheme="cyan",
-                    size="3",
+                    loading=False
                 ),
                 spacing="3",
-                justify="end",
                 width="100%",
-                margin_top="20px",
+                justify="end",
+                margin_top=SPACING["6"]
             ),
 
-            max_width="600px",
-            padding="24px",
+            spacing="6",
+            width="100%"
+        )
+    )
+
+
+def _checkbox_superficie(label: str, checked: bool, on_change: callable, icon: str) -> rx.Component:
+    """✅ Checkbox estilizado para superficies dentales"""
+    return rx.box(
+        rx.checkbox(
+            rx.hstack(
+                rx.icon(icon, size=14, color=COLORS["primary"]["400"]),
+                rx.text(
+                    label,
+                    style={
+                        "font_size": "0.9rem",
+                        "font_weight": "500",
+                        "color": DARK_THEME["colors"]["text_primary"]
+                    }
+                ),
+                spacing="2",
+                align="center"
+            ),
+            checked=checked,
+            on_change=on_change,
+            size="2"
         ),
-        open=AppState.show_add_intervention_modal,
-        on_open_change=AppState.toggle_add_intervention_modal,
+        style={
+            "padding": f"{SPACING['2']} {SPACING['3']}",
+            "background": rx.cond(
+                checked,
+                f"{COLORS['primary']['500']}15",
+                DARK_THEME["colors"]["surface_secondary"]
+            ),
+            "border": f"1px solid {rx.cond(checked, COLORS['primary']['400'], DARK_THEME['colors']['border'])}",
+            "border_radius": RADIUS["lg"],
+            "transition": "all 200ms ease",
+            "cursor": "pointer",
+            "_hover": {
+                "background": f"{COLORS['primary']['500']}10",
+                "border_color": COLORS["primary"]["300"]
+            }
+        },
+        flex="1"
     )

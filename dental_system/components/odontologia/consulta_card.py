@@ -407,79 +407,6 @@ def consulta_disponible_card(paciente: rx.Var[PacienteModel], consulta_id: str) 
 # 📋 LISTAS DE CONSULTAS
 # ==========================================
 
-def estadisticas_cola_odontologo() -> rx.Component:
-    """📊 Mini estadísticas de cola como en página de consultas"""
-    return rx.hstack(
-        # Total en cola
-        rx.box(
-            rx.vstack(
-                rx.text(
-                    AppState.estadisticas_odontologo_tiempo_real["pacientes_asignados"],
-                    font_weight="800",
-                    font_size="1.1rem",
-                    color=DARK_COLORS["text_primary"],
-                    style={"line_height": "1"}
-                ),
-                rx.text(
-                    "En Cola",
-                    font_size="0.7rem",
-                    color=DARK_COLORS["text_muted"],
-                    style={"text_transform": "uppercase", "letter_spacing": "0.05em"}
-                ),
-                spacing="1",
-                align="center"
-            ),
-            style={
-                "background": DARK_COLORS["surface_hover"],
-                "border": f"1px solid {DARK_COLORS['border']}",
-                "border_radius": RADIUS["lg"],
-                "padding": SPACING["3"],
-                "text_align": "center",
-                "flex": "1",
-                "backdrop_filter": "blur(5px)"
-            }
-        ),
-
-        # Urgentes (con animación si hay)
-        rx.box(
-            rx.vstack(
-                rx.text(
-                    AppState.alerta_pacientes_urgentes["cantidad"],
-                    font_weight="800",
-                    font_size="1.1rem",
-                    color=DARK_COLORS["priority_urgent"],
-                    style={"line_height": "1"}
-                ),
-                rx.text(
-                    "Urgentes",
-                    font_size="0.7rem",
-                    color=DARK_COLORS["text_muted"],
-                    style={"text_transform": "uppercase", "letter_spacing": "0.05em"}
-                ),
-                spacing="1",
-                align="center"
-            ),
-            style={
-                "background": DARK_COLORS["surface_hover"],
-                "border": f"1px solid {DARK_COLORS['border']}",
-                "border_radius": RADIUS["lg"],
-                "padding": SPACING["3"],
-                "text_align": "center",
-                "flex": "1",
-                "backdrop_filter": "blur(5px)",
-                "animation": rx.cond(
-                    AppState.alerta_pacientes_urgentes["tiene_urgentes"],
-                    "pulse 2s infinite",
-                    "none"
-                )
-            }
-        ),
-
-
-        spacing="3",
-        width="100%"
-    )
-
 
 def lista_consultas_compactas() -> rx.Component:
     """📋 NUEVA: Lista compacta inspirada en página de consultas"""
@@ -525,42 +452,50 @@ def lista_consultas_compactas() -> rx.Component:
     )
 
 def lista_consultas_disponibles() -> rx.Component:
-    """🔄 Lista de consultas disponibles de otros odontólogos"""
+    """
+    🔄 Lista de consultas disponibles de otros odontólogos
+
+    ✅ CORRECCIÓN (2025-01-13): Ahora itera sobre CONSULTAS (no pacientes)
+    Usa el mismo componente que lista_consultas_compactas para consistencia
+    """
     return rx.cond(
-        AppState.pacientes_disponibles_filtrados.length() > 0,
+        AppState.consultas_disponibles_otros.length() > 0,
         rx.vstack(
             rx.foreach(
-                AppState.pacientes_disponibles_filtrados,
-                lambda paciente: consulta_disponible_card(
-                    paciente,
-                    # ID de consulta temporal - se debería obtener del modelo
-                    paciente.id + "_consulta"
-                )
+                AppState.consultas_disponibles_otros,
+                lambda consulta, index: consulta_compacta_odontologo_card(consulta, index + 1)
             ),
-            spacing="3",
+            spacing="2",
             width="100%"
         ),
-        # Estado vacío
+        # Estado vacío con tema oscuro
         rx.center(
             rx.vstack(
-                rx.text("🔄", font_size="48px", color=COLORS["gray"]["400"]),
+                rx.icon("users", size=40, color=DARK_COLORS["text_muted"]),
                 rx.text(
-                    "No hay pacientes disponibles",
-                    font_size="16px",
-                    color=COLORS["gray"]["500"],
-                    font_weight="medium"
+                    "No hay consultas disponibles",
+                    color=DARK_COLORS["text_muted"],
+                    font_size="1rem",
+                    font_weight="600",
+                    style={"text_align": "center"}
                 ),
                 rx.text(
-                    "Pacientes que requieran intervención adicional aparecerán aquí",
-                    font_size="14px",
-                    color=COLORS["gray"]["400"],
-                    text_align="center"
+                    "Consultas derivadas de otros odontólogos aparecerán aquí",
+                    color=DARK_COLORS["text_muted"],
+                    font_size="0.875rem",
+                    style={"text_align": "center", "opacity": "0.7"}
                 ),
-                spacing="2",
-                align_items="center"
+                spacing="3",
+                align="center"
             ),
             padding="8",
-            width="100%"
+            width="100%",
+            style={
+                "background": DARK_COLORS["glass_bg"],
+                "border": f"1px solid {DARK_COLORS['glass_border']}",
+                "border_radius": RADIUS["xl"],
+                "backdrop_filter": "blur(10px)"
+            }
         )
     )
 

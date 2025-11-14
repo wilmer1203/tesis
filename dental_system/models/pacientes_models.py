@@ -86,7 +86,7 @@ class PacienteModel(rx.Base):
             activo=bool(data.get("activo", True)),
 
             # Contacto emergencia
-            contacto_emergencia=data.get("contacto_emergencia", {}) if isinstance(data.get("contacto_emergencia"), dict) else {}
+            contacto_emergencia=data.get("contacto_emergencia", {}) if isinstance(data.get("contacto_emergencia"), dict) else {},
         )
 
     @property

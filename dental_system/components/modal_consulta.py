@@ -390,11 +390,6 @@ def modal_nueva_consulta() -> rx.Component:
             rx.vstack(
                 rx.hstack(
                     form_section_header(
-                        # rx.cond(
-                        #     AppState.modal_editar_consulta_abierto,
-                        #     "Editar Consulta",
-                        #     "Nueva Consulta"
-                        # ),
                         "Nueva Consulta",
                         "Registrar consulta por orden de llegada",
                         "calendar-plus",
@@ -531,8 +526,6 @@ def modal_nueva_consulta() -> rx.Component:
             
             style={
                 "max_width": "600px",
-                # "width": "90vw",
-                # "max_height": "90vh",
                 "padding": SPACING["4"],
                 "border_radius": RADIUS["xl"],
                 **GLASS_EFFECTS["strong"],

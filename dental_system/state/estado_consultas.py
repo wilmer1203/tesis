@@ -202,7 +202,7 @@ class EstadoConsultas(rx.State,mixin=True):
                 if doctor_id not in resultado:
                     resultado[doctor_id] = []
                 resultado[doctor_id].append(consulta)
-                print(f"🦷 Consulta {consulta}")
+
         # ✅ ORDENAR cada lista por orden_cola_odontologo (CRÍTICO para UI)
         for doctor_id in resultado:
             resultado[doctor_id] = sorted(

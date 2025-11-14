@@ -1,27 +1,8 @@
-"""
-🦷 ESTADO DE ODONTOLOGÍA - SUBSTATE SEPARADO
-=============================================
-
-PROPÓSITO: Manejo centralizado y especializado del módulo odontológico
-- Pacientes asignados por orden de llegada
-- Formulario completo de intervenciones
-- Odontograma FDI visual (32 dientes)
-- Historia clínica básica
-- Integración con servicios odontológicos
-
-USADO POR: AppState como coordinador principal  
-PATRÓN: Substate con get_estado_odontologia() en AppState
-"""
 
 import reflex as rx
-from datetime import date, datetime
-from typing import Dict, Any, List, Optional, Union, Tuple, cast
+from typing import Dict, Any, List, Optional, Tuple
 import logging
-
-# Servicios y modelos
 from dental_system.services.odontologia_service import odontologia_service
-from dental_system.services.servicios_service import servicios_service
-from dental_system.state.estado_ui import EstadoUI
 from dental_system.models import (
     PacienteModel,
     ConsultaModel,
@@ -29,7 +10,6 @@ from dental_system.models import (
     ServicioModel,
     OdontogramaModel,
     IntervencionFormModel,
-    OdontologoStatsModel,
     HistorialServicioModel
 )
 # ✅ V2.0: Importar modelo unificado
@@ -57,7 +37,6 @@ class EstadoOdontologia(rx.State, mixin=True):
     # Pacientes asignados al odontólogo por orden de llegada
     pacientes_asignados: List[PacienteModel] = []
     consultas_asignadas: List[ConsultaModel] = []
-    total_pacientes_asignados: int = 0
     
     # Consulta e intervención actual
     consulta_actual: ConsultaModel = ConsultaModel()
@@ -71,14 +50,10 @@ class EstadoOdontologia(rx.State, mixin=True):
     # Pacientes que pueden ser atendidos (ya fueron vistos por otro odontólogo)
     pacientes_disponibles_otros: List[PacienteModel] = []
     consultas_disponibles_otros: List[ConsultaModel] = []
-    total_pacientes_disponibles: int = 0
-    
+
     # ==========================================
     # 📊 ESTADÍSTICAS DEL DASHBOARD
     # ==========================================
-
-    # Estadísticas del día para el odontólogo (modelo tipado)
-    estadisticas_dia: OdontologoStatsModel = OdontologoStatsModel()
 
     # 🦷 VARIABLES DASHBOARD ODONTÓLOGO (NUEVO 2025-10-30)
     dashboard_stats_odontologo: Dict[str, Any] = {}  # Stats para 5 cards
@@ -99,11 +74,7 @@ class EstadoOdontologia(rx.State, mixin=True):
     # ==========================================
     # 🦷 SERVICIOS ODONTOLÓGICOS
     # ==========================================
-    
-    # Catálogo de servicios disponibles
-    servicios_disponibles: List[ServicioModel] = []
-    servicios_por_categoria: Dict[str, List[ServicioModel]] = {}
-    
+
     # Servicio seleccionado en intervención
     servicio_seleccionado: ServicioModel = ServicioModel()
     id_servicio_seleccionado: str = ""
@@ -280,21 +251,21 @@ class EstadoOdontologia(rx.State, mixin=True):
     superficie_hover: Optional[str] = None
     cambios_sin_guardar: bool = False
 
-    # Configuración de condiciones disponibles
-    condiciones_disponibles: Dict[str, Dict[str, str]] = {
-        "sano": {"color": "#90EE90", "descripcion": "Diente sano", "simbolo": "✓"},
-        "caries": {"color": "#FF0000", "descripcion": "Caries dental", "simbolo": "C"},
-        "obturado": {"color": "#C0C0C0", "descripcion": "Obturación/empaste", "simbolo": "O"},
-        "endodoncia": {"color": "#FFD700", "descripcion": "Tratamiento de conducto", "simbolo": "E"},
-        "corona": {"color": "#4169E1", "descripcion": "Corona dental", "simbolo": "R"},
-        "puente": {"color": "#800080", "descripcion": "Puente dental", "simbolo": "P"},
-        "extraccion": {"color": "#8B0000", "descripcion": "Para extraer", "simbolo": "X"},
-        "ausente": {"color": "#FFFFFF", "descripcion": "Diente ausente", "simbolo": "-"},
-        "fractura": {"color": "#FF6347", "descripcion": "Fractura dental", "simbolo": "F"},
-        "implante": {"color": "#32CD32", "descripcion": "Implante dental", "simbolo": "I"},
-        "protesis": {"color": "#DA70D6", "descripcion": "Prótesis removible", "simbolo": "PT"},
-        "giroversion": {"color": "#FF8C00", "descripcion": "Diente rotado", "simbolo": "G"}
-    }
+    # # Configuración de condiciones disponibles
+    # condiciones_disponibles: Dict[str, Dict[str, str]] = {
+    #     "sano": {"color": "#90EE90", "descripcion": "Diente sano", "simbolo": "✓"},
+    #     "caries": {"color": "#FF0000", "descripcion": "Caries dental", "simbolo": "C"},
+    #     "obturado": {"color": "#C0C0C0", "descripcion": "Obturación/empaste", "simbolo": "O"},
+    #     "endodoncia": {"color": "#FFD700", "descripcion": "Tratamiento de conducto", "simbolo": "E"},
+    #     "corona": {"color": "#4169E1", "descripcion": "Corona dental", "simbolo": "R"},
+    #     "puente": {"color": "#800080", "descripcion": "Puente dental", "simbolo": "P"},
+    #     "extraccion": {"color": "#8B0000", "descripcion": "Para extraer", "simbolo": "X"},
+    #     "ausente": {"color": "#FFFFFF", "descripcion": "Diente ausente", "simbolo": "-"},
+    #     "fractura": {"color": "#FF6347", "descripcion": "Fractura dental", "simbolo": "F"},
+    #     "implante": {"color": "#32CD32", "descripcion": "Implante dental", "simbolo": "I"},
+    #     "protesis": {"color": "#DA70D6", "descripcion": "Prótesis removible", "simbolo": "PT"},
+    #     "giroversion": {"color": "#FF8C00", "descripcion": "Diente rotado", "simbolo": "G"}
+    # }
 
     # Control de carga lazy de historial
     historial_cargado_por_diente: Dict[int, bool] = {}
@@ -304,11 +275,11 @@ class EstadoOdontologia(rx.State, mixin=True):
     # NOTA: current_surface_condition es un computed var, no variable de estado
     is_applying_condition: bool = False  # Indica si se está aplicando una condición
     
-    # Cuadrantes FDI
-    cuadrante_1: List[int] = [11, 12, 13, 14, 15, 16, 17, 18]  # Superior derecho
-    cuadrante_2: List[int] = [21, 22, 23, 24, 25, 26, 27, 28]  # Superior izquierdo
-    cuadrante_3: List[int] = [31, 32, 33, 34, 35, 36, 37, 38]  # Inferior izquierdo
-    cuadrante_4: List[int] = [41, 42, 43, 44, 45, 46, 47, 48]  # Inferior derecho
+    # # Cuadrantes FDI
+    # cuadrante_1: List[int] = [11, 12, 13, 14, 15, 16, 17, 18]  # Superior derecho
+    # cuadrante_2: List[int] = [21, 22, 23, 24, 25, 26, 27, 28]  # Superior izquierdo
+    # cuadrante_3: List[int] = [31, 32, 33, 34, 35, 36, 37, 38]  # Inferior izquierdo
+    # cuadrante_4: List[int] = [41, 42, 43, 44, 45, 46, 47, 48]  # Inferior derecho
     
     # ==========================================
     # 🦷 FILTROS Y BÚSQUEDAS
@@ -428,7 +399,23 @@ class EstadoOdontologia(rx.State, mixin=True):
 
         except Exception:
             return {"completada": [], "en_espera": [], "en_atencion": [], "entre_odontologos": [], "cancelada": []}
-    
+
+    @rx.var(cache=True)
+    def consultas_activas(self) -> List[ConsultaModel]:
+        """
+        🔄 Consultas ACTIVAS (no completadas ni canceladas)
+
+        ✅ NUEVO (2025-01-13): Computed var para filtrar consultas que aún necesitan atención
+        Usado en UI para mostrar cola de pacientes pendientes
+        """
+        try:
+            return [
+                c for c in self.consultas_asignadas
+                if c.estado not in ["completada", "cancelada"]
+            ]
+        except Exception:
+            return []
+
     @rx.var(cache=True)
     def total_intervenciones_previas_bs(self) -> float:
         """💰 Total acumulado en BS de intervenciones previas de la consulta"""
@@ -475,12 +462,10 @@ class EstadoOdontologia(rx.State, mixin=True):
             
             # Obtener consultas del día para este odontólogo
             consultas_asignadas = await consultas_service.get_today_consultations(self.id_personal)
-            
-            # Filtrar solo las que están en espera o en progreso (no completadas)
-            self.consultas_asignadas = [
-                c for c in consultas_asignadas 
-                if c.estado in ["en_espera", "programada", "en_progreso", "en_atencion"]
-            ]
+
+            # ✅ CORRECCIÓN (2025-01-13): Cargar TODAS las consultas del día (incluyendo completadas)
+            # Esto permite que las estadísticas cuenten correctamente las consultas finalizadas
+            self.consultas_asignadas = consultas_asignadas
             
             # BACKWARD COMPATIBILITY: Mantener pacientes_asignados para otros componentes
             # Crear PacienteModel básico desde información de consulta
@@ -491,8 +476,6 @@ class EstadoOdontologia(rx.State, mixin=True):
                     pacientes_service.set_user_context(self.id_usuario, self.perfil_usuario)
                     paciente_basico = await pacientes_service.get_patient_by_id(c.paciente_id)
                     self.pacientes_asignados.append(paciente_basico)
-            
-            self.total_pacientes_asignados = len(self.consultas_asignadas)
             
             logger.info(f"✅ Consultas asignadas cargadas: {len(self.consultas_asignadas)}")
             
@@ -506,72 +489,32 @@ class EstadoOdontologia(rx.State, mixin=True):
     async def cargar_consultas_disponibles_otros(self):
         """
         🔄 Cargar consultas disponibles de otros odontólogos
-        
+
         Estas son consultas donde el paciente ya fue atendido por otro odontólogo
         pero puede necesitar una segunda intervención (derivación).
+        Estado: "entre_odontologos"
         """
-        # Auth variables available via mixin pattern
-    
-        
-        if not self.esta_autenticado or self.rol_usuario != "odontologo":
-            logger.warning("Usuario no autorizado para ver consultas disponibles")
-            return
-        
+
         try:
             # Establecer contexto en el servicio
-            odontologia_service.set_user_context(
-                user_id=self.id_usuario,
-                user_profile=self.perfil_usuario
-            )
-            
-            # Obtener consultas disponibles para tomar
-            pacientes_disponibles = await odontologia_service.get_pacientes_disponibles(self.id_personal)
-            
-            self.pacientes_disponibles_otros = pacientes_disponibles
-            self.total_pacientes_disponibles = len(pacientes_disponibles)
-            
-            logger.info(f"✅ Consultas disponibles cargadas: {len(pacientes_disponibles)}")
-            
+            odontologia_service.set_user_context(user_id=self.id_usuario, user_profile=self.perfil_usuario)
+
+            # ✅ CORRECCIÓN: Obtener CONSULTAS disponibles (no pacientes)
+            consultas_disponibles = await odontologia_service.get_consultas_disponibles(self.id_personal)
+
+            # ✅ CORRECCIÓN: Actualizar consultas_disponibles_otros (no pacientes_disponibles_otros)
+            self.consultas_disponibles_otros = [
+                ConsultaModel.from_dict(c) for c in consultas_disponibles
+            ]
+
+            logger.info(f"✅ Consultas disponibles cargadas: {len(self.consultas_disponibles_otros)}")
+
         except Exception as e:
             logger.error(f"❌ Error cargando consultas disponibles: {e}")
+            import traceback
+            traceback.print_exc()
     
    
-    # ==========================================
-    # 🔍 MÉTODOS DE FILTROS Y BÚSQUEDA
-    # ==========================================
-    
-    @rx.event
-    async def buscar_pacientes_asignados(self, termino: str):
-        """Buscar pacientes asignados con throttling"""
-        self.termino_busqueda_pacientes = termino.strip()
-    
-    # ==========================================
-    # 🔄 NAVEGACIÓN DE TABS - ELIMINADO (Sistema sin tabs V4)
-    # ==========================================
-    # REFACTOR: Sistema de tabs eliminado - intervencion_page.py ahora usa diseño sin tabs
-    # active_intervention_tab sigue existiendo como variable legacy (usada en stats)
-
-    async def filtrar_por_estado_consulta(self, estado: str):
-        """Filtrar consultas por estado - Estados reales de BD"""
-        # Mapear estados de UI a estados de BD
-        estados_map = {
-            "Todos": "",
-            "En Espera": "en_espera", 
-            "En Atención": "en_atencion",
-            "Entre Odontólogos": "entre_odontologos",
-            "Completada": "completada",
-            "Cancelada": "cancelada"
-        }
-        
-        self.filtro_estado_consulta = estado
-        # El servicio usará el mapeo para filtrar por estado real de BD
-        await self.cargar_pacientes_asignados()
-    
-    def alternar_mostrar_urgencias(self):
-        """Alternar filtro de urgencias"""
-        self.mostrar_solo_urgencias = not self.mostrar_solo_urgencias
-    
- 
     # ==========================================
     # 🦷 MÉTODOS AUXILIARES PARA APPSTATE
     # ==========================================
@@ -655,15 +598,11 @@ class EstadoOdontologia(rx.State, mixin=True):
     def limpiar_datos(self):
         """🧹 LIMPIAR TODOS LOS DATOS - USADO EN LOGOUT"""
         self.pacientes_asignados = []
-        self.consultas_asignadas = []
-        self.total_pacientes_asignados = 0
-        
+        self.consultas_asignadas = []  
         self.consulta_actual = ConsultaModel()
         self.paciente_actual = PacienteModel()
         self.intervencion_actual = IntervencionModel()
         
-        self.lista_servicios = []
-        self.servicios_por_categoria = {}
         self.servicio_seleccionado = ServicioModel()
         self.id_servicio_seleccionado = ""
         
@@ -676,8 +615,7 @@ class EstadoOdontologia(rx.State, mixin=True):
         
         # Limpiar formulario y estadísticas
         self.formulario_intervencion = IntervencionFormModel()
-        self.estadisticas_dia = OdontologoStatsModel()
-        
+ 
         # Limpiar filtros
         self.filtro_estado_consulta = "Todos"
         self.filtro_fecha_consulta = ""
@@ -701,34 +639,42 @@ class EstadoOdontologia(rx.State, mixin=True):
     # ==========================================
     
     @rx.var
-    def pacientes_disponibles_filtrados(self) -> List[PacienteModel]:
-        """🔄 Lista filtrada de pacientes disponibles de otros odontólogos"""
-        if not self.pacientes_disponibles_otros:
+    def consultas_disponibles_filtradas(self) -> List[ConsultaModel]:
+        """
+        🔄 Lista filtrada de consultas disponibles de otros odontólogos
+
+        ✅ CORRECCIÓN (2025-01-13): Ahora filtra CONSULTAS (no pacientes)
+        """
+        if not self.consultas_disponibles_otros:
             return []
-        
+
         try:
-            resultado = self.pacientes_disponibles_otros.copy()
-            
-            # Filtro por búsqueda si está activo
+            resultado = self.consultas_disponibles_otros.copy()
+
+            # Filtro por búsqueda si está activo (buscar en nombre o documento del paciente)
             if self.termino_busqueda_pacientes and len(self.termino_busqueda_pacientes) >= 2:
                 termino_lower = self.termino_busqueda_pacientes.lower()
                 resultado = [
-                    p for p in resultado
-                    if (termino_lower in p.nombre_completo.lower() or
-                        termino_lower in p.numero_documento.lower() or
-                        termino_lower in p.numero_historia.lower())
+                    c for c in resultado
+                    if (termino_lower in c.paciente_nombre.lower() or
+                        termino_lower in c.paciente_documento.lower() or
+                        termino_lower in c.paciente_historia.lower())
                 ]
-            
-            # Ordenar por prioridad y fecha
+
+            # Ordenar por fecha de llegada (más antiguo primero = orden de llegada)
             return resultado
-            
+
         except Exception as e:
-            logger.error(f"Error en pacientes_disponibles_filtrados: {e}")
+            logger.error(f"Error en consultas_disponibles_filtradas: {e}")
             return []
     
     @rx.var(cache=True)
     def estadisticas_odontologo_tiempo_real(self) -> Dict[str, int]:
-        """📊 Estadísticas en tiempo real del odontólogo - PATRÓN CONSULTAS PAGE"""
+        """
+        📊 Estadísticas en tiempo real del odontólogo - PATRÓN CONSULTAS PAGE
+
+        ✅ CORRECCIÓN (2025-01-13): Usa consultas_disponibles_otros (no pacientes_disponibles_otros)
+        """
         try:
             # Contar directamente desde self.consultas_asignadas (como en página consultas)
             consultas_del_odontologo = self.consultas_asignadas
@@ -738,8 +684,7 @@ class EstadoOdontologia(rx.State, mixin=True):
                 "consultas_en_espera": len([c for c in consultas_del_odontologo if c.estado =="en_espera"]),
                 "consultas_en_atencion": len([c for c in consultas_del_odontologo if c.estado == "en_atencion"]),
                 "consultas_completadas": len([c for c in consultas_del_odontologo if c.estado == "completada"]),
-                "pacientes_disponibles": len(self.pacientes_disponibles_otros),
-                "pacientes_urgentes": len([c for c in consultas_del_odontologo if c.prioridad == "urgente" and c.estado in ["en_espera","en_atencion"]])
+                "pacientes_disponibles": len(self.consultas_disponibles_otros)  # ✅ Consultas, no pacientes
             }
 
         except Exception as e:
@@ -749,103 +694,102 @@ class EstadoOdontologia(rx.State, mixin=True):
                 "pacientes_disponibles": 0,
                 "consultas_en_espera": 0,
                 "consultas_en_atencion": 0,
-                "consultas_completadas": 0,
-                "pacientes_urgentes": 0
+                "consultas_completadas": 0
             }
     
-    @rx.var(cache=True)
-    def proxima_consulta_info(self) -> Dict[str, str]:
-        """📅 Información de la próxima consulta en orden"""
-        try:
-            consultas_programadas = self.consultas_por_estado.get("en_espera", [])
+    # @rx.var(cache=True)
+    # def proxima_consulta_info(self) -> Dict[str, str]:
+    #     """📅 Información de la próxima consulta en orden"""
+    #     try:
+    #         consultas_programadas = self.consultas_por_estado.get("en_espera", [])
             
-            if not consultas_programadas:
-                return {
-                    "tiene_proxima": "false",
-                    "paciente": "No hay consultas programadas",
-                    "tiempo_estimado": "N/A"
-                }
+    #         if not consultas_programadas:
+    #             return {
+    #                 "tiene_proxima": "false",
+    #                 "paciente": "No hay consultas programadas",
+    #                 "tiempo_estimado": "N/A"
+    #             }
             
-            # Obtener la primera consulta (orden de llegada)
-            proxima_consulta = consultas_programadas[0]
-            paciente = next(
-                (p for p in self.pacientes_asignados if p.id == proxima_consulta.paciente_id),
-                None
-            )
+    #         # Obtener la primera consulta (orden de llegada)
+    #         proxima_consulta = consultas_programadas[0]
+    #         paciente = next(
+    #             (p for p in self.pacientes_asignados if p.id == proxima_consulta.paciente_id),
+    #             None
+    #         )
             
-            return {
-                "tiene_proxima": "true",
-                "paciente": paciente.nombre_completo if paciente else "Paciente no encontrado",
-                "tiempo_estimado": "15-30 min",
-                "prioridad": getattr(proxima_consulta, 'prioridad', 'normal')
-            }
+    #         return {
+    #             "tiene_proxima": "true",
+    #             "paciente": paciente.nombre_completo if paciente else "Paciente no encontrado",
+    #             "tiempo_estimado": "15-30 min",
+    #             "prioridad": getattr(proxima_consulta, 'prioridad', 'normal')
+    #         }
             
-        except Exception as e:
-            logger.error(f"Error en proxima_consulta_info: {e}")
-            return {
-                "tiene_proxima": "false",
-                "paciente": "Error",
-                "tiempo_estimado": "N/A"
-            }
+    #     except Exception as e:
+    #         logger.error(f"Error en proxima_consulta_info: {e}")
+    #         return {
+    #             "tiene_proxima": "false",
+    #             "paciente": "Error",
+    #             "tiempo_estimado": "N/A"
+    #         }
     
-    @rx.var(cache=True)
-    def resumen_actividad_dia(self) -> str:
-        """📋 Resumen textual de la actividad del día"""
-        try:
-            total_consultas = len(self.consultas_asignadas)
-            completadas = len(self.consultas_por_estado.get("completada", []))
-            en_atencion = len(self.consultas_por_estado.get("en_atencion", []))
-            en_espera = len(self.consultas_por_estado.get("en_espera", []))
+    # @rx.var(cache=True)
+    # def resumen_actividad_dia(self) -> str:
+    #     """📋 Resumen textual de la actividad del día"""
+    #     try:
+    #         total_consultas = len(self.consultas_asignadas)
+    #         completadas = len(self.consultas_por_estado.get("completada", []))
+    #         en_atencion = len(self.consultas_por_estado.get("en_atencion", []))
+    #         en_espera = len(self.consultas_por_estado.get("en_espera", []))
             
-            if total_consultas == 0:
-                return "Sin consultas asignadas hoy"
+    #         if total_consultas == 0:
+    #             return "Sin consultas asignadas hoy"
             
-            if completadas == total_consultas:
-                return f"Día completado: {completadas} consultas finalizadas"
+    #         if completadas == total_consultas:
+    #             return f"Día completado: {completadas} consultas finalizadas"
             
-            resumen_parts = []
-            if en_espera > 0:
-                resumen_parts.append(f"{en_espera} en espera")
-            if en_atencion > 0:
-                resumen_parts.append(f"{en_atencion} en atención")
-            if completadas > 0:
-                resumen_parts.append(f"{completadas} completadas")
+    #         resumen_parts = []
+    #         if en_espera > 0:
+    #             resumen_parts.append(f"{en_espera} en espera")
+    #         if en_atencion > 0:
+    #             resumen_parts.append(f"{en_atencion} en atención")
+    #         if completadas > 0:
+    #             resumen_parts.append(f"{completadas} completadas")
                 
-            return f"Actividad: {', '.join(resumen_parts)}"
+    #         return f"Actividad: {', '.join(resumen_parts)}"
             
-        except Exception as e:
-            logger.error(f"Error en resumen_actividad_dia: {e}")
-            return "Error calculando actividad"
+    #     except Exception as e:
+    #         logger.error(f"Error en resumen_actividad_dia: {e}")
+    #         return "Error calculando actividad"
     
-    @rx.var(cache=True)
-    def alerta_pacientes_urgentes(self) -> Dict[str, Any]:
-        """🚨 Verificar si hay pacientes urgentes que requieren atención inmediata"""
-        try:
-            urgentes_asignados = [
-                p for p in self.pacientes_asignados 
-                if hasattr(p, 'prioridad') and p.prioridad in ['urgente', 'alta']
-            ]
+    # @rx.var(cache=True)
+    # def alerta_pacientes_urgentes(self) -> Dict[str, Any]:
+    #     """🚨 Verificar si hay pacientes urgentes que requieren atención inmediata"""
+    #     try:
+    #         urgentes_asignados = [
+    #             p for p in self.pacientes_asignados 
+    #             if hasattr(p, 'prioridad') and p.prioridad in ['urgente', 'alta']
+    #         ]
             
-            urgentes_disponibles = [
-                p for p in self.pacientes_disponibles_otros
-                if hasattr(p, 'prioridad') and p.prioridad in ['urgente', 'alta']
-            ]
+    #         urgentes_disponibles = [
+    #             p for p in self.pacientes_disponibles_otros
+    #             if hasattr(p, 'prioridad') and p.prioridad in ['urgente', 'alta']
+    #         ]
             
-            total_urgentes = len(urgentes_asignados) + len(urgentes_disponibles)
+    #         total_urgentes = len(urgentes_asignados) + len(urgentes_disponibles)
             
-            return {
-                "tiene_urgentes": total_urgentes > 0,
-                "cantidad": total_urgentes,
-                "mensaje": f"{total_urgentes} paciente{'s' if total_urgentes != 1 else ''} urgente{'s' if total_urgentes != 1 else ''}" if total_urgentes > 0 else "No hay pacientes urgentes"
-            }
+    #         return {
+    #             "tiene_urgentes": total_urgentes > 0,
+    #             "cantidad": total_urgentes,
+    #             "mensaje": f"{total_urgentes} paciente{'s' if total_urgentes != 1 else ''} urgente{'s' if total_urgentes != 1 else ''}" if total_urgentes > 0 else "No hay pacientes urgentes"
+    #         }
             
-        except Exception as e:
-            logger.error(f"Error en alerta_pacientes_urgentes: {e}")
-            return {
-                "tiene_urgentes": False,
-                "cantidad": 0,
-                "mensaje": "Error verificando urgencias"
-            }
+    #     except Exception as e:
+    #         logger.error(f"Error en alerta_pacientes_urgentes: {e}")
+    #         return {
+    #             "tiene_urgentes": False,
+    #             "cantidad": 0,
+    #             "mensaje": "Error verificando urgencias"
+    #         }
     
 
 
@@ -873,9 +817,7 @@ class EstadoOdontologia(rx.State, mixin=True):
             self.odontograma_cargando = True
             
             # SIMPLIFICADO: Solo un método
-            result = await odontologia_service.get_patient_odontogram(
-                self.paciente_actual.id
-            )
+            result = await odontologia_service.get_patient_odontogram(self.paciente_actual.id)
 
             # Asignar condiciones
             self.condiciones_por_diente = result["conditions"]
@@ -1102,7 +1044,7 @@ class EstadoOdontologia(rx.State, mixin=True):
     def selected_service_alcance(self) -> str:
         """🎯 Alcance del servicio seleccionado (superficie_especifica | diente_completo | boca_completa)"""
         if not self.selected_service_name:
-            return "superficie_especifica"  # Default
+            return "boca_completa"  # Default
 
         for service in self.lista_servicios:
             if service.nombre == self.selected_service_name:
@@ -1142,9 +1084,13 @@ class EstadoOdontologia(rx.State, mixin=True):
         """Toggle modal agregar intervención"""
         self.show_add_intervention_modal = not self.show_add_intervention_modal
 
-    def open_add_intervention_modal(self):
+    async def open_add_intervention_modal(self):
         """Abrir modal agregar intervención"""
         self.show_add_intervention_modal = True
+         # Cargar servicios si la lista está vacía
+        if not self.lista_servicios:
+            await self.cargar_lista_servicios()  # ← Agregar esto
+            
         self.selected_service_name = ""
         self.superficie_oclusal_selected = False
         self.superficie_mesial_selected = False
@@ -1370,8 +1316,16 @@ class EstadoOdontologia(rx.State, mixin=True):
 
     @rx.event
     async def delete_consultation_service(self, service_id: str):
-        """🗑️ Eliminar servicio de la intervención (ACTUALIZADO: usa remover_servicio_de_intervencion)"""
-        async with self:
+        """
+        🗑️ Eliminar servicio de la intervención
+
+        Busca el servicio por ID y lo remueve de la lista usando
+        el método unificado remover_servicio_de_intervencion()
+
+        Args:
+            service_id: ID del servicio a eliminar
+        """
+        try:
             # Buscar el índice del servicio por id
             index_to_remove = -1
             for idx, servicio in enumerate(self.servicios_en_intervencion):
@@ -1381,10 +1335,19 @@ class EstadoOdontologia(rx.State, mixin=True):
 
             # Llamar al método unificado del estado_intervencion_servicios
             if index_to_remove >= 0:
-                self.remover_servicio_de_intervencion(index_to_remove)
-                self.mostrar_toast("Servicio eliminado", "success")
+                exito = self.remover_servicio_de_intervencion(index_to_remove)
+                if exito:
+                    self.mostrar_toast("Servicio eliminado exitosamente", "success")
+                    logger.info(f"✅ Servicio {service_id} eliminado del índice {index_to_remove}")
+                else:
+                    self.mostrar_toast("Error al eliminar servicio", "error")
             else:
+                logger.warning(f"⚠️ Servicio {service_id} no encontrado en la lista")
                 self.mostrar_toast("Servicio no encontrado", "warning")
+
+        except Exception as e:
+            logger.error(f"❌ Error eliminando servicio: {e}")
+            self.mostrar_toast("Error al eliminar servicio", "error")
 
     @rx.event
     async def cargar_historial_paciente(self, paciente_id: str = None):

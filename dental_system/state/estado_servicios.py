@@ -22,7 +22,6 @@ import logging
 from dental_system.services.servicios_service import servicios_service
 from dental_system.models import (
     ServicioModel,
-    ServicioStatsModel,
     EstadisticaCategoriaModel,
     ServicioFormModel
 )
@@ -30,18 +29,7 @@ from dental_system.models import (
 logger = logging.getLogger(__name__)
 
 class EstadoServicios(rx.State,mixin=True):
-    """
-    🏥 ESTADO ESPECIALIZADO EN GESTIÓN DE SERVICIOS ODONTOLÓGICOS
-    
-    RESPONSABILIDADES:
-    - CRUD completo de servicios (solo Gerente)
-    - Categorización y organización de servicios
-    - Gestión de precios dinámicos (base, mínimo, máximo)
-    - Filtros y búsquedas optimizadas
-    - Estadísticas de servicios más solicitados
-    - Cache inteligente para mejorar performance
-    """
-    
+
     # ==========================================
     # 🏥 VARIABLES PRINCIPALES DE SERVICIOS
     # ==========================================
@@ -109,10 +97,6 @@ class EstadoServicios(rx.State,mixin=True):
     # Búsqueda principal
     termino_busqueda_servicios: str = ""
     
-    # Ordenamiento
-    campo_ordenamiento_servicios: str = "nombre"  # nombre, precio, categoria, popularidad
-    direccion_ordenamiento_servicios: str = "asc"  # asc, desc
-    
     # Paginación
     pagina_actual_servicios: int = 1
     servicios_por_pagina: int = 18
@@ -176,17 +160,7 @@ class EstadoServicios(rx.State,mixin=True):
                 resultado = [serv for serv in resultado if serv.activo]
             elif self.filtro_estado_servicio == "inactivos":
                 resultado = [serv for serv in resultado if not serv.activo]
-        
-            # Aplicar ordenamiento
-            if self.campo_ordenamiento_servicios == "nombre":
-                resultado = sorted(resultado, key=lambda x: x.nombre)
-            elif self.campo_ordenamiento_servicios == "categoria":
-                resultado = sorted(resultado, key=lambda x: x.categoria or "")
-            
-            # Aplicar dirección de ordenamiento
-            if self.direccion_ordenamiento_servicios == "desc":
-                resultado.reverse()
-            
+
             return resultado
             
         except Exception as e:
@@ -243,32 +217,7 @@ class EstadoServicios(rx.State,mixin=True):
         except Exception:
             return {}
     
-    @rx.var(cache=True)
-    def servicios_populares(self) -> List[ServicioModel]:
-        """Top 10 servicios más populares"""
-        try:
-            servicios_activos = [s for s in self.lista_servicios if s.activo]
-            # Ordenar por veces usado (descendente) y tomar los primeros 10
-            populares = sorted(
-                servicios_activos, 
-                key=lambda x: x.veces_usado or 0, 
-                reverse=True
-            )[:10]
-            return populares
-        except Exception:
-            return []
-    
-    @rx.var(cache=True)
-    def estadisticas_por_categoria(self) -> Dict[str, EstadisticaCategoriaModel]:
-        """Estadísticas detalladas por categoría usando modelos tipados"""
-        try:
-            stats = {}
-            for categoria, servicios in self.servicios_por_categoria.items():
-                if servicios:
-                    stats[categoria] = EstadisticaCategoriaModel.from_servicios_list(servicios)
-            return stats
-        except Exception:
-            return {}
+
     
     @rx.var(cache=True)
     def servicios_activos_count(self) -> int:
@@ -282,10 +231,10 @@ class EstadoServicios(rx.State,mixin=True):
     def precio_promedio_servicios(self) -> float:
         """Precio promedio de todos los servicios activos"""
         try:
-            servicios_activos = [s for s in self.lista_servicios if s.activo and s.precio_base]
+            servicios_activos = [s for s in self.lista_servicios if s.activo and s.precio_base_usd]
             if not servicios_activos:
                 return 0.0
-            return sum(s.precio_base for s in servicios_activos) / len(servicios_activos)
+            return float(sum(s.precio_base_usd for s in servicios_activos) / len(servicios_activos))
         except Exception:
             return 0.0
 
@@ -382,10 +331,7 @@ class EstadoServicios(rx.State,mixin=True):
             servicios_service.set_user_context(self.id_usuario, self.perfil_usuario)
 
             # Crear servicio usando modelo tipado
-            nuevo_servicio = await servicios_service.create_service(
-                servicio_form=self.formulario_servicio,
-                user_id=self.id_usuario,
-            )
+            nuevo_servicio = await servicios_service.create_service(servicio_form=self.formulario_servicio,user_id=self.id_usuario,)
 
             if nuevo_servicio:
                 # Agregar a la lista
@@ -549,12 +495,6 @@ class EstadoServicios(rx.State,mixin=True):
         if campo in self.errores_validacion_servicio:
             del self.errores_validacion_servicio[campo]
     
-    
-    # ==========================================
-    # 🪟 CONTROL DE MODALES
-    # ==========================================
-
-
     # ==========================================
     # 📄 MÉTODOS DE PAGINACIÓN
     # ==========================================

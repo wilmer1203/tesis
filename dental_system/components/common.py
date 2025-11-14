@@ -704,10 +704,10 @@ def modal_wrapper(
             style={
                 "max_width": max_width,
                 "padding": padding,
-                "border_radius": RADIUS["3xl"],
+                "border_radius": RADIUS["xl"],
                 **GLASS_EFFECTS["strong"],
                 "box_shadow": SHADOWS["2xl"],
-                "border": f"1px solid {color}30",
+                "border": f"1px solid {COLORS['primary']['200']}30",
                 "overflow_y": "auto",
                 "max_height": "90vh",
                 "backdrop_filter": "blur(20px)"

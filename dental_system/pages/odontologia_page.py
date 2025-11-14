@@ -3,11 +3,10 @@
 
 import reflex as rx
 from dental_system.state.app_state import AppState
-from dental_system.components.common import  secondary_button,page_header,stat_card
+from dental_system.components.common import  secondary_button,page_header,stat_card,medical_page_layout
 from dental_system.components.odontologia.consulta_card import (
     lista_consultas_disponibles,
     lista_consultas_compactas,
-    estadisticas_cola_odontologo,
     seccion_header
 )
 from dental_system.styles.themes import (
@@ -15,7 +14,7 @@ from dental_system.styles.themes import (
     dark_crystal_card, dark_header_style,
     DARK_THEME,  create_dark_style
 )
-from dental_system.components.common import medical_page_layout
+
 # ==========================================
 # 🎨 ESTILOS PROFESIONALES TEMA OSCURO V2.0
 # ==========================================
@@ -142,13 +141,7 @@ def estadisticas_odontologo() -> rx.Component:
             icon="stethoscope",
             color=COLORS["blue"]["500"]
         ),
-        stat_card(
-            title="Canceladas",
-            value=AppState.estadisticas_odontologo_tiempo_real["consultas_canceladas"].to_string(),
-            icon="times-circle",
-            color=COLORS["error"]["500"]
-        ),
-        columns=rx.breakpoints(initial="1", sm="3", md="4", lg="6"),
+        columns=rx.breakpoints(initial="1", sm="2", md="3", lg="5"),
         spacing="6",
         width="100%",
         margin_bottom="8"
@@ -196,10 +189,6 @@ def odontologia_page() -> rx.Component:
                             icono="🦷",
                             color="blue"
                         ),
-
-                        # Estadísticas mini como en página de consultas
-                        estadisticas_cola_odontologo(),
-
                         spacing="3",
                         width="100%"
                     ),
