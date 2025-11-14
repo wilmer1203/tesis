@@ -25,8 +25,6 @@ from dental_system.services.pagos_service import pagos_service
 from dental_system.constants import METODOS_PAGO, ESTADOS_PAGO
 from dental_system.models import (
     PagoModel,
-    PagosStatsModel,
-    CuentaPorCobrarModel,
     PagoFormModel,
     ConsultaPendientePago,
     ServicioFormateado
@@ -71,11 +69,11 @@ class EstadoPagos(rx.State,mixin=True):
     # 📊 FORMULARIO DUAL SIMPLIFICADO
     formulario_pago_dual: PagoFormModel = PagoFormModel()
     modal_pago_dual_abierto: bool = False
+    modal_cambiar_tasa_abierto: bool = False  # ✨ NUEVO: Modal para cambiar tasa
 
     # 💱 TASA DE CAMBIO DINÁMICA
     tasa_del_dia: float = 36.50              # Tasa editable por usuario
-    tasa_sugerida: float = 36.50             # Tasa sugerida del sistema
-    tasa_historica: List[Dict[str, Any]] = [] # Historial de tasas usadas
+    tasa_temporal: float = 36.50             # Tasa temporal mientras se edita en el modal
 
     # 📊 ESTADÍSTICAS DUALES EN TIEMPO REAL
     estadisticas_dual: Dict[str, Any] = {}
@@ -426,41 +424,58 @@ class EstadoPagos(rx.State,mixin=True):
             self.procesando_pago = False
 
     @rx.event
+    def set_tasa_del_dia(self, valor: str):
+        """💱 SETTER SIMPLE para actualizar tasa desde input"""
+        try:
+            nueva_tasa = float(valor) if valor else 36.50
+            if nueva_tasa > 0:
+                self.tasa_del_dia = nueva_tasa
+                logger.info(f"✅ Tasa actualizada desde input: {nueva_tasa} BS/USD")
+            else:
+                logger.warning("⚠️ Tasa debe ser mayor a 0")
+        except ValueError:
+            logger.warning(f"⚠️ Valor inválido para tasa: {valor}")
+
+
+    def set_modal_cambiar_tasa_abierto(self, abierto: bool):
+        """💱 SETTER SIMPLE para abrir/cerrar modal de cambiar tasa"""
+        if abierto:
+            # Al abrir, copiar tasa actual a temporal
+            self.tasa_temporal = self.tasa_del_dia
+        self.modal_cambiar_tasa_abierto = abierto
+
+    def set_tasa_temporal(self, valor: str):
+        """💱 ACTUALIZAR SOLO TASA TEMPORAL (no guarda hasta darle Actualizar)"""
+        try:
+            nueva_tasa = float(valor) if valor else 36.50
+            if nueva_tasa > 0:
+                self.tasa_temporal = nueva_tasa
+        except ValueError:
+            pass  # Ignorar valores inválidos mientras se escribe
+    
+    @rx.event
     async def actualizar_tasa_del_dia(self, nueva_tasa: float):
-        """💱 ACTUALIZAR TASA DE CAMBIO DEL DÍA"""
+        """💱 ACTUALIZAR TASA DE CAMBIO DEL DÍA (con recálculo de formulario)"""
         try:
             if nueva_tasa <= 0:
                 logger.warning("⚠️ Tasa de cambio debe ser mayor a 0")
-                return False
-
-            # Guardar tasa anterior en historial
-            if self.tasa_del_dia != nueva_tasa:
-                self.tasa_historica.append({
-                    "fecha": datetime.now().isoformat(),
-                    "tasa_anterior": self.tasa_del_dia,
-                    "tasa_nueva": nueva_tasa,
-                    "usuario": "usuario_actual"
-                })
-
             # Actualizar tasa actual
             self.tasa_del_dia = nueva_tasa
-
+            print("tasa actualizada")
             # Recalcular formulario automáticamente
             await self.recalcular_formulario_dual()
-
-            logger.info(f"✅ Tasa actualizada: {nueva_tasa} BS/USD")
-            return True
+            self.set_modal_cambiar_tasa_abierto(False)
+            print(f"✅ Tasa actualizada: {nueva_tasa} BS/USD")
 
         except Exception as e:
             logger.error(f"❌ Error actualizando tasa: {str(e)}")
-            return False
 
     @rx.event
     async def recalcular_formulario_dual(self):
         """🧮 RECALCULAR CONVERSIONES AUTOMÁTICAS EN FORMULARIO"""
         try:
             self.calculando_conversion = True
-
+            print("recalculando el formulario dual")
             # Si hay monto USD, calcular BS equivalente
             if hasattr(self.formulario_pago_dual, 'monto_total_usd') and self.formulario_pago_dual.monto_total_usd > 0:
                 monto_bs_calculado = self.formulario_pago_dual.monto_total_usd * self.tasa_del_dia
@@ -760,8 +775,6 @@ class EstadoPagos(rx.State,mixin=True):
         # 💰 LIMPIAR VARIABLES SISTEMA DUAL
         self.formulario_pago_dual = PagoFormModel()
         self.tasa_del_dia = 36.50
-        self.tasa_sugerida = 36.50
-        self.tasa_historica = []
         self.estadisticas_dual = {}
         self.recaudacion_usd_hoy = 0.0
         self.recaudacion_bs_hoy = 0.0

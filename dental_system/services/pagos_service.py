@@ -831,11 +831,27 @@ class PagosService(BaseService):
                 # Verificar si tiene pago pendiente
                 pago_response = self.client.table("pago").select("*").eq("consulta_id", consulta["id"]).eq("estado_pago", "pendiente").execute()
                 if pago_response.data:
-                    # Obtener intervenciones/servicios
+                    # ✅ CORRECCIÓN: Obtener intervenciones con información del odontólogo
                     intervenciones_response = self.client.table("intervencion").select(
-                        "*, servicio(*), personal!odontologo_id(*)"
+                        "id, odontologo_id, personal!odontologo_id(primer_nombre, primer_apellido)"
                     ).eq("consulta_id", consulta["id"]).execute()
                     intervenciones = intervenciones_response.data if intervenciones_response.data else []
+
+                    # ✅ CORRECCIÓN: Obtener servicios a través de historia_medica
+                    servicios_detalle = []
+                    for interv in intervenciones:
+                        historia_response = self.client.table("historia_medica").select(
+                            "*, servicio(nombre, precio_base_usd)"
+                        ).eq("intervencion_id", interv["id"]).execute()
+
+                        if historia_response.data:
+                            for historia in historia_response.data:
+                                servicios_detalle.append({
+                                    "nombre": historia.get("servicio", {}).get("nombre", "Servicio"),
+                                    "odontologo": f"{interv.get('personal', {}).get('primer_nombre', '')} {interv.get('personal', {}).get('primer_apellido', '')}".strip(),
+                                    "precio_usd": historia.get("precio_unitario_usd", 0),
+                                    "precio_bs": historia.get("precio_unitario_bs", 0)
+                                })
 
                     # Construir objeto consulta con información completa
                     consulta_completa = {
@@ -845,21 +861,13 @@ class PagosService(BaseService):
                         "paciente_nombre": f"{consulta.get('paciente', {}).get('primer_nombre', '')} {consulta.get('paciente', {}).get('primer_apellido', '')}".strip(),
                         "paciente_documento": consulta.get("paciente", {}).get("numero_documento", ""),
                         "paciente_numero_historia": consulta.get("paciente", {}).get("numero_historia", ""),
-                        "paciente_telefono": consulta.get("paciente", {}).get("celular", ""),
+                        "paciente_telefono": consulta.get("paciente", {}).get("celular_1", ""),
                         "odontologo_nombre": f"{consulta.get('personal', {}).get('primer_nombre', '')} {consulta.get('personal', {}).get('primer_apellido', '')}".strip(),
                         "fecha_llegada": consulta.get("fecha_llegada", ""),
                         "total_usd": pago_response.data[0].get("monto_total_usd", 0),
                         "total_bs": pago_response.data[0].get("monto_total_bs", 0),
                         "pagos": pago_response.data,
-                        "servicios_detalle": [
-                            {
-                                "nombre": interv.get("servicio", {}).get("nombre", "Servicio"),
-                                "odontologo": f"{interv.get('personal', {}).get('primer_nombre', '')} {interv.get('personal', {}).get('primer_apellido', '')}".strip(),
-                                "precio_usd": interv.get("servicio", {}).get("precio_base_usd", 0),
-                                "precio_bs": interv.get("servicio", {}).get("precio_base_usd", 0) * pago_response.data[0].get("tasa_cambio_bs_usd", 36.50)
-                            }
-                            for interv in intervenciones
-                        ]
+                        "servicios_detalle": servicios_detalle
                     }
                     consultas_pendientes.append(consulta_completa)
 

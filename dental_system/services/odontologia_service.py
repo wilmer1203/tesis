@@ -349,10 +349,7 @@ class OdontologiaServiceV2(BaseService):
     # ✨ V3.0: CATÁLOGO DE CONDICIONES Y BATCH UPDATE
     # ==========================================
     
-    async def actualizar_condiciones_batch(
-        self,
-        actualizaciones: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+    async def actualizar_condiciones_batch(self,actualizaciones: List[Dict[str, Any]]):
         """
         ✨ V3.0: Actualizar múltiples condiciones dentales en 1 transacción
 
@@ -360,30 +357,10 @@ class OdontologiaServiceV2(BaseService):
         1. Marca condiciones anteriores como activo=FALSE (histórico)
         2. Inserta nuevas condiciones como activo=TRUE
         3. Todo en una sola transacción (atomicidad)
-
-        Args:
-            actualizaciones: Lista de dicts con:
-                - paciente_id: UUID del paciente
-                - diente_numero: Número FDI (11-48)
-                - superficie: oclusal, mesial, distal, vestibular, lingual
-                - nueva_condicion: Código de condición del catálogo
-                - intervencion_id: UUID de la intervención
-                - material: Material utilizado (opcional)
-                - descripcion: Descripción del cambio (opcional)
-
-        Returns:
-            {
-                "success": bool,
-                "exitosos": int,
-                "fallidos": int,
-                "ids_creados": List[str]
-            }
         """
         try:
             if not actualizaciones:
                 logger.warning("⚠️ No hay actualizaciones para procesar")
-                return {"success": True, "exitosos": 0, "fallidos": 0, "ids_creados": []}
-
             logger.info(f"🔄 Procesando {len(actualizaciones)} actualizaciones en batch")
 
             # Agregar registrado_por a cada actualización
@@ -393,26 +370,6 @@ class OdontologiaServiceV2(BaseService):
             # ✅ CORRECCIÓN: Enviar array de Python directamente
             # Supabase convierte automáticamente a JSONB
             print(f"🔧 DEBUG: Enviando {len(actualizaciones)} actualizaciones como array Python")
-
-            # MOSTRAR CADA ACTUALIZACIÓN EN DETALLE
-            print("\n📋 DATOS COMPLETOS QUE SE ENVÍAN:")
-            for i, upd in enumerate(actualizaciones, 1):
-                print(f"\n  Actualización #{i}:")
-                print(f"    paciente_id: {upd.get('paciente_id')} (tipo: {type(upd.get('paciente_id'))})")
-                print(f"    diente_numero: {upd.get('diente_numero')} (tipo: {type(upd.get('diente_numero'))})")
-                print(f"    superficie: {upd.get('superficie')} (tipo: {type(upd.get('superficie'))})")
-                print(f"    tipo_condicion: {upd.get('tipo_condicion')} (tipo: {type(upd.get('tipo_condicion'))})")
-                print(f"    descripcion: {upd.get('descripcion')}")
-                print(f"    intervencion_id: {upd.get('intervencion_id')} (tipo: {type(upd.get('intervencion_id'))})")
-                print(f"    registrado_por: {upd.get('registrado_por')}")
-
-            # ✅ IMPLEMENTACIÓN DIRECTA EN PYTHON (sin función SQL)
-            exitosos = 0
-            fallidos = 0
-            ids_creados = []
-
-            logger.info("🔄 Procesando actualizaciones directamente en Python...")
-
             for i, upd in enumerate(actualizaciones, 1):
                 try:
                     logger.info(f"\n📝 Procesando actualización {i}/{len(actualizaciones)}:")
@@ -444,42 +401,19 @@ class OdontologiaServiceV2(BaseService):
                     ).execute()
 
                     if insert_result.data:
-                        nuevo_id = insert_result.data[0]['id']
-                        ids_creados.append(nuevo_id)
-                        exitosos += 1
-                        logger.info(f"   ✅ Nueva condición creada: {nuevo_id}")
+                        logger.info(f"   ✅ Nueva condición creada: {insert_result.data[0]['id']}")
                     else:
-                        fallidos += 1
                         logger.warning(f"   ⚠️ No se obtuvo ID de la nueva condición")
 
                 except Exception as e:
-                    fallidos += 1
                     logger.error(f"   ❌ Error en actualización {i}: {str(e)}")
-                    import traceback
-                    traceback.print_exc()
 
             # Resultado final
-            logger.info(f"\n✅ Batch completado: {exitosos} exitosos, {fallidos} fallidos")
-
-            return {
-                "success": fallidos == 0,
-                "exitosos": exitosos,
-                "fallidos": fallidos,
-                "ids_creados": [str(id) for id in ids_creados]
-            }
+            logger.info(f"\n✅ Batch completado")
 
         except Exception as e:
             logger.error(f"❌ Error en batch update: {str(e)}")
-            import traceback
-            traceback.print_exc()
 
-            return {
-                "success": False,
-                "exitosos": 0,
-                "fallidos": len(actualizaciones),
-                "ids_creados": [],
-                "error": str(e)
-            }
 
     # ==========================================
     # 💾 CREAR INTERVENCIÓN CON SERVICIOS

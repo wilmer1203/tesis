@@ -1123,9 +1123,6 @@ class EstadoConsultas(rx.State,mixin=True):
                 # ✅ Recargar datos forzando refresh (sin cache)
                 await self.cargar_lista_consultas()
 
-                # 🔄 REFRESCAR TAMBIÉN ODONTÓLOGOS (afecta contadores)
-                await self.cargar_odontologos_disponibles()
-
         except ValueError as ve:
             logger.error(f"Error completando consulta: {ve}")
             if hasattr(self, 'mostrar_toast'):

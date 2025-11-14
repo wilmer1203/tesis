@@ -88,6 +88,7 @@ class ServicioIntervencionCompleto(rx.Base):
     def from_servicio_model(
         cls,
         servicio: ServicioModel,
+        tasa_cambio: float = 36.50,  # ✨ NUEVO: Tasa de cambio BS/USD
         alcance: str = "superficie_especifica",
         diente_numero: Optional[int] = None,
         superficies: List[str] = None,
@@ -100,6 +101,7 @@ class ServicioIntervencionCompleto(rx.Base):
 
         Args:
             servicio: Modelo del servicio del catálogo
+            tasa_cambio: Tasa de cambio BS/USD (default: 36.50)
             alcance: superficie_especifica, diente_completo o boca_completa
             diente_numero: Número FDI del diente (o None si es boca completa)
             superficies: Lista de superficies específicas
@@ -107,6 +109,11 @@ class ServicioIntervencionCompleto(rx.Base):
             material: Material utilizado en el procedimiento
             observaciones: Observaciones clínicas
         """
+        # Convertir Decimal a float para evitar error de tipos
+        precio_usd = float(servicio.precio_base_usd or 0.0)
+        # ✨ CÁLCULO AUTOMÁTICO DE BS usando la tasa del día
+        precio_bs = precio_usd * tasa_cambio
+
         return cls(
             servicio_id=servicio.id,
             nombre_servicio=servicio.nombre,
@@ -115,7 +122,8 @@ class ServicioIntervencionCompleto(rx.Base):
             diente_numero=diente_numero,
             superficies=superficies or [],
             nueva_condicion=nueva_condicion,
-            costo_usd=servicio.precio_base_usd or 0.0,
+            costo_usd=precio_usd,
+            costo_bs=precio_bs,  # ✨ NUEVO: Calculado automáticamente
             material=material,
             observaciones=observaciones
         )
@@ -183,9 +191,14 @@ class EstadoIntervencionServicios(rx.State, mixin=True):
         try:
             logger.info(f"➕ V2.0 Agregando servicio directo: {servicio.nombre}")
 
+            # ✨ OBTENER TASA DE CAMBIO DEL DÍA (desde EstadoPagos)
+            tasa_actual = getattr(self, 'tasa_del_dia', 36.50)
+            logger.info(f"💱 Usando tasa de cambio: {tasa_actual} BS/USD")
+
             # Crear servicio completo unificado
             servicio_completo = ServicioIntervencionCompleto.from_servicio_model(
                 servicio=servicio,
+                tasa_cambio=tasa_actual,  # ✨ NUEVO: Pasar tasa de cambio
                 alcance=alcance,
                 diente_numero=diente_numero,
                 superficies=superficies or [],
@@ -199,7 +212,7 @@ class EstadoIntervencionServicios(rx.State, mixin=True):
             # Recalcular totales
             self._recalcular_totales()
 
-            logger.info(f"✅ Servicio agregado exitosamente: {servicio_completo.nombre_servicio}")
+            logger.info(f"✅ Servicio agregado: {servicio_completo.nombre_servicio} - ${servicio_completo.costo_usd:.2f} USD / Bs. {servicio_completo.costo_bs:,.2f}")
 
         except Exception as e:
             logger.error(f"❌ Error agregando servicio directo: {e}")

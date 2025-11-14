@@ -12,7 +12,7 @@ from dental_system.constants import METODOS_PAGO, ESTADOS_PAGO
 from dental_system.components.modal_pago import modal_factura_profesional
 from dental_system.components.common import page_header, medical_page_layout, stat_card, refresh_button
 from dental_system.components.table_components import pagos_table
-from dental_system.styles.themes import COLORS
+from dental_system.styles.themes import COLORS, GLASS_EFFECTS, SPACING, RADIUS, SHADOWS
 # ==========================================
 # 🎨 COLORES Y ESTILOS DEL SISTEMA
 # ==========================================
@@ -63,11 +63,38 @@ def estadisticas_financieras() -> rx.Component:
                 "banknote",
                 color=COLORS["warning"]["500"]
             ),
-            stat_card(
-                "Tasa BS/USD BS por dólar",
-                f"{ AppState.tasa_del_dia}",
-                "banknote",
-                color=COLORS["primary"]["600"]
+            # Card de tasa con botón para cambiar
+            rx.box(
+                rx.vstack(
+                    rx.hstack(
+                        rx.icon("banknote", size=20, color=COLORS["primary"]["600"]),
+                        rx.text("Tasa BS/USD", size="2", color=COLORS["gray"]["25"], weight="medium"),
+                        rx.spacer(),
+                        rx.button(
+                            rx.icon("edit", size=14),
+                            on_click=lambda: AppState.set_modal_cambiar_tasa_abierto(True),
+                            variant="ghost",
+                            size="1",
+                            color_scheme="cyan"
+                        ),
+                        width="100%",
+                        align="center"
+                    ),
+                    rx.text(f"{AppState.tasa_del_dia:.2f} BS/$", size="6", weight="bold", color=COLORS["gray"]["25"]),
+                    rx.text("Click para cambiar", size="1", color=COLORS["primary"]["600"]),
+                    spacing="2",
+                    align="start",
+                    width="100%"
+                ),
+                style={
+                    "max_width": "800px",
+                    "padding": SPACING["8"],
+                    "border_radius": RADIUS["2xl"],
+                    **GLASS_EFFECTS["strong"],
+                    "box_shadow": SHADOWS["2xl"],
+                    "border": f"1px solid {COLORS['primary']['200']}30",
+                    "overflow_y": "auto"
+                }
             ),
             columns="4",
             spacing="6",
@@ -614,6 +641,140 @@ def modal_pago_dual() -> rx.Component:
         open=AppState.modal_pago_dual_abierto,
     )
 
+def modal_cambiar_tasa() -> rx.Component:
+    """💱 Modal compacto para cambiar tasa de cambio"""
+    from dental_system.components.forms import form_section_header, enhanced_form_field,validated_input
+    from dental_system.styles.themes import ANIMATIONS, GRADIENTS, SHADOWS, GLASS_EFFECTS, DARK_THEME
+
+    return rx.dialog.root(
+        rx.dialog.content(
+            # Header elegante
+            rx.vstack(
+                rx.hstack(
+                    form_section_header(
+                        "Cambiar Tasa del Día",
+                        "Actualizar tasa de cambio BS/USD",
+                        "trending-up",
+                        COLORS["primary"]["500"]
+                    ),
+                    rx.spacer(),
+                    rx.dialog.close(
+                        rx.button(
+                            rx.icon("x", size=20),
+                            style={
+                                "background": "transparent",
+                                "border": "none",
+                                "color": COLORS["gray"]["500"],
+                                "cursor": "pointer",
+                                "_hover": {"color": COLORS["gray"]["700"]}
+                            }
+                        )
+                    ),
+                    width="100%",
+                    align="center"
+                ),
+                spacing="4",
+                width="100%",
+                margin_bottom=SPACING["4"]
+            ),
+
+            # Formulario compacto
+            rx.form(
+                rx.vstack(
+                    # Input de tasa con validated_input
+                    validated_input(
+                        label="Nueva Tasa BS/USD",
+                        field_name="tasa_temporal",
+                        value=AppState.tasa_temporal,
+                        on_change=lambda field, value: AppState.set_tasa_temporal(value),
+                        input_type="number",
+                        placeholder="Ej: 37.50",
+                        required=True,
+                        icon="dollar-sign",
+                        help_text=f"Tasa actual: {AppState.tasa_del_dia:.2f} BS/$",
+                        validation_error=""
+                    ),
+
+                    # Botones
+                    rx.hstack(
+                        rx.dialog.close(
+                            rx.button(
+                                rx.hstack(
+                                    rx.icon("x", size=16),
+                                    rx.text("Cancelar"),
+                                    spacing="2",
+                                    align="center"
+                                ),
+                                style={
+                                    **GLASS_EFFECTS["light"],
+                                    "border": f"1px solid {COLORS['gray']['300']}",
+                                    "color": COLORS["gray"]["700"],
+                                    "border_radius": RADIUS["xl"],
+                                    "padding": f"{SPACING['3']} {SPACING['5']}",
+                                    "font_weight": "600",
+                                    "transition": ANIMATIONS["presets"]["crystal_hover"],
+                                    "_hover": {
+                                        **GLASS_EFFECTS["medium"],
+                                        "transform": "translateY(-2px)",
+                                        "box_shadow": SHADOWS["sm"]
+                                    }
+                                },
+                                on_click=AppState.set_modal_cambiar_tasa_abierto(False)
+                            )
+                        ),
+
+                        rx.spacer(),
+
+                        rx.button(
+                            rx.hstack(
+                                rx.text("Actualizar Tasa"),
+                                rx.icon("check", size=16),
+                                spacing="2",
+                                align="center"
+                            ),
+                            style={
+                                "background": GRADIENTS["neon_primary"],
+                                "color": "white",
+                                "border": "none",
+                                "border_radius": RADIUS["xl"],
+                                "padding": f"{SPACING['3']} {SPACING['6']}",
+                                "font_weight": "700",
+                                "font_size": "1rem",
+                                "box_shadow": SHADOWS["glow_primary"],
+                                "transition": ANIMATIONS["presets"]["crystal_hover"],
+                                "_hover": {
+                                    "transform": "translateY(-2px) scale(1.02)",
+                                    "box_shadow": f"0 0 30px {COLORS['primary']['500']}40, {SHADOWS['crystal_lg']}"
+                                }
+                            },
+                            on_click=lambda: AppState.actualizar_tasa_del_dia(AppState.tasa_temporal)
+                        ),
+
+                        width="100%",
+                        align="center"
+                    ),
+
+                    spacing="4",
+                    width="100%",
+                    align="start"
+                )
+            ),
+
+            style={
+                "max_width": "500px",
+                "padding": SPACING["8"],
+                "border_radius": RADIUS["3xl"],
+                **GLASS_EFFECTS["strong"],
+                "box_shadow": SHADOWS["2xl"],
+                "border": f"1px solid {COLORS['primary']['200']}30",
+                "overflow_y": "auto",
+                "backdrop_filter": "blur(20px)"
+            }
+        ),
+        open=AppState.modal_cambiar_tasa_abierto,
+        on_open_change=AppState.set_modal_cambiar_tasa_abierto(False)
+    )
+
 def modal_calculadora_conversion() -> rx.Component:
     """Modal de calculadora USD/BS"""
     return rx.dialog.root(
@@ -812,6 +973,7 @@ def pagos_page() -> rx.Component:
             ),
         ),
         modal_factura_profesional(),  # ✨ NUEVO MODAL PROFESIONAL
+        modal_cambiar_tasa(),  # ✨ Modal para cambiar tasa de cambio
         modal_calculadora_conversion(),
         on_mount=AppState.cargar_datos_pagos_page
     )
