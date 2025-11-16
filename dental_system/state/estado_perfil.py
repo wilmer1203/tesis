@@ -88,6 +88,48 @@ class EstadoPerfil(rx.State, mixin=True):
         """Verifica si el estado laboral es activo"""
         return self.formulario_perfil.get("estado_laboral", "") == "activo"
 
+    @rx.var
+    def fecha_nacimiento_formateada(self) -> str:
+        """Fecha de nacimiento en formato DD/MM/YYYY"""
+        fecha = self.formulario_perfil.get("fecha_nacimiento", "")
+        if not fecha:
+            return "No especificada"
+
+        try:
+            from datetime import datetime
+            fecha_obj = datetime.fromisoformat(str(fecha).split('T')[0])
+            return fecha_obj.strftime("%d/%m/%Y")
+        except:
+            return str(fecha)
+
+    @rx.var
+    def fecha_contratacion_formateada(self) -> str:
+        """Fecha de contratación en formato DD/MM/YYYY"""
+        fecha = self.formulario_perfil.get("fecha_contratacion", "")
+        if not fecha:
+            return "No especificada"
+
+        try:
+            from datetime import datetime
+            fecha_obj = datetime.fromisoformat(str(fecha).split('T')[0])
+            return fecha_obj.strftime("%d/%m/%Y")
+        except:
+            return str(fecha)
+
+    @rx.var
+    def iniciales_usuario(self) -> str:
+        """Obtiene las iniciales del nombre completo para el avatar"""
+        nombre_completo = self.formulario_perfil.get("nombre_completo", "")
+        if not nombre_completo:
+            return "?"
+
+        palabras = nombre_completo.split()
+        if len(palabras) >= 2:
+            return f"{palabras[0][0]}{palabras[1][0]}".upper()
+        elif len(palabras) == 1:
+            return palabras[0][0].upper()
+        return "?"
+
     # ========================================
     # MÉTODOS PRINCIPALES
     # ========================================
