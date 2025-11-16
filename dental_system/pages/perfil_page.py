@@ -9,7 +9,7 @@ from ..components.modal_perfil import modal_cambiar_email, modal_cambiar_passwor
 from ..components.forms import form_section_header
 from ..styles.themes import COLORS, SPACING, RADIUS, GRADIENTS, SHADOWS, dark_crystal_card,glassmorphism_card,DARK_THEME
 from ..state.app_state import AppState
-from typing import Dict, Any, List
+from typing import Dict, Any
 
 
 # ========================================
