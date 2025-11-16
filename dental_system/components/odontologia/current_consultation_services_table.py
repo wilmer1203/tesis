@@ -14,7 +14,10 @@ Características:
 
 import reflex as rx
 from dental_system.state.app_state import AppState
-from dental_system.styles.medical_design_system import MEDICAL_COLORS,medical_card_style
+from dental_system.styles.themes import (
+    COLORS, DARK_THEME, SPACING, RADIUS, SHADOWS,
+    dark_crystal_card, glassmorphism_card
+)
 
 # ==========================================
 # 📊 COMPONENTE TABLA DE SERVICIOS
@@ -46,19 +49,19 @@ def current_consultation_services_table() -> rx.Component:
         rx.hstack(
             rx.vstack(
                 rx.hstack(
-                    rx.icon("clipboard-list", size=20, color=MEDICAL_COLORS["medical_ui"]["accent_primary"]),
+                    rx.icon("clipboard-list", size=20, color=COLORS["primary"]["400"]),
                     rx.text(
                         "Intervenciones de Esta Consulta",
                         font_weight="700",
                         font_size="16px",
-                        color=MEDICAL_COLORS["medical_ui"]["text_primary"],
+                        color=DARK_THEME["colors"]["text_primary"],
                     ),
                     spacing="2",
                 ),
                 rx.text(
                     "Servicios realizados en esta atención",
                     font_size="13px",
-                    color=MEDICAL_COLORS["medical_ui"]["text_secondary"],
+                    color=DARK_THEME["colors"]["text_secondary"],
                 ),
                 spacing="1",
                 align="start",
@@ -132,7 +135,7 @@ def current_consultation_services_table() -> rx.Component:
                                     rx.text(
                                         service["servicio"],
                                         font_size="13px",
-                                        color=MEDICAL_COLORS["medical_ui"]["text_secondary"],
+                                        color=DARK_THEME["colors"]["text_primary"],
                                         font_weight="500",
                                     ),
                                 ),
@@ -141,7 +144,7 @@ def current_consultation_services_table() -> rx.Component:
                                     rx.text(
                                         service["superficies"],
                                         font_size="12px",
-                                        color=MEDICAL_COLORS["medical_ui"]["text_secondary"],
+                                        color=DARK_THEME["colors"]["text_secondary"],
                                     ),
                                 ),
                                 # Costo
@@ -150,13 +153,13 @@ def current_consultation_services_table() -> rx.Component:
                                         rx.text(
                                             service["costo_bs"],
                                             font_size="13px",
-                                            color=MEDICAL_COLORS["medical_ui"]["text_secondary"],
+                                            color=DARK_THEME["colors"]["text_primary"],
                                             font_weight="600",
                                         ),
                                         rx.text(
                                             service["costo_usd"],
                                             font_size="11px",
-                                            color=MEDICAL_COLORS["medical_ui"]["text_secondary"],
+                                            color=DARK_THEME["colors"]["text_secondary"],
                                         ),
                                         spacing="0",
                                         align="end",
@@ -198,7 +201,7 @@ def current_consultation_services_table() -> rx.Component:
                             "TOTAL CONSULTA:",
                             font_size="12px",
                             font_weight="600",
-                            color=MEDICAL_COLORS["medical_ui"]["text_secondary"],
+                            color=DARK_THEME["colors"]["text_secondary"],
                             text_align="right",
                         ),
                         rx.hstack(
@@ -206,13 +209,13 @@ def current_consultation_services_table() -> rx.Component:
                                 f"{AppState.total_intervencion_bs:,.0f} Bs",
                                 font_size="18px",
                                 font_weight="700",
-                                color=MEDICAL_COLORS["medical_ui"]["accent_success"],
+                                color=COLORS["success"]["500"],
                             ),
                             rx.text(
                                 f"/ ${AppState.total_intervencion_usd:.2f}",
                                 font_size="14px",
                                 font_weight="600",
-                                color=MEDICAL_COLORS["medical_ui"]["text_secondary"],
+                                color=DARK_THEME["colors"]["text_secondary"],
                             ),
                             spacing="2",
                         ),
@@ -230,31 +233,38 @@ def current_consultation_services_table() -> rx.Component:
                     rx.icon(
                         "inbox",
                         size=48,
-                        color=MEDICAL_COLORS["medical_ui"]["accent_info"],
+                        color=DARK_THEME["colors"]["text_muted"],
                     ),
                     rx.text(
                         "No hay servicios agregados",
                         font_size="15px",
                         font_weight="600",
-                        color=MEDICAL_COLORS["medical_ui"]["text_secondary"],
+                        color=DARK_THEME["colors"]["text_secondary"],
                     ),
                     rx.text(
                         "Haz clic en 'Agregar Servicio' para registrar una intervención",
                         font_size="13px",
-                        color=MEDICAL_COLORS["medical_ui"]["accent_info"],
+                        color=DARK_THEME["colors"]["text_muted"],
                         text_align="center",
                     ),
                     spacing="3",
                     align="center",
                     padding_y="48px",
                 ),
-                border=f"2px dashed {MEDICAL_COLORS['medical_ui']["accent_info"]}",
-                border_radius="8px",
+                border=f"2px dashed {DARK_THEME['colors']['border']}",
+                border_radius=RADIUS["lg"],
+                style={
+                    "background": f"rgba({DARK_THEME['colors']['surface']}, 0.3)",
+                    "backdrop_filter": "blur(10px)"
+                }
             ),
         ),
 
         # Estilos del contenedor
-        style={**medical_card_style()},
+        style={
+            **dark_crystal_card(color=COLORS["primary"]["500"], hover_lift="0px"),
+            "padding": SPACING["6"]
+        },
         width="100%",
         margin_y="4",
     )

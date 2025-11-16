@@ -1319,5 +1319,81 @@ class DashboardService(BaseService):
             logger.error(f"❌ Error obteniendo consultas por odontólogo admin: {e}")
             return []
 
+    async def get_dashboard_stats_asistente(self) -> Dict[str, Any]:
+        """
+        👩‍⚕️ Estadísticas básicas del dashboard del ASISTENTE (solo lectura - HOY)
+
+        Returns:
+            {
+                "consultas_hoy_total": 12,
+                "consultas_completadas": 5,
+                "consultas_en_espera": 4,
+                "pacientes_atendidos_hoy": 8
+            }
+        """
+        try:
+            from datetime import date
+            hoy = date.today().isoformat()
+
+            logger.info(f"👩‍⚕️ Obteniendo estadísticas dashboard asistente para {hoy}")
+
+            # 1. Consultas de hoy (total, completadas, en espera)
+            consultas_response = self.client.table('consulta').select(
+                'id, estado'
+            ).gte('fecha_llegada', f"{hoy}T00:00:00").lte(
+                'fecha_llegada', f"{hoy}T23:59:59"
+            ).execute()
+
+            consultas_hoy_total = len(consultas_response.data) if consultas_response.data else 0
+
+            consultas_completadas = sum(
+                1 for c in (consultas_response.data or []) if c.get('estado') == 'completada'
+            )
+
+            consultas_en_espera = sum(
+                1 for c in (consultas_response.data or [])
+                if c.get('estado') in ['programada', 'en_progreso']
+            )
+
+            # 2. Pacientes únicos atendidos hoy (completados)
+            consultas_completadas_ids = [
+                c.get('id') for c in (consultas_response.data or [])
+                if c.get('estado') == 'completada'
+            ]
+
+            if consultas_completadas_ids:
+                # Obtener pacientes únicos de intervenciones completadas
+                intervenciones_response = self.client.table('intervencion').select(
+                    'consulta_id, numero_historia'
+                ).in_('consulta_id', consultas_completadas_ids).execute()
+
+                pacientes_unicos = set(
+                    i.get('numero_historia') for i in (intervenciones_response.data or [])
+                    if i.get('numero_historia')
+                )
+                pacientes_atendidos_hoy = len(pacientes_unicos)
+            else:
+                pacientes_atendidos_hoy = 0
+
+            resultado = {
+                'consultas_hoy_total': consultas_hoy_total,
+                'consultas_completadas': consultas_completadas,
+                'consultas_en_espera': consultas_en_espera,
+                'pacientes_atendidos_hoy': pacientes_atendidos_hoy
+            }
+
+            logger.info(f"✅ Dashboard asistente: {consultas_hoy_total} consultas, {pacientes_atendidos_hoy} pacientes")
+
+            return resultado
+
+        except Exception as e:
+            logger.error(f"❌ Error obteniendo stats asistente: {e}")
+            return {
+                'consultas_hoy_total': 0,
+                'consultas_completadas': 0,
+                'consultas_en_espera': 0,
+                'pacientes_atendidos_hoy': 0
+            }
+
 # Instancia única para importar
 dashboard_service = DashboardService()

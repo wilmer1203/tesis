@@ -376,17 +376,23 @@ def sidebar() -> rx.Component:
                     rx.cond(
                         AppState.rol_usuario == "odontologo",
                         _modern_nav_item("Dashboard", "home", "dashboard-odontologo"),  # 🦷 Dashboard Odontólogo
-                        _modern_nav_item("Dashboard", "home", "dashboard")  # Dashboard general (gerente/admin)
+                        rx.cond(
+                            AppState.rol_usuario == "asistente",
+                            _modern_nav_item("Dashboard", "home", "dashboard-asistente"),  # 👩‍⚕️ Dashboard Asistente
+                            _modern_nav_item("Dashboard", "home", "dashboard")  # Dashboard general (gerente/admin)
+                        )
                     ),
+
+                    # Pacientes - Todos los roles
                     _modern_nav_item("Pacientes", "users", "pacientes"),
 
-                    # Consultas solo para gerente y administrador
+                    # Consultas para gerente, administrador y asistente (solo lectura para asistente)
                     rx.cond(
-                        (AppState.rol_usuario == "gerente") | (AppState.rol_usuario == "administrador"),
+                        (AppState.rol_usuario == "gerente") | (AppState.rol_usuario == "administrador") | (AppState.rol_usuario == "asistente"),
                         _modern_nav_item("Consultas", "calendar", "consultas")
                     ),
 
-                    # Opciones específicas por rol
+                    # Opciones específicas por rol - Gerente
                     rx.cond(
                         AppState.rol_usuario == "gerente",
                         rx.fragment(
@@ -397,6 +403,7 @@ def sidebar() -> rx.Component:
                         )
                     ),
 
+                    # Opciones específicas por rol - Administrador
                     rx.cond(
                         AppState.rol_usuario == "administrador",
                         rx.fragment(
@@ -405,6 +412,7 @@ def sidebar() -> rx.Component:
                         )
                     ),
 
+                    # Opciones específicas por rol - Odontólogo
                     rx.cond(
                         AppState.rol_usuario == "odontologo",
                         rx.fragment(
@@ -560,13 +568,13 @@ def info_field_readonly(
     Returns:
         rx.Component con el campo readonly estilizado
     """
-    # Si el valor está vacío y no se debe mostrar, retornar componente vacío
-    if not value and not show_empty:
-        return rx.box()
+    # # Si el valor está vacío y no se debe mostrar, retornar componente vacío
+    # if not value and not show_empty:
+    #     return rx.box()
 
     # Valor por defecto para campos vacíos
-    display_value = value if value else "No especificado"
-    is_empty = not value
+    display_value = rx.cond(value, value, "No especificado")
+    is_empty = rx.cond(value, False, True)
 
     return rx.vstack(
         # Label con icono opcional
@@ -595,8 +603,8 @@ def info_field_readonly(
                 display_value,
                 style={
                     "font_size": "1rem",
-                    "color": COLORS["gray"]["400"] if is_empty else DARK_THEME["colors"]["text_primary"],
-                    "font_style": "italic" if is_empty else "normal"
+                    "color": rx.cond(is_empty, COLORS["gray"]["400"], DARK_THEME["colors"]["text_primary"]),
+                    "font_style": rx.cond(is_empty, "italic", "normal")
                 }
             ),
             style={

@@ -72,24 +72,12 @@ def odontologist_stats_grid() -> rx.Component:
             color=COLORS["blue"]["500"],
         ),
 
-        # Card 5: Tiempo Promedio
-        stat_card(
-            title="Tiempo Promedio",
-            value=rx.cond(
-                AppState.dashboard_stats_odontologo,
-                f"{AppState.dashboard_stats_odontologo.get('tiempo_promedio_minutos', 0):.0f} min",
-                "0 min"
-            ),
-            icon="clock",
-            color=COLORS["warning"]["500"],
-        ),
-
         grid_template_columns=[
             "1fr",                  # Móvil: 1 columna
             "repeat(1, 1fr)",       # Móvil grande: 1 columna
             "repeat(2, 1fr)",       # Tablet: 2 columnas
             "repeat(3, 1fr)",       # Desktop pequeño: 3 columnas
-            "repeat(5, 1fr)",       # Desktop: 5 columnas
+            "repeat(4, 1fr)",       # Desktop: 4 columnas
         ],
         spacing="6",
         width="100%"
@@ -153,7 +141,7 @@ def odontologist_charts() -> rx.Component:
                             )
                         ),
                         data=AppState.consultas_data_odontologo,
-                        height=300,
+                        height="90%",
                         width="100%"
                     ),
                     # Gráfico de barras
@@ -175,7 +163,7 @@ def odontologist_charts() -> rx.Component:
                             },
                         ),
                         data=AppState.consultas_data_odontologo,
-                        height=300,
+                        height="90%",
                         width="100%"
                     )
                 )
@@ -215,7 +203,7 @@ def odontologist_charts() -> rx.Component:
                             )
                         ),
                         data=AppState.ingresos_data_odontologo,
-                        height=300,
+                        height="90%",
                         width="100%"
                     ),
                     # Gráfico de barras
@@ -237,7 +225,7 @@ def odontologist_charts() -> rx.Component:
                             },
                         ),
                         data=AppState.ingresos_data_odontologo,
-                        height=300,
+                        height="90%",
                         width="100%"
                     )
                 )
@@ -245,7 +233,7 @@ def odontologist_charts() -> rx.Component:
         ),
 
         **dark_crystal_card(color=COLORS["primary"]["500"], hover_lift="4px"),
-        width="100%"
+        width="100%",
     )
 
 
@@ -479,9 +467,15 @@ def dashboard_odontologo_page() -> rx.Component:
                         # Columna izquierda - Gráficos
                         odontologist_charts(),
 
-                        # Columna derecha - Top servicios
-                        top_services_chart(),
-
+                        rx.vstack(
+                            top_services_chart(),
+                            rx.box(
+                                consultation_queue_list(),
+                                margin_top="24px",
+                                width="100%"
+                            ),
+                            spacing="4",
+                        ),
                         grid_template_columns=[
                             "1fr",                  # Móvil: 1 columna
                             "repeat(1, 1fr)",       # Móvil grande: 1 columna
@@ -492,17 +486,10 @@ def dashboard_odontologo_page() -> rx.Component:
                         spacing="6",
                         width="100%",
                     ),
-
-                    # Lista de consultas en cola (ancho completo)
-                    rx.box(
-                        consultation_queue_list(),
-                        margin_top="24px",
-                        width="100%"
-                    ),
-
                     spacing="6",
                     padding="24px",
                     width="100%",
+                    min_height="100vh",
                 )
             ),
 

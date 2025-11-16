@@ -47,21 +47,19 @@ def personal_stats() -> rx.Component:
     return rx.grid(
         stat_card(
             title="Total Personal",
-            value="10",#  AppState.estadisticas_personal.total.to_string(),
+            value=AppState.total_personal.to_string(),
             icon="users",
-            color=COLORS["secondary"]["600"]
+            color=COLORS["primary"]["600"]
         ),
         stat_card(
             title="Odontólogos",
-            value="10",# AppState.estadisticas_personal.odontologos.to_string(),
+            value=AppState.total_odontologos.to_string(),
             icon="stethoscope",
-            color=COLORS["secondary"]["600"]
+            color=COLORS["success"]["600"]
         ),
         stat_card(
             title="Administrativos",
-            value= "10",#(AppState.estadisticas_personal.administradores + 
-                #    AppState.estadisticas_personal.asistentes + 
-                #    AppState.estadisticas_personal.gerentes).to_string(),
+            value=AppState.total_administrativos.to_string(),
             icon="briefcase",
             color=COLORS["secondary"]["600"]
         ),

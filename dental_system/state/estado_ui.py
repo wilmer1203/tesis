@@ -60,9 +60,9 @@ class EstadoUI(rx.State, mixin=True):
     puede_continuar_form_paciente: bool = True
     datos_temporales_paciente: Dict[str, Any] = {}
     
-    # Formulario de personal (3 pasos)
+    # Formulario de personal (2 pasos: 1=Datos Personales, 2=Info Profesional + Usuario)
     paso_formulario_personal: int = 0
-    total_pasos_personal: int = 3
+    total_pasos_personal: int = 2
     errores_formulario_personal: Dict[str, str] = {}
     puede_continuar_form_personal: bool = True
     datos_temporales_personal: Dict[str, Any] = {}
@@ -190,24 +190,28 @@ class EstadoUI(rx.State, mixin=True):
         # Modales de pacientes
         self.modal_crear_paciente_abierto = False
         self.modal_editar_paciente_abierto = False
-        
+
         # Modales de consultas
         self.modal_crear_consulta_abierto = False
         self.modal_editar_consulta_abierto = False
         self.modal_ver_consulta_abierto = False
-        
+
         # Modales de personal
         self.modal_crear_personal_abierto = False
         self.modal_editar_personal_abierto = False
 
+        # Modales de servicios
+        self.modal_crear_servicio_abierto = False
+        self.modal_editar_servicio_abierto = False
+
         # Modales de pagos
         self.modal_crear_pago_abierto = False
         self.modal_ver_pago_abierto = False
-        
+
         # Modales de confirmación/alerta
         self.modal_confirmacion_abierto = False
         self.datos_temporales_consulta = {}
-     
+
         print("❌ Todos los modales cerrados")
     
     # ==========================================

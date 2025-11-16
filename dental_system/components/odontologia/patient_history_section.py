@@ -17,7 +17,10 @@ Características:
 import reflex as rx
 from dental_system.state.app_state import AppState
 from dental_system.components.odontologia.history_service_card import history_service_card
-from dental_system.styles.medical_design_system import MEDICAL_COLORS, medical_card_style
+from dental_system.styles.themes import (
+    COLORS, DARK_THEME, SPACING, RADIUS, SHADOWS,
+    dark_crystal_card, glassmorphism_card
+)
 
 # ==========================================
 # 📚 COMPONENTE SECCIÓN DE HISTORIAL
@@ -46,19 +49,19 @@ def patient_history_section() -> rx.Component:
             # Título + Descripción
             rx.vstack(
                 rx.hstack(
-                    rx.icon("history", size=20, color=MEDICAL_COLORS["medical_ui"]["accent_primary"]),
+                    rx.icon("history", size=20, color=COLORS["primary"]["400"]),
                     rx.text(
                         "Historial de Intervenciones",
                         font_weight="700",
                         font_size="16px",
-                        color=MEDICAL_COLORS["medical_ui"]["text_primary"],
+                        color=DARK_THEME["colors"]["text_primary"],
                     ),
                     spacing="2",
                 ),
                 rx.text(
                     "Servicios previos realizados al paciente",
                     font_size="13px",
-                    color=MEDICAL_COLORS["medical_ui"]["text_secondary"],
+                    color=DARK_THEME["colors"]["text_secondary"],
                 ),
                 spacing="1",
                 align="start",
@@ -115,12 +118,12 @@ def patient_history_section() -> rx.Component:
                 rx.vstack(
                     rx.spinner(
                         size="3",
-                        color=MEDICAL_COLORS["medical_ui"]["accent_primary"],
+                        color=COLORS["primary"]["400"],
                     ),
                     rx.text(
                         "Cargando historial...",
                         font_size="13px",
-                        color=MEDICAL_COLORS["medical_ui"]["text_secondary"],
+                        color=DARK_THEME["colors"]["text_secondary"],
                     ),
                     spacing="3",
                     align="center",
@@ -152,12 +155,12 @@ def patient_history_section() -> rx.Component:
                             rx.text(
                                 f"(Filtrados para diente {AppState.historial_filtrado_por_diente})",
                                 font_size="11px",
-                                color=MEDICAL_COLORS["medical_ui"]["text_secondary"],
+                                color=DARK_THEME["colors"]["text_secondary"],
                             ),
                             rx.text(
                                 "(Mostrando todos los servicios del paciente)",
                                 font_size="11px",
-                                color=MEDICAL_COLORS["medical_ui"]["text_secondary"],
+                                color=DARK_THEME["colors"]["text_secondary"],
                             ),
                         ),
                         spacing="2",
@@ -181,15 +184,15 @@ def patient_history_section() -> rx.Component:
                                 "width": "8px",
                             },
                             "&::-webkit-scrollbar-track": {
-                                "background": MEDICAL_COLORS['medical_ui']['surface'],
+                                "background": DARK_THEME["colors"]["surface_secondary"],
                                 "border_radius": "4px",
                             },
                             "&::-webkit-scrollbar-thumb": {
-                                "background": f"{MEDICAL_COLORS['medical_ui']['accent_primary']}60",
+                                "background": f"{COLORS['primary']['500']}60",
                                 "border_radius": "4px",
                             },
                             "&::-webkit-scrollbar-thumb:hover": {
-                                "background": MEDICAL_COLORS["medical_ui"]["accent_primary"],
+                                "background": COLORS["primary"]["400"],
                             },
                         },
                     ),
@@ -200,7 +203,7 @@ def patient_history_section() -> rx.Component:
                         rx.icon(
                             "inbox",
                             size=48,
-                            color=MEDICAL_COLORS["medical_ui"]["accent_info"],
+                            color=DARK_THEME["colors"]["text_muted"],
                         ),
                         rx.text(
                             rx.cond(
@@ -210,7 +213,7 @@ def patient_history_section() -> rx.Component:
                             ),
                             font_size="15px",
                             font_weight="600",
-                            color=MEDICAL_COLORS["medical_ui"]["text_secondary"],
+                            color=DARK_THEME["colors"]["text_secondary"],
                             text_align="center",
                         ),
                         rx.text(
@@ -220,7 +223,7 @@ def patient_history_section() -> rx.Component:
                                 "El paciente no tiene intervenciones previas registradas",
                             ),
                             font_size="13px",
-                            color=MEDICAL_COLORS["medical_ui"]["accent_info"],
+                            color=DARK_THEME["colors"]["text_muted"],
                             text_align="center",
                         ),
                         rx.cond(
@@ -243,14 +246,21 @@ def patient_history_section() -> rx.Component:
                         align="center",
                         padding_y="48px",
                     ),
-                    border=f"2px dashed {MEDICAL_COLORS['medical_ui']['accent_info']}",
-                    border_radius="8px",
+                    border=f"2px dashed {DARK_THEME['colors']['border']}",
+                    border_radius=RADIUS["lg"],
+                    style={
+                        "background": f"rgba({DARK_THEME['colors']['surface']}, 0.3)",
+                        "backdrop_filter": "blur(10px)"
+                    }
                 ),
             ),
         ),
 
         # Estilos del contenedor
-        style={**medical_card_style()},
+        style={
+            **dark_crystal_card(color=COLORS["primary"]["500"], hover_lift="0px"),
+            "padding": SPACING["6"]
+        },
         width="100%",
         margin_y="4",
     )

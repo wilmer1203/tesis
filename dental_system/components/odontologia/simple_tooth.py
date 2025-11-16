@@ -60,18 +60,18 @@ def simple_tooth(
         Box único con número del diente, color de fondo y badge opcional
     """
 
-    # ✅ SOLUCIÓN: Usar rx.match para evaluar color en el frontend
-    # No podemos usar get_tooth_color() porque recibe un Reflex Var, no un string
+    # ✅ Mapeo COMPLETO de status → color (sincronizado con get_teeth_data)
+    # Orden de prioridad: ausente > fractura > caries > endodoncia > obturado > corona > implante > sano
     bg_color = rx.match(
         status,
-        ("sano", DARK_COLORS["accent_green"]),       # #38a169 - Verde
-        ("caries", DARK_COLORS["priority_urgent"]),  # #dc2626 - Rojo
-        ("obturado", DARK_COLORS["accent_blue"]),    # #3182ce - Azul
-        ("corona", DARK_COLORS["accent_yellow"]),    # #d69e2e - Amarillo
-        ("endodoncia", DARK_COLORS["accent_orange"]), # #dd6b20 - Naranja
-        ("ausente", DARK_COLORS["border"]),          # #718096 - Gris
-        ("fractura", DARK_COLORS["priority_urgent"]), # #dc2626 - Rojo
-        ("implante", DARK_COLORS["accent_purple"]),  # #805ad5 - Púrpura
+        ("ausente", DARK_COLORS["border"]),           # ⚫ #718096 - Gris (diente extraído)
+        ("fractura", DARK_COLORS["priority_urgent"]), # 🔴 #dc2626 - Rojo (fractura urgente)
+        ("caries", DARK_COLORS["priority_urgent"]),   # 🔴 #dc2626 - Rojo (caries)
+        ("endodoncia", DARK_COLORS["accent_orange"]), # 🟠 #dd6b20 - Naranja (conducto)
+        ("obturado", DARK_COLORS["accent_blue"]),     # 🔵 #3182ce - Azul (obturación)
+        ("corona", DARK_COLORS["accent_yellow"]),     # 🟡 #d69e2e - Amarillo (corona)
+        ("implante", DARK_COLORS["accent_purple"]),   # 🟣 #805ad5 - Púrpura (implante)
+        ("sano", DARK_COLORS["accent_green"]),        # 🟢 #38a169 - Verde (saludable)
         DARK_COLORS["surface"]  # Default: gris oscuro
     )
 
@@ -83,20 +83,6 @@ def simple_tooth(
             font_weight="800",
             color="white",
             text_align="center",
-        ),
-
-        # Badge de condición (circulito rojo)
-        rx.cond(
-            has_conditions,
-            rx.box(
-                width="8px",
-                height="8px",
-                border_radius="50%",
-                background=DARK_COLORS["priority_urgent"],
-                position="absolute",
-                top="4px",
-                right="4px",
-            ),
         ),
 
         # Estilos del contenedor

@@ -24,6 +24,7 @@ class PacienteModel(rx.Base):
     tipo_documento: str = "CI"
     fecha_nacimiento: Optional[str] = ""
     genero: Optional[str] = ""
+    edad: int = 0  # ✅ Campo calculado en from_dict()
 
     # ✅ CELULARES SEPARADOS (según esquema v4.1)
     celular_1: Optional[str] = ""
@@ -52,6 +53,20 @@ class PacienteModel(rx.Base):
         if not data or not isinstance(data, dict):
             return cls()
 
+        # ✅ Calcular edad desde fecha_nacimiento
+        edad = 0
+        if fecha_nac := data.get("fecha_nacimiento"):
+            try:
+                from datetime import datetime, date
+                fecha = datetime.strptime(str(fecha_nac), "%Y-%m-%d").date()
+                hoy = date.today()
+                edad = hoy.year - fecha.year
+                if (hoy.month, hoy.day) < (fecha.month, fecha.day):
+                    edad -= 1
+                edad = max(0, edad)
+            except:
+                pass
+
         return cls(
             id=str(data.get("id", "")),
             numero_historia=str(data.get("numero_historia", "")),
@@ -66,6 +81,7 @@ class PacienteModel(rx.Base):
             tipo_documento=str(data.get("tipo_documento", "CI")),
             fecha_nacimiento=str(data.get("fecha_nacimiento", "") if data.get("fecha_nacimiento") else ""),
             genero=str(data.get("genero", "") if data.get("genero") else ""),
+            edad=edad,  # ✅ Edad calculada
 
             # ✅ CELULARES SEPARADOS
             celular_1=str(data.get("celular_1", "") if data.get("celular_1") else ""),

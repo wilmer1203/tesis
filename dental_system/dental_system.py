@@ -4,7 +4,7 @@
 import reflex as rx
 from dental_system.state.app_state import AppState
 from dental_system.styles.themes import COLORS, SHADOWS
-from dental_system.pages.dashboard import dashboard_page, dashboard_page_admin  # 👔 Dashboard Gerente y 👤 Admin
+from dental_system.pages.dashboard import dashboard_page, dashboard_page_admin, dashboard_page_asistente  # 👔 Gerente, 👤 Admin, 👩‍⚕️ Asistente
 from dental_system.pages.dashboard_odontologo import dashboard_odontologo_page  # 🦷 Dashboard Odontólogo
 from dental_system.pages.pacientes_page import pacientes_page
 from dental_system.pages.personal_page import personal_page
@@ -21,7 +21,8 @@ from dental_system.components.common import sidebar
 from dental_system.utils.route_guard import (
     boss_only_component,
     admin_or_boss_component,
-    dentist_component
+    dentist_component,
+    assistant_component
 )
 
 
@@ -87,15 +88,20 @@ def main_content() -> rx.Component:
     """
     return rx.match(
         AppState.current_page,
-        # 📊 Dashboard con condicional por rol (Gerente vs Administrador)
+        # 📊 Dashboard con condicional por rol (Gerente vs Administrador vs Asistente)
         ("dashboard",
             rx.cond(
                 AppState.rol_usuario == "administrador",
                 dashboard_page_admin(),  # 👤 Dashboard Administrador
-                dashboard_page()         # 👔 Dashboard Gerente (default)
+                rx.cond(
+                    AppState.rol_usuario == "asistente",
+                    dashboard_page_asistente(),  # 👩‍⚕️ Dashboard Asistente
+                    dashboard_page()         # 👔 Dashboard Gerente (default)
+                )
             )
         ),
         ("dashboard-odontologo", dashboard_odontologo_page()),  # 🦷 Dashboard Odontólogo
+        ("dashboard-asistente", dashboard_page_asistente()),  # 👩‍⚕️ Dashboard Asistente
         ("pacientes", pacientes_page()),
         ("historial-paciente", historial_paciente_page()),  # 🆕 Historial del paciente
         ("consultas", consultas_page_v41()),  # 🔄 VERSIÓN ORIGINAL (FUNCIONA)
@@ -128,6 +134,11 @@ def dentist_page() -> rx.Component:
     """🦷 Página del odontólogo - SPA con contenido dinámico"""
     return main_layout(main_content())
 
+@assistant_component
+def assistant_page() -> rx.Component:
+    """👩‍⚕️ Página del asistente - SPA con contenido dinámico"""
+    return main_layout(main_content())
+
 # ==========================================
 # 🏠 PÁGINA DE INICIO - REDIRECCIÓN INTELIGENTE
 # ==========================================
@@ -143,7 +154,7 @@ def index_page() -> rx.Component:
                 rx.center("Redirigiendo al dashboard del gerente...")
             ),
             rx.cond(
-                AppState.rol_usuario == "administrador", 
+                AppState.rol_usuario == "administrador",
                 rx.fragment(
                     rx.script('window.location.href = "/admin";'),
                     rx.center("Redirigiendo al dashboard del administrador...")
@@ -154,7 +165,14 @@ def index_page() -> rx.Component:
                         rx.script('window.location.href = "/dentist";'),
                         rx.center("Redirigiendo al dashboard del odontólogo...")
                     ),
-                    rx.center("Rol no reconocido")
+                    rx.cond(
+                        AppState.rol_usuario == "asistente",
+                        rx.fragment(
+                            rx.script('window.location.href = "/assistant";'),
+                            rx.center("Redirigiendo al dashboard del asistente...")
+                        ),
+                        rx.center("Rol no reconocido")
+                    )
                 )
             )
         ),
@@ -260,6 +278,7 @@ def create_app() -> rx.App:
     app.add_page(boss_page, route="/boss")                    # Gerente
     app.add_page(admin_page, route="/admin")                  # Administrador
     app.add_page(dentist_page, route="/dentist")              # Odontólogo
+    app.add_page(assistant_page, route="/assistant")          # Asistente
 
 
     return app

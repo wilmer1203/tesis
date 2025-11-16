@@ -58,35 +58,39 @@ def queue_control_bar_simple() -> rx.Component:
     )
 
 def boton_nueva_consulta_flotante() -> rx.Component:
-    """🚀 Botón flotante con efecto glassmorphism - TEMA OSCURO"""
-    return rx.button(
-        rx.hstack(
-            rx.icon("calendar-plus", size=20, color=DARK_THEME["colors"]["text_primary"]),
-            rx.text("Nueva Consulta", font_weight="600", color=DARK_THEME["colors"]["text_primary"]),
-            spacing="2",
-            align="center"
+    """🚀 Botón flotante con efecto glassmorphism - TEMA OSCURO (Oculto para asistentes)"""
+    return rx.cond(
+        (AppState.rol_usuario != "asistente"),  # Solo visible si NO es asistente
+        rx.button(
+            rx.hstack(
+                rx.icon("calendar-plus", size=20, color=DARK_THEME["colors"]["text_primary"]),
+                rx.text("Nueva Consulta", font_weight="600", color=DARK_THEME["colors"]["text_primary"]),
+                spacing="2",
+                align="center"
+            ),
+            style={
+                "background": GRADIENTS['text_gradient_primary'],
+                "color": DARK_THEME["colors"]["text_primary"],
+                "border": f"1px solid rgba(255, 255, 255, 0.1)",
+                "border_radius": RADIUS["xl"],
+                "padding": f"{SPACING['4']} {SPACING['8']}",
+                "position": "fixed",
+                "top": SPACING["8"],
+                "right": SPACING["8"],
+                "z_index": "1000",
+                "backdrop_filter": "blur(10px)",
+                "box_shadow": f"0 8px 32px {COLORS['primary']['500']}30, inset 0 1px 0 rgba(255, 255, 255, 0.1)",
+                "transition": "all 0.3s ease",
+                "_hover": {
+                    "background": f"linear-gradient(135deg, {COLORS['blue']['600']} 0%, {COLORS['primary']['500']} 100%)",
+                    "transform": "translateY(-2px)",
+                    "box_shadow": f"0 12px 40px {COLORS['primary']['500']}40, inset 0 1px 0 rgba(255, 255, 255, 0.2)"
+                }
+            },
+            # 🔄 ACTUALIZADO: Usar método directo de abrir modal
+            on_click=AppState.set_modal_crear_consulta_abierto(True)
         ),
-        style={
-            "background": GRADIENTS['text_gradient_primary'],
-            "color": DARK_THEME["colors"]["text_primary"],
-            "border": f"1px solid rgba(255, 255, 255, 0.1)",
-            "border_radius": RADIUS["xl"],
-            "padding": f"{SPACING['4']} {SPACING['8']}",
-            "position": "fixed",
-            "top": SPACING["8"],
-            "right": SPACING["8"],
-            "z_index": "1000",
-            "backdrop_filter": "blur(10px)",
-            "box_shadow": f"0 8px 32px {COLORS['primary']['500']}30, inset 0 1px 0 rgba(255, 255, 255, 0.1)",
-            "transition": "all 0.3s ease",
-            "_hover": {
-                "background": f"linear-gradient(135deg, {COLORS['blue']['600']} 0%, {COLORS['primary']['500']} 100%)",
-                "transform": "translateY(-2px)",
-                "box_shadow": f"0 12px 40px {COLORS['primary']['500']}40, inset 0 1px 0 rgba(255, 255, 255, 0.2)"
-            }
-        },
-        # 🔄 ACTUALIZADO: Usar método directo de abrir modal
-        on_click=AppState.set_modal_crear_consulta_abierto(True)
+        rx.fragment()  # No mostrar nada si es asistente
     )
 # ==========================================
 # 🏷️ BADGE CONSULTAS UNIFICADO 

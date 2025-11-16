@@ -37,12 +37,10 @@ from .servicios_models import (
 
 from .pagos_models import (
     PagoModel,
-    PagosStatsModel,
     ConsultaPendientePago,
-    CuentaPorCobrarModel,
     PagoFormModel,
-    ServicioFormateado
-    
+    ServicioFormateado,
+    MetodoPagoModel
 )
 
 from .ui_models import (
@@ -101,10 +99,8 @@ __all__ = [
 
     # ✅ PAGOS Y FACTURACIÓN
     "PagoModel",
-    "PagosStatsModel", 
     "ConsultaPendientePago",
     "ServicioFormateado",
-    "CuentaPorCobrarModel",
     
     # ✅ ODONTOLOGÍA ESPECIALIZADA
     "OdontogramaModel",

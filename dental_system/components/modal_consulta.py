@@ -352,27 +352,23 @@ def campos_adicionales() -> rx.Component:
                 field_type="select",
                 options=["general", "control", "urgencia", "emergencia"],
                 icon="activity",
-                help_text="Predeterminado: general"
+            ),
+            # Motivo de la consulta con enhanced_form_field
+            enhanced_form_field(
+                label="Motivo de la Consulta",
+                field_name="motivo_consulta",
+                value=rx.cond(AppState.formulario_consulta_data, AppState.formulario_consulta_data.motivo_consulta, ""),
+                on_change=lambda field, value: AppState.set_formulario_consulta_field(field, value),
+                field_type="textarea",
+                placeholder="¿Por qué viene el paciente? (opcional)",
+                icon="file-text",
+                max_length=400
             ),
             
             columns=rx.breakpoints(initial="1", sm="2"),
-            spacing="5",
+            spacing="4",
             width="100%"
         ),
-        
-        # Motivo de la consulta con enhanced_form_field
-        enhanced_form_field(
-            label="Motivo de la Consulta",
-            field_name="motivo_consulta",
-            value=rx.cond(AppState.formulario_consulta_data, AppState.formulario_consulta_data.motivo_consulta, ""),
-            on_change=lambda field, value: AppState.set_formulario_consulta_field(field, value),
-            field_type="textarea",
-            placeholder="¿Por qué viene el paciente? (opcional)",
-            icon="file-text",
-            help_text="Descripción del motivo de la consulta",
-            max_length=400
-        ),
-        
         spacing="4",
         width="100%",
         align="start"

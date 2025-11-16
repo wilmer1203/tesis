@@ -37,7 +37,7 @@ def servicios_stats() -> rx.Component:
     return rx.grid(
         stat_card(
             title="Total Servicios",
-            value=AppState.total_servicios.to_string(),
+            value=AppState.total_servicios_computed.to_string(),
             icon="layers",
             color=COLORS["primary"]["600"],
             # subtitle="en catálogo"

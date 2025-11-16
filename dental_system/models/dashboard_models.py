@@ -273,12 +273,12 @@ class KPIModel(rx.Base):
     tendencia: str = "estable"
     periodo: str = "mes"        # dia, semana, mes, año
     categoria: str = ""         # financiero, operativo, satisfaccion
-    
+
     @property
     def cumplimiento_display(self) -> str:
         """Porcentaje de cumplimiento formateado"""
         return f"{self.porcentaje_cumplimiento:.1f}%"
-    
+
     @property
     def valor_display(self) -> str:
         """Valor actual formateado con unidad"""
@@ -288,7 +288,7 @@ class KPIModel(rx.Base):
             return f"${self.valor_actual:,.0f}"
         else:
             return f"{self.valor_actual:.0f} {self.unidad}"
-    
+
     @property
     def color_cumplimiento(self) -> str:
         """Color según el porcentaje de cumplimiento"""
@@ -298,3 +298,13 @@ class KPIModel(rx.Base):
             return "#ffc107"    # Amarillo - Cerca del objetivo
         else:
             return "#dc3545"    # Rojo - Lejos del objetivo
+
+
+class ActividadReciente(rx.Base):
+    """Modelo para actividades recientes en el dashboard"""
+    tipo: str = ""  # paciente, consulta, pago
+    titulo: str = ""
+    descripcion: str = ""
+    tiempo_relativo: str = ""
+    icono: str = "circle"
+    color: str = "#6c757d"

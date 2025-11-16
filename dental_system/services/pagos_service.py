@@ -41,7 +41,7 @@ class PagosService(BaseService):
             Lista de pagos como modelos tipados
         """
         try:
-            query = self.client.table("pago").select("*")
+            query = self.client.table("pago").select("*, paciente(primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, numero_documento)")
 
             # Aplicar filtros
             if fecha_inicio and fecha_fin:

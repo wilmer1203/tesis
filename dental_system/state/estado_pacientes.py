@@ -55,6 +55,7 @@ class EstadoPacientes(rx.State,mixin=True):
     termino_busqueda_pacientes: str = ""
     filtro_genero: str = "todos"  # todos, masculino, femenino
     filtro_estado: str = "todos"  # todos, activos, inactivos
+    filtro_rango_edad: str = "todos"  # todos, 0-17, 18-35, 36-50, 51-65, 66+
 
     # ==========================================
     # 👥 ESTADOS DE CARGA
@@ -274,14 +275,40 @@ class EstadoPacientes(rx.State,mixin=True):
         print(f"🔍 Búsqueda de pacientes: '{self.termino_busqueda_pacientes}'")
         await self.cargar_lista_pacientes()
 
+    @rx.event
+    async def set_filtro_genero(self, genero: str):
+        """Establecer filtro por género"""
+        self.filtro_genero = genero
+        print(f"🔍 Filtro de género: '{self.filtro_genero}'")
+        await self.cargar_lista_pacientes()
+
     # ==========================================
     # 👥 COMPUTED VARS CON CACHE
     # ==========================================
 
     @rx.var(cache=True)
     def pacientes_filtrados_display(self) -> List[PacienteModel]:
-        """📋 Lista de pacientes para mostrar"""
-        return self.lista_pacientes
+        """📋 Lista de pacientes para mostrar con filtrado por edad y género"""
+        pacientes = self.lista_pacientes
+
+        # Filtrar por rango de edad
+        if self.filtro_rango_edad and self.filtro_rango_edad != "todos":
+            if self.filtro_rango_edad == "0-17":
+                pacientes = [p for p in pacientes if 0 <= p.edad <= 17]
+            elif self.filtro_rango_edad == "18-35":
+                pacientes = [p for p in pacientes if 18 <= p.edad <= 35]
+            elif self.filtro_rango_edad == "36-50":
+                pacientes = [p for p in pacientes if 36 <= p.edad <= 50]
+            elif self.filtro_rango_edad == "51-65":
+                pacientes = [p for p in pacientes if 51 <= p.edad <= 65]
+            elif self.filtro_rango_edad == "66+":
+                pacientes = [p for p in pacientes if p.edad >= 66]
+
+        # Filtrar por género
+        if self.filtro_genero and self.filtro_genero != "todos":
+            pacientes = [p for p in pacientes if p.genero == self.filtro_genero]
+
+        return pacientes
 
     @rx.var(cache=True)
     def total_pacientes_activos(self) -> int:
@@ -297,6 +324,44 @@ class EstadoPacientes(rx.State,mixin=True):
     def total_pacientes_femeninos(self) -> int:
         """👨 Total de pacientes masculinos"""
         return len([p for p in self.lista_pacientes if p.genero == "femenino"])
+
+    # ==========================================
+    # 🎂 FUNCIÓN HELPER PARA CALCULAR EDAD
+    # ==========================================
+
+    def calcular_edad_desde_fecha(self, fecha_nacimiento: str) -> int:
+        """
+        🎂 Calcular edad desde fecha de nacimiento (función helper para componentes)
+
+        Args:
+            fecha_nacimiento: String en formato YYYY-MM-DD
+
+        Returns:
+            Edad en años (0 si no hay fecha válida)
+        """
+        if not fecha_nacimiento:
+            return 0
+
+        try:
+            from datetime import date, datetime
+            # Convertir string fecha a objeto date
+            if isinstance(fecha_nacimiento, str) and fecha_nacimiento:
+                fecha_nac = datetime.strptime(fecha_nacimiento, "%Y-%m-%d").date()
+            else:
+                return 0
+
+            hoy = date.today()
+            edad = hoy.year - fecha_nac.year
+
+            # Ajustar si aún no ha cumplido años este año
+            if (hoy.month, hoy.day) < (fecha_nac.month, fecha_nac.day):
+                edad -= 1
+
+            return max(0, edad)
+        except Exception as e:
+            print(f"Error calculando edad: {e}")
+            return 0
+
     # ==========================================
     # 👥 MÉTODOS AUXILIARES
     # ==========================================

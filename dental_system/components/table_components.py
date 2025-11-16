@@ -21,7 +21,8 @@ TABLE_STYLE = {
     "box_shadow": "0 8px 25px rgba(0, 0, 0, 0.4)",
     "border": f"1px solid {DARK_THEME['colors']['border']}",
     "overflow": "hidden",
-    "backdrop_filter": "blur(10px)"
+    "backdrop_filter": "blur(10px)",
+    "margin_top": SPACING["6"]
 }
 
 
@@ -118,21 +119,6 @@ def filter_select(icon: str, options: List[str], value, on_change, placeholder: 
         align="center"
     )
 
-# def status_badge(is_active: bool, active_text: str = "Activo", inactive_text: str = "Inactivo") -> rx.Component:
-#     """Badge de estado elegante"""
-#     return rx.badge(
-#         rx.hstack(
-#             rx.icon(
-#                 rx.cond(is_active, "check", "x"),
-#                 size=14
-#             ),
-#             rx.text(rx.cond(is_active, active_text, inactive_text)),
-#             spacing="1"
-#         ),
-#         color_scheme=rx.cond(is_active, "green", "red"),
-#         variant="soft",
-#         size="2"
-#     )
 
 def action_button(icon: str, tooltip: str, color: str, action) -> rx.Component:
     """Botón de acción elegante con tooltip"""
@@ -176,7 +162,7 @@ def empty_state(title: str, subtitle: str, icon: str) -> rx.Component:
                 background=COLORS["gray"]["50"],
                 border_radius=RADIUS["full"]
             ),
-            rx.text(title, size="5", weight="bold", color=COLORS["gray"]["800"]),
+            rx.text(title, size="5", weight="bold", color=COLORS["gray"]["25"]),
             rx.text(subtitle, size="3", color=COLORS["gray"]["600"]),
             spacing="4",
             align="center"
@@ -199,6 +185,35 @@ def patients_table() -> rx.Component:
                 value=AppState.termino_busqueda_pacientes,
                 on_change=AppState.buscar_pacientes
             ),
+
+            # Filtro por género
+            rx.hstack(
+                rx.text("Género:", size="3", weight="medium", color=DARK_THEME["colors"]["text_secondary"]),
+                rx.select(
+                    ["todos", "masculino", "femenino"],
+                    value=AppState.filtro_genero,
+                    on_change=AppState.set_filtro_genero,
+                    placeholder="Todos",
+                    width="130px"
+                ),
+                spacing="1",
+                align="start"
+            ),
+
+            # Filtro por rango de edad
+            rx.hstack(
+                rx.text("Edad:", size="3", weight="medium", color=DARK_THEME["colors"]["text_secondary"]),
+                rx.select(
+                    ["todos", "0-17", "18-35", "36-50", "51-65", "66+"],
+                    value=AppState.filtro_rango_edad,
+                    on_change=AppState.set_filtro_rango_edad,
+                    placeholder="Todas",
+                    width="120px"
+                ),
+                spacing="1",
+                align="start"
+            ),
+
             rx.spacer(),
             primary_button(
                 text="Nuevo Paciente",
@@ -208,8 +223,7 @@ def patients_table() -> rx.Component:
             ),
             wrap="wrap",
             align="center",
-            
-            
+            spacing="3"
         ),
         
         # Tabla
@@ -230,7 +244,7 @@ def patients_table() -> rx.Component:
                                 rx.table.column_header_cell("Género", style=COLUMN_HEADER),
                                 rx.table.column_header_cell("Documento", style=COLUMN_HEADER),
                                 rx.table.column_header_cell("Contacto", style=COLUMN_HEADER),
-                                rx.table.column_header_cell("Estado", style=COLUMN_HEADER),
+                                rx.table.column_header_cell("Registro", style=COLUMN_HEADER),
                                 rx.table.column_header_cell("Acciones", style=COLUMN_HEADER),
                             )
                         ),
@@ -287,18 +301,20 @@ def patient_row(patient: rx.Var[PacienteModel]) -> rx.Component:
         
         # Edad
         rx.table.cell(
-            rx.cond(
-                patient.fecha_nacimiento,
+            rx.hstack(
                 rx.text(
-                    patient.fecha_nacimiento.to(str),
+                    patient.edad.to_string(),
                     size="3",
+                    weight="medium",
                     color=COLORS["gray"]["50"]
                 ),
                 rx.text(
-                    "N/A",
-                    size="3",
+                    "años",
+                    size="2",
                     color=COLORS["gray"]["400"]
-                )
+                ),
+                spacing="1",
+                align="center"
             ),
             style=DATA_CELL
         ),
@@ -331,18 +347,17 @@ def patient_row(patient: rx.Var[PacienteModel]) -> rx.Component:
             ),
             style=DATA_CELL
         ),
-        
         # Documento
         rx.table.cell(
             rx.box(
                 rx.text(
-                    patient.tipo_documento + "-" + patient.numero_documento,
+                    f"{patient.tipo_documento}-{patient.numero_documento}",
                     size="3",
-                    font_family=TYPOGRAPHY["font_family"]["mono"]
+                    font_family="monospace",  # Familia mono simplificada
+                    color=COLORS["gray"]["100"],  # Texto principal claro
+                    weight="medium"
                 ),
-                padding=SPACING["2"],
-                background=COLORS["gray"]["800"],
-                border_radius=RADIUS["md"]
+
             ),
             style=DATA_CELL
         ),
@@ -352,21 +367,57 @@ def patient_row(patient: rx.Var[PacienteModel]) -> rx.Component:
             rx.cond(
                 patient.celular_1,
                 rx.hstack(
-                    rx.icon("phone", size=16, color=COLORS["primary"]["500"]),
-                    rx.text(patient.celular_1, size="3"),
-                    spacing="2"
+                    rx.icon("phone", size=16, color=COLORS["success"]["400"]),
+                    rx.text(
+                        patient.celular_1,
+                        size="3",
+                        color=COLORS["gray"]["100"],  # Texto principal claro
+                        weight="medium"
+                    ),
+                    spacing="2",
+                    align="center"
                 ),
-                rx.text("Sin celular", size="3", color=COLORS["gray"]["400"])
+                rx.hstack(
+                    rx.icon("phone-off", size=16, color=COLORS["gray"]["500"]),  # Icono muted
+                    rx.text(
+                        "Sin celular",
+                        size="3",
+                        color=COLORS["gray"]["500"],  # Texto muted
+                        style={"font_style": "italic"}
+                    ),
+                    spacing="2",
+                    align="center"
+                )
             ),
             style=DATA_CELL
         ),
-        
-        # Estado
+
+        # Fecha de Registro
         rx.table.cell(
-            status_badge(patient.activo),
+            rx.cond(
+                patient.fecha_registro,
+                rx.hstack(
+                    rx.icon("calendar", size=16, color=COLORS["primary"]["400"]),
+                    rx.text(
+                        patient.fecha_registro.split("T")[0],
+                        size="3",
+                        color=COLORS["gray"]["100"],
+                        weight="medium",
+                        font_family="monospace"
+                    ),
+                    spacing="2",
+                    align="center"
+                ),
+                rx.text(
+                    "Sin fecha",
+                    size="3",
+                    color=COLORS["gray"]["500"],
+                    style={"font_style": "italic"}
+                )
+            ),
             style=DATA_CELL
         ),
-        
+
         # Acciones
         rx.table.cell(
             rx.hstack(
@@ -391,22 +442,6 @@ def patient_row(patient: rx.Var[PacienteModel]) -> rx.Component:
                     tooltip="Nueva Consulta",
                     color=COLORS["secondary"]["600"],
                     action=lambda: AppState.abrir_modal_consulta("crear", {"paciente_id": patient.id, "paciente_nombre": patient.nombre_completo})
-                ),
-
-                rx.cond(
-                    patient.activo,
-                    action_button(
-                        icon="trash-2",
-                        tooltip="Desactivar",
-                        color=COLORS["error"]["600"],
-                        action=lambda: AppState.abrir_modal_confirmacion("Eliminar Paciente", "¿Está seguro de eliminar a " + patient.nombre_completo + "?", "eliminar_paciente:" + patient.id)
-                    ),
-                    action_button(
-                        icon="refresh-cw",
-                        tooltip="Reactivar",
-                        color=COLORS["success"]["600"],
-                        action=lambda: AppState.abrir_modal_confirmacion("Reactivar Paciente", "¿Está seguro de reactivar a " + patient.nombre_completo + "?", "reactivar_paciente:" + patient.id)
-                    )
                 ),
 
                 spacing="1"
@@ -438,8 +473,8 @@ def personal_table() -> rx.Component:
             # Filtros funcionales
             rx.hstack(
                 # Filtro por tipo de cargo/rol
-                rx.vstack(
-                    rx.text("Cargo:", size="2", weight="medium", color="gray.700"),
+                rx.hstack(
+                    rx.text("Cargo:", size="3", weight="medium", color=DARK_THEME["colors"]["text_secondary"]),
                     rx.select(
                         ["todos", "Gerente", "Administrador", "Odontólogo", "Asistente"],
                         placeholder="Seleccionar cargo",
@@ -448,15 +483,15 @@ def personal_table() -> rx.Component:
                         width="150px"
                     ),
                     spacing="1",
-                    align="start"
+                    align="stretch"
                 ),
-                
+
                 # Filtro por estado
-                rx.vstack(
-                    rx.text("Estado:", size="2", weight="medium", color="gray.700"),
+                rx.hstack(
+                    rx.text("Estado:", size="3", weight="medium", color=DARK_THEME["colors"]["text_secondary"]),
                     rx.select(
                         ["todos", "activos", "inactivos"],
-                        placeholder="Seleccionar estado", 
+                        placeholder="Seleccionar estado",
                         value=AppState.filtro_estado_empleado,
                         on_change=AppState.filtrar_por_estado,
                         width="120px"
@@ -464,9 +499,9 @@ def personal_table() -> rx.Component:
                     spacing="1",
                     align="start"
                 ),
-                
+
                 spacing="4",
-                align="end"
+                align="stretch"
             ),
 
             # Botón Nuevo Personal movido aquí
@@ -494,15 +529,14 @@ def personal_table() -> rx.Component:
                     rx.table.root(
                         rx.table.header(
                             rx.table.row(
-                                rx.table.column_header_cell("Nombre"),
-                                rx.table.column_header_cell("Documento"),
-                                rx.table.column_header_cell("Cargo"),
-                                rx.table.column_header_cell("Especialidad"),
-                                rx.table.column_header_cell("Estado"),
-                                rx.table.column_header_cell("Contacto"),
-                                rx.table.column_header_cell("Acciones"),
-                            ),
-                            style=COLUMN_HEADER
+                                rx.table.column_header_cell("Nombre", style=COLUMN_HEADER),
+                                rx.table.column_header_cell("Documento", style=COLUMN_HEADER),
+                                rx.table.column_header_cell("Cargo", style=COLUMN_HEADER),
+                                rx.table.column_header_cell("Especialidad", style=COLUMN_HEADER),
+                                rx.table.column_header_cell("Estado", style=COLUMN_HEADER),
+                                rx.table.column_header_cell("Contacto", style=COLUMN_HEADER),
+                                rx.table.column_header_cell("Acciones", style=COLUMN_HEADER),
+                            )
                         ),
                         
                         rx.table.body(
@@ -646,13 +680,13 @@ def personal_row(personal: rx.Var[PersonalModel]) -> rx.Component:
                         icon="user-x",
                         tooltip="Inhabilitar",
                         color=COLORS["error"]["600"],
-                        action=lambda: AppState.activar_desactivar_empleado(personal.id, False)
+                        action=lambda: AppState.activar_desactivar_personal(personal.id, False)
                     ),
                     action_button(
                         icon="user-check",
                         tooltip="Reactivar",
                         color=COLORS["success"]["600"],
-                        action=lambda: AppState.activar_desactivar_empleado(personal.id, True)
+                        action=lambda: AppState.activar_desactivar_personal(personal.id, True)
                     )
                 ),
                 align="center",
@@ -914,7 +948,13 @@ def servicio_row(servicio) -> rx.Component:
         # Alcance
         rx.table.cell(
             rx.text(
-                servicio.alcance_servicio,
+                rx.match(
+                    servicio.alcance_servicio,
+                    ("boca_completa", "Boca Completa"),
+                    ("superficie_especifica", "Superficie Específica"),
+                    ("diente_completo", "Diente Completo"),
+                    servicio.alcance_servicio  # fallback
+                ),
                 size="3",
                 color=COLORS["gray"]["100"],
                 weight="medium"
@@ -1087,7 +1127,7 @@ def pago_row(pago) -> rx.Component:
         rx.table.cell(
             rx.box(
                 rx.text(
-                    pago["numero_recibo"],
+                    pago.numero_recibo,
                     size="3",
                     font_family=TYPOGRAPHY["font_family"]["mono"],
                     color=COLORS["primary"]["400"],
@@ -1104,13 +1144,13 @@ def pago_row(pago) -> rx.Component:
         rx.table.cell(
             rx.vstack(
                 rx.text(
-                    pago["paciente_nombre"],
+                    pago.paciente_nombre,
                     size="3",
                     weight="medium",
                     color=COLORS["gray"]["100"]
                 ),
                 rx.text(
-                    pago["paciente_documento"],
+                    pago.paciente_documento,
                     size="2",
                     color=COLORS["gray"]["400"]
                 ),
@@ -1123,11 +1163,11 @@ def pago_row(pago) -> rx.Component:
         # Monto USD
         rx.table.cell(
             rx.cond(
-                pago["monto_pagado_usd"].to(float) > 0,
+                pago.monto_total_usd > 0,
                 rx.hstack(
                     rx.icon("dollar-sign", size=16, color=COLORS["success"]["400"]),
                     rx.text(
-                        f"${pago['monto_pagado_usd']}",
+                        f"${pago.monto_total_usd}",
                         size="3",
                         weight="medium",
                         color=COLORS["gray"]["100"]
@@ -1143,11 +1183,11 @@ def pago_row(pago) -> rx.Component:
         # Monto BS
         rx.table.cell(
             rx.cond(
-                pago["monto_pagado_bs"].to(float) > 0,
+                pago.monto_pagado_bs > 0,
                 rx.hstack(
                     rx.icon("banknote", size=16, color=COLORS["warning"]["400"]),
                     rx.text(
-                        f"{pago['monto_pagado_bs']:,.0f} Bs",
+                        f"{pago.monto_pagado_bs:,.0f} Bs",
                         size="3",
                         weight="medium",
                         color=COLORS["gray"]["100"]
@@ -1162,15 +1202,14 @@ def pago_row(pago) -> rx.Component:
 
         # Estado
         rx.table.cell(
-            pago_estado_badge(pago["estado_pago"]),
+            pago_estado_badge(pago.estado_pago),
             style=DATA_CELL
         ),
 
         # Fecha (formateada a YYYY-MM-DD)
         rx.table.cell(
             rx.text(
-                "texto de fecha",
-                # pago["fecha_pago"].split("T")[0] if "T" in pago["fecha_pago"] else pago["fecha_pago"],
+                pago.fecha_pago.split("T")[0],
                 size="3",
                 color=COLORS["gray"]["100"],
                 font_family=TYPOGRAPHY["font_family"]["mono"]
@@ -1226,27 +1265,6 @@ def pagos_table() -> rx.Component:
                 value=AppState.termino_busqueda_pagos,
                 on_change=AppState.buscar_pagos
             ),
-
-            # Botón exportar (solo icono)
-            rx.tooltip(
-                rx.button(
-                    rx.icon("download", size=18),
-                    on_click=AppState.exportar_pagos,
-                    variant="soft",
-                    color_scheme="cyan",
-                    size="2",
-                    style={
-                        "cursor": "pointer",
-                        "transition": "all 0.2s ease",
-                        "_hover": {
-                            "transform": "translateY(-2px)",
-                            "box_shadow": f"0 4px 12px {COLORS['primary']['500']}30"
-                        }
-                    }
-                ),
-                content="Exportar pagos"
-            ),
-
             wrap="wrap",
             align="center",
             spacing="4",
@@ -1278,7 +1296,7 @@ def pagos_table() -> rx.Component:
 
                         rx.table.body(
                             rx.foreach(
-                                AppState.pagos_historial_formateados,
+                                AppState.lista_pagos,
                                 pago_row
                             )
                         )
@@ -1320,6 +1338,261 @@ def pagos_table() -> rx.Component:
     )
 
 # ==========================================
+# 📅 TABLA DE CONSULTAS PARA DASHBOARD ASISTENTE
+# ==========================================
+
+def consulta_estado_badge(estado: rx.Var[str]) -> rx.Component:
+    """Badge de estado de consulta con iconos distintivos"""
+    return rx.box(
+        rx.hstack(
+            rx.icon(
+                rx.match(
+                    estado,
+                    ("programada", "calendar"),
+                    ("en_progreso", "activity"),
+                    ("completada", "check-circle"),
+                    ("cancelada", "x-circle"),
+                    ("en_espera", "clock"),
+                    ("en_atencion", "stethoscope"),
+                    "help-circle"
+                ),
+                size=14,
+                color="white"
+            ),
+            rx.text(
+                rx.match(
+                    estado,
+                    ("programada", "Programada"),
+                    ("en_progreso", "En Progreso"),
+                    ("completada", "Completada"),
+                    ("cancelada", "Cancelada"),
+                    ("en_espera", "En Espera"),
+                    ("en_atencion", "En Atención"),
+                    estado.capitalize()
+                ),
+                color="white",
+                weight="medium",
+                size="2"
+            ),
+            spacing="2",
+            align="center"
+        ),
+        style={
+            "background": rx.match(
+                estado,
+                ("programada", f"linear-gradient(135deg, {COLORS['blue']['500']}40 0%, {COLORS['blue']['600']}80 100%)"),
+                ("en_progreso", f"linear-gradient(135deg, {COLORS['warning']['500']}40 0%, {COLORS['warning']['700']}80 100%)"),
+                ("completada", f"linear-gradient(135deg, {COLORS['success']['500']}40 0%, {COLORS['success']['600']}80 100%)"),
+                ("cancelada", f"linear-gradient(135deg, {COLORS['error']['500']}40 0%, {COLORS['error']['600']}80 100%)"),
+                ("en_espera", f"linear-gradient(135deg, {COLORS['gray']['500']}40 0%, {COLORS['gray']['600']}80 100%)"),
+                ("en_atencion", f"linear-gradient(135deg, {COLORS['primary']['500']}40 0%, {COLORS['primary']['600']}80 100%)"),
+                f"linear-gradient(135deg, {COLORS['gray']['500']} 0%, {COLORS['gray']['600']} 100%)"
+            ),
+            "padding": f"{SPACING['1']} {SPACING['3']}",
+            "border_radius": RADIUS["full"],
+            "box_shadow": rx.match(
+                estado,
+                ("programada", f"0 2px 8px {COLORS['blue']['500']}40"),
+                ("en_progreso", f"0 2px 8px {COLORS['warning']['500']}40"),
+                ("completada", f"0 2px 8px {COLORS['success']['500']}40"),
+                ("cancelada", f"0 2px 8px {COLORS['error']['500']}40"),
+                ("en_espera", f"0 2px 8px {COLORS['gray']['500']}40"),
+                ("en_atencion", f"0 2px 8px {COLORS['primary']['500']}40"),
+                f"0 2px 8px {COLORS['gray']['500']}40"
+            ),
+            "border": "1px solid rgba(255, 255, 255, 0.2)",
+            "backdrop_filter": "blur(10px)"
+        }
+    )
+
+def consulta_dashboard_row(consulta) -> rx.Component:
+    """Fila de consulta para dashboard asistente"""
+    return rx.table.row(
+        # CI / Documento
+        rx.table.cell(
+            rx.text(
+                consulta.paciente_documento,
+                size="3",
+                font_family="monospace",
+                color=COLORS["gray"]["100"],
+                weight="medium"
+            ),
+            style=DATA_CELL
+        ),
+
+        # Paciente
+        rx.table.cell(
+            rx.text(
+                consulta.paciente_nombre,
+                size="3",
+                weight="medium",
+                color=COLORS["gray"]["100"]
+            ),
+            style=DATA_CELL
+        ),
+
+        # Odontólogo
+        rx.table.cell(
+            rx.text(
+                consulta.odontologo_nombre,
+                size="3",
+                color=COLORS["gray"]["100"]
+            ),
+            style=DATA_CELL
+        ),
+
+        # Estado
+        rx.table.cell(
+            consulta_estado_badge(consulta.estado),
+            style=DATA_CELL
+        ),
+
+        # Acciones
+        rx.table.cell(
+            rx.button(
+                rx.hstack(
+                    rx.icon("folder-open", size=16),
+                    rx.text("Ver Historial", size="2"),
+                    spacing="2"
+                ),
+                size="2",
+                variant="soft",
+                color_scheme="cyan",
+                on_click=AppState.navegar_a_historial_paciente(consulta.paciente_id),
+                style={
+                    "cursor": "pointer",
+                    "transition": "all 0.2s ease",
+                    "_hover": {
+                        "transform": "translateY(-2px)",
+                        "box_shadow": f"0 4px 12px {COLORS['primary']['500']}30"
+                    }
+                }
+            ),
+            style=DATA_CELL
+        ),
+
+        style=ROW_HOVER
+    )
+
+def consultas_dashboard_table() -> rx.Component:
+    """📋 Tabla de consultas para dashboard asistente (mismo diseño que servicios)"""
+    return rx.box(
+        # Filtros (igual que servicios_table)
+        rx.hstack(
+            crystal_search_input(
+                placeholder="Buscar por nombre o cédula...",
+                value=AppState.termino_busqueda_consultas_dashboard,
+                on_change=AppState.set_termino_busqueda_consultas_dashboard
+            ),
+
+            # Filtro por odontólogo
+            rx.vstack(
+                rx.text("Odontólogo", size="2", weight="medium", color=DARK_THEME["colors"]["text_secondary"]),
+                rx.select(
+                    AppState.odontologos_filtro_opciones,
+                    value=AppState.filtro_odontologo_dashboard,
+                    on_change=AppState.set_filtro_odontologo_dashboard,
+                    placeholder="Todos",
+                    width="200px"
+                ),
+                spacing="1",
+                align="start"
+            ),
+
+            rx.spacer(),
+
+            # Botón Ver Todas
+            rx.button(
+                rx.hstack(
+                    rx.icon("calendar", size=18),
+                    rx.text("Ver Todas", size="3"),
+                    spacing="2"
+                ),
+                on_click=lambda: AppState.navigate_to("consultas"),
+                variant="soft",
+                color_scheme="cyan",
+                size="3",
+                style={
+                    "cursor": "pointer",
+                    "transition": "all 0.2s ease",
+                    "_hover": {
+                        "transform": "translateY(-2px)",
+                        "box_shadow": f"0 4px 12px {COLORS['primary']['500']}30"
+                    }
+                }
+            ),
+
+            wrap="wrap",
+            align="center",
+            spacing="4",
+            width="100%"
+        ),
+
+        # Tabla con scroll vertical
+        rx.cond(
+            AppState.cargando_lista_consultas,
+            loading_state("Cargando consultas..."),
+
+            rx.cond(
+                AppState.consultas_hoy_filtradas.length() > 0,
+
+                # Tabla con datos y scroll
+                rx.box(
+                    rx.table.root(
+                        rx.table.header(
+                            rx.table.row(
+                                rx.table.column_header_cell("CI", style=COLUMN_HEADER),
+                                rx.table.column_header_cell("Paciente", style=COLUMN_HEADER),
+                                rx.table.column_header_cell("Odontólogo", style=COLUMN_HEADER),
+                                rx.table.column_header_cell("Estado", style=COLUMN_HEADER),
+                                rx.table.column_header_cell("Acciones", style=COLUMN_HEADER)
+                            )
+                        ),
+
+                        rx.table.body(
+                            rx.foreach(
+                                AppState.consultas_hoy_filtradas[:10],  # Máximo 10 consultas
+                                consulta_dashboard_row
+                            )
+                        )
+                    ),
+                    style={
+                        **TABLE_STYLE,
+                        "max_height": "500px",  # Altura máxima
+                        "overflow_y": "auto",  # Scroll vertical
+                        "overflow_x": "hidden",
+                        # Estilos del scrollbar
+                        "::-webkit-scrollbar": {
+                            "width": "8px"
+                        },
+                        "::-webkit-scrollbar-track": {
+                            "background": COLORS["gray"]["900"],
+                            "border_radius": "4px"
+                        },
+                        "::-webkit-scrollbar-thumb": {
+                            "background": COLORS["primary"]["600"],
+                            "border_radius": "4px"
+                        },
+                        "::-webkit-scrollbar-thumb:hover": {
+                            "background": COLORS["primary"]["500"]
+                        }
+                    }
+                ),
+
+                # Estado vacío
+                empty_state(
+                    "No hay consultas registradas",
+                    "Las consultas del día aparecerán aquí",
+                    "calendar"
+                )
+            )
+        ),
+
+        class_name="space-y-6",
+        padding="20px"
+    )
+
+# ==========================================
 # 📤 EXPORTS ACTUALIZADOS
 # ==========================================
 
@@ -1330,5 +1603,9 @@ __all__ = [
     "pagos_table",
     "pago_row",
     "pago_estado_badge",
+    "consultas_dashboard_table",
+    "consulta_dashboard_row",
+    "consulta_estado_badge",
+    "crystal_search_input",
 ]
 

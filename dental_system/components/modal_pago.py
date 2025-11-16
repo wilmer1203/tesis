@@ -720,3 +720,599 @@ def modal_factura_profesional() -> rx.Component:
         open=AppState.modal_pago_dual_abierto,
         on_open_change=AppState.set_modal_pago_dual_abierto
     )
+
+
+def estado_pago_badge(estado: str) -> rx.Component:
+    """Badge de estado de pago con colores dinámicos"""
+    return rx.badge(
+        rx.hstack(
+            rx.icon(
+                rx.match(
+                    estado,
+                    ("completado", "check-circle"),
+                    ("pendiente", "clock"),
+                    ("anulado", "x-circle"),
+                    "circle"
+                ),
+                size=14
+            ),
+            rx.text(
+                rx.match(
+                    estado,
+                    ("completado", "Completado"),
+                    ("pendiente", "Pendiente"),
+                    ("anulado", "Anulado"),
+                    estado.capitalize()
+                ),
+                weight="medium"
+            ),
+            spacing="2",
+            align="center"
+        ),
+        color_scheme=rx.match(
+            estado,
+            ("completado", "green"),
+            ("pendiente", "yellow"),
+            ("anulado", "red"),
+            "gray"
+        ),
+        variant="solid",
+        size="2"
+    )
+
+
+def modal_detalle_pago() -> rx.Component:
+    """
+    👁️ MODAL DE DETALLE DE PAGO - SOLO LECTURA
+
+    ✨ Muestra información completa de un pago procesado:
+    - Datos del paciente
+    - Montos en USD y BS
+    - Métodos de pago utilizados
+    - Descuentos y observaciones
+    """
+    return rx.dialog.root(
+        rx.dialog.content(
+            rx.cond(
+                AppState.pago_seleccionado,
+                rx.vstack(
+                    # ==========================================
+                    # HEADER CON RECIBO Y ESTADO
+                    # ==========================================
+                    rx.hstack(
+                        rx.hstack(
+                            rx.icon("receipt", size=24, color=COLORS["primary"]["500"]),
+                            rx.vstack(
+                                rx.text(
+                                    "Detalle de Pago",
+                                    style={
+                                        "font_size": "1.2rem",
+                                        "font_weight": "700",
+                                        "color": DARK_THEME["colors"]["text_primary"]
+                                    }
+                                ),
+                                rx.text(
+                                    AppState.pago_seleccionado.numero_recibo,
+                                    size="2",
+                                    color=COLORS["primary"]["400"],
+                                    weight="medium"
+                                ),
+                                spacing="1",
+                                align="start"
+                            ),
+                            spacing="3",
+                            align="center"
+                        ),
+                        rx.spacer(),
+                        rx.hstack(
+                            estado_pago_badge(AppState.pago_seleccionado.estado_pago),
+                            rx.dialog.close(
+                                rx.button(
+                                    rx.icon("x", size=20),
+                                    style={
+                                        "background": "transparent",
+                                        "border": "none",
+                                        "color": COLORS["gray"]["500"],
+                                        "cursor": "pointer",
+                                        "_hover": {"color": COLORS["gray"]["700"]}
+                                    },
+                                    on_click=AppState.cerrar_modal_detalle_pago
+                                )
+                            ),
+                            spacing="3",
+                            align="center"
+                        ),
+                        width="100%",
+                        align="center"
+                    ),
+
+                    rx.divider(),
+
+                    # ==========================================
+                    # INFORMACIÓN DEL PACIENTE
+                    # ==========================================
+                    rx.vstack(
+                        rx.hstack(
+                            rx.icon("user", size=18, color=COLORS["primary"]["400"]),
+                            rx.text(
+                                "Información del Paciente",
+                                style={
+                                    "font_size": "1rem",
+                                    "font_weight": "700",
+                                    "color": DARK_THEME["colors"]["text_primary"]
+                                }
+                            ),
+                            spacing="2",
+                            align="center"
+                        ),
+                        rx.grid(
+                            # Nombre
+                            rx.vstack(
+                                rx.text("Paciente", size="1", color=DARK_THEME["colors"]["text_secondary"]),
+                                rx.text(
+                                    AppState.pago_seleccionado.paciente_nombre,
+                                    style={
+                                        "font_size": "0.9rem",
+                                        "font_weight": "600",
+                                        "color": DARK_THEME["colors"]["text_primary"]
+                                    }
+                                ),
+                                spacing="1",
+                                align="start",
+                                style={"grid_column": "span 2"}
+                            ),
+                            # Documento
+                            rx.vstack(
+                                rx.text("Documento", size="1", color=DARK_THEME["colors"]["text_secondary"]),
+                                rx.text(
+                                    AppState.pago_seleccionado.paciente_documento,
+                                    style={
+                                        "font_size": "0.9rem",
+                                        "font_weight": "600",
+                                        "color": DARK_THEME["colors"]["text_primary"]
+                                    }
+                                ),
+                                spacing="1",
+                                align="start"
+                            ),
+                            # Fecha
+                            rx.vstack(
+                                rx.text("Fecha de Pago", size="1", color=DARK_THEME["colors"]["text_secondary"]),
+                                rx.text(
+                                    rx.cond(
+                                        AppState.pago_seleccionado.fecha_pago.contains("T"),
+                                        AppState.pago_seleccionado.fecha_pago.split("T")[0],
+                                        AppState.pago_seleccionado.fecha_pago
+                                    ),
+                                    style={
+                                        "font_size": "0.9rem",
+                                        "font_weight": "600",
+                                        "color": DARK_THEME["colors"]["text_primary"]
+                                    }
+                                ),
+                                spacing="1",
+                                align="start"
+                            ),
+                            columns="3",
+                            spacing="4",
+                            width="100%"
+                        ),
+                        spacing="3",
+                        style={
+                            "background": DARK_THEME["colors"]["surface_secondary"],
+                            "border": f"1px solid {DARK_THEME['colors']['border']}",
+                            "border_radius": RADIUS["lg"],
+                            "padding": SPACING["4"],
+                            "width": "100%"
+                        }
+                    ),
+
+                    # ==========================================
+                    # SECCIÓN FINANCIERA DUAL USD/BS
+                    # ==========================================
+                    rx.vstack(
+                        rx.hstack(
+                            rx.icon("wallet", size=18, color=COLORS["success"]["400"]),
+                            rx.text(
+                                "Información Financiera",
+                                style={
+                                    "font_size": "1rem",
+                                    "font_weight": "700",
+                                    "color": DARK_THEME["colors"]["text_primary"]
+                                }
+                            ),
+                            spacing="2",
+                            align="center"
+                        ),
+
+                        # Grid de montos USD y BS
+                        rx.grid(
+                            # Card USD
+                            rx.vstack(
+                                rx.hstack(
+                                    rx.icon("dollar-sign", size=16, color=COLORS["success"]["500"]),
+                                    rx.text("USD", size="2", weight="bold", color=COLORS["success"]["400"]),
+                                    spacing="2"
+                                ),
+                                rx.vstack(
+                                    rx.hstack(
+                                        rx.text("Total:", size="1", color=DARK_THEME["colors"]["text_secondary"]),
+                                        rx.spacer(),
+                                        rx.text(f"${AppState.pago_seleccionado.monto_total_usd:.2f}", size="2", weight="medium", color=DARK_THEME["colors"]["text_primary"]),
+                                        width="100%"
+                                    ),
+                                    rx.hstack(
+                                        rx.text("Pagado:", size="1", color=DARK_THEME["colors"]["text_secondary"]),
+                                        rx.spacer(),
+                                        rx.text(f"${AppState.pago_seleccionado.monto_pagado_usd:.2f}", size="2", weight="bold", color=COLORS["success"]["400"]),
+                                        width="100%"
+                                    ),
+                                    rx.hstack(
+                                        rx.text("Saldo:", size="1", color=DARK_THEME["colors"]["text_secondary"]),
+                                        rx.spacer(),
+                                        rx.text(
+                                            f"${AppState.pago_seleccionado.saldo_pendiente_usd:.2f}",
+                                            size="2",
+                                            weight="bold",
+                                            color=rx.cond(
+                                                AppState.pago_seleccionado.saldo_pendiente_usd > 0,
+                                                COLORS["warning"]["400"],
+                                                COLORS["success"]["400"]
+                                            )
+                                        ),
+                                        width="100%"
+                                    ),
+                                    spacing="2",
+                                    width="100%"
+                                ),
+                                spacing="3",
+                                style={
+                                    "background": f"{COLORS['success']['500']}10",
+                                    "border": f"1px solid {COLORS['success']['500']}40",
+                                    "border_radius": RADIUS["lg"],
+                                    "padding": SPACING["4"],
+                                    "width": "100%"
+                                }
+                            ),
+
+                            # Card BS
+                            rx.vstack(
+                                rx.hstack(
+                                    rx.icon("banknote", size=16, color=COLORS["primary"]["500"]),
+                                    rx.text("BS", size="2", weight="bold", color=COLORS["primary"]["400"]),
+                                    spacing="2"
+                                ),
+                                rx.vstack(
+                                    rx.hstack(
+                                        rx.text("Total:", size="1", color=DARK_THEME["colors"]["text_secondary"]),
+                                        rx.spacer(),
+                                        rx.text(f"{AppState.pago_seleccionado.monto_total_bs:,.0f} Bs", size="2", weight="medium", color=DARK_THEME["colors"]["text_primary"]),
+                                        width="100%"
+                                    ),
+                                    rx.hstack(
+                                        rx.text("Pagado:", size="1", color=DARK_THEME["colors"]["text_secondary"]),
+                                        rx.spacer(),
+                                        rx.text(f"{AppState.pago_seleccionado.monto_pagado_bs:,.0f} Bs", size="2", weight="bold", color=COLORS["primary"]["400"]),
+                                        width="100%"
+                                    ),
+                                    rx.hstack(
+                                        rx.text("Saldo:", size="1", color=DARK_THEME["colors"]["text_secondary"]),
+                                        rx.spacer(),
+                                        rx.text(
+                                            f"{AppState.pago_seleccionado.saldo_pendiente_bs:,.0f} Bs",
+                                            size="2",
+                                            weight="bold",
+                                            color=rx.cond(
+                                                AppState.pago_seleccionado.saldo_pendiente_bs > 0,
+                                                COLORS["warning"]["400"],
+                                                COLORS["success"]["400"]
+                                            )
+                                        ),
+                                        width="100%"
+                                    ),
+                                    spacing="2",
+                                    width="100%"
+                                ),
+                                spacing="3",
+                                style={
+                                    "background": f"{COLORS['primary']['500']}10",
+                                    "border": f"1px solid {COLORS['primary']['500']}40",
+                                    "border_radius": RADIUS["lg"],
+                                    "padding": SPACING["4"],
+                                    "width": "100%"
+                                }
+                            ),
+
+                            columns="2",
+                            spacing="4",
+                            width="100%"
+                        ),
+
+                        # Tasa de cambio
+                        rx.hstack(
+                            rx.icon("trending-up", size=14, color=COLORS["primary"]["400"]),
+                            rx.text(
+                                f"Tasa de cambio: 1 USD = {AppState.pago_seleccionado.tasa_cambio_bs_usd:.2f} BS",
+                                size="1",
+                                color=DARK_THEME["colors"]["text_secondary"]
+                            ),
+                            spacing="2",
+                            align="center",
+                            style={
+                                "padding": SPACING["2"],
+                                "border_radius": RADIUS["md"],
+                                "background": f"{COLORS['primary']['400']}10",
+                                "border": f"1px solid {COLORS['primary']['400']}30"
+                            }
+                        ),
+
+                        spacing="3",
+                        width="100%"
+                    ),
+
+                    # ==========================================
+                    # MÉTODOS DE PAGO UTILIZADOS
+                    # ==========================================
+                    
+                    rx.cond(
+                        AppState.pago_seleccionado.metodos_pago.length() > 0,
+                        rx.vstack(
+                            rx.hstack(
+                                rx.icon("credit-card", size=18, color=COLORS["secondary"]["500"]),
+                                rx.text(
+                                    "Métodos de Pago",
+                                    style={
+                                        "font_size": "1rem",
+                                        "font_weight": "700",
+                                        "color": DARK_THEME["colors"]["text_primary"]
+                                    }
+                                ),
+                                spacing="2",
+                                align="center"
+                            ),
+                            rx.vstack(
+                                rx.foreach(
+                                    AppState.pago_seleccionado.metodos_pago,
+                                    lambda metodo: rx.hstack(
+                                        rx.icon(
+                                            rx.match(
+                                                metodo.tipo,
+                                                ("efectivo", "wallet"),
+                                                ("tarjeta_credito", "credit-card"),
+                                                ("tarjeta_debito", "credit-card"),
+                                                ("transferencia", "arrow-right-left"),
+                                                ("pago_movil", "smartphone"),
+                                                "circle"
+                                            ),
+                                            size=16,
+                                            color=COLORS["primary"]["400"]
+                                        ),
+                                        rx.text(
+                                            metodo.tipo.replace("_", " ").title(),
+                                            size="2",
+                                            weight="medium",
+                                            color=DARK_THEME["colors"]["text_primary"],
+                                            style={"flex": "1"}
+                                        ),
+                                        rx.badge(
+                                            metodo.moneda,
+                                            color_scheme=rx.match(
+                                                metodo.moneda,
+                                                ("USD", "green"),
+                                                ("BS", "cyan"),
+                                                "gray"
+                                            ),
+                                            variant="soft"
+                                        ),
+                                        rx.text(
+                                            rx.cond(
+                                                metodo.moneda == "USD",
+                                                f"${metodo.monto:.2f}",
+                                                f"{metodo.monto:,.0f} Bs"
+                                            ),
+                                            size="2",
+                                            weight="bold",
+                                            color=COLORS["success"]["400"]
+                                        ),
+                                        width="100%",
+                                        align="center",
+                                        spacing="3",
+                                        style={
+                                            "padding": SPACING["3"],
+                                            "border_bottom": f"1px solid {DARK_THEME['colors']['border']}",
+                                            "_last": {"border_bottom": "none"}
+                                        }
+                                    )
+                                ),
+                                spacing="0",
+                                width="100%"
+                            ),
+                            spacing="3",
+                            style={
+                                "background": DARK_THEME["colors"]["surface_secondary"],
+                                "border": f"1px solid {DARK_THEME['colors']['border']}",
+                                "border_radius": RADIUS["lg"],
+                                "padding": SPACING["4"],
+                                "width": "100%"
+                            }
+                        ),
+                        rx.box()  # No mostrar si no hay métodos de pago
+                    ),
+
+                    # ==========================================
+                    # INFORMACIÓN ADICIONAL
+                    # ==========================================
+                    rx.vstack(
+                        rx.hstack(
+                            rx.icon("info", size=18, color=COLORS["gray"]["400"]),
+                            rx.text(
+                                "Información Adicional",
+                                style={
+                                    "font_size": "1rem",
+                                    "font_weight": "700",
+                                    "color": DARK_THEME["colors"]["text_primary"]
+                                }
+                            ),
+                            spacing="2",
+                            align="center"
+                        ),
+
+                        # Concepto
+                        rx.cond(
+                            AppState.pago_seleccionado.concepto != "",
+                            rx.vstack(
+                                rx.text("Concepto", size="1", color=DARK_THEME["colors"]["text_secondary"]),
+                                rx.text(
+                                    AppState.pago_seleccionado.concepto,
+                                    size="2",
+                                    color=DARK_THEME["colors"]["text_primary"]
+                                ),
+                                spacing="1",
+                                align="start",
+                                width="100%"
+                            ),
+                            rx.box()
+                        ),
+
+                        # Descuento
+                        rx.cond(
+                            AppState.pago_seleccionado.descuento_aplicado > 0,
+                            rx.vstack(
+                                rx.hstack(
+                                    rx.text("Descuento Aplicado:", size="2", color=COLORS["warning"]["400"], weight="bold"),
+                                    rx.text(f"${AppState.pago_seleccionado.descuento_aplicado:.2f}", size="2", weight="bold", color=COLORS["warning"]["400"]),
+                                    spacing="2"
+                                ),
+                                rx.cond(
+                                    AppState.pago_seleccionado.motivo_descuento != "",
+                                    rx.hstack(
+                                        rx.icon("message-square", size=14, color=DARK_THEME["colors"]["text_secondary"]),
+                                        rx.text(
+                                            AppState.pago_seleccionado.motivo_descuento,
+                                            size="1",
+                                            color=DARK_THEME["colors"]["text_secondary"],
+                                            style={"font_style": "italic"}
+                                        ),
+                                        spacing="2"
+                                    ),
+                                    rx.box()
+                                ),
+                                spacing="1",
+                                align="start",
+                                width="100%",
+                                style={
+                                    "padding": SPACING["3"],
+                                    "background": f"{COLORS['warning']['400']}10",
+                                    "border": f"1px solid {COLORS['warning']['400']}40",
+                                    "border_radius": RADIUS["md"]
+                                }
+                            ),
+                            rx.box()
+                        ),
+
+                        spacing="3",
+                        style={
+                            "background": DARK_THEME["colors"]["surface_secondary"],
+                            "border": f"1px solid {DARK_THEME['colors']['border']}",
+                            "border_radius": RADIUS["lg"],
+                            "padding": SPACING["4"],
+                            "width": "100%"
+                        }
+                    ),
+
+                    # ==========================================
+                    # FOOTER CON BOTÓN IMPRIMIR
+                    # ==========================================
+                    rx.hstack(
+                        rx.dialog.close(
+                            rx.button(
+                                rx.hstack(
+                                    rx.icon("x", size=16),
+                                    rx.text("Cerrar"),
+                                    spacing="2",
+                                    align="center"
+                                ),
+                                style={
+                                    **GLASS_EFFECTS["light"],
+                                    "border": f"1px solid {COLORS['gray']['300']}",
+                                    "color": COLORS["gray"]["700"],
+                                    "border_radius": RADIUS["xl"],
+                                    "padding": f"{SPACING['3']} {SPACING['5']}",
+                                    "font_weight": "600",
+                                    "transition": ANIMATIONS["presets"]["crystal_hover"],
+                                    "_hover": {
+                                        **GLASS_EFFECTS["medium"],
+                                        "transform": "translateY(-2px)",
+                                        "box_shadow": SHADOWS["sm"]
+                                    }
+                                },
+                                on_click=AppState.cerrar_modal_detalle_pago
+                            )
+                        ),
+
+                        rx.spacer(),
+
+                        rx.button(
+                            rx.hstack(
+                                rx.icon("printer", size=16),
+                                rx.text("Imprimir Recibo"),
+                                spacing="2",
+                                align="center"
+                            ),
+                            style={
+                                "background": GRADIENTS["neon_primary"],
+                                "color": "white",
+                                "border": "none",
+                                "border_radius": RADIUS["xl"],
+                                "padding": f"{SPACING['3']} {SPACING['6']}",
+                                "font_weight": "700",
+                                "box_shadow": SHADOWS["glow_primary"],
+                                "transition": ANIMATIONS["presets"]["crystal_hover"],
+                                "_hover": {
+                                    "transform": "translateY(-2px) scale(1.02)",
+                                    "box_shadow": f"0 0 30px {COLORS['primary']['500']}40, {SHADOWS['crystal_lg']}"
+                                }
+                            },
+                            on_click=lambda: AppState.imprimir_recibo(AppState.pago_seleccionado.id)
+                        ),
+
+                        spacing="3",
+                        width="100%",
+                        align="center"
+                    ),
+
+                    spacing="4",
+                    width="100%",
+                    align="stretch"
+                ),
+
+                # Estado vacío (cuando no hay pago seleccionado)
+                rx.vstack(
+                    rx.icon("alert-circle", size=48, color=COLORS["gray"]["400"]),
+                    rx.text(
+                        "No hay pago seleccionado",
+                        size="4",
+                        weight="bold",
+                        color=DARK_THEME["colors"]["text_primary"]
+                    ),
+                    spacing="4",
+                    align="center",
+                    style={"padding": SPACING["8"]}
+                )
+            ),
+
+            style={
+                "max_width": "700px",
+                "padding": SPACING["6"],
+                "border_radius": RADIUS["2xl"],
+                **GLASS_EFFECTS["strong"],
+                "box_shadow": SHADOWS["2xl"],
+                "border": f"1px solid {COLORS['primary']['200']}30",
+                "overflow_y": "auto",
+                "max_height": "90vh",
+                "backdrop_filter": "blur(20px)"
+            }
+        ),
+        open=AppState.modal_detalle_pago_abierto,
+        on_open_change=AppState.cerrar_modal_detalle_pago
+    )

@@ -71,6 +71,7 @@ class EstadoServicios(rx.State,mixin=True):
     
     # Categorías disponibles (basadas en BD real)
     categorias_servicios: List[str] = [
+        "todas",
         "Preventiva",
         "Restaurativa",
         "Endodoncia",
@@ -224,6 +225,14 @@ class EstadoServicios(rx.State,mixin=True):
         """Cantidad de servicios activos"""
         try:
             return len([s for s in self.lista_servicios if s.activo])
+        except Exception:
+            return 0
+
+    @rx.var(cache=True)
+    def total_servicios_computed(self) -> int:
+        """Total de servicios en el catálogo"""
+        try:
+            return len(self.lista_servicios)
         except Exception:
             return 0
     

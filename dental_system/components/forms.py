@@ -159,7 +159,7 @@ def enhanced_form_field(
                         placeholder=placeholder,
                         style={
                             **_get_field_style(),
-                            "min_height": "80px",
+                            "min_height": "40px",
                             "resize": "vertical"
                         }
                     ),
@@ -1104,12 +1104,12 @@ def form_navigation_buttons(
 
 
 def service_form_modal() -> rx.Component:
-    """🏥 Modal simple para crear/editar servicios (patrón Personal/Pacientes)"""
+    """🏥 Modal mejorado para crear/editar servicios"""
 
     return rx.dialog.root(
         rx.dialog.content(
-            # Header del modal
             rx.vstack(
+                # Header elegante
                 rx.hstack(
                     rx.heading(
                         rx.cond(
@@ -1141,29 +1141,36 @@ def service_form_modal() -> rx.Component:
                     align="center"
                 ),
 
-                # Formulario completo en una sola página
+                # Formulario con secciones
                 service_form_fields(),
 
                 # Botones de acción
                 rx.hstack(
-                    rx.button(
-                        "Cancelar",
-                        style={
-                            **GLASS_EFFECTS["light"],
-                            "border": f"1px solid {COLORS['gray']['300']}60",
-                            "color": COLORS["gray"]["700"],
-                            "border_radius": RADIUS["xl"],
-                            "padding": f"{SPACING['3']} {SPACING['6']}",
-                            "font_weight": "600",
-                            "transition": ANIMATIONS["presets"]["crystal_hover"],
-                            "_hover": {
-                                **GLASS_EFFECTS["medium"],
-                                "transform": "translateY(-2px)",
-                                "box_shadow": SHADOWS["crystal_sm"]
-                            }
-                        },
-                        on_click=lambda: [AppState.limpiar_formulario_servicio(), AppState.cerrar_todos_los_modales()],
+                    rx.dialog.close(
+                        rx.button(
+                            rx.hstack(
+                                rx.icon("x", size=16),
+                                rx.text("Cancelar"),
+                                spacing="2"
+                            ),
+                            style={
+                                **GLASS_EFFECTS["light"],
+                                "border": f"1px solid {COLORS['gray']['300']}60",
+                                "color": COLORS["gray"]["700"],
+                                "border_radius": RADIUS["xl"],
+                                "padding": f"{SPACING['3']} {SPACING['6']}",
+                                "font_weight": "600",
+                                "transition": ANIMATIONS["presets"]["crystal_hover"],
+                                "_hover": {
+                                    **GLASS_EFFECTS["medium"],
+                                    "transform": "translateY(-2px)",
+                                    "box_shadow": SHADOWS["crystal_sm"]
+                                }
+                            },
+                            on_click=AppState.limpiar_formulario_servicio
+                        )
                     ),
+                    rx.spacer(),
                     rx.button(
                         rx.cond(
                             AppState.cargando_operacion_servicio,
@@ -1173,8 +1180,8 @@ def service_form_modal() -> rx.Component:
                                 spacing="2"
                             ),
                             rx.hstack(
-                                rx.icon("save", size=16),
                                 rx.text(rx.cond(AppState.servicio_seleccionado_valido, "Guardar Cambios", "Crear Servicio"), size="2"),
+                                rx.icon(rx.cond(AppState.servicio_seleccionado_valido, "save", "plus"), size=16),
                                 spacing="2"
                             )
                         ),
@@ -1204,7 +1211,7 @@ def service_form_modal() -> rx.Component:
                     width="100%"
                 ),
 
-                spacing="6",
+                spacing="5",
                 width="100%"
             ),
 
@@ -1212,8 +1219,8 @@ def service_form_modal() -> rx.Component:
                 "max_width": "700px",
                 "width": "85vw",
                 "max_height": "85vh",
-                "padding": SPACING["8"],
-                "border_radius": RADIUS["3xl"],
+                "padding": SPACING["6"],
+                "border_radius": RADIUS["2xl"],
                 **GLASS_EFFECTS["strong"],
                 "box_shadow": SHADOWS["2xl"],
                 "border": f"1px solid {COLORS['primary']['500']}30",
@@ -1226,20 +1233,19 @@ def service_form_modal() -> rx.Component:
     )
 
 def service_form_fields() -> rx.Component:
-    """📝 Campos del formulario de servicio (todo en una página)"""
+    """📝 Campos del formulario de servicio con secciones"""
     return rx.vstack(
-        # Información Básica
+        # Sección 1: Información Básica
         form_section_header(
             "Información Básica",
-            "Datos fundamentales del servicio odontológico",
+            "Identificación del servicio",
             "info",
             COLORS["primary"]["500"]
         ),
 
-        # Código y Nombre en grid
         rx.grid(
             enhanced_form_field(
-                label="Código del Servicio",
+                label="Código",
                 field_name="codigo",
                 value= AppState.formulario_servicio.codigo,
                 on_change=AppState.actualizar_campo_formulario_servicio,
@@ -1261,98 +1267,63 @@ def service_form_fields() -> rx.Component:
                 validation_error=rx.cond(AppState.errores_validacion_servicio, AppState.errores_validacion_servicio.get("nombre", ""), "")
             ),
             columns=rx.breakpoints(initial="1", sm="2"),
-            spacing="4",
+            spacing="3",
             width="100%"
         ),
 
-        # Descripción
-        enhanced_form_field(
-            label="Descripción",
-            field_name="descripcion",
-            value=AppState.formulario_servicio.descripcion,
-            on_change=AppState.actualizar_campo_formulario_servicio,
-            field_type="textarea",
-            placeholder="Descripción detallada del servicio...",
-            required=False,
-            icon="file-text"
-        ),
-
-        # Categoría y Precios
+        # Sección 2: Clasificación y Precio
         form_section_header(
-            "Categoría y Precios",
-            "Clasificación y costos del servicio",
+            "Clasificación y Precio",
+            "Categoría, alcance y costo del servicio",
             "tag",
             COLORS["secondary"]["500"]
         ),
 
-        # Categoría
-        enhanced_form_field_select(
-            label="Categoría",
-            field_name="categoria",
-            value=AppState.formulario_servicio.categoria,
-            on_change=AppState.actualizar_campo_formulario_servicio,
-            options=AppState.categorias_servicios,
-            placeholder="Seleccionar categoría",
-            required=True,
-            icon="grid"
-        ),
-
-        # Alcance del Servicio
-        enhanced_form_field_select(
-            label="Alcance del Servicio",
-            field_name="alcance_servicio",
-            value=AppState.formulario_servicio.alcance_servicio,
-            on_change=AppState.actualizar_campo_formulario_servicio,
-            options=["superficie_especifica", "diente_completo", "boca_completa"],
-            placeholder="Seleccionar alcance",
-            required=True,
-            icon="target",
-            help_text="Superficie específica: una cara del diente | Diente completo: todo el diente | Boca completa: todo el odontograma"
-        ),
-
-        # Precio Base USD
-        enhanced_form_field(
-            label="Precio Base USD",
-            field_name="precio_base_usd",
-            value=AppState.formulario_servicio.precio_base_usd,
-            on_change=AppState.actualizar_campo_formulario_servicio,
-            field_type="number",
-            placeholder="50.00",
-            required=True,
-            icon="dollar-sign",
-            help_text="El precio en Bolívares se calculará automáticamente usando la tasa de cambio actual",
-            validation_error=rx.cond(AppState.errores_validacion_servicio, AppState.errores_validacion_servicio.get("precio_base_usd", ""), "")
-        ),
-
-
-        # ==========================================
-        # 🦷 V3.0: CONDICIÓN DENTAL RESULTANTE
-        # ==========================================
-        form_section_header(
-            "Condición Dental Resultante",
-            "¿Este servicio modifica el odontograma del paciente?",
-            "tooth",
-            COLORS["success"]["500"]
-        ),
-
-        rx.vstack(
-            rx.text(
-                "Si el servicio modifica la condición de un diente, selecciona la condición resultante. "
-                "Los servicios preventivos (limpiezas, consultas) no modifican el odontograma.",
-                style={
-                    "font_size": "0.9rem",
-                    "color": COLORS["gray"]["400"],
-                    "line_height": "1.5",
-                    "margin_bottom": SPACING["3"]
-                }
+        rx.grid(
+            enhanced_form_field_select(
+                label="Categoría",
+                field_name="categoria",
+                value=AppState.formulario_servicio.categoria,
+                on_change=AppState.actualizar_campo_formulario_servicio,
+                options=AppState.categorias_servicios,
+                placeholder="Seleccionar",
+                required=True,
+                icon="grid"
             ),
+            enhanced_form_field_select(
+                label="Alcance",
+                field_name="alcance_servicio",
+                value=AppState.formulario_servicio.alcance_servicio,
+                on_change=AppState.actualizar_campo_formulario_servicio,
+                options=["superficie_especifica", "diente_completo", "boca_completa"],
+                placeholder="Seleccionar",
+                required=True,
+                icon="target"
+            ),
+            enhanced_form_field(
+                label="Precio USD",
+                field_name="precio_base_usd",
+                value=AppState.formulario_servicio.precio_base_usd,
+                on_change=AppState.actualizar_campo_formulario_servicio,
+                field_type="number",
+                placeholder="50.00",
+                required=True,
+                icon="dollar-sign",
+                validation_error=rx.cond(AppState.errores_validacion_servicio, AppState.errores_validacion_servicio.get("precio_base_usd", ""), "")
+            ),
+            columns=rx.breakpoints(initial="1", sm="3"),
+            spacing="3",
+            width="100%"
+        ),
+
+        rx.grid(
             enhanced_form_field_select(
                 label="Condición Resultante",
                 field_name="condicion_resultante",
                 value=AppState.formulario_servicio.condicion_resultante,
                 on_change=AppState.actualizar_campo_formulario_servicio,
                 options=[
-                    "preventivo",  # Preventivo (sin condición) - cambiado de "" a "preventivo"
+                    "preventivo",
                     "sano",
                     "caries",
                     "obturacion",
@@ -1365,15 +1336,25 @@ def service_form_fields() -> rx.Component:
                     "fractura",
                     "extraccion_indicada"
                 ],
-                placeholder="Selecciona una condición",
-                required=False,
-                icon="activity",
-                help_text="Selecciona 'preventivo' para servicios que no modifican el odontograma"
+                placeholder="Preventivo (sin cambio odontograma)",
+                required=True,
+                icon="activity"
             ),
+            enhanced_form_field(
+                label="Descripción",
+                field_name="descripcion",
+                value=AppState.formulario_servicio.descripcion,
+                on_change=AppState.actualizar_campo_formulario_servicio,
+                field_type="textarea",
+                placeholder="Descripción del servicio (opcional)",
+                required=False,
+                icon="file-text"
+            ),
+            columns=rx.breakpoints(initial="1", sm="2"),
             spacing="3",
             width="100%"
         ),
-
+    
         # Mostrar errores
         rx.cond(
             AppState.errores_validacion_servicio,
@@ -1391,7 +1372,7 @@ def service_form_fields() -> rx.Component:
             )
         ),
 
-        spacing="6",
+        spacing="4",
         width="100%",
         align="stretch"
     )
@@ -1427,15 +1408,7 @@ def enhanced_form_field_select(
                 spacing="2",
                 align="center"
             ),
-            *([rx.text(
-                "*",
-                style={
-                    "color": COLORS["error"]["500"],
-                    "font_weight": "700",
-                    "margin_left": "2px"
-                }
-            )] if required else []),
-            
+ 
             rx.spacer(),
             
             # Texto de ayuda opcional
@@ -1859,12 +1832,12 @@ def form_step_indicator(current_step: int, total_steps: int, step_titles: List[s
                             rx.icon("check", size=18, color="white"),
                             rx.text(str(i + 1), 
                                    font_size=" 1rem", 
-                                   font_weight="700",
+                                   font_weight="800",
                                    color="white")
                         ),
                         style={
-                            "width": "40px",
-                            "height": "40px",
+                            "width": "30px",
+                            "height": "30px",
                             "border_radius": "50%",
                             "display": "flex",
                             "align_items": "center",
@@ -1887,7 +1860,6 @@ def form_step_indicator(current_step: int, total_steps: int, step_titles: List[s
                         }
                     ),
                     
-                    # Título del paso (solo en desktop)
                     rx.text(
                         step_titles[i],
                         style={
@@ -1907,7 +1879,7 @@ def form_step_indicator(current_step: int, total_steps: int, step_titles: List[s
                     *([
                         rx.box(
                             style={
-                                "width": "60px",
+                                "width": "30px",
                                 "height": "2px",
                                 "background": rx.cond(
                                     current_step > i,
@@ -1930,7 +1902,7 @@ def form_step_indicator(current_step: int, total_steps: int, step_titles: List[s
         ),
         style={
             "border_radius": RADIUS["2xl"],
-            "padding": f"{SPACING['4']} {SPACING['6']}",
+            "padding": f"{SPACING['2']} {SPACING['3']}",
             "margin_bottom": SPACING["8"],
             "backdrop_filter": "invert(1)",
             "box_shadow": SHADOWS["md"]

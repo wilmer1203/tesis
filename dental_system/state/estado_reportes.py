@@ -137,6 +137,10 @@ class EstadoReportes(rx.State,mixin=True):
     consultas_hoy_por_odontologo_admin: List[Dict[str, Any]] = []
     cargando_dashboard_admin: bool = False
 
+    # 📊 DASHBOARD HOY - Métricas básicas para asistente (solo lectura)
+    dashboard_stats_asistente: Dict[str, Any] = {}
+    cargando_dashboard_asistente: bool = False
+
     # ====================================================================
     # 🔧 MÉTODOS AUXILIARES
     # ====================================================================
@@ -1092,3 +1096,46 @@ class EstadoReportes(rx.State,mixin=True):
             }
             self.consultas_hoy_por_estado_admin = []
             self.consultas_hoy_por_odontologo_admin = []
+
+    @rx.event
+    async def cargar_dashboard_asistente(self):
+        """
+        👩‍⚕️ CARGAR DASHBOARD BÁSICO DEL ASISTENTE (SOLO LECTURA - HOY)
+
+        Carga solo métricas básicas del día actual:
+        - Consultas hoy (total, completadas, en espera)
+        - Pacientes atendidos hoy
+
+        Diferencias con dashboard admin:
+        - Asistente: Solo 4 métricas básicas (consultas y pacientes)
+        - Admin: 7 métricas completas (incluye ingresos, pagos, servicios, intervenciones)
+        """
+        try:
+            from dental_system.services.dashboard_service import dashboard_service
+
+            print("👩‍⚕️ Cargando dashboard del asistente (solo lectura - HOY)...")
+            self.cargando_dashboard_asistente = True
+
+            # Llamar al método específico del service
+            stats = await dashboard_service.get_dashboard_stats_asistente()
+
+            # Asignar resultado
+            self.dashboard_stats_asistente = stats if not isinstance(stats, Exception) else {}
+
+            print(f"✅ Dashboard asistente cargado - Stats: {self.dashboard_stats_asistente}")
+
+            self.cargando_dashboard_asistente = False
+
+        except Exception as e:
+            print(f"❌ Error cargando dashboard asistente: {e}")
+            import traceback
+            traceback.print_exc()
+            self.cargando_dashboard_asistente = False
+
+            # Valores por defecto en caso de error
+            self.dashboard_stats_asistente = {
+                "consultas_hoy_total": 0,
+                "consultas_completadas": 0,
+                "consultas_en_espera": 0,
+                "pacientes_atendidos_hoy": 0
+            }

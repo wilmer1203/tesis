@@ -9,9 +9,9 @@ DATOS: Conectado a AppState (datos reales de BD)
 import reflex as rx
 from dental_system.state.app_state import AppState
 from dental_system.constants import METODOS_PAGO, ESTADOS_PAGO
-from dental_system.components.modal_pago import modal_factura_profesional
+from dental_system.components.modal_pago import modal_factura_profesional, modal_detalle_pago
 from dental_system.components.common import page_header, medical_page_layout, stat_card, refresh_button
-from dental_system.components.table_components import pagos_table
+from dental_system.components.table_components import pagos_table, empty_state
 from dental_system.styles.themes import COLORS, GLASS_EFFECTS, SPACING, RADIUS, SHADOWS
 # ==========================================
 # 🎨 COLORES Y ESTILOS DEL SISTEMA
@@ -127,26 +127,34 @@ def consultas_pendientes_lista() -> rx.Component:
         ),
 
         # Lista de consultas
-        rx.box(
-            rx.vstack(
-                rx.foreach(
-                    AppState.consultas_pendientes_pagar,
-                    consulta_card
+        rx.cond(
+            AppState.consultas_pendientes_pagar,
+            rx.box(
+                rx.vstack(
+                    rx.foreach(
+                        AppState.consultas_pendientes_pagar,
+                        consulta_card
+                    ),
+                    spacing="3",
+                    width="100%"
                 ),
-                spacing="3",
-                width="100%"
+                style={
+                    "max_height": "calc(100vh - 350px)",
+                    "overflow_y": "auto",
+                    "padding_right": "4px",
+                    "::-webkit-scrollbar": {"width": "6px"},
+                    "::-webkit-scrollbar-track": {"background": "transparent"},
+                    "::-webkit-scrollbar-thumb": {"background": COLORS_2["border"], "border_radius": "4px"},
+                    "::-webkit-scrollbar-thumb:hover": {"background": COLORS_2["primary"]}
+                }
             ),
-            style={
-                "max_height": "calc(100vh - 350px)",
-                "overflow_y": "auto",
-                "padding_right": "4px",
-                "::-webkit-scrollbar": {"width": "6px"},
-                "::-webkit-scrollbar-track": {"background": "transparent"},
-                "::-webkit-scrollbar-thumb": {"background": COLORS_2["border"], "border_radius": "4px"},
-                "::-webkit-scrollbar-thumb:hover": {"background": COLORS_2["primary"]}
-            }
+            empty_state(
+                    "No hay Consultas Pendientes de Facturación",
+                    "",
+                    "clipboard-list"
+                )
         ),
-
+        
         spacing="3",
         width="100%"
     )
@@ -775,144 +783,6 @@ def modal_cambiar_tasa() -> rx.Component:
         on_open_change=AppState.set_modal_cambiar_tasa_abierto(False)
     )
 
-def modal_calculadora_conversion() -> rx.Component:
-    """Modal de calculadora USD/BS"""
-    return rx.dialog.root(
-        rx.dialog.content(
-            rx.vstack(
-                # Header
-                rx.hstack(
-                    rx.icon("calculator", size=24, color=COLORS_2["primary"]),
-                    rx.heading("Calculadora USD ⇄ BS", size="6", weight="bold"),
-                    rx.spacer(),
-                    rx.dialog.close(
-                        rx.icon("x", size=20, style={"cursor": "pointer"}),
-                        on_click=AppState.alternar_calculadora_conversion
-                    ),
-                    width="100%",
-                    align="center"
-                ),
-
-                # Tasa del día
-                rx.box(
-                    rx.hstack(
-                        rx.icon("trending-up", size=16, color=COLORS_2["success"]),
-                        rx.text("Tasa del día:", size="3", weight="medium", color=COLORS_2["text_primary"]),
-                        rx.text("1 USD = ", AppState.tasa_del_dia, " BS", size="3", weight="bold", color=COLORS_2["success"]),
-                        spacing="2",
-                        align="center"
-                    ),
-                    style={
-                        "background": "rgba(34, 197, 94, 0.1)",
-                        "border": f"1px solid {COLORS_2['success']}40",
-                        "border_radius": "8px",
-                        "padding": "12px"
-                    }
-                ),
-
-                # Convertidor USD → BS
-                rx.vstack(
-                    rx.text("💵 USD → BS", size="4", weight="bold", color=COLORS_2["primary"]),
-                    rx.input(
-                        placeholder="Ingrese monto en USD...",
-                        value=AppState.monto_calculadora_usd,
-                        on_change=AppState.calcular_conversion_usd_a_bs,
-                        type="number",
-                        min="0",
-                        step="0.01",
-                        size="3"
-                    ),
-                    rx.hstack(
-                        rx.icon("arrow-down", size=20, color=COLORS_2["primary"]),
-                        rx.text("=", size="5", weight="bold", color=COLORS_2["primary"]),
-                        spacing="2"
-                    ),
-                    rx.box(
-                        rx.text(AppState.monto_calculadora_bs, " BS", size="5", weight="bold", color=COLORS_2["success"]),
-                        style={
-                            "padding": "12px",
-                            "background": "rgba(34, 197, 94, 0.1)",
-                            "border": f"2px solid {COLORS_2['success']}60",
-                            "border_radius": "8px",
-                            "text_align": "center",
-                            "width": "100%"
-                        }
-                    ),
-                    spacing="3",
-                    width="100%"
-                ),
-
-                # Divider
-                rx.separator(size="4"),
-
-                # Convertidor BS → USD
-                rx.vstack(
-                    rx.text("💰 BS → USD", size="4", weight="bold", color=COLORS_2["primary"]),
-                    rx.input(
-                        placeholder="Ingrese monto en BS...",
-                        value=AppState.monto_calculadora_bs,
-                        on_change=AppState.calcular_conversion_bs_a_usd,
-                        type="number",
-                        min="0",
-                        step="0.01",
-                        size="3"
-                    ),
-                    rx.hstack(
-                        rx.icon("arrow-down", size=20, color=COLORS_2["primary"]),
-                        rx.text("=", size="5", weight="bold", color=COLORS_2["primary"]),
-                        spacing="2"
-                    ),
-                    rx.box(
-                        rx.text("$", AppState.monto_calculadora_usd, " USD", size="5", weight="bold", color=COLORS_2["primary"]),
-                        style={
-                            "padding": "12px",
-                            "background": "rgba(6, 182, 212, 0.1)",
-                            "border": f"2px solid {COLORS_2['primary']}60",
-                            "border_radius": "8px",
-                            "text_align": "center",
-                            "width": "100%"
-                        }
-                    ),
-                    spacing="3",
-                    width="100%"
-                ),
-
-                # Botones
-                rx.hstack(
-                    rx.button(
-                        rx.hstack(rx.icon("rotate-ccw", size=16), rx.text("Limpiar", size="2"), spacing="2"),
-                        on_click=AppState.limpiar_calculadora,
-                        variant="outline",
-                        color_scheme="gray",
-                        size="2"
-                    ),
-                    rx.dialog.close(
-                        rx.button(
-                            rx.hstack(rx.icon("check", size=16), rx.text("Cerrar", size="2"), spacing="2"),
-                            variant="solid",
-                            color_scheme="cyan",
-                            size="2",
-                            on_click=AppState.alternar_calculadora_conversion
-                        )
-                    ),
-                    spacing="3",
-                    justify="center",
-                    width="100%"
-                ),
-
-                spacing="6",
-                width="100%"
-            ),
-            style={
-                "max_width": "450px",
-                "padding": "24px",
-                "background": COLORS_2["bg_dark"],
-                "border": f"1px solid {COLORS_2['border']}",
-                "backdrop_filter": "blur(12px)"
-            }
-        ),
-        open=AppState.calculadora_activa
-    )
 
 # ==========================================
 # 📱 PÁGINA PRINCIPAL
@@ -960,7 +830,7 @@ def pagos_page() -> rx.Component:
                             "background": "rgba(255, 255, 255, 0.02)",
                             "border": f"1px solid {COLORS_2['border']}",
                             "border_radius": "12px",
-                            "min_height": "500px"
+                            "min_height": "550px"
                         }
                     ),
                     columns=rx.breakpoints(initial="1", md="1", lg="1fr 3fr", xl="1fr 3fr"),
@@ -973,7 +843,7 @@ def pagos_page() -> rx.Component:
             ),
         ),
         modal_factura_profesional(),  # ✨ NUEVO MODAL PROFESIONAL
+        modal_detalle_pago(),  # 👁️ Modal de detalle de pago
         modal_cambiar_tasa(),  # ✨ Modal para cambiar tasa de cambio
-        modal_calculadora_conversion(),
         on_mount=AppState.cargar_datos_pagos_page
     )

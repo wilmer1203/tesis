@@ -843,7 +843,7 @@ class OdontologiaServiceV2(BaseService):
                 item = {
                     "id": servicio_data["id"],
                     "fecha": servicio_data["intervencion"]["fecha_registro"],
-                    "odontologo_nombre": odontologo_info.get("nombre_completo", "Sin nombre"),
+                    "odontologo_nombre": odontologo_info.get("primer_nombre", "Sin nombre"),
                     "especialidad": odontologo_info.get("especialidad", "General"),
                     "diente_numero": servicio_data.get("diente_numero"),
                     "diente_nombre": self._get_diente_nombre(servicio_data.get("diente_numero")),
@@ -885,8 +885,8 @@ class OdontologiaServiceV2(BaseService):
     async def _get_personal_info(self, personal_id: str) -> Dict[str, Any]:
         """🆕 Helper: Obtener info del personal desde vista"""
         try:
-            response = self.client.table("vista_personal_completo").select(
-                "nombre_completo, especialidad"
+            response = self.client.table("personal").select(
+                "primer_nombre,primer_apellido, especialidad"
             ).eq("id", personal_id).execute()
 
             return response.data[0] if response.data else {}

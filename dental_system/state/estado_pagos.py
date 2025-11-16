@@ -153,26 +153,6 @@ class EstadoPagos(rx.State,mixin=True):
     procesando_pago: bool = False
     
     # ==========================================
-    # 💳 COMPUTED VARS PARA UI (SIN ASYNC)
-    # ==========================================
-    
-    
-    # @rx.var(cache=True)
-    # def pagos_pendientes(self) -> List[PagoModel]:
-    #     """⏳ Pagos pendientes"""
-    #     return [p for p in self.lista_pagos if p.estado_pago == "pendiente"]
-   
-    @rx.var(cache=True)
-    def total_pagos_pendientes(self) -> int:
-        """📊 Total de pagos pendientes"""
-        return len(self.pagos_pendientes)
-    
-    @rx.var(cache=True)
-    def total_saldo_pendiente(self) -> float:
-        """💰 Total saldo pendiente"""
-        return sum(p.saldo_pendiente for p in self.lista_pagos)
-
-    # ==========================================
     # 💳 MÉTODOS PRINCIPALES DE CRUD
     # ==========================================
     
@@ -647,8 +627,6 @@ class EstadoPagos(rx.State,mixin=True):
     @rx.event
     async def seleccionar_consulta_para_pago(self, pago_id: str):
         """🎯 Seleccionar consulta para procesar pago y abrir modal"""
-        print(pago_id)
-        print(self.consultas_pendientes_pagar)
         try:
            
             # Buscar la consulta en la lista pendiente enriquecida (tipada)

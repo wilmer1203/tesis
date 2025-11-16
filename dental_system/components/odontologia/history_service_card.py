@@ -1,19 +1,23 @@
 """
-📋 CARD DE SERVICIO DEL HISTORIAL
-==================================
+📋 CARD DE SERVICIO DEL HISTORIAL - VERSIÓN COMPACTA DARK
+===========================================================
 
 Muestra UN servicio/intervención del historial del paciente.
-100% declarativo - Usa datos procesados desde el servicio.
+100% declarativo - Tema oscuro consistente - Diseño compacto.
 
 Características:
-- Card simple sin expand/collapse
+- Card compacto con diseño eficiente
+- Tema oscuro glassmorphism
+- Información agrupada inteligentemente
 - Muestra: Fecha | Odontólogo | Diente | Superficies | Servicio | Condición | Material | Observaciones
 - NO muestra precios (enfoque 100% clínico)
-- Diseño médico con glassmorphism
 """
 
 import reflex as rx
-from dental_system.styles.medical_design_system import MEDICAL_COLORS, medical_card_style
+from dental_system.styles.themes import (
+    COLORS, DARK_THEME, SPACING, RADIUS, SHADOWS,
+    dark_crystal_card, glassmorphism_card
+)
 
 # ==========================================
 # 📊 COMPONENTE CARD DE SERVICIO HISTÓRICO
@@ -21,7 +25,7 @@ from dental_system.styles.medical_design_system import MEDICAL_COLORS, medical_c
 
 def history_service_card(service: dict) -> rx.Component:
     """
-    📋 Card de servicio individual del historial
+    📋 Card compacto de servicio individual del historial
 
     Estructura esperada de `service`:
     {
@@ -44,7 +48,7 @@ def history_service_card(service: dict) -> rx.Component:
         service: Diccionario con información del servicio
 
     Returns:
-        Card individual con toda la información
+        Card compacto con toda la información
     """
 
     # 🎨 Color de categoría
@@ -64,79 +68,67 @@ def history_service_card(service: dict) -> rx.Component:
     }
 
     return rx.box(
-        # 📅 Header: Fecha + Odontólogo + Especialidad
+        # 📅 Header Compacto: Fecha + Odontólogo en línea
         rx.hstack(
-            # Fecha
+            # Fecha con icono
             rx.hstack(
-                rx.icon("calendar", size=16, color=MEDICAL_COLORS["medical_ui"]["accent_primary"]),
+                rx.icon("calendar", size=16, color=COLORS["primary"]["400"]),
                 rx.text(
-                    rx.moment(
-                        service["fecha"],
-                        format="DD/MM/YYYY HH:mm",
-                    ),
+                    rx.moment(service["fecha"], format="DD/MM/YY HH:mm"),
                     font_size="13px",
                     font_weight="600",
-                    color=MEDICAL_COLORS["medical_ui"]["text_primary"],
+                    color=DARK_THEME["colors"]["text_primary"],
                 ),
                 spacing="2",
             ),
 
             rx.spacer(),
 
-            # Odontólogo + Especialidad
-            rx.vstack(
+            # Odontólogo compacto
+            rx.hstack(
+                rx.icon("user-round", size=16, color=COLORS["blue"]["500"]),
                 rx.text(
                     service["odontologo_nombre"],
-                    font_size="13px",
-                    font_weight="600",
-                    color=MEDICAL_COLORS["medical_ui"]["text_primary"],
-                    text_align="right",
+                    font_size="12px",
+                    font_weight="500",
+                    color=DARK_THEME["colors"]["text_secondary"],
                 ),
-                rx.text(
+                rx.badge(
                     service["especialidad"],
-                    font_size="11px",
-                    color=MEDICAL_COLORS["medical_ui"]["text_secondary"],
-                    text_align="right",
+                    color_scheme="gray",
+                    variant="soft",
+                    size="2",
                 ),
-                spacing="0",
-                align="end",
+                spacing="2",
+                align="center",
             ),
 
             width="100%",
             align="center",
-            padding_bottom="12px",
-            border_bottom=f"1px solid {MEDICAL_COLORS['medical_ui']['border_focus']}",
-            margin_bottom="12px",
+            padding_bottom="10px",
+            border_bottom=f"1px solid {DARK_THEME['colors']['border']}",
+            margin_bottom="10px",
         ),
 
-        # 🦷 Info Principal: Diente + Servicio
-        rx.hstack(
-            # Columna Izquierda: Diente + Superficies
+        # 🦷 Info Principal EN 2 FILAS: Grid de 4 columnas
+        rx.grid(
+            # Columna 1: Diente + Superficies
             rx.vstack(
-                # Diente
-                rx.hstack(
-                    rx.icon("circle-dot", size=14, color=MEDICAL_COLORS["medical_ui"]["accent_info"]),
-                    rx.text(
-                        "Diente:",
-                        font_size="12px",
-                        font_weight="600",
-                        color=MEDICAL_COLORS["medical_ui"]["text_secondary"],
-                    ),
-                    spacing="1",
-                ),
                 rx.cond(
                     service["alcance"] == "boca_completa",
-                    # Boca completa
                     rx.badge(
                         "Boca Completa",
                         color_scheme="purple",
                         variant="soft",
-                        size="2",
+                        size="2"
                     ),
-                    # Diente específico
                     rx.vstack(
                         rx.badge(
-                            f"Diente {service['diente_numero']}",
+                            rx.cond(
+                                service['diente_numero'] == "Boca completa",
+                                service['diente_numero'],
+                                f"Diente {service['diente_numero']}"
+                            ),
                             color_scheme="cyan",
                             variant="soft",
                             size="2",
@@ -144,87 +136,64 @@ def history_service_card(service: dict) -> rx.Component:
                         rx.text(
                             service["diente_nombre"],
                             font_size="11px",
-                            color=MEDICAL_COLORS["medical_ui"]["text_secondary"],
+                            color=DARK_THEME["colors"]["text_secondary"],
                         ),
-                        spacing="1",
-                        align="start",
-                    ),
-                ),
-
-                # Superficies (solo si no es boca completa)
-                rx.cond(
-                    service["alcance"] != "boca_completa",
-                    rx.vstack(
-                        rx.hstack(
-                            rx.icon("layers", size=14, color=MEDICAL_COLORS["medical_ui"]["accent_info"]),
+                        # Superficies inline
+                        rx.cond(
+                            service["alcance"] != "boca_completa",
                             rx.text(
-                                "Superficies:",
-                                font_size="12px",
-                                font_weight="600",
-                                color=MEDICAL_COLORS["medical_ui"]["text_secondary"],
+                                service["superficies_texto"],
+                                font_size="11px",
+                                color=DARK_THEME["colors"]["text_muted"],
+                                font_style="italic",
                             ),
-                            spacing="1",
-                        ),
-                        # Superficies como texto separado por comas (sin foreach)
-                        rx.text(
-                            service["superficies_texto"],
-                            font_size="12px",
-                            color=MEDICAL_COLORS["medical_ui"]["text_primary"],
+                            rx.box(),
                         ),
                         spacing="1",
                         align="start",
                     ),
-                    rx.box(),  # Placeholder vacío
                 ),
-
-                spacing="3",
+                spacing="1",
                 align="start",
-                width="40%",
             ),
 
-            # Columna Derecha: Servicio + Condición + Material
+            # Columna 2: Servicio + Categoría
             rx.vstack(
-                # Servicio
-                rx.hstack(
-                    rx.icon("stethoscope", size=14, color=MEDICAL_COLORS["medical_ui"]["accent_success"]),
-                    rx.text(
-                        "Servicio:",
-                        font_size="12px",
-                        font_weight="600",
-                        color=MEDICAL_COLORS["medical_ui"]["text_secondary"],
-                    ),
-                    spacing="1",
+                rx.text(
+                    service["servicio_nombre"],
+                    font_size="14px",
+                    font_weight="700",
+                    color=DARK_THEME["colors"]["text_primary"],
                 ),
-                rx.hstack(
-                    rx.text(
-                        service["servicio_nombre"],
-                        font_size="14px",
-                        font_weight="700",
-                        color=MEDICAL_COLORS["medical_ui"]["text_primary"],
-                    ),
-                    rx.badge(
-                        service["servicio_categoria"],
-                        color_scheme=category_colors.get(service["servicio_categoria"], "gray"),
-                        variant="soft",
-                        size="1",
-                    ),
-                    spacing="2",
-                    align="center",
+                rx.badge(
+                    service["servicio_categoria"],
+                    color_scheme=category_colors.get(service["servicio_categoria"], "gray"),
+                    variant="soft",
+                    size="2",
                 ),
+                # Material inline
+                rx.cond(
+                    service["material_utilizado"],
+                    rx.text(
+                        f"Material: {service['material_utilizado']}",
+                        font_size="11px",
+                        color=DARK_THEME["colors"]["text_secondary"],
+                    ),
+                    rx.box(),
+                ),
+                spacing="1",
+                align="start",
+            ),
 
-                # Condición Aplicada (si existe)
+            # Columna 3: Condición
+            rx.vstack(
                 rx.cond(
                     service["condicion_aplicada"],
                     rx.vstack(
-                        rx.hstack(
-                            rx.icon("check-circle", size=14, color=MEDICAL_COLORS["medical_ui"]["accent_success"]),
-                            rx.text(
-                                "Condición Aplicada:",
-                                font_size="12px",
-                                font_weight="600",
-                                color=MEDICAL_COLORS["medical_ui"]["text_secondary"],
-                            ),
-                            spacing="1",
+                        rx.text(
+                            "Condición aplicada:",
+                            font_size="11px",
+                            color=DARK_THEME["colors"]["text_muted"],
                         ),
                         rx.badge(
                             service["condicion_aplicada"].replace("_", " ").title(),
@@ -235,83 +204,72 @@ def history_service_card(service: dict) -> rx.Component:
                         spacing="1",
                         align="start",
                     ),
-                    rx.box(),  # Placeholder vacío
+                    rx.text(
+                        "Sin cambio de condición",
+                        font_size="11px",
+                        color=DARK_THEME["colors"]["text_muted"],
+                        font_style="italic",
+                    ),
                 ),
+                spacing="1",
+                align="start",
+            ),
 
-                # Material Utilizado (si existe)
+            # Columna 4: Observaciones inline
+            rx.vstack(
                 rx.cond(
-                    service["material_utilizado"],
+                    service["observaciones"],
                     rx.vstack(
                         rx.hstack(
-                            rx.icon("package", size=14, color=MEDICAL_COLORS["medical_ui"]["accent_info"]),
+                            rx.icon("message-square", size=14, color=COLORS["warning"]["500"]),
                             rx.text(
-                                "Material:",
-                                font_size="12px",
+                                "Observaciones:",
+                                font_size="11px",
+                                color=DARK_THEME["colors"]["text_muted"],
                                 font_weight="600",
-                                color=MEDICAL_COLORS["medical_ui"]["text_secondary"],
                             ),
                             spacing="1",
                         ),
                         rx.text(
-                            service["material_utilizado"],
-                            font_size="13px",
-                            color=MEDICAL_COLORS["medical_ui"]["text_primary"],
+                            service["observaciones"],
+                            font_size="12px",
+                            color=DARK_THEME["colors"]["text_secondary"],
+                            line_height="1.4",
                         ),
                         spacing="1",
                         align="start",
                     ),
-                    rx.box(),  # Placeholder vacío
-                ),
-
-                spacing="3",
-                align="start",
-                width="60%",
-            ),
-
-            width="100%",
-            align="start",
-            spacing="4",
-        ),
-
-        # 📝 Observaciones (si existen)
-        rx.cond(
-            service["observaciones"],
-            rx.box(
-                rx.hstack(
-                    rx.icon("file-text", size=14, color=MEDICAL_COLORS["medical_ui"]["accent_warning"]),
                     rx.text(
-                        "Observaciones:",
-                        font_size="12px",
-                        font_weight="600",
-                        color=MEDICAL_COLORS["medical_ui"]["text_secondary"],
+                        "Sin observaciones",
+                        font_size="11px",
+                        color=DARK_THEME["colors"]["text_muted"],
+                        font_style="italic",
                     ),
-                    spacing="1",
-                    margin_bottom="6px",
                 ),
-                rx.text(
-                    service["observaciones"],
-                    font_size="12px",
-                    color=MEDICAL_COLORS["medical_ui"]["text_primary"],
-                    line_height="1.5",
-                ),
-                padding="12px",
-                background=f"{MEDICAL_COLORS['medical_ui']['surface']}",
-                border_radius="6px",
-                border=f"1px solid {MEDICAL_COLORS['medical_ui']['border_light']}",
-                margin_top="12px",
+                spacing="1",
+                align="start",
             ),
-            rx.box(),  # Placeholder vacío
+
+            columns="4",
+            spacing="4",
+            width="100%",
         ),
 
-        # Estilos del card
+        # Estilos del card - Versión mejorada
         style={
-            **medical_card_style(),
+            "background": f"rgba({DARK_THEME['colors']['surface']}, 0.6)",
+            "border": f"1px solid {DARK_THEME['colors']['border']}",
+            "border_radius": RADIUS["lg"],
+            "padding": SPACING["4"],  # Padding ajustado para legibilidad
+            "backdrop_filter": "blur(10px)",
             "transition": "all 0.2s ease",
+            "box_shadow": f"0 2px 8px rgba(0, 0, 0, 0.3)",
             "_hover": {
                 "transform": "translateY(-2px)",
-                "box_shadow": f"0 8px 24px {MEDICAL_COLORS['medical_ui']['accent_primary']}30",
+                "box_shadow": f"0 4px 16px {COLORS['primary']['500']}20, 0 2px 8px rgba(0, 0, 0, 0.4)",
+                "border_color": f"{COLORS['primary']['500']}60",
             },
         },
         width="100%",
-        margin_bottom="12px",
+        margin_bottom=SPACING["3"],  # Margen apropiado entre cards
     )

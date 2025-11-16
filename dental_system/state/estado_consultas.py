@@ -111,7 +111,11 @@ class EstadoConsultas(rx.State,mixin=True):
     termino_busqueda_consultas: str = ""
     buscar_por_paciente: str = ""
     buscar_por_diagnostico: str = ""
-   
+
+    # 🔍 FILTROS ESPECÍFICOS PARA DASHBOARD ASISTENTE
+    termino_busqueda_consultas_dashboard: str = ""
+    filtro_odontologo_dashboard: str = "todos"
+
     # Variables de mensajes
     success_message: str = ""
     error_message: str = ""
@@ -219,6 +223,52 @@ class EstadoConsultas(rx.State,mixin=True):
         for doctor_id, consultas_list in self.consultas_por_odontologo_dict.items():
             resultado[doctor_id] = len(consultas_list)
         return resultado
+
+    # ==========================================
+    # 🔍 COMPUTED VARS PARA DASHBOARD ASISTENTE
+    # ==========================================
+
+    @rx.var(cache=False)
+    def consultas_hoy_filtradas(self) -> List[ConsultaModel]:
+        """🔍 Consultas de hoy filtradas por búsqueda y odontólogo (dashboard asistente)"""
+        consultas = self.consultas_hoy
+
+        # Filtrar por búsqueda (nombre paciente o cédula)
+        if self.termino_busqueda_consultas_dashboard:
+            termino = self.termino_busqueda_consultas_dashboard.lower()
+            consultas = [
+                c for c in consultas
+                if (termino in c.paciente_nombre.lower() if c.paciente_nombre else False) or
+                   (termino in c.paciente_documento.lower() if c.paciente_documento else False)
+            ]
+
+        # Filtrar por odontólogo
+        if self.filtro_odontologo_dashboard and self.filtro_odontologo_dashboard != "todos":
+            consultas = [
+                c for c in consultas
+                if c.odontologo_nombre == self.filtro_odontologo_dashboard
+            ]
+
+        return consultas
+
+    @rx.var(cache=True)
+    def odontologos_unicos_hoy(self) -> List[str]:
+        """👨‍⚕️ Lista de odontólogos únicos del día (para filtro)"""
+        odontologos = list(set([
+            c.odontologo_nombre for c in self.consultas_hoy
+            if c.odontologo_nombre
+        ]))
+        return sorted(odontologos)
+
+    @rx.var(cache=True)
+    def odontologos_filtro_opciones(self) -> List[str]:
+        """👨‍⚕️ Opciones para el filtro de odontólogos (incluye 'todos' al inicio)"""
+        odontologos = list(set([
+            c.odontologo_nombre for c in self.consultas_hoy
+            if c.odontologo_nombre
+        ]))
+        return ["todos"] + sorted(odontologos)
+
     # ==========================================
     # 🚀 MÉTODO PRINCIPAL UNIFICADO - VERSIÓN REFACTORIZADA
     # ==========================================

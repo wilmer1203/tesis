@@ -674,14 +674,6 @@ filtro_estado_pago: str = "todos"
 filtro_rango_monto: Dict[str, float] = {"min": 0.0, "max": 999999.0}
 mostrar_solo_pendientes: bool = False
 
-# Métricas financieras
-recaudacion_hoy: float = 0.0
-recaudacion_mes: float = 0.0
-saldo_pendiente_total: float = 0.0
-total_facturas_pendientes: int = 0
-estadisticas_pagos: PagosStatsModel = PagosStatsModel()
-balance_general: BalanceGeneralModel = BalanceGeneralModel()
-
 # Cache financiero
 cache_pagos_recientes: List[PagoModel] = []
 cache_cuentas_por_cobrar: List[CuentaPorCobrarModel] = []

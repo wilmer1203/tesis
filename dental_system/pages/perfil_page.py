@@ -4,10 +4,10 @@ Permite al usuario ver y editar su información personal
 """
 import reflex as rx
 from ..components.common import (
-    page_header,medical_page_layout,medical_toast_container,primary_button,secondary_button)
+    page_header,medical_page_layout,medical_toast_container,primary_button,secondary_button,info_field_readonly)
 from ..components.modal_perfil import modal_cambiar_email, modal_cambiar_password
 from ..components.forms import form_section_header
-from ..styles.themes import COLORS, SPACING, RADIUS, GRADIENTS, SHADOWS, dark_crystal_card,glassmorphism_card
+from ..styles.themes import COLORS, SPACING, RADIUS, GRADIENTS, SHADOWS, dark_crystal_card,glassmorphism_card,DARK_THEME
 from ..state.app_state import AppState
 from typing import Dict, Any, List
 
@@ -27,33 +27,7 @@ def _readonly_field_style() -> Dict[str, Any]:
     }
 
 
-def _readonly_input(
-    label: str,
-    value: str,
-    help_text: str = "",
-    special_style: Dict[str, Any] = None
-) -> rx.Component:
-    """Campo readonly estilizado para perfil"""
-    base_style = _readonly_field_style()
-    if special_style:
-        base_style.update(special_style)
-
-    return rx.vstack(
-        rx.text(label, size="2", weight="bold", color=COLORS["gray"]["300"]),
-        rx.input(
-            value=value,
-            readonly=True,
-            width="100%",
-            style=base_style
-        ),
-        rx.cond(
-            help_text != "",
-            rx.text(help_text, size="1", color=COLORS["gray"]["500"]),
-            rx.box()
-        ),
-        spacing="1",
-        width="100%"
-    )
+# Campo readonly ahora usa info_field_readonly() de common.py (mejor contraste + iconos)
 
 
 
@@ -89,31 +63,38 @@ def card_perfil() -> rx.Component:
     """Perfil completo: diseño premium con glassmorphism + responsive"""
     return rx.box(
         rx.vstack(
-            # === HEADER: Rol + Estado Laboral (destacado) ===
+            # === HEADER: Rol + Estado Laboral (destacado con iconos) ===
             rx.hstack(
-                # Rol (único)
-                rx.box(
+                # Rol con icono
+                rx.hstack(
+                    rx.icon("shield-check", size=20, color=COLORS["primary"]["400"]),
                     rx.text(
                         f"ROL: {AppState.rol_usuario.upper()}",
-                        size="2",
+                        size="3",
                         weight="bold",
                         color=COLORS["primary"]["300"],
                         style={
-                            "padding": "6px 14px",
+                            "padding": "8px 16px",
                             "border_radius": RADIUS["lg"],
-                            "background": f"{COLORS['primary']['500']}15",
-                            "border": f"1px solid {COLORS['primary']['600']}40",
-                            "font_size": "0.85rem",
-                            "backdrop_filter": "blur(4px)",
-                            "box_shadow": f"0 1px 2px {COLORS['gray']['900']}60"
+                            "background": f"{COLORS['primary']['500']}20",
+                            "border": f"1px solid {COLORS['primary']['500']}50",
+                            "backdrop_filter": "blur(8px)",
+                            "box_shadow": f"0 2px 8px {COLORS['primary']['500']}30"
                         }
-                    )
+                    ),
+                    spacing="2",
+                    align="center"
                 ),
-                # Estado laboral
-                rx.box(
+                # Estado laboral con icono
+                rx.hstack(
+                    rx.icon(
+                        rx.cond(AppState.estado_laboral_activo, "check-circle", "x-circle"),
+                        size=18,
+                        color=rx.cond(AppState.estado_laboral_activo, COLORS["success"]["400"], COLORS["error"]["400"])
+                    ),
                     rx.text(
                         AppState.estado_laboral_str.upper(),
-                        size="1",
+                        size="2",
                         weight="bold",
                         color=rx.cond(
                             AppState.estado_laboral_activo,
@@ -121,51 +102,51 @@ def card_perfil() -> rx.Component:
                             COLORS["error"]["400"]
                         ),
                         style={
-                            "padding": "4px 12px",
+                            "padding": "6px 14px",
                             "border_radius": RADIUS["md"],
                             "background": rx.cond(
                                 AppState.estado_laboral_activo,
-                                f"{COLORS['success']['500']}10",
-                                f"{COLORS['error']['500']}10"
+                                f"{COLORS['success']['500']}15",
+                                f"{COLORS['error']['500']}15"
                             ),
-                            "border": rx.cond(AppState.estado_laboral_activo,f"1px solid {COLORS['success']['600']}30", f"1px solid {COLORS['error']['600']}30"),
-                            "font_size": "0.8rem"
+                            "border": rx.cond(AppState.estado_laboral_activo,f"1px solid {COLORS['success']['500']}40", f"1px solid {COLORS['error']['500']}40")
                         }
-                    )
+                    ),
+                    spacing="2",
+                    align="center"
                 ),
-                spacing="3",
+                spacing="4",
                 width="100%",
                 justify="between",
                 wrap="wrap"
             ),
 
-            # === GRID: 1 → 2 → 3 columnas ===
+            # === GRID: 1 → 2 → 3 columnas (con iconos) ===
             rx.grid(
                 # COL 1: Datos Personales
                 rx.vstack(
-                    _readonly_input(
+                    info_field_readonly(
                         "Nombre Completo",
                         AppState.formulario_perfil.get("nombre_completo", ""),
-                        special_style=readonly_style()
+                        icon="user"
                     ),
                     rx.cond(
                         AppState.formulario_perfil.get("numero_documento", ""),
-                        _readonly_input(
-                            "Documento",
+                        info_field_readonly(
+                            "Documento de Identidad",
                             f"{AppState.formulario_perfil.get('tipo_documento', '')} {AppState.formulario_perfil.get('numero_documento', '')}",
-                            help_text="No editable por seguridad",
-                            special_style=readonly_style()
+                            icon="credit-card"
                         )
                     ),
                     rx.cond(
                         AppState.formulario_perfil.get("fecha_nacimiento", ""),
-                        _readonly_input(
-                            "Nacimiento",
+                        info_field_readonly(
+                            "Fecha de Nacimiento",
                             AppState.formulario_perfil.get("fecha_nacimiento", ""),
-                            special_style=readonly_style()
+                            icon="calendar"
                         )
                     ),
-                    spacing="3",
+                    spacing="4",
                     width="100%"
                 ),
 
@@ -173,38 +154,42 @@ def card_perfil() -> rx.Component:
                 rx.vstack(
                     rx.cond(
                         AppState.formulario_perfil.get("especialidad", ""),
-                        _readonly_input(
+                        info_field_readonly(
                             "Especialidad",
                             AppState.formulario_perfil.get("especialidad", ""),
-                            help_text="Especialidad médica",
-                            special_style=readonly_style()
+                            icon="stethoscope"
                         )
                     ),
                     rx.cond(
                         AppState.formulario_perfil.get("numero_licencia", ""),
-                        _readonly_input(
-                            "Licencia",
+                        info_field_readonly(
+                            "Licencia Profesional",
                             AppState.formulario_perfil.get("numero_licencia", ""),
-                            help_text="Licencia profesional",
-                            special_style=readonly_style()
+                            help_text="Número de licencia médica",
+                            icon="badge-check"
                         )
                     ),
                     rx.cond(
                         AppState.formulario_perfil.get("fecha_contratacion", ""),
-                        _readonly_input(
-                            "Contratación",
+                        info_field_readonly(
+                            "Fecha de Contratación",
                             AppState.formulario_perfil.get("fecha_contratacion", ""),
-                            special_style=readonly_style()
+                            icon="briefcase"
                         )
                     ),
-                    spacing="3",
+                    spacing="4",
                     width="100%"
                 ),
 
                 # COL 3: Contacto Editable
                 rx.vstack(
                     rx.vstack(
-                        rx.text("Celular *", size="2", weight="bold", color=COLORS["gray"]["200"]),
+                        rx.hstack(
+                            rx.icon("phone", size=16, color=COLORS["primary"]["400"]),
+                            rx.text("Teléfono Celular *", size="3", weight="bold", color=DARK_THEME["colors"]["text_primary"]),
+                            spacing="2",
+                            align="center"
+                        ),
                         rx.input(
                             value=AppState.formulario_perfil.get("celular", ""),
                             on_change=lambda v: AppState.actualizar_campo_perfil("celular", v),
@@ -216,10 +201,15 @@ def card_perfil() -> rx.Component:
                             rx.text(AppState.errores_validacion.get("celular"), color=COLORS["error"]["400"], size="1")
                         ),
                         rx.text("Formato: +58 412 1234567", size="1", color=COLORS["gray"]["500"]),
-                        spacing="1"
+                        spacing="2"
                     ),
                     rx.vstack(
-                        rx.text("Dirección *", size="2", weight="bold", color=COLORS["gray"]["200"]),
+                        rx.hstack(
+                            rx.icon("map-pin", size=16, color=COLORS["primary"]["400"]),
+                            rx.text("Dirección de Residencia *", size="3", weight="bold", color=DARK_THEME["colors"]["text_primary"]),
+                            spacing="2",
+                            align="center"
+                        ),
                         rx.text_area(
                             value=AppState.formulario_perfil.get("direccion", ""),
                             on_change=lambda v: AppState.actualizar_campo_perfil("direccion", v),
@@ -232,14 +222,14 @@ def card_perfil() -> rx.Component:
                             rx.text(AppState.errores_validacion.get("direccion"), color=COLORS["error"]["400"], size="1")
                         ),
                         rx.text("Máx. 200 caracteres", size="1", color=COLORS["gray"]["500"]),
-                        spacing="1"
+                        spacing="2"
                     ),
-                    spacing="3",
+                    spacing="4",
                     width="100%"
                 ),
 
                 columns=rx.breakpoints(initial="1", sm="1", md="2", lg="3"),
-                spacing="5",
+                spacing="6",
                 width="100%"
             ),
 
@@ -312,7 +302,6 @@ def card_perfil() -> rx.Component:
             width="100%"
         ),
         **dark_crystal_card(color=COLORS["primary"]["500"], hover_lift="4px"),
-        # padding=SPACING["6"],
         width="100%"
     )
 

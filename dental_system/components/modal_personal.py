@@ -14,9 +14,9 @@ from dental_system.styles.themes import COLORS, SHADOWS, RADIUS, SPACING, GLASS_
 
 def multi_step_staff_form() -> rx.Component:
     """👨‍⚕️ Formulario multi-step moderno para crear/editar personal médico"""
-    
-    step_titles = ["Datos Personales", "Información Profesional", "Configuración de Usuario"]
-    
+
+    step_titles = ["Datos Personales", "Información Profesional y Usuario"]
+
     return rx.dialog.root(
         rx.dialog.content(
             # Header del modal
@@ -50,28 +50,24 @@ def multi_step_staff_form() -> rx.Component:
                     width="100%",
                     align="center"
                 ),
-                
+
                 # Indicador de progreso
                 form_step_indicator(
                     AppState.paso_formulario_personal,
-                    len(step_titles), 
+                    len(step_titles),
                     step_titles
                 ),
-                
-                spacing="4",
+
+                spacing="3",
                 width="100%"
             ),
-            
+
             # Contenido del formulario por pasos
             rx.box(
                 rx.cond(
                     AppState.paso_formulario_personal == 0,
                     _staff_form_step_1(),
-                    rx.cond(
-                        AppState.paso_formulario_personal == 1,
-                        _staff_form_step_2(),
-                        _staff_form_step_3()
-                    )
+                    _staff_form_step_2_unified()
                 ),
                 width="100%",
                 min_height="400px"
@@ -99,7 +95,7 @@ def multi_step_staff_form() -> rx.Component:
             ),
             
             style={
-                "max_width": "800px",
+                "max_width": "700px",
                 "width": "90vw",
                 "max_height": "90vh",
                 "padding": SPACING["8"],
@@ -185,43 +181,44 @@ def _staff_form_step_1() -> rx.Component:
             spacing="4",
             width="100%"
         ),
-        # Documento (TIPO + SOLO NÚMEROS - Componente genérico)
-        select_input_combo(
-            label="Documento de Identidad",
-            field_name_select="tipo_documento",
-            field_name_input="numero_documento",
-            value_select=rx.cond(AppState.formulario_empleado, AppState.formulario_paciente.tipo_documento, "CI"),
-            value_input=rx.cond(AppState.formulario_empleado, AppState.formulario_empleado.numero_documento, ""),
-            on_change=AppState.actualizar_campo_formulario_empleado,
-            select_options=["CI", "Pasaporte"],
-            select_default="CI",
-            input_type="number",
-            input_placeholder="12345678",
-            select_width="90px",
-            required=True,
-            icon="id-card",
-            help_text="Tipo + solo números",
-            validation_error=rx.cond(AppState.errores_validacion_empleado, AppState.errores_validacion_empleado.get("numero_documento", ""), "")
-        ),
         
-
-        # Celular (CÓDIGO PAÍS + NÚMERO - Componente genérico)
-        select_input_combo(
-            label="Número de Celular",
-            field_name_select="codigo_pais_celular",
-            field_name_input="celular",
-            value_select=rx.cond(AppState.formulario_empleado, AppState.formulario_empleado.codigo_pais_celular, "+58 (VE)"),
-            value_input=rx.cond(AppState.formulario_empleado, AppState.formulario_empleado.celular, ""),
-            on_change=AppState.actualizar_campo_formulario_empleado,
-            select_options=["+58", "+1", "+52", "+57", "+51", "+54", "+56", "+55", "+34"],
-            select_default="+58",
-            input_type="number",
-            input_placeholder="4241234567",
-            required=True,
-            icon="smartphone",
-            validation_error=rx.cond(AppState.errores_validacion_empleado, AppState.errores_validacion_empleado.get("celular", ""), "")
+        rx.grid(
+            select_input_combo(
+                label="Documento de Identidad",
+                field_name_select="tipo_documento",
+                field_name_input="numero_documento",
+                value_select=rx.cond(AppState.formulario_empleado, AppState.formulario_paciente.tipo_documento, "CI"),
+                value_input=rx.cond(AppState.formulario_empleado, AppState.formulario_empleado.numero_documento, ""),
+                on_change=AppState.actualizar_campo_formulario_empleado,
+                select_options=["CI", "Pasaporte"],
+                select_default="CI",
+                input_type="number",
+                input_placeholder="12345678",
+                select_width="90px",
+                required=True,
+                icon="id-card",
+                validation_error=rx.cond(AppState.errores_validacion_empleado, AppState.errores_validacion_empleado.get("numero_documento", ""), "")
+            ),
+            # Celular (CÓDIGO PAÍS + NÚMERO - Componente genérico)
+            select_input_combo(
+                label="Número de Celular",
+                field_name_select="codigo_pais_celular",
+                field_name_input="celular",
+                value_select=rx.cond(AppState.formulario_empleado, AppState.formulario_empleado.codigo_pais_celular, "+58"),
+                value_input=rx.cond(AppState.formulario_empleado, AppState.formulario_empleado.celular, ""),
+                on_change=AppState.actualizar_campo_formulario_empleado,
+                select_options=["+58", "+1", "+52", "+57", "+51", "+54", "+56", "+55", "+34"],
+                select_default="+58",
+                input_type="number",
+                input_placeholder="4241234567",
+                required=True,
+                icon="smartphone",
+                validation_error=rx.cond(AppState.errores_validacion_empleado, AppState.errores_validacion_empleado.get("celular", ""), "")
+            ),
+            columns=rx.breakpoints(initial="1", sm="2"),
+            spacing="4",
+            width="100%"
         ),
-        
         # Dirección
         enhanced_form_field(
             label="Dirección Completa",
@@ -234,48 +231,49 @@ def _staff_form_step_1() -> rx.Component:
             max_length=500
         ),
         
-        spacing="6",
+        spacing="4",
         width="100%",
         align="stretch"
     )
 
-def _staff_form_step_2() -> rx.Component:
-    """💼 Paso 2: Información Profesional"""
+def _staff_form_step_2_unified() -> rx.Component:
+    """💼 Paso 2 UNIFICADO: Información Profesional + Usuario"""
     return rx.vstack(
         form_section_header(
-            "Información Profesional",
-            "Datos del cargo, especialidad y experiencia",
+            "Información Profesional y Acceso",
+            "Datos del cargo, especialidad y configuración de usuario",
             "briefcase",
             COLORS["primary"]["500"]
         ),
-        
-        # Selector visual de rol
-        rx.vstack(
-            rx.text(
-                "Tipo de Personal *",
-                style={
-                    "font_size": "0.875rem",
-                    "font_weight": "600",
-                    "color": DARK_THEME["colors"]["text_primary"],
-                    "margin_bottom": SPACING["3"]
-                }
+
+        # Tipo de Personal - SELECT COMPACTO
+        rx.grid(
+            enhanced_form_field(
+                label="Tipo de Personal",
+                field_name="tipo_personal",
+                value=rx.cond(AppState.formulario_empleado, AppState.formulario_empleado.tipo_personal, "Odontólogo"),
+                on_change=AppState.actualizar_campo_formulario_empleado,
+                field_type="select",
+                options=["Gerente", "Administrador", "Odontólogo", "Asistente"],
+                required=True,
+                icon="user-cog",
+                validation_error=rx.cond(AppState.errores_validacion_empleado, AppState.errores_validacion_empleado.get("tipo_personal", ""), "")
             ),
-            
-            # Cards visuales para selección de rol
-            rx.grid(
-                _role_selection_card("Gerente", "crown", "Administración total del sistema", COLORS["secondary"]["500"]),
-                _role_selection_card("Administrador", "settings", "Gestión administrativa", COLORS["blue"]["500"]),
-                _role_selection_card("Odontólogo", "stethoscope", "Atención médica especializada", COLORS["success"]["500"]),
-                _role_selection_card("Asistente", "user-check", "Apoyo en consultas", COLORS["warning"]["500"]),
-                columns=rx.breakpoints(initial="1", sm="2"),
-                spacing="4",
-                width="100%"
+
+            # Número de Licencia Profesional
+            enhanced_form_field(
+                label="Número de Licencia Profesional",
+                field_name="numero_colegiatura",
+                value=rx.cond(AppState.formulario_empleado, AppState.formulario_empleado.numero_colegiatura, ""),
+                on_change=AppState.actualizar_campo_formulario_empleado,
+                placeholder="COV-12345",
+                icon="badge",
             ),
-            
-            spacing="2",
+            columns=rx.breakpoints(initial="1", sm="2"),
+            spacing="4",
             width="100%"
         ),
-        
+
         # Especialidad (condicional para odontólogos)
         rx.cond(
             rx.cond(AppState.formulario_empleado, AppState.formulario_empleado.tipo_personal, "") == "Odontólogo",
@@ -298,69 +296,53 @@ def _staff_form_step_2() -> rx.Component:
                 icon="award",
                 help_text="Predeterminado: Odontología General"
             ),
-            rx.box()  # Espacio vacío si no es odontólogo
+            rx.box()
         ),
-        
-        # Licencia y experiencia
-        rx.grid(
-            enhanced_form_field(
-                label="Número de Licencia Profesional",
-                field_name="numero_colegiatura",
-                value=rx.cond(AppState.formulario_empleado, AppState.formulario_empleado.numero_colegiatura, ""),
-                on_change=AppState.actualizar_campo_formulario_empleado,
-                placeholder="COV-12345",
-                icon="badge",
-                help_text="Número de colegiatura profesional"
-            ),
-            columns=rx.breakpoints(initial="1"),
-            spacing="4",
-            width="100%"
-        ),
-        
-        spacing="6",
-        width="100%",
-        align="stretch"
-    )
 
-def _staff_form_step_3() -> rx.Component:
-    """🔐 Paso 3: Configuración de Usuario y Salario"""
-    return rx.vstack(
-        form_section_header(
-            "Configuración de Usuario",
-            "Acceso al sistema",
-            "key",
-            COLORS["info"]["500"]
-        ),
-        
-        # Email del sistema y contraseña (solo para usuarios nuevos)
+        # Sección Usuario (solo para nuevos)
         rx.cond(
-            ~AppState.empleado_seleccionado,  # Solo para nuevos usuarios
+            ~AppState.empleado_seleccionado,
             rx.vstack(
-                enhanced_form_field(
-                    label="Email del Sistema",
-                    field_name="usuario_email",
-                    value=rx.cond(AppState.formulario_empleado,AppState.formulario_empleado.usuario_email, ""),
-                    on_change=AppState.actualizar_campo_formulario_empleado,
-                    field_type="email",
-                    placeholder="usuario@clinica.com",
-                    required=True,
-                    icon="mail",
-                    help_text="Email para acceso al sistema",
-                    validation_error=rx.cond(AppState.errores_validacion_empleado, AppState.errores_validacion_empleado.get("usuario_email", ""), "")
+                rx.divider(margin_y="4"),
+
+                rx.text(
+                    "Configuración de Acceso",
+                    style={
+                        "font_size": "1rem",
+                        "font_weight": "600",
+                        "color": DARK_THEME["colors"]["text_primary"],
+                        "margin_bottom": SPACING["2"]
+                    }
                 ),
-                enhanced_form_field(
-                    label="Contraseña de Acceso",
-                    field_name="usuario_password",  # ✅ CORREGIDO: usar nombre real del modelo
-                    value=rx.cond(AppState.formulario_empleado, AppState.formulario_empleado.usuario_password, ""),
-                    on_change=AppState.actualizar_campo_formulario_empleado,
-                    field_type="password",
-                    placeholder="Mínimo 8 caracteres",
-                    required=True,
-                    icon="lock",
-                    help_text="Contraseña segura con al menos 8 caracteres",
-                    validation_error=rx.cond(AppState.errores_validacion_empleado, AppState.errores_validacion_empleado.get("usuario_password", ""), "")
+
+                rx.grid(
+                    enhanced_form_field(
+                        label="Email del Sistema",
+                        field_name="usuario_email",
+                        value=rx.cond(AppState.formulario_empleado, AppState.formulario_empleado.usuario_email, ""),
+                        on_change=AppState.actualizar_campo_formulario_empleado,
+                        field_type="email",
+                        placeholder="usuario@clinica.com",
+                        required=True,
+                        icon="mail",
+                        validation_error=rx.cond(AppState.errores_validacion_empleado, AppState.errores_validacion_empleado.get("usuario_email", ""), "")
+                    ),
+                    enhanced_form_field(
+                        label="Contraseña de Acceso",
+                        field_name="usuario_password",
+                        value=rx.cond(AppState.formulario_empleado, AppState.formulario_empleado.usuario_password, ""),
+                        on_change=AppState.actualizar_campo_formulario_empleado,
+                        field_type="password",
+                        placeholder="Mínimo 8 caracteres",
+                        required=True,
+                        icon="lock",
+                        validation_error=rx.cond(AppState.errores_validacion_empleado, AppState.errores_validacion_empleado.get("usuario_password", ""), "")
+                    ),
+                    columns=rx.breakpoints(initial="1", sm="2"),
+                    spacing="4",
+                    width="100%"
                 ),
-                
+
                 rx.box(
                     rx.hstack(
                         rx.icon("info", size=16, color=COLORS["blue"]["500"]),
@@ -376,73 +358,21 @@ def _staff_form_step_3() -> rx.Component:
                         align="center"
                     ),
                     style={
-                        "background": COLORS["gray"]["200"],
-                        "border": f"1px solid {COLORS['primary']['200']}",
+                        "background": f"{COLORS['blue']['900']}10",
+                        "border": f"1px solid {COLORS['blue']['500']}30",
                         "border_radius": RADIUS["lg"],
                         "padding": SPACING["3"],
                         "margin_top": SPACING["2"]
                     }
                 ),
-                
+
                 spacing="3",
                 width="100%"
             ),
-            rx.box()  # Espacio vacío para usuarios existentes
-        ),
-        
-        # Fecha de ingreso
-        enhanced_form_field(
-            label="Fecha de Ingreso",
-            field_name="fecha_ingreso",
-            value=rx.cond(AppState.formulario_empleado, AppState.formulario_empleado.fecha_ingreso, ""),
-            on_change=AppState.actualizar_campo_formulario_empleado,
-            field_type="date",
-            icon="calendar",
-            help_text="Fecha de inicio en la empresa"
-        ),
-        
-        # Resumen del usuario a crear
-        rx.cond(
-            AppState.formulario_empleado & (AppState.formulario_empleado.tipo_personal != ""),
-            rx.box(
-                rx.vstack(
-                    rx.hstack(
-                        rx.icon("user-plus", size=20, color=COLORS["primary"]["500"]),
-                        rx.text(
-                            "Resumen del Usuario",
-                            style={
-                                "font_size": "1rem",
-                                "font_weight": "600",
-                                "color": COLORS["primary"]["600"]
-                            }
-                        ),
-                        spacing="2",
-                        align="center"
-                    ),
-                    
-                    rx.text(
-                        f"Se creará un usuario {rx.cond(AppState.formulario_empleado, AppState.formulario_empleado.tipo_personal, '')} con acceso al sistema odontológico.",
-                        style={
-                            "font_size": "0.875rem",
-                            "color": COLORS["gray"]["600"],
-                            "line_height": "1.4"
-                        }
-                    ),
-                    
-                    spacing="3"
-                ),
-                style={
-                    "background": f"linear-gradient(135deg, {COLORS['gray']['200']} 0%, {COLORS['primary']['200']} 100%)",  # primary 100 existe
-                    "border": f"1px solid {COLORS['primary']['200']}",
-                    "border_radius": RADIUS["xl"],
-                    "padding": SPACING["4"],
-                    "margin_top": SPACING["4"]
-                }
-            ),
             rx.box()
         ),
-        
-        spacing="6",
+
+        spacing="4",
         width="100%",
         align="stretch"
     )

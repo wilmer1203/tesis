@@ -904,7 +904,12 @@ class EstadoOdontologia(rx.State, mixin=True):
 
     @rx.var
     def get_teeth_data(self) -> Dict[int, Dict[str, Any]]:
-        """🦷 Obtener data de todos los dientes para el grid profesional (SIN CACHE para reactividad)"""
+        """
+        🦷 Obtener data de todos los dientes para el grid profesional
+
+        Determina el STATUS GENERAL del diente analizando las condiciones de sus 5 superficies.
+        El status se asigna por PRIORIDAD (de más crítico a menos crítico).
+        """
 
         if not self.condiciones_por_diente:
             return {}
@@ -920,22 +925,33 @@ class EstadoOdontologia(rx.State, mixin=True):
             if not condiciones:
                 condiciones = self.condiciones_por_diente.get(str(diente_num), {})
 
-            # Determinar estado general del diente (usar nombres válidos del componente)
+            # Extraer lista de condiciones para análisis
             condiciones_no_sanas = [c for c in condiciones.values() if c != "sano"]
 
-            if any(cond in ["caries", "fractura", "ausente"] for cond in condiciones.values()):
-                status = "caries"  # Usar nombre válido
-            elif any(cond in ["obturacion", "corona", "implante"] for cond in condiciones.values()):
-                status = "obturado"  # Usar nombre válido
-            elif any(cond in ["endodoncia"] for cond in condiciones.values()):
-                status = "endodoncia"
+            # ✅ LÓGICA CORREGIDA: Asignar status por PRIORIDAD
+            # Orden: ausente > fractura > caries > endodoncia > obturado > corona > implante > sano
+
+            if any(cond == "ausente" for cond in condiciones.values()):
+                status = "ausente"  # ⚫ Gris - Diente extraído
+            elif any(cond == "fractura" for cond in condiciones.values()):
+                status = "fractura"  # 🔴 Rojo - Fractura (urgente)
+            elif any(cond == "caries" for cond in condiciones.values()):
+                status = "caries"  # 🔴 Rojo - Caries (necesita tratamiento)
+            elif any(cond == "endodoncia" for cond in condiciones.values()):
+                status = "endodoncia"  # 🟠 Naranja - Tratamiento de conducto
+            elif any(cond == "obturacion" for cond in condiciones.values()):
+                status = "obturado"  # 🔵 Azul - Tiene obturación/empaste
+            elif any(cond == "corona" for cond in condiciones.values()):
+                status = "corona"  # 🟡 Amarillo - Corona dental
+            elif any(cond == "implante" for cond in condiciones.values()):
+                status = "implante"  # 🟣 Púrpura - Implante dental
             else:
-                status = "sano"
+                status = "sano"  # 🟢 Verde - Diente saludable
 
             teeth_data[diente_num] = {
                 "number": diente_num,
                 "status": status,
-                "has_conditions": len(condiciones_no_sanas) > 0,  # ✅ Solo si tiene condiciones NO sanas
+                "has_conditions": len(condiciones_no_sanas) > 0,  # Badge rojo si tiene condiciones
                 "conditions": list(condiciones.values())
             }
 
@@ -1280,34 +1296,67 @@ class EstadoOdontologia(rx.State, mixin=True):
 
     @rx.event
     async def apply_quick_condition_change(self):
-        """🔄 Cambiar condición del diente (cambio rápido)"""
-        async with self:
-            try:
-                if not self.selected_tooth:
-                    self.mostrar_toast("Selecciona un diente", "warning")
-                    return
+        """
+        🔄 Cambiar condición del diente (solo diagnóstico, sin servicio)
 
-                if not self.quick_surface_selected:
-                    self.mostrar_toast("Selecciona una superficie", "warning")
-                    return
+        Actualiza el odontograma con la nueva condición del diente.
+        Se vincula a la intervención actual para trazabilidad.
+        """
+        try:
+            # Validaciones
+            if not self.selected_tooth:
+                self.mostrar_toast("Selecciona un diente", "warning")
+                return
 
-                if not self.quick_condition_value:
-                    self.mostrar_toast("Selecciona una condición", "warning")
-                    return
+            if not self.quick_surface_selected:
+                self.mostrar_toast("Selecciona una superficie", "warning")
+                return
 
-                if self.selected_tooth not in self.condiciones_por_diente:
-                    self.condiciones_por_diente[self.selected_tooth] = {}
+            if not self.quick_condition_value:
+                self.mostrar_toast("Selecciona una condición", "warning")
+                return
 
-                self.condiciones_por_diente[self.selected_tooth][self.quick_surface_selected] = self.quick_condition_value
+            if not self.paciente_actual or not self.paciente_actual.id:
+                self.mostrar_toast("No hay paciente seleccionado", "error")
+                return
 
-                await self.guardar_cambios_odontograma()
+            logger.info(f"🔄 Cambiando condición: Diente {self.selected_tooth} ({self.quick_surface_selected}) → {self.quick_condition_value}")
 
-                self.show_change_condition_modal = False
-                self.mostrar_toast("Condición actualizada", "success")
+            # Obtener ID de intervención actual (si existe)
+            intervencion_id = None
+            if hasattr(self, 'intervencion_actual') and self.intervencion_actual.id:
+                intervencion_id = self.intervencion_actual.id
 
-            except Exception as e:
-                logger.error(f"❌ Error cambiando condición: {str(e)}")
-                self.mostrar_toast(f"Error: {str(e)}", "error")
+            # Actualizar condición en BD (vinculado a intervención actual)
+            await odontologia_service.actualizar_condicion_diente(
+                paciente_id=self.paciente_actual.id,
+                diente_numero=self.selected_tooth,
+                superficie=self.quick_surface_selected,
+                nueva_condicion=self.quick_condition_value,
+                intervencion_id=intervencion_id,
+                material=None,
+                descripcion="Actualización de diagnóstico"
+            )
+
+            # Actualizar en memoria para reflejar en UI inmediatamente
+            if self.selected_tooth not in self.condiciones_por_diente:
+                self.condiciones_por_diente[self.selected_tooth] = {}
+
+            self.condiciones_por_diente[self.selected_tooth][self.quick_surface_selected] = self.quick_condition_value
+
+            # Cerrar modal y limpiar
+            self.show_change_condition_modal = False
+            self.quick_surface_selected = ""
+            self.quick_condition_value = ""
+
+            self.mostrar_toast("Condición actualizada correctamente", "success")
+            logger.info(f"✅ Condición actualizada: Diente {self.selected_tooth}")
+
+        except Exception as e:
+            logger.error(f"❌ Error cambiando condición: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            self.mostrar_toast(f"Error: {str(e)}", "error")
 
     @rx.event
     async def edit_consultation_service(self, service_id: str):

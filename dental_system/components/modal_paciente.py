@@ -14,7 +14,7 @@ from dental_system.styles.themes import COLORS, SHADOWS, RADIUS, SPACING, GLASS_
 def multi_step_patient_form() -> rx.Component:
     """👥 Formulario multi-step moderno para crear/editar pacientes"""
     
-    step_titles = ["Datos Personales", "Contacto", "Información Médica"]
+    step_titles = ["Personal", "Contacto", "Médica"]
     
     return rx.dialog.root(
         rx.dialog.content(
@@ -98,7 +98,7 @@ def multi_step_patient_form() -> rx.Component:
             ),
             
             style={
-                "max_width": "800px",
+                "max_width": "700px",
                 "width": "90vw",
                 "max_height": "90vh",
                 "padding": SPACING["8"],
@@ -185,50 +185,57 @@ def _patient_form_step_1() -> rx.Component:
             width="100%"
         ),
         
-        # Documento (TIPO + SOLO NÚMEROS - Componente genérico)
-        select_input_combo(
-            label="Documento de Identidad",
-            field_name_select="tipo_documento",
-            field_name_input="numero_documento",
-            value_select=rx.cond(AppState.formulario_paciente, AppState.formulario_paciente.tipo_documento, "CI"),
-            value_input=rx.cond(AppState.formulario_paciente, AppState.formulario_paciente.numero_documento, ""),
-            on_change=AppState.actualizar_campo_paciente,
-            select_options=["CI", "Pasaporte"],
-            select_default="V-",
-            input_type="number",
-            input_placeholder="12345678",
-            select_width="90px",
-            required=True,
-            icon="id-card",
-            help_text="Tipo + solo números",
-            validation_error=rx.cond(AppState.errores_validacion_paciente, AppState.errores_validacion_paciente.get("numero_documento", ""), "")
-        ),
-        
-        rx.grid(
-            enhanced_form_field(
-                label="Género",
-                field_name="genero",
-                value=rx.cond(AppState.formulario_paciente, AppState.formulario_paciente.genero, "masculino"),
-                on_change=AppState.actualizar_campo_paciente,
-                field_type="select",
-                options=["masculino", "femenino", "otro"],
-                icon="users",
-                help_text="Valor predeterminado: masculino"
+        rx.hstack(
+            rx.box(
+                select_input_combo(
+                    label="Documento",
+                    field_name_select="tipo_documento",
+                    field_name_input="numero_documento",
+                    value_select=rx.cond(AppState.formulario_paciente, AppState.formulario_paciente.tipo_documento, "CI"),
+                    value_input=rx.cond(AppState.formulario_paciente, AppState.formulario_paciente.numero_documento, ""),
+                    on_change=AppState.actualizar_campo_paciente,
+                    select_options=["CI", "Pasaporte"],
+                    select_default="V-",
+                    input_type="number",
+                    input_placeholder="12345678",
+                    select_width="90px",
+                    required=True,
+                    icon="id-card",
+                    validation_error=rx.cond(AppState.errores_validacion_paciente, AppState.errores_validacion_paciente.get("numero_documento", ""), "")
+                ),
+                flex="1"
             ),
-            enhanced_form_field(
-                label="Fecha de Nacimiento",
-                field_name="fecha_nacimiento",
-                value=rx.cond(AppState.formulario_paciente, AppState.formulario_paciente.fecha_nacimiento, ""),
-                on_change=AppState.actualizar_campo_paciente,
-                field_type="date",
-                icon="calendar"
+            rx.box(
+                enhanced_form_field(
+                    label="Género",
+                    field_name="genero",
+                    value=rx.cond(AppState.formulario_paciente, AppState.formulario_paciente.genero, "masculino"),
+                    on_change=AppState.actualizar_campo_paciente,
+                    field_type="select",
+                    options=["masculino", "femenino", "otro"],
+                    icon="users",
+                ),
+                align="center",
+                flex="1"
             ),
-            columns=rx.breakpoints(initial="1", sm="2"),
+            rx.box(
+                enhanced_form_field(
+                    label="Fecha de Nacimiento",
+                    field_name="fecha_nacimiento",
+                    value=rx.cond(AppState.formulario_paciente, AppState.formulario_paciente.fecha_nacimiento, ""),
+                    on_change=AppState.actualizar_campo_paciente,
+                    field_type="date",
+                    icon="calendar"
+                ),
+                flex="1"
+            ),
             spacing="4",
-            width="100%"
+            width="100%",
+            align="stretch",
+            wrap="wrap"
         ),
         
-        spacing="6",
+        spacing="4",
         width="100%",
         align="stretch"
     )
@@ -244,74 +251,92 @@ def _patient_form_step_2() -> rx.Component:
         ),
         
         # Contacto principal (CÓDIGO PAÍS + SOLO NÚMEROS - Componente genérico)
-        rx.grid(
-            select_input_combo(
-                label="Celular Principal",
-                field_name_select="codigo_pais_celular_1",
-                field_name_input="celular_1",
-                value_select=rx.cond(AppState.formulario_paciente, AppState.formulario_paciente.codigo_pais_celular_1, "+58 (VE)"),
-                value_input=rx.cond(AppState.formulario_paciente, AppState.formulario_paciente.celular_1, ""),
-                on_change=AppState.actualizar_campo_paciente,
-                select_options=["+58 (VE)", "+1 (US/CA)", "+52 (MX)", "+57 (CO)", "+51 (PE)", "+54 (AR)", "+56 (CL)", "+55 (BR)", "+34 (ES)"],
-                select_default="+58 (VE)",
-                input_type="number",
-                input_placeholder="4141234567",
-                icon="phone"
+        rx.hstack(
+            rx.box(
+                select_input_combo(
+                    label="Celular Principal",
+                    field_name_select="codigo_pais_celular_1",
+                    field_name_input="celular_1",
+                    value_select=rx.cond(AppState.formulario_paciente, AppState.formulario_paciente.codigo_pais_celular_1, "+58"),
+                    value_input=rx.cond(AppState.formulario_paciente, AppState.formulario_paciente.celular_1, ""),
+                    on_change=AppState.actualizar_campo_paciente,
+                    select_options=["+58", "+1", "+52", "+57", "+51", "+54", "+56", "+55", "+34"],
+                    select_default="+58",
+                    input_type="number",
+                    input_placeholder="4141234567",
+                    icon="phone",
+                    required=True,
+
+                ),
+                flex="1"
             ),
-            select_input_combo(
-                label="Celular Secundario",
-                field_name_select="codigo_pais_celular_2",
-                field_name_input="celular_2",
-                value_select=rx.cond(AppState.formulario_paciente, AppState.formulario_paciente.codigo_pais_celular_2, "+58 (VE)"),
-                value_input=rx.cond(AppState.formulario_paciente, AppState.formulario_paciente.celular_2, ""),
-                on_change=AppState.actualizar_campo_paciente,
-                select_options=["+58 (VE)", "+1 (US/CA)", "+52 (MX)", "+57 (CO)", "+51 (PE)", "+54 (AR)", "+56 (CL)", "+55 (BR)", "+34 (ES)"],
-                select_default="+58 (VE)",
-                input_type="number",
-                input_placeholder="4241234567",
-                icon="phone",
-                help_text="Opcional"
+            rx.box(
+                select_input_combo(
+                    label="Celular Secundario",
+                    field_name_select="codigo_pais_celular_2",
+                    field_name_input="celular_2",
+                    value_select=rx.cond(AppState.formulario_paciente, AppState.formulario_paciente.codigo_pais_celular_2, "+58"),
+                    value_input=rx.cond(AppState.formulario_paciente, AppState.formulario_paciente.celular_2, ""),
+                    on_change=AppState.actualizar_campo_paciente,
+                    select_options=["+58", "+1", "+52", "+57", "+51", "+54", "+56", "+55", "+34"],
+                    select_default="+58",
+                    input_type="number",
+                    input_placeholder="4241234567",
+                    icon="phone",
+                ),
+                flex="1"
             ),
-            columns=rx.breakpoints(initial="1", sm="2"),
+            rx.box(
+                # Email
+                enhanced_form_field(
+                    label="Email",
+                    field_name="email",
+                    value=rx.cond(AppState.formulario_paciente, AppState.formulario_paciente.email, ""),
+                    on_change=AppState.actualizar_campo_paciente,
+                    field_type="email",
+                    placeholder="paciente@email.com",
+                    icon="mail",
+                    validation_error=rx.cond(AppState.errores_validacion_paciente, AppState.errores_validacion_paciente.get("email", ""), "")
+                ),
+                flex="1"
+            ),
             spacing="4",
-            width="100%"
+            width="100%",
+            align="stretch",
+            wrap="wrap"
         ),
         
-        # Email
-        enhanced_form_field(
-            label="Email",
-            field_name="email",
-            value=rx.cond(AppState.formulario_paciente, AppState.formulario_paciente.email, ""),
-            on_change=AppState.actualizar_campo_paciente,
-            field_type="email",
-            placeholder="paciente@email.com",
-            icon="mail",
-            validation_error=rx.cond(AppState.errores_validacion_paciente, AppState.errores_validacion_paciente.get("email", ""), "")
-        ),
-         
+
         # Dirección y ubicación
-        rx.grid(
-            enhanced_form_field(
-                label="Ciudad",
-                field_name="ciudad",
-                value=rx.cond(AppState.formulario_paciente, AppState.formulario_paciente.ciudad, ""),
-                on_change=AppState.actualizar_campo_paciente,
-                placeholder="Caracas",
-                icon="map-pin"
+        rx.hstack(
+            rx.box(
+                enhanced_form_field(
+                    label="Ciudad",
+                    field_name="ciudad",
+                    value=rx.cond(AppState.formulario_paciente, AppState.formulario_paciente.ciudad, ""),
+                    on_change=AppState.actualizar_campo_paciente,
+                    placeholder="Caracas",
+                    icon="map-pin"
+                ),
+                flex="1"
             ),
-            enhanced_form_field(
-                label="Dirección Completa",
-                field_name="direccion",
-                value=rx.cond(AppState.formulario_paciente, AppState.formulario_paciente.direccion, ""),
-                on_change=AppState.actualizar_campo_paciente,
-                field_type="textarea",
-                placeholder="Calle, número, urbanización...",
-                icon="home",
-                max_length=500
+            rx.box(
+                enhanced_form_field(
+                    label="Dirección Completa",
+                    field_name="direccion",
+                    value=rx.cond(AppState.formulario_paciente, AppState.formulario_paciente.direccion, ""),
+                    on_change=AppState.actualizar_campo_paciente,
+                    field_type="textarea",
+                    placeholder="Calle, número, urbanización...",
+                    icon="home",
+                    max_length=500
+                ),
+                flex="2"
             ),
-            columns=rx.breakpoints(initial="1", sm="2"),
             spacing="4",
-            width="100%"
+            width="100%",
+            align="stretch",
+            wrap="wrap"
         ),
         
         # Contacto de emergencia
@@ -321,61 +346,46 @@ def _patient_form_step_2() -> rx.Component:
             "triangle-alert",
             COLORS["error"]["500"]
         ),
-        
-        # Nombre contacto emergencia (SOLO LETRAS - Componente genérico)
-        validated_input(
-            label="Nombre Completo",
-            field_name="contacto_emergencia_nombre",
-            value=rx.cond(AppState.formulario_paciente, AppState.formulario_paciente.contacto_emergencia_nombre, ""),
-            on_change=AppState.actualizar_campo_paciente,
-            input_type="text",
-            validation_mode="letters_only",
-            placeholder="María Pérez",
-            icon="user-check",
-            max_length=100
-        ),
-
-        # Teléfono emergencia (CÓDIGO PAÍS + NÚMERO - Componente genérico)
-        select_input_combo(
-            label="Teléfono de Emergencia",
-            field_name_select="codigo_pais_emergencia",
-            field_name_input="contacto_emergencia_telefono",
-            value_select=rx.cond(AppState.formulario_paciente, AppState.formulario_paciente.codigo_pais_emergencia, "+58 (VE)"),
-            value_input=rx.cond(AppState.formulario_paciente, AppState.formulario_paciente.contacto_emergencia_telefono, ""),
-            on_change=AppState.actualizar_campo_paciente,
-            select_options=["+58 (VE)", "+1 (US/CA)", "+52 (MX)", "+57 (CO)", "+51 (PE)", "+54 (AR)", "+56 (CL)", "+55 (BR)", "+34 (ES)"],
-            select_default="+58 (VE)",
-            input_type="number",
-            input_placeholder="4241234567",
-            icon="phone-call",
-            help_text="Disponible 24/7"
-        ),
-
         rx.grid(
+            validated_input(
+                label="Nombre Completo",
+                field_name="contacto_emergencia_nombre",
+                value=rx.cond(AppState.formulario_paciente, AppState.formulario_paciente.contacto_emergencia_nombre, ""),
+                on_change=AppState.actualizar_campo_paciente,
+                input_type="text",
+                validation_mode="letters_only",
+                placeholder="María Pérez",
+                icon="user-check",
+                max_length=100
+            ),
+            # Teléfono emergencia (CÓDIGO PAÍS + NÚMERO - Componente genérico)
+            select_input_combo(
+                label="Celular",
+                field_name_select="codigo_pais_emergencia",
+                field_name_input="contacto_emergencia_telefono",
+                value_select=rx.cond(AppState.formulario_paciente, AppState.formulario_paciente.codigo_pais_emergencia, "+58"),
+                value_input=rx.cond(AppState.formulario_paciente, f"{AppState.formulario_paciente.codigo_pais_emergencia}{AppState.formulario_paciente.contacto_emergencia_telefono}", ""),
+                on_change=AppState.actualizar_campo_paciente,
+                select_options=["+58", "+1", "+52", "+57", "+51", "+54", "+56", "+55", "+34"],
+                select_default="+58",
+                input_type="number",
+                input_placeholder="4241234567",
+                icon="phone-call",
+            ),
             enhanced_form_field(
                 label="Relación",
                 field_name="contacto_emergencia_relacion",
-                value=rx.cond(AppState.formulario_paciente, AppState.formulario_paciente.contacto_emergencia_relacion, "Familiar"),
+                value=rx.cond(AppState.formulario_paciente, AppState.formulario_paciente.contacto_emergencia_relacion, "Madre"),
                 on_change=AppState.actualizar_campo_paciente,
                 field_type="select",
                 options=["Madre", "Padre", "Esposo/a", "Hijo/a", "Hermano/a", "Familiar", "Amigo/a", "Otro"],
                 icon="heart",
-                help_text="Predeterminado: Familiar"
             ),
-            enhanced_form_field(
-                label="Dirección del Contacto",
-                field_name="contacto_emergencia_direccion",
-                value=rx.cond(AppState.formulario_paciente, AppState.formulario_paciente.contacto_emergencia_direccion, ""),
-                on_change=AppState.actualizar_campo_paciente,
-                placeholder="Dirección del contacto de emergencia",
-                icon="map-pin"
-            ),
-            columns=rx.breakpoints(initial="1", sm="2"),
+            columns=rx.breakpoints(initial="1", sm="3"),
             spacing="4",
             width="100%"
         ),
-        
-        spacing="6",
+        spacing="4",
         width="100%",
         align="stretch"
     )
@@ -428,6 +438,5 @@ def _patient_form_step_3() -> rx.Component:
         ),
         
         spacing="6",
-        width="100%",
-        align="stretch"
+        width="100%"
     )

@@ -163,13 +163,13 @@ class EstadoAuth(rx.State, mixin=True):
         - gerente → /boss
         - administrador → /admin
         - odontologo → /dentist
-        - asistente → /dentist
+        - asistente → /assistant
         """
         mapa_rutas = {
             "gerente": "/boss",
             "administrador": "/admin", 
             "odontologo": "/dentist",
-            "asistente": "/dentist"
+            "asistente": "/assistant"
         }
         
         ruta = mapa_rutas.get(self.rol_usuario, "/")

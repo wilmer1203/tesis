@@ -97,7 +97,34 @@ class EstadoPersonal(rx.State, mixin=True):
             ]
         except Exception:
             return []
-    
+
+    @rx.var(cache=True)
+    def total_personal(self) -> int:
+        """Total de empleados en el sistema"""
+        return len(self.lista_personal)
+
+    @rx.var(cache=True)
+    def total_odontologos(self) -> int:
+        """Total de odontólogos (activos e inactivos)"""
+        try:
+            return len([
+                emp for emp in self.lista_personal
+                if emp.tipo_personal == "Odontólogo"
+            ])
+        except Exception:
+            return 0
+
+    @rx.var(cache=True)
+    def total_administrativos(self) -> int:
+        """Total de personal administrativo (Gerente, Administrador, Asistente)"""
+        try:
+            return len([
+                emp for emp in self.lista_personal
+                if emp.tipo_personal in ["Gerente", "Administrador", "Asistente"]
+            ])
+        except Exception:
+            return 0
+
     # ==========================================
     # 🔄 MÉTODOS DE CARGA DE DATOS
     # ==========================================
@@ -165,8 +192,8 @@ class EstadoPersonal(rx.State, mixin=True):
     # ==========================================
     # ➕ MÉTODOS CRUD DE PERSONAL
     # ==========================================
-    
-    async def crear_empleado(self):
+
+    async def crear_personal(self):
         """
         Crear nuevo empleado con validaciones
         """
@@ -194,7 +221,7 @@ class EstadoPersonal(rx.State, mixin=True):
         finally:
             self.cargando_operacion_personal = False
     
-    async def actualizar_empleado(self):
+    async def actualizar_personal(self):
         """Actualizar empleado existente"""
 
         if not self.validar_formulario_empleado():
@@ -233,19 +260,19 @@ class EstadoPersonal(rx.State, mixin=True):
             if self.empleado_seleccionado and getattr(self.empleado_seleccionado, 'id', None):
                 # MODO EDITAR: Actualizar empleado existente
                 print(f"✏️ Modo EDITAR - Actualizando empleado {self.empleado_seleccionado.id}")
-                await self.actualizar_empleado()
+                await self.actualizar_personal()
             else:
                 # MODO CREAR: Crear nuevo empleado
                 print("➕ Modo CREAR - Creando nuevo empleado")
-                await self.crear_empleado()
+                await self.crear_personal()
 
             await self.cargar_lista_personal()  # Recargar lista para reflejar cambios
         except Exception as e:
             logger.error(f"❌ Error guardando personal: {e}")
             if hasattr(self, 'mostrar_toast_error'):
                 self.mostrar_toast_error("Error al guardar empleado")
-    
-    async def activar_desactivar_empleado(self, personal_id: str, activar: bool):
+
+    async def activar_desactivar_personal(self, personal_id: str, activar: bool):
         """
         🔄 Preparar activación o desactivación de empleado
 

@@ -147,6 +147,32 @@ class PersonalModel(rx.Base):
         return mapping.get(self.tipo_personal, "administrador")
 
     @property
+    def edad_calculada(self) -> int:
+        """Calcular edad desde fecha de nacimiento"""
+        if not self.fecha_nacimiento:
+            return 0
+
+        try:
+            from datetime import date
+            # Convertir string fecha a objeto date si es necesario
+            if isinstance(self.fecha_nacimiento, str) and self.fecha_nacimiento:
+                from datetime import datetime
+                fecha_nac = datetime.strptime(self.fecha_nacimiento, "%Y-%m-%d").date()
+            else:
+                fecha_nac = self.fecha_nacimiento
+
+            if not fecha_nac:
+                return 0
+
+            hoy = date.today()
+            edad = hoy.year - fecha_nac.year
+            if (hoy.month, hoy.day) < (fecha_nac.month, fecha_nac.day):
+                edad -= 1
+            return max(0, edad)
+        except:
+            return 0
+
+    @property
     def tipo_display(self) -> str:
         """Tipo de personal formateado"""
         tipos_map = {

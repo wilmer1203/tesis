@@ -103,6 +103,10 @@ def dentist_component(component_func: Callable) -> Callable:
     """🦷 Solo para odontólogos"""
     return protected_route(required_roles=["odontologo"])(component_func)
 
+def assistant_component(component_func: Callable) -> Callable:
+    """👩‍⚕️ Solo para asistentes"""
+    return protected_route(required_roles=["asistente"])(component_func)
+
 def authenticated_only_component(component_func: Callable) -> Callable:
     """🔐 Para cualquier usuario autenticado"""
     return protected_route()(component_func)
@@ -264,12 +268,12 @@ def can_access_route(user_role: str, required_roles: Optional[List[str]] = None)
 def get_accessible_routes(user_role: str) -> List[str]:
     """📋 Obtener rutas accesibles para un rol"""
     route_permissions = {
-        "gerente": ["/", "/boss", "/admin", "/dentist"],  # Gerente accede a todo
+        "gerente": ["/", "/boss", "/admin", "/dentist", "/assistant"],  # Gerente accede a todo
         "administrador": ["/", "/admin"],
         "odontologo": ["/", "/dentist"],
-        "asistente": ["/"]
+        "asistente": ["/", "/assistant"]
     }
-    
+
     return route_permissions.get(user_role, ["/"])
 
 # ==========================================
@@ -279,17 +283,18 @@ def get_accessible_routes(user_role: str) -> List[str]:
 __all__ = [
     # Decorador principal
     "protected_route",
-    
+
     # Decoradores por rol
     "boss_only_component",
-    "admin_or_boss_component", 
+    "admin_or_boss_component",
     "dentist_component",
+    "assistant_component",
     "authenticated_only_component",
-    
+
     # Páginas de error
     "login_required_page",
     "unauthorized_page",
-    
+
     # Utilidades
     "can_access_route",
     "get_accessible_routes"
