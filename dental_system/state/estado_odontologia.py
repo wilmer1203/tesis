@@ -154,8 +154,8 @@ class EstadoOdontologia(rx.State, mixin=True):
     new_condition_value: str = ""
     intervention_observations: str = ""
 
-    # Formulario cambio condición rápido
-    quick_surface_selected: str = ""
+    # Formulario cambio condición rápido (multi-select)
+    quick_surfaces_selected: list[str] = []
     quick_condition_value: str = ""
 
     # ==========================================
@@ -1121,6 +1121,11 @@ class EstadoOdontologia(rx.State, mixin=True):
         """Toggle modal cambiar condición"""
         self.show_change_condition_modal = not self.show_change_condition_modal
 
+        # Limpiar selecciones al cerrar el modal
+        if not self.show_change_condition_modal:
+            self.quick_surfaces_selected = []
+            self.quick_condition_value = ""
+
     def toggle_superficie_oclusal(self, checked: bool):
         """Toggle superficie oclusal"""
         self.superficie_oclusal_selected = checked
@@ -1157,9 +1162,16 @@ class EstadoOdontologia(rx.State, mixin=True):
         """Setear servicio seleccionado"""
         self.selected_service_name = value
 
-    def set_quick_surface_selected(self, value: str):
-        """Setear superficie seleccionada (cambio rápido)"""
-        self.quick_surface_selected = value
+    def toggle_quick_surface(self, surface_key: str):
+        """✅ Toggle superficie en selección múltiple"""
+        if surface_key in self.quick_surfaces_selected:
+            self.quick_surfaces_selected.remove(surface_key)
+        else:
+            self.quick_surfaces_selected.append(surface_key)
+
+    def select_all_quick_surfaces(self):
+        """✅ Seleccionar TODO EL DIENTE (5 superficies)"""
+        self.quick_surfaces_selected = ["oclusal", "mesial", "distal", "vestibular", "lingual"]
 
     def set_quick_condition(self, condition: str):
         """Setear condición (cambio rápido)"""
@@ -1308,8 +1320,8 @@ class EstadoOdontologia(rx.State, mixin=True):
                 self.mostrar_toast("Selecciona un diente", "warning")
                 return
 
-            if not self.quick_surface_selected:
-                self.mostrar_toast("Selecciona una superficie", "warning")
+            if not self.quick_surfaces_selected or len(self.quick_surfaces_selected) == 0:
+                self.mostrar_toast("Selecciona al menos una superficie", "warning")
                 return
 
             if not self.quick_condition_value:
@@ -1320,37 +1332,43 @@ class EstadoOdontologia(rx.State, mixin=True):
                 self.mostrar_toast("No hay paciente seleccionado", "error")
                 return
 
-            logger.info(f"🔄 Cambiando condición: Diente {self.selected_tooth} ({self.quick_surface_selected}) → {self.quick_condition_value}")
+            logger.info(f"🔄 Cambiando condición: Diente {self.selected_tooth} ({', '.join(self.quick_surfaces_selected)}) → {self.quick_condition_value}")
 
             # Obtener ID de intervención actual (si existe)
             intervencion_id = None
             if hasattr(self, 'intervencion_actual') and self.intervencion_actual.id:
                 intervencion_id = self.intervencion_actual.id
 
-            # Actualizar condición en BD (vinculado a intervención actual)
-            await odontologia_service.actualizar_condicion_diente(
-                paciente_id=self.paciente_actual.id,
-                diente_numero=self.selected_tooth,
-                superficie=self.quick_surface_selected,
-                nueva_condicion=self.quick_condition_value,
-                intervencion_id=intervencion_id,
-                material=None,
-                descripcion="Actualización de diagnóstico"
-            )
-
-            # Actualizar en memoria para reflejar en UI inmediatamente
+            # Inicializar diccionario de condiciones si no existe
             if self.selected_tooth not in self.condiciones_por_diente:
                 self.condiciones_por_diente[self.selected_tooth] = {}
 
-            self.condiciones_por_diente[self.selected_tooth][self.quick_surface_selected] = self.quick_condition_value
+            # Actualizar cada superficie seleccionada
+            for superficie in self.quick_surfaces_selected:
+                # Actualizar condición en BD (vinculado a intervención actual)
+                await odontologia_service.actualizar_condicion_diente(
+                    paciente_id=self.paciente_actual.id,
+                    diente_numero=self.selected_tooth,
+                    superficie=superficie,
+                    nueva_condicion=self.quick_condition_value,
+                    intervencion_id=intervencion_id,
+                    material=None,
+                    descripcion="Actualización de diagnóstico"
+                )
+
+                # Actualizar en memoria para reflejar en UI inmediatamente
+                self.condiciones_por_diente[self.selected_tooth][superficie] = self.quick_condition_value
 
             # Cerrar modal y limpiar
             self.show_change_condition_modal = False
-            self.quick_surface_selected = ""
+            self.quick_surfaces_selected = []
             self.quick_condition_value = ""
 
-            self.mostrar_toast("Condición actualizada correctamente", "success")
-            logger.info(f"✅ Condición actualizada: Diente {self.selected_tooth}")
+            # Mensaje de éxito
+            cantidad_superficies = len(self.quick_surfaces_selected) if self.quick_surfaces_selected else 0
+            mensaje = f"Condición actualizada en {cantidad_superficies} superficie(s)"
+            self.mostrar_toast(mensaje, "success")
+            logger.info(f"✅ Condición actualizada: Diente {self.selected_tooth} ({cantidad_superficies} superficies)")
 
         except Exception as e:
             logger.error(f"❌ Error cambiando condición: {str(e)}")

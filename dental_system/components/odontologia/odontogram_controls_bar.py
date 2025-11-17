@@ -1,16 +1,15 @@
 """
-🎛️ BARRA DE CONTROLES DEL ODONTOGRAMA
-======================================
+🎛️ BARRA DE CONTROLES DEL ODONTOGRAMA - VERSIÓN SIMPLIFICADA
+=============================================================
 
-DISEÑO: Barra superior con info del paciente y acciones
+DISEÑO: Barra superior minimalista con info del paciente y acción principal
 COMPONENTES:
-- Info del paciente actual
-- Botones de acción (Exportar, Imprimir)
-- Toggle para mostrar/ocultar timeline
+- Info del paciente actual (nombre + HC)
+- Botón único: "Finalizar Intervención"
 """
 
 import reflex as rx
-from dental_system.styles.medical_design_system import DARK_COLORS
+from dental_system.styles.themes import COLORS, RADIUS, SPACING, dark_crystal_card
 
 
 def odontogram_controls_bar(
@@ -20,139 +19,115 @@ def odontogram_controls_bar(
     has_odontogram_changes: bool = False,
     has_selected_services: bool = False,
     is_saving: bool = False,
-    on_save_diagnosis = None,
     on_save_intervention = None,
     on_export = None,
     on_print = None,
-    on_toggle_timeline = None,
 ) -> rx.Component:
     """
-    🎛️ BARRA DE CONTROLES SUPERIOR DEL ODONTOGRAMA V4.0
+    🎛️ BARRA DE CONTROLES SUPERIOR DEL ODONTOGRAMA V5.0 - SIMPLIFICADA
 
     Args:
         patient_name: Nombre completo del paciente
-        patient_id: Número de historia clínica
-        show_timeline: Si el timeline está visible
-        has_odontogram_changes: Si hay cambios pendientes en odontograma
+        patient_hc: Número de historia clínica
         has_selected_services: Si hay servicios seleccionados
         is_saving: Si está guardando actualmente
-        on_save_diagnosis: Callback para guardar solo diagnóstico
-        on_save_intervention: Callback para guardar intervención completa
-        on_export: Callback para exportar PDF
-        on_print: Callback para imprimir
-        on_toggle_timeline: Callback para mostrar/ocultar timeline
+        on_save_intervention: Callback para finalizar intervención completa
 
     Returns:
-        Barra de controles completa
+        Barra de controles simplificada
     """
 
-    return rx.hstack(
-        # Info del paciente
+    return rx.box(
         rx.hstack(
-            rx.icon(tag="user", size=20, color=DARK_COLORS["accent_blue"]),
-            rx.vstack(
-                rx.text(
-                    patient_name,  # Computed var ya retorna fallback
-                    font_weight="600",
-                    color=DARK_COLORS["foreground"],
-                    font_size="15px",
-                ),
-                rx.cond(
-                    patient_hc != "",
+            # Info del paciente (izquierda)
+            rx.hstack(
+                rx.icon("user", size=20, color=COLORS["primary"]["400"]),
+                rx.vstack(
                     rx.text(
-                        f"HC: {patient_hc}",
-                        font_size="12px",
-                        color=DARK_COLORS["text_secondary"],
+                        patient_name,
+                        font_weight="700",
+                        color=COLORS["gray"]["100"],
+                        size="4",
                     ),
-                    rx.text(
-                        "Seleccione un paciente",
-                        font_size="12px",
-                        color=DARK_COLORS["text_secondary"],
-                    ),
-                ),
-                spacing="0",
-                align="start",
-            ),
-            spacing="3",
-            align="center",
-        ),
-
-        rx.spacer(),
-
-        # Botones de acción
-        rx.hstack(
-            # NUEVO: Guardar solo diagnóstico
-            rx.cond(
-                has_odontogram_changes,
-                rx.button(
                     rx.cond(
-                        is_saving,
-                        rx.spinner(size="1"),
-                        rx.icon(tag="clipboard-check", size=16),
+                        patient_hc != "",
+                        rx.text(
+                            f"HC: {patient_hc}",
+                            size="2",
+                            color=COLORS["gray"]["400"],
+                        ),
+                        rx.text(
+                            "Seleccione un paciente",
+                            size="2",
+                            color=COLORS["gray"]["500"],
+                        ),
                     ),
-                    "Guardar Diagnóstico",
-                    variant="solid",
-                    color_scheme="blue",
-                    disabled=is_saving,
-                    on_click=on_save_diagnosis,
+                    spacing="0",
+                    align="start",
                 ),
+                spacing="3",
+                align="center",
             ),
 
-            # NUEVO: Finalizar intervención completa
+            rx.spacer(),
+
+            # Botón único: Finalizar Intervención (derecha)
             rx.cond(
                 has_selected_services,
                 rx.button(
-                    rx.cond(
-                        is_saving,
-                        rx.spinner(size="1"),
-                        rx.icon(tag="circle-check", size=16),
+                    rx.hstack(
+                        rx.cond(
+                            is_saving,
+                            rx.spinner(size="2", color="white"),
+                            rx.icon("circle-check", size=18, color="white"),
+                        ),
+                        rx.text(
+                            rx.cond(
+                                is_saving,
+                                "Finalizando...",
+                                "Finalizar Intervención"
+                            ),
+                            size="3",
+                            weight="bold",
+                            color="white"
+                        ),
+                        spacing="2",
+                        align="center"
                     ),
-                    "Finalizar Intervención",
-                    variant="solid",
-                    color_scheme="green",
-                    disabled=is_saving,
                     on_click=on_save_intervention,
+                    disabled=is_saving,
+                    style={
+                        "background": f"linear-gradient(135deg, {COLORS['success']['500']} 0%, {COLORS['success']['600']} 100%)",
+                        "border": "none",
+                        "border_radius": RADIUS["xl"],
+                        "padding": f"{SPACING['3']} {SPACING['5']}",
+                        "cursor": "pointer",
+                        "transition": "all 0.3s ease",
+                        "_hover": {
+                            "transform": "translateY(-2px)",
+                            "box_shadow": f"0 8px 20px {COLORS['success']['500']}40"
+                        },
+                        "_active": {
+                            "transform": "translateY(0)"
+                        }
+                    }
                 ),
+                # Mensaje cuando no hay servicios seleccionados
+                rx.text(
+                    "Seleccione servicios para finalizar",
+                    size="2",
+                    color=COLORS["gray"]["500"],
+                    style={"font_style": "italic"}
+                )
             ),
 
-            # Toggle timeline
-            rx.button(
-                rx.icon(tag="clock", size=16),
-                rx.cond(
-                    show_timeline,
-                    "Ocultar Timeline",
-                    "Timeline"
-                ),
-                variant=rx.cond(show_timeline, "solid", "outline"),
-                color_scheme="cyan",
-                on_click=on_toggle_timeline,
-            ),
-
-            # Exportar
-            rx.button(
-                rx.icon(tag="download", size=16),
-                "Exportar",
-                variant="outline",
-                on_click=on_export,
-            ),
-
-            # Imprimir
-            rx.button(
-                rx.icon(tag="printer", size=16),
-                "Imprimir",
-                variant="outline",
-                on_click=on_print,
-            ),
-
-            spacing="2",
+            # Estilos del contenedor
+            width="100%",
+            align="center",
         ),
 
-        # Estilos del contenedor
-        width="100%",
-        padding="16px 20px",
-        background=DARK_COLORS["card"],
-        border=f"1px solid {DARK_COLORS['border']}",
-        border_radius="12px",
-        margin_bottom="20px",
-        align="center",
+        **dark_crystal_card(color=COLORS["primary"]["500"], hover_lift="2px", padding=f"{SPACING['4']} {SPACING['5']}"),
+        # padding=f"{SPACING['4']} {SPACING['5']}",
+        margin_bottom=SPACING["5"],
+        width="100%"
     )
