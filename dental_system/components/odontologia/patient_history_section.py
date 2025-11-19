@@ -213,7 +213,7 @@ def patient_history_section() -> rx.Component:
                             ),
                             font_size="15px",
                             font_weight="600",
-                            color=DARK_THEME["colors"]["text_secondary"],
+                            color=DARK_THEME["colors"]["text_primary"],
                             text_align="center",
                         ),
                         rx.text(
@@ -223,7 +223,7 @@ def patient_history_section() -> rx.Component:
                                 "El paciente no tiene intervenciones previas registradas",
                             ),
                             font_size="13px",
-                            color=DARK_THEME["colors"]["text_muted"],
+                            color=DARK_THEME["colors"]["text_secondary"],
                             text_align="center",
                         ),
                         rx.cond(

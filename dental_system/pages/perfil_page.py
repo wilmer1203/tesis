@@ -194,7 +194,9 @@ def card_perfil() -> rx.Component:
         rx.vstack(
             # === GRID: 1 → 2 → 3 columnas ===
             rx.grid(
-                # COL 1: Datos Personales
+                # ══════════════════════════════════════
+                # COLUMNA 1: DATOS PERSONALES
+                # ══════════════════════════════════════
                 rx.vstack(
                     # Email (ahora visible)
                     info_field_readonly(
@@ -208,7 +210,8 @@ def card_perfil() -> rx.Component:
                     info_field_readonly(
                         "Nombre Completo",
                         AppState.formulario_perfil.get("nombre_completo", ""),
-                        icon="user"
+                        icon="user",
+                         help_text="No editable"
                     ),
 
                     # Documento de identidad
@@ -217,7 +220,8 @@ def card_perfil() -> rx.Component:
                         info_field_readonly(
                             "Documento de Identidad",
                             f"{AppState.formulario_perfil.get('tipo_documento', '')} {AppState.formulario_perfil.get('numero_documento', '')}",
-                            icon="credit-card"
+                            icon="credit-card",
+                            help_text="No editable"
                         )
                     ),
 
@@ -235,14 +239,18 @@ def card_perfil() -> rx.Component:
                     width="100%"
                 ),
 
-                # COL 2: Datos Laborales
+                # ══════════════════════════════════════
+                # COLUMNA 2: DATOS LABORALES
+                # ══════════════════════════════════════
                 rx.vstack(
+                    # Especialidad (condicional)
                     rx.cond(
                         AppState.formulario_perfil.get("especialidad", ""),
                         info_field_readonly(
                             "Especialidad",
                             AppState.formulario_perfil.get("especialidad", ""),
-                            icon="stethoscope"
+                            icon="stethoscope",
+                            help_text="Especialidad médica"
                         )
                     ),
 
@@ -353,6 +361,7 @@ def card_perfil() -> rx.Component:
                             spacing="2",
                             align="center"
                         ),
+
                         rx.text_area(
                             value=AppState.formulario_perfil.get("direccion", ""),
                             on_change=lambda v: AppState.actualizar_campo_perfil("direccion", v),
@@ -416,11 +425,17 @@ def card_perfil() -> rx.Component:
                     spacing="4",
                     width="100%"
                 ),
-
-                columns=rx.breakpoints(initial="1", sm="1", md="2", lg="3"),
+                columns=rx.breakpoints(initial="1", md="2"),  # 2 columnas balanceadas
                 spacing="6",
                 width="100%"
             ),
+            spacing="6",
+            width="100%"
+        ),
+        **dark_crystal_card(color=COLORS["primary"]["500"], hover_lift="4px"),
+        width="100%"
+    )
+
 
             # === BOTONES DE GUARDAR/CANCELAR ===
             rx.hstack(
@@ -452,9 +467,9 @@ def card_perfil() -> rx.Component:
                         align="center"
                     )
                 ),
-                width="100%",
-                justify="start",
-                margin_top="5"
+
+                spacing="4",
+                align="center"
             ),
 
             # === SECCIÓN DE SEGURIDAD MEJORADA ===
@@ -582,7 +597,7 @@ def card_perfil() -> rx.Component:
             spacing="6",
             width="100%"
         ),
-        **dark_crystal_card(color=COLORS["primary"]["500"], hover_lift="4px"),
+        **dark_crystal_card(color=COLORS["warning"]["500"], hover_lift="4px"),
         width="100%"
     )
 
@@ -598,12 +613,14 @@ def perfil_page() -> rx.Component:
 
         medical_page_layout(
             rx.vstack(
-                # Header
-                page_header(
-                    "Mi Perfil",
-                    "Gestiona tu información personal y preferencias del sistema",
-                    actions=[]
-                ),
+                # Header con avatar, info y botones
+                perfil_header(),
+
+                # Card de datos personales/laborales
+                card_perfil_datos(),
+
+                # Card de seguridad (separado)
+                card_seguridad(),
 
                 # Cargar datos al montar
                 rx.moment(on_mount=AppState.cargar_datos_perfil),
@@ -625,5 +642,7 @@ def perfil_page() -> rx.Component:
 
         # Modales
         modal_cambiar_password(),
-        modal_cambiar_email()
+        modal_cambiar_email(),
+
+        on_mount=AppState.cargar_datos_perfil()
     )

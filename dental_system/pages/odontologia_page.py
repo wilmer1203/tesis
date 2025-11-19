@@ -59,7 +59,10 @@ def medical_scrollable_content_v2() -> dict:
         "scrollbar_width": "thin",
         "scrollbar_color": f"{DARK_THEME['colors']['accent']} {DARK_THEME['colors']['surface']}",
         # ✅ Scroll behavior suave
-        "scroll_behavior": "smooth"
+        "scroll_behavior": "smooth",
+        "width": "100%",
+        "align_items": "stretch",
+        "height": "90%"
     }
 
 # ==========================================
@@ -184,9 +187,9 @@ def odontologia_page() -> rx.Component:
                     # Header mejorado con estadísticas integradas
                     rx.vstack(
                         seccion_header(
-                            titulo="🩺 Mi Cola de Atención",
+                            titulo="Mi Cola de Atención",
                             cantidad=AppState.estadisticas_odontologo_tiempo_real["pacientes_asignados"],
-                            icono="🦷",
+                            icono="stethoscope",
                             color="blue"
                         ),
                         spacing="3",
@@ -212,9 +215,9 @@ def odontologia_page() -> rx.Component:
                 rx.vstack(
                     # Header de sección
                     seccion_header(
-                        titulo="📋 Pacientes Disponibles",
+                        titulo="Pacientes Disponibles",
                         cantidad=AppState.estadisticas_odontologo_tiempo_real["pacientes_disponibles"],
-                        icono="🔄",
+                        icono="users-switch",
                         color="success"
                     ),
 

@@ -18,7 +18,7 @@ from dental_system.state.app_state import AppState
 from dental_system.models import PacienteModel, ConsultaModel
 from dental_system.components.common import primary_button, secondary_button
 from dental_system.styles.themes import COLORS, SHADOWS, RADIUS, SPACING, GRADIENTS, ANIMATIONS
-
+from dental_system.components.table_components import  empty_state
 # ==========================================
 # 🎨 ESTILOS PARA TARJETAS DE CONSULTA - TEMA OSCURO
 # ==========================================
@@ -420,34 +420,10 @@ def lista_consultas_compactas() -> rx.Component:
             spacing="2",
             width="100%"
         ),
-        # Estado vacío con tema oscuro
-        rx.center(
-            rx.vstack(
-                rx.icon("calendar-x", size=40, color=DARK_COLORS["text_muted"]),
-                rx.text(
-                    "No hay pacientes en cola",
-                    color=DARK_COLORS["text_muted"],
-                    font_size="1rem",
-                    font_weight="600",
-                    style={"text_align": "center"}
-                ),
-                rx.text(
-                    "La cola está vacía en este momento",
-                    color=DARK_COLORS["text_muted"],
-                    font_size="0.875rem",
-                    style={"text_align": "center", "opacity": "0.7"}
-                ),
-                spacing="3",
-                align="center"
-            ),
-            padding="8",
-            width="100%",
-            style={
-                "background": DARK_COLORS["glass_bg"],
-                "border": f"1px solid {DARK_COLORS['glass_border']}",
-                "border_radius": RADIUS["xl"],
-                "backdrop_filter": "blur(10px)"
-            }
+        empty_state(
+            "No hay pacientes en cola",
+            "La cola está vacía en este momento",
+            "calendar-x"
         )
     )
 
@@ -470,32 +446,12 @@ def lista_consultas_disponibles() -> rx.Component:
         ),
         # Estado vacío con tema oscuro
         rx.center(
-            rx.vstack(
-                rx.icon("users", size=40, color=DARK_COLORS["text_muted"]),
-                rx.text(
-                    "No hay consultas disponibles",
-                    color=DARK_COLORS["text_muted"],
-                    font_size="1rem",
-                    font_weight="600",
-                    style={"text_align": "center"}
-                ),
-                rx.text(
-                    "Consultas derivadas de otros odontólogos aparecerán aquí",
-                    color=DARK_COLORS["text_muted"],
-                    font_size="0.875rem",
-                    style={"text_align": "center", "opacity": "0.7"}
-                ),
-                spacing="3",
-                align="center"
+            empty_state(
+                "No hay pacientes en cola",
+                "La cola está vacía en este momento",
+                "calendar-x"
             ),
-            padding="8",
-            width="100%",
-            style={
-                "background": DARK_COLORS["glass_bg"],
-                "border": f"1px solid {DARK_COLORS['glass_border']}",
-                "border_radius": RADIUS["xl"],
-                "backdrop_filter": "blur(10px)"
-            }
+            width="100%"
         )
     )
 
@@ -516,16 +472,14 @@ def seccion_header(titulo: str, cantidad: rx.Var, icono: str, color: str = "gray
     }
     
     badge_color = color_mapping.get(color, color)
-    text_color = COLORS.get(color, COLORS["gray"]["700"])
-    
     return rx.hstack(
         rx.hstack(
-            rx.text(icono, font_size="20px"),
+            rx.icon(icono, font_size="20px", color= COLORS["gray"]["25"]),
             rx.text(
                 titulo,
                 font_size="18px",
                 font_weight="bold",
-                color=text_color
+                color= COLORS["gray"]["25"]
             ),
             spacing="2",
             align_items="center"

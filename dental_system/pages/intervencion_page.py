@@ -88,102 +88,6 @@ def clean_page_header_intervencion() -> rx.Component:
         width="100%"
     )
 
-def stats_intervencion() -> rx.Component:
-    """📊 Stats de intervención aplicando patrón minimal_stat_card"""
-    return rx.grid(
-        # Paciente actual
-        rx.box(
-            rx.vstack(
-                rx.hstack(
-                    rx.icon("user", size=20, color=COLORS["primary"]["400"]),
-                    rx.vstack(
-                        rx.text(
-                            AppState.paciente_actual.nombre_completo,
-                            font_weight="700",
-                            size="4",
-                            color=DARK_THEME["colors"]["text_primary"]
-                        ),
-                        rx.text(
-                            f"HC: {AppState.paciente_actual.numero_historia}",
-                            size="2",
-                            color=DARK_THEME["colors"]["text_secondary"]
-                        ),
-                        spacing="1",
-                        align_items="start"
-                    ),
-                    spacing="3",
-                    align_items="center"
-                ),
-                spacing="2",
-                width="100%"
-            ),
-            style=dark_crystal_card(color=COLORS["primary"]["500"], hover_lift="4px")
-        ),
-        
-        # Estado consulta
-        rx.box(
-            rx.vstack(
-                rx.hstack(
-                    rx.icon("activity", size=20, color=COLORS["success"]["400"]),
-                    rx.vstack(
-                        rx.text(
-                            "Estado: En Atención",
-                            font_weight="700",
-                            size="4",
-                            color=DARK_THEME["colors"]["text_primary"]
-                        ),
-                        rx.text(
-                            f"Consulta: {AppState.consulta_actual.numero_consulta}",
-                            size="2",
-                            color=DARK_THEME["colors"]["text_secondary"]
-                        ),
-                        spacing="1",
-                        align_items="start"
-                    ),
-                    spacing="3",
-                    align_items="center"
-                ),
-                spacing="2",
-                width="100%"
-            ),
-            style=dark_crystal_card(color=COLORS["success"]["500"], hover_lift="4px")
-        ),
-        
-        # Tab activo
-        rx.box(
-            rx.vstack(
-                rx.hstack(
-                    rx.icon("clipboard-list", size=20, color=COLORS["warning"]["500"]),
-                    rx.vstack(
-                        rx.text(
-                            AppState.active_intervention_tab.capitalize(),
-                            font_weight="700",
-                            size="4",
-                            color=DARK_THEME["colors"]["text_primary"]
-                        ),
-                        rx.text(
-                            "Sección Activa",
-                            size="2",
-                            color=DARK_THEME["colors"]["text_secondary"]
-                        ),
-                        spacing="1",
-                        align_items="start"
-                    ),
-                    spacing="3",
-                    align_items="center"
-                ),
-                spacing="2",
-                width="100%"
-            ),
-            style=dark_crystal_card(color=COLORS["warning"]["500"], hover_lift="4px")
-        ),
-        
-        columns=rx.breakpoints(initial="1", sm="2", lg="3"),
-        spacing="4",
-        width="100%",
-        margin_bottom="6"
-    )
-
 # ==========================================
 # 🦷 V4.0 - TAB ODONTOGRAMA PROFESIONAL
 # ==========================================
@@ -259,17 +163,11 @@ def odontogram_tab_v4() -> rx.Component:
         width="100%"
     )
 
-def panel_paciente_enterprise() -> rx.Component:
-    """👤 Panel paciente con diseño enterprise"""
-    return rx.box(
-        panel_informacion_paciente(),
-        style={
-            **dark_crystal_card(color=COLORS["primary"]["500"], hover_lift="6px"),
-            "height": "fit-content",
-            "min_height": "500px"
-        },
-        width="100%"
-    )
+# ==========================================
+# ✅ ELIMINADO: panel_paciente_enterprise() (double wrapper)
+# Ahora se usa directamente panel_informacion_paciente()
+# que ya tiene dark_crystal_card integrado
+# ==========================================
 
 # ==========================================
 # 📄 PÁGINA PRINCIPAL ENTERPRISE REDESIGNED
@@ -300,13 +198,10 @@ def intervencion_page_v2() -> rx.Component:
                         ),
                     ]
                 ),
-                # Stats cards aplicando patrón minimal_stat_card
-                stats_intervencion(),
-
                 # Layout principal responsive
                 rx.grid(
-                    # Panel paciente (sidebar)
-                    panel_paciente_enterprise(),
+                    # Panel paciente (sidebar) - SIN wrapper redundante
+                    panel_informacion_paciente(),
 
                     # 🚀 V4.0 - Panel central con ODONTOGRAMA PROFESIONAL
                     # Reemplaza intervention_tabs_integrated() por odontogram_tab_v4()
